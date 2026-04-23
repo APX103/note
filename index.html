@@ -5,21 +5,208 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Notes</title>
 <style>
-body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; max-width: 640px; margin: 80px auto; padding: 0 20px; color: #1a1a1a; }
-h1 { font-size: 1.5em; margin-bottom: 32px; }
-ul { list-style: none; padding: 0; }
-li { margin-bottom: 12px; }
-a { text-decoration: none; color: #0969da; font-size: 1.1em; }
-a:hover { text-decoration: underline; }
+    :root {
+        --bg: #0f0f12;
+        --surface: #1a1a1f;
+        --surface-hover: #222228;
+        --text: #e8e8ec;
+        --text-secondary: #9ca3af;
+        --accent: #6366f1;
+        --accent-glow: rgba(99, 102, 241, 0.15);
+        --accent-2: #8b5cf6;
+        --border: rgba(255,255,255,0.06);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.7;
+        -webkit-font-smoothing: antialiased;
+        min-height: 100vh;
+    }
+
+    .bg-glow {
+        position: fixed;
+        width: 500px; height: 500px;
+        border-radius: 50%;
+        background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+        top: -150px; right: -150px;
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    .bg-glow-2 {
+        position: fixed;
+        width: 400px; height: 400px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(139, 92, 246, 0.08) 0%, transparent 70%);
+        bottom: -100px; left: -100px;
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    .container {
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 0 24px;
+        position: relative;
+        z-index: 1;
+    }
+
+    .hero {
+        padding: 100px 0 60px;
+    }
+
+    .hero h1 {
+        font-size: 2.2em;
+        font-weight: 700;
+        background: linear-gradient(135deg, var(--text) 0%, var(--accent) 50%, var(--accent-2) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 12px;
+    }
+
+    .hero p {
+        color: var(--text-secondary);
+        font-size: 1.05em;
+    }
+
+    .grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 16px;
+        padding-bottom: 80px;
+    }
+
+    .card {
+        display: block;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 28px 32px;
+        text-decoration: none;
+        color: inherit;
+        transition: all 0.25s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .card::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0;
+        width: 3px; height: 100%;
+        background: linear-gradient(180deg, var(--accent), var(--accent-2));
+        opacity: 0;
+        transition: opacity 0.25s ease;
+    }
+
+    .card:hover {
+        background: var(--surface-hover);
+        border-color: rgba(99, 102, 241, 0.2);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+    }
+
+    .card:hover::before {
+        opacity: 1;
+    }
+
+    .card-title {
+        font-size: 1.15em;
+        font-weight: 600;
+        color: var(--text);
+        margin-bottom: 6px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .card-title .arrow {
+        color: var(--accent);
+        opacity: 0;
+        transform: translateX(-4px);
+        transition: all 0.25s ease;
+        font-size: 0.9em;
+    }
+
+    .card:hover .card-title .arrow {
+        opacity: 1;
+        transform: translateX(0);
+    }
+
+    .card-desc {
+        color: var(--text-secondary);
+        font-size: 0.9em;
+    }
+
+    .tag {
+        display: inline-block;
+        font-size: 0.72em;
+        padding: 2px 8px;
+        border-radius: 6px;
+        background: rgba(99, 102, 241, 0.1);
+        color: var(--accent);
+        font-weight: 500;
+    }
+
+    .footer {
+        padding: 30px 0;
+        border-top: 1px solid var(--border);
+        text-align: center;
+        color: var(--text-secondary);
+        font-size: 0.82em;
+    }
+
+    .footer a {
+        color: var(--accent);
+        text-decoration: none;
+    }
+
+    @media (max-width: 600px) {
+        .hero { padding: 60px 0 40px; }
+        .hero h1 { font-size: 1.6em; }
+        .card { padding: 20px 24px; }
+    }
 </style>
 </head>
 <body>
-<h1>Notes</h1>
-<ul>
-<li><a href="AI时代工程师价值重构指南.html">AI时代工程师价值重构指南</a></li>
-<li><a href="PrFaaS_learning_roadmap.html">PrFaaS Learning Roadmap</a></li>
-<li><a href="agent_architecture_guide.html">Agent Architecture Guide</a></li>
-<li><a href="moe_architecture_guide.html">MoE Architecture Guide</a></li>
-</ul>
+<div class="bg-glow"></div>
+<div class="bg-glow-2"></div>
+
+<div class="container">
+    <div class="hero">
+        <h1>Notes</h1>
+        <p>技术学习笔记与深度解析</p>
+    </div>
+
+    <div class="grid">
+        <a class="card" href="AI时代工程师价值重构指南.html">
+            <div class="card-title"><span class="arrow">&rarr;</span> AI时代工程师价值重构指南</div>
+            <div class="card-desc"><span class="tag">职业发展</span> 探讨 AI 时代下工程师如何重构自身价值与核心竞争力</div>
+        </a>
+        <a class="card" href="PrFaaS_learning_roadmap.html">
+            <div class="card-title"><span class="arrow">&rarr;</span> PrFaaS 架构师学习路线图</div>
+            <div class="card-desc"><span class="tag">推理服务</span> 从前后端开发到万亿参数推理服务的完整学习路径</div>
+        </a>
+        <a class="card" href="agent_architecture_guide.html">
+            <div class="card-title"><span class="arrow">&rarr;</span> Agent 架构深度解析</div>
+            <div class="card-desc"><span class="tag">AI Agent</span> 从 Single Agent 到 Agent Swarm 的架构演进与实践</div>
+        </a>
+        <a class="card" href="moe_architecture_guide.html">
+            <div class="card-title"><span class="arrow">&rarr;</span> MoE 架构与 Kimi K2.6 深度解析</div>
+            <div class="card-desc"><span class="tag">模型架构</span> Mixture of Experts 架构原理及 Kimi K2.6 实现细节</div>
+        </a>
+    </div>
+
+    <div class="footer">
+        <a href="https://github.com/APX103/note">GitHub</a>
+    </div>
+</div>
+
 </body>
 </html>
