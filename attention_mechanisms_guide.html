@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>高效注意力机制深度解析：MLA / GQA / SWA 及前沿架构</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/bash.min.js"></script>
+    <style type="text/tailwindcss">
+        @layer base {
+            body {
+                font-family: 'Inter', 'Noto Sans SC', system-ui, sans-serif;
+                background-color: #0a0a0f;
+                color: #e2e8f0;
+            }
+            h1, h2, h3, h4 {
+                font-family: 'Noto Sans SC', 'Inter', sans-serif;
+            }
+        }
+        @layer components {
+            .gradient-text {
+                background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 50%, #f472b6 100%);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                background-clip: text;
+            }
+            .glass-card {
+                background: rgba(15, 23, 42, 0.6);
+                backdrop-filter: blur(12px);
+                border: 1px solid rgba(148, 163, 184, 0.1);
+            }
+            .neon-border {
+                box-shadow: 0 0 20px rgba(96, 165, 250, 0.15), inset 0 0 20px rgba(96, 165, 250, 0.05);
+            }
+            .math-block {
+                font-family: 'KaTeX_Math', 'Times New Roman', serif;
+                background: rgba(30, 41, 59, 0.5);
+                border-left: 3px solid #60a5fa;
+            }
+            .toc-link {
+                transition: all 0.3s ease;
+            }
+            .toc-link:hover {
+                color: #60a5fa;
+                padding-left: 1rem;
+            }
+            .section-divider {
+                height: 1px;
+                background: linear-gradient(90deg, transparent, rgba(96, 165, 250, 0.3), transparent);
+            }
+            .tag {
+                @apply px-3 py-1 rounded-full text-xs font-medium;
+            }
+            .tag-primary { @apply bg-blue-500/20 text-blue-300 border border-blue-500/30; }
+            .tag-purple { @apply bg-purple-500/20 text-purple-300 border border-purple-500/30; }
+            .tag-green { @apply bg-emerald-500/20 text-emerald-300 border border-emerald-500/30; }
+            .tag-orange { @apply bg-orange-500/20 text-orange-300 border border-orange-500/30; }
+            .tag-red { @apply bg-red-500/20 text-red-300 border border-red-500/30; }
+            .comparison-table th {
+                @apply bg-slate-800/80 text-slate-300 font-semibold;
+            }
+            .comparison-table td {
+                @apply border-b border-slate-700/50;
+            }
+            .comparison-table tr:hover td {
+                @apply bg-slate-800/40;
+            }
+            .paper-card {
+                transition: transform 0.3s ease, box-shadow 0.3s ease;
+            }
+            .paper-card:hover {
+                transform: translateY(-4px);
+                box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+            }
+            .architecture-flow {
+                position: relative;
+            }
+            .architecture-flow::before {
+                content: '';
+                position: absolute;
+                left: 50%;
+                top: 0;
+                bottom: 0;
+                width: 2px;
+                background: linear-gradient(180deg, #60a5fa, #a78bfa, #f472b6);
+                transform: translateX(-50%);
+            }
+            .scroll-indicator {
+                position: fixed;
+                top: 0;
+                left: 0;
+                height: 3px;
+                background: linear-gradient(90deg, #60a5fa, #a78bfa);
+                z-index: 100;
+                transition: width 0.1s;
+            }
+        }
+    </style>
+</head>
+<body class="antialiased overflow-x-hidden">
+    <div class="scroll-indicator" id="scrollBar"></div>
+
+    <!-- Hero Section -->
+    <header class="relative min-h-screen flex items-center justify-center overflow-hidden">
+        <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-slate-900 via-[#0a0a0f] to-black"></div>
+        <div class="absolute inset-0 opacity-20">
+            <div class="absolute top-20 left-20 w-72 h-72 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl animate-pulse"></div>
+            <div class="absolute bottom-20 right-20 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl animate-pulse" style="animation-delay: 1s;"></div>
+            <div class="absolute top-1/2 left-1/2 w-72 h-72 bg-pink-500 rounded-full mix-blend-multiply filter blur-3xl animate-pulse" style="animation-delay: 2s;"></div>
+        </div>
+
+        <div class="relative z-10 text-center px-6 max-w-5xl mx-auto">
+            <div class="mb-6 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-800/50 border border-slate-700/50 text-sm text-slate-400">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                2024-2025 前沿架构全景
+            </div>
+            <h1 class="text-5xl md:text-7xl font-bold mb-6 leading-tight">
+                <span class="gradient-text">高效注意力机制</span><br>
+                <span class="text-slate-200">深度解析与前沿架构</span>
+            </h1>
+            <p class="text-xl md:text-2xl text-slate-400 mb-10 max-w-3xl mx-auto leading-relaxed">
+                从 MLA / GQA / SWA 到 NSA / DSA / RWKV-7 / 扩散语言模型<br>
+                系统梳理 Transformer 时代的注意力进化史
+            </p>
+            <div class="flex flex-wrap justify-center gap-4">
+                <a href="#core-mechanisms" class="px-8 py-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium transition-all hover:scale-105 shadow-lg shadow-blue-500/25">
+                    核心机制解析
+                </a>
+                <a href="#frontier" class="px-8 py-3 rounded-lg glass-card hover:bg-slate-800/80 text-slate-300 font-medium transition-all hover:scale-105">
+                    前沿架构探索
+                </a>
+            </div>
+        </div>
+
+        <div class="absolute bottom-10 left-1/2 transform -translate-x-1/2 animate-bounce">
+            <svg class="w-6 h-6 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
+            </svg>
+        </div>
+    </header>
+
+    <!-- Table of Contents -->
+    <nav class="sticky top-0 z-50 glass-card border-b border-slate-800/50 backdrop-blur-xl">
+        <div class="max-w-7xl mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <span class="font-bold text-slate-200">目录导航</span>
+                <div class="hidden md:flex gap-6 text-sm">
+                    <a href="#core-mechanisms" class="toc-link text-slate-400 hover:text-blue-400">核心三剑客</a>
+                    <a href="#frontier" class="toc-link text-slate-400 hover:text-blue-400">前沿架构</a>
+                    <a href="#comparison" class="toc-link text-slate-400 hover:text-blue-400">对比分析</a>
+                    <a href="#papers" class="toc-link text-slate-400 hover:text-blue-400">关键论文</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-6 py-16 space-y-24">
+
+        <!-- Section 1: Core Mechanisms -->
+        <section id="core-mechanisms" class="space-y-12">
+            <div class="text-center mb-16">
+                <h2 class="text-4xl font-bold mb-4 gradient-text">核心三剑客：MLA / GQA / SWA</h2>
+                <p class="text-slate-400 text-lg max-w-2xl mx-auto">2020-2024年奠定高效注意力基础的三类核心机制，分别优化KV Cache、内存平衡与计算复杂度</p>
+            </div>
+
+            <!-- Overview Table -->
+            <div class="glass-card rounded-2xl p-8 neon-border overflow-hidden">
+                <h3 class="text-2xl font-bold mb-6 text-slate-200">机制概览对比</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full comparison-table text-left">
+                        <thead>
+                            <tr class="border-b border-slate-700">
+                                <th class="py-4 px-4">机制</th>
+                                <th class="py-4 px-4">全称</th>
+                                <th class="py-4 px-4">核心思想</th>
+                                <th class="py-4 px-4">优化目标</th>
+                                <th class="py-4 px-4">代表模型</th>
+                                <th class="py-4 px-4">年份</th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-slate-300">
+                            <tr>
+                                <td class="py-4 px-4 font-semibold text-blue-400">MLA</td>
+                                <td class="py-4 px-4">Multi-head Latent Attention</td>
+                                <td class="py-4 px-4">低秩联合压缩KV为潜向量，矩阵吸收避免解压</td>
+                                <td class="py-4 px-4">KV Cache压缩 + 推理带宽</td>
+                                <td class="py-4 px-4">DeepSeek-V2/V3, Kimi K2</td>
+                                <td class="py-4 px-4">2024</td>
+                            </tr>
+                            <tr>
+                                <td class="py-4 px-4 font-semibold text-purple-400">GQA</td>
+                                <td class="py-4 px-4">Grouped-Query Attention</td>
+                                <td class="py-4 px-4">查询头分组共享KV头</td>
+                                <td class="py-4 px-4">KV Cache内存与质量平衡</td>
+                                <td class="py-4 px-4">LLaMA 2/3, Mistral, Gemma</td>
+                                <td class="py-4 px-4">2023</td>
+                            </tr>
+                            <tr>
+                                <td class="py-4 px-4 font-semibold text-emerald-400">SWA</td>
+                                <td class="py-4 px-4">Sliding Window Attention</td>
+                                <td class="py-4 px-4">限制注意力为固定局部窗口</td>
+                                <td class="py-4 px-4">O(N²)→O(N·k)复杂度</td>
+                                <td class="py-4 px-4">Mistral, Longformer, Gemma2</td>
+                                <td class="py-4 px-4">2020</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- MLA Deep Dive -->
+            <div class="space-y-6">
+                <div class="flex items-center gap-4 mb-2">
+                    <div class="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                        <span class="text-2xl font-bold text-blue-400">1</span>
+                    </div>
+                    <h3 class="text-3xl font-bold text-slate-200">MLA：多头潜注意力</h3>
+                    <span class="tag tag-primary">DeepSeek 2024</span>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-8">
+                    <div class="space-y-4">
+                        <p class="text-slate-300 leading-relaxed">
+                            MLA由<strong class="text-blue-400">DeepSeek团队</strong>在2024年提出，核心创新在于<strong>低秩KV联合压缩</strong>。与传统MHA为每个头存储独立KV对不同，MLA将输入通过低秩投影压缩为单一潜向量 c^{KV}，在推理时仅缓存该潜向量而非完整KV Cache。
+                        </p>
+                        <div class="math-block p-4 rounded-lg">
+                            <p class="text-sm text-slate-400 mb-2">简化数学表达：</p>
+                            <code class="text-blue-300">o_t = Softmax((x_t W_q W_k^T) c_{&lt;=t}^T) · c_{&lt;=t} · (W_v W_o)</code>
+                        </div>
+                        <p class="text-slate-300 leading-relaxed">
+                            关键技术是<strong class="text-blue-400">矩阵吸收（Absorb）</strong>：在解码阶段，将KV的上投影矩阵分别吸收进查询矩阵和输出矩阵中，使得注意力计算直接在潜空间完成，无需显式解压。
+                        </p>
+                    </div>
+                    <div class="glass-card rounded-xl p-6 space-y-4">
+                        <h4 class="font-semibold text-slate-200">演进与变体</h4>
+                        <ul class="space-y-3 text-slate-300">
+                            <li class="flex items-start gap-3">
+                                <span class="w-1.5 h-1.5 rounded-full bg-blue-400 mt-2 shrink-0"></span>
+                                <span><strong>DeepSeek-V2/V3</strong>：首次引入，KV Cache压缩至约4.5d_h每token</span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="w-1.5 h-1.5 rounded-full bg-blue-400 mt-2 shrink-0"></span>
+                                <span><strong>FlashMLA/ThunderMLA</strong>：专用内核优化，解决与FlashAttention兼容性问题</span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="w-1.5 h-1.5 rounded-full bg-blue-400 mt-2 shrink-0"></span>
+                                <span><strong>EG-MLA</strong>：引入嵌入门控机制，实现token级自适应调制</span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="w-1.5 h-1.5 rounded-full bg-blue-400 mt-2 shrink-0"></span>
+                                <span><strong>TransMLA</strong>：将预训练GQA模型迁移至MLA架构，无需从头训练</span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="w-1.5 h-1.5 rounded-full bg-blue-400 mt-2 shrink-0"></span>
+                                <span><strong>X-EcoMLA</strong>：SVD初始化和知识蒸馏，极端KV压缩（6.4×）且零性能损失</span>
+                            </li>
+                        </ul>
+                        <div class="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+                            <p class="text-sm text-red-300"><strong>⚠️ 局限性：</strong>MLA的单一潜头设计不利于张量并行（Tensor Parallelism），且位置编码需解耦处理（如RoPE）以避免破坏压缩路径。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-divider"></div>
+
+            <!-- GQA Deep Dive -->
+            <div class="space-y-6">
+                <div class="flex items-center gap-4 mb-2">
+                    <div class="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center">
+                        <span class="text-2xl font-bold text-purple-400">2</span>
+                    </div>
+                    <h3 class="text-3xl font-bold text-slate-200">GQA：分组查询注意力</h3>
+                    <span class="tag tag-purple">Google 2023</span>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-8">
+                    <div class="space-y-4">
+                        <p class="text-slate-300 leading-relaxed">
+                            GQA由<strong class="text-purple-400">Ainslie等人</strong>于2023年提出，是MQA（Multi-Query Attention, 2019）的泛化形式。它将查询头划分为若干组，每组共享一个KV头，在MHA（每组独立KV）和MQA（全局共享单个KV）之间建立连续谱系。
+                        </p>
+                        <div class="glass-card rounded-xl p-5">
+                            <h4 class="font-semibold text-slate-200 mb-3">形式化定义</h4>
+                            <div class="space-y-2 text-slate-300">
+                                <div class="flex justify-between items-center p-2 bg-slate-800/50 rounded">
+                                    <span><strong>MHA</strong></span>
+                                    <span class="text-sm">GQA特例：每组仅1个查询头（独立KV投影）</span>
+                                </div>
+                                <div class="flex justify-between items-center p-2 bg-slate-800/50 rounded">
+                                    <span><strong>MQA</strong></span>
+                                    <span class="text-sm">GQA极端：所有查询共享1个KV头</span>
+                                </div>
+                                <div class="flex justify-between items-center p-2 bg-purple-500/10 rounded border border-purple-500/20">
+                                    <span><strong>GQA</strong></span>
+                                    <span class="text-sm">中间态：N组共享N个KV头</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="glass-card rounded-xl p-6 space-y-4">
+                        <h4 class="font-semibold text-slate-200">实际应用配置</h4>
+                        <ul class="space-y-3 text-slate-300">
+                            <li class="flex items-start gap-3">
+                                <span class="w-1.5 h-1.5 rounded-full bg-purple-400 mt-2 shrink-0"></span>
+                                <span><strong>LLaMA 2 70B</strong>：64个查询头分为8组，每组8个查询共享1个KV头</span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="w-1.5 h-1.5 rounded-full bg-purple-400 mt-2 shrink-0"></span>
+                                <span><strong>Mistral 7B</strong>：结合GQA与SWA，在保持质量的同时降低解码内存</span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="w-1.5 h-1.5 rounded-full bg-purple-400 mt-2 shrink-0"></span>
+                                <span><strong>Gemma 2</strong>：部分层采用SWA，其余使用GQA平衡效率与性能</span>
+                            </li>
+                        </ul>
+                        <div class="mt-4 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                            <p class="text-sm text-yellow-300"><strong>💡 2025新发现：</strong>常用GQA配置在长上下文场景下并非成本最优，非均匀头分配策略（如AsymGQA）可进一步提升效率。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-divider"></div>
+
+            <!-- SWA Deep Dive -->
+            <div class="space-y-6">
+                <div class="flex items-center gap-4 mb-2">
+                    <div class="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+                        <span class="text-2xl font-bold text-emerald-400">3</span>
+                    </div>
+                    <h3 class="text-3xl font-bold text-slate-200">SWA：滑动窗口注意力</h3>
+                    <span class="tag tag-green">Allen AI 2020</span>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-8">
+                    <div class="space-y-4">
+                        <p class="text-slate-300 leading-relaxed">
+                            SWA最早由<strong class="text-emerald-400">Longformer（Beltagy et al., 2020）</strong>系统提出，核心思想是<strong>局部性假设</strong>：每个token仅关注其邻域窗口 [i-k/2, i+k/2] 内的token，将复杂度从 O(N^2) 降至 O(N · k)。
+                        </p>
+                        <div class="glass-card rounded-xl p-5">
+                            <h4 class="font-semibold text-slate-200 mb-3">关键变体演进</h4>
+                            <div class="space-y-3 text-slate-300 text-sm">
+                                <div class="flex items-center gap-3">
+                                    <span class="tag tag-green">基础</span>
+                                    <span>固定窗口局部注意力</span>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <span class="tag tag-green">空洞</span>
+                                    <span>间隔采样扩大感受野</span>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <span class="tag tag-green">混合</span>
+                                    <span>全局token + 局部注意力（Longformer, BigBird）</span>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <span class="tag tag-green">BSWA</span>
+                                    <span>分块缓存避免每步内存分配</span>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <span class="tag tag-green">SWAT</span>
+                                    <span>结合sigmoid激活与平衡位置编码稳定训练（2025）</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="glass-card rounded-xl p-6 space-y-4">
+                        <h4 class="font-semibold text-slate-200">实际部署策略</h4>
+                        <ul class="space-y-3 text-slate-300">
+                            <li class="flex items-start gap-3">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-2 shrink-0"></span>
+                                <span><strong>Mistral系列</strong>：交替使用SWA与全局注意力，7B模型实现高效长上下文推理</span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-2 shrink-0"></span>
+                                <span><strong>Gemma 2</strong>：仅在一半层使用SWA，其余层保持全注意力以平衡质量</span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-2 shrink-0"></span>
+                                <span><strong>StreamingLLM</strong>：结合SWA与注意力汇聚（Attention Sink）机制，稳定长序列损失</span>
+                            </li>
+                        </ul>
+                        <div class="mt-4 p-3 bg-orange-500/10 border border-orange-500/20 rounded-lg">
+                            <p class="text-sm text-orange-300"><strong>⚠️ 局限：</strong>纯SWA无法捕获窗口外的长距离依赖，现代架构普遍采用<strong>混合模式</strong>：SWA处理局部上下文，辅以全局token或稀疏模式捕获远距离信息。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 2: Frontier Architectures -->
+        <section id="frontier" class="space-y-12">
+            <div class="text-center mb-16">
+                <h2 class="text-4xl font-bold mb-4 gradient-text">前沿架构：超越注意力</h2>
+                <p class="text-slate-400 text-lg max-w-2xl mx-auto">2024-2025年范式级突破：从稀疏注意力到状态空间模型，从线性RNN到扩散语言模型</p>
+            </div>
+
+            <!-- Architecture Timeline -->
+            <div class="relative architecture-flow space-y-12 pl-8 md:pl-0">
+
+                <!-- NSA -->
+                <div class="relative md:grid md:grid-cols-2 md:gap-12 items-center">
+                    <div class="hidden md:block absolute left-1/2 top-1/2 w-4 h-4 rounded-full bg-blue-500 transform -translate-x-1/2 -translate-y-1/2 z-10 shadow-lg shadow-blue-500/50"></div>
+                    <div class="md:text-right md:pr-12">
+                        <div class="glass-card rounded-2xl p-8 neon-border paper-card">
+                            <div class="flex items-center gap-3 mb-4 md:justify-end">
+                                <span class="tag tag-primary">DeepSeek 2025</span>
+                                <h3 class="text-2xl font-bold text-slate-200">NSA</h3>
+                            </div>
+                            <p class="text-lg font-medium text-blue-400 mb-3">Native Sparse Attention</p>
+                            <p class="text-slate-300 leading-relaxed mb-4">
+                                <strong>训练级稀疏注意力</strong>，不是推理时剪枝，而是在预训练阶段就让模型"学会"三种注意力头：压缩头（粗粒度聚合）、选择头（块级筛选）、滑动头（局部精细）。通过可微分选择机制，实现 <strong>O(N·k)复杂度</strong>，且支持硬件友好的块级内存访问。
+                            </p>
+                            <div class="flex flex-wrap gap-2 md:justify-end">
+                                <span class="tag tag-primary">128K+ 上下文</span>
+                                <span class="tag tag-primary">硬件亲和</span>
+                                <span class="tag tag-primary">可微分选择</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="hidden md:block"></div>
+                </div>
+
+                <!-- DSA -->
+                <div class="relative md:grid md:grid-cols-2 md:gap-12 items-center">
+                    <div class="hidden md:block"></div>
+                    <div class="hidden md:block absolute left-1/2 top-1/2 w-4 h-4 rounded-full bg-purple-500 transform -translate-x-1/2 -translate-y-1/2 z-10 shadow-lg shadow-purple-500/50"></div>
+                    <div class="md:pl-12">
+                        <div class="glass-card rounded-2xl p-8 neon-border paper-card">
+                            <div class="flex items-center gap-3 mb-4">
+                                <span class="tag tag-purple">DeepSeek 2025</span>
+                                <h3 class="text-2xl font-bold text-slate-200">DSA</h3>
+                            </div>
+                            <p class="text-lg font-medium text-purple-400 mb-3">Dynamic Sparse Attention</p>
+                            <p class="text-slate-300 leading-relaxed mb-4">
+                                DeepSeek-V3.2的核心创新。与NSA的固定块模式不同，DSA为<strong>每个token动态选择top-k相关历史token</strong>，通过轻量"索引器（indexer）"打分实现细粒度筛选。通过<strong>HISA（分层索引）</strong>和<strong>IndexCache（跨层索引复用）</strong>优化，使索引器开销可控。目前生产环境实际部署的稀疏注意力方案。
+                            </p>
+                            <div class="flex flex-wrap gap-2">
+                                <span class="tag tag-purple">Token级动态</span>
+                                <span class="tag tag-purple">IndexCache</span>
+                                <span class="tag tag-purple">已部署</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MoBA -->
+                <div class="relative md:grid md:grid-cols-2 md:gap-12 items-center">
+                    <div class="hidden md:block absolute left-1/2 top-1/2 w-4 h-4 rounded-full bg-pink-500 transform -translate-x-1/2 -translate-y-1/2 z-10 shadow-lg shadow-pink-500/50"></div>
+                    <div class="md:text-right md:pr-12">
+                        <div class="glass-card rounded-2xl p-8 neon-border paper-card">
+                            <div class="flex items-center gap-3 mb-4 md:justify-end">
+                                <span class="tag tag-red">Moonshot 2025</span>
+                                <h3 class="text-2xl font-bold text-slate-200">MoBA</h3>
+                            </div>
+                            <p class="text-lg font-medium text-pink-400 mb-3">Mixture of Block Attention</p>
+                            <p class="text-slate-300 leading-relaxed mb-4">
+                                月之暗面（Kimi）提出，将上下文分块后通过<strong>可学习路由</strong>选择相关块，类似MoE的路由机制应用于注意力块。与NSA正交，可叠加使用。在Kimi K2等模型中实际应用。
+                            </p>
+                            <div class="flex flex-wrap gap-2 md:justify-end">
+                                <span class="tag tag-red">块级路由</span>
+                                <span class="tag tag-red">MoE-like</span>
+                                <span class="tag tag-red">可叠加</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="hidden md:block"></div>
+                </div>
+
+                <!-- Mamba -->
+                <div class="relative md:grid md:grid-cols-2 md:gap-12 items-center">
+                    <div class="hidden md:block"></div>
+                    <div class="hidden md:block absolute left-1/2 top-1/2 w-4 h-4 rounded-full bg-emerald-500 transform -translate-x-1/2 -translate-y-1/2 z-10 shadow-lg shadow-emerald-500/50"></div>
+                    <div class="md:pl-12">
+                        <div class="glass-card rounded-2xl p-8 neon-border paper-card">
+                            <div class="flex items-center gap-3 mb-4">
+                                <span class="tag tag-green">CMU/Princeton 2023-24</span>
+                                <h3 class="text-2xl font-bold text-slate-200">Mamba 系列</h3>
+                            </div>
+                            <p class="text-lg font-medium text-emerald-400 mb-3">State Space Model</p>
+                            <p class="text-slate-300 leading-relaxed mb-4">
+                                用<strong>选择性状态空间（Selective SSM）</strong>替代注意力，实现<strong>O(N)训练复杂度和O(1)推理内存</strong>。Mamba-2将SSM与结构化矩阵理论统一；Jamba（398B参数）是最大SSM-Transformer-MoE混合架构，注意力层与Mamba层按1:6比例交替。
+                            </p>
+                            <div class="p-3 bg-red-500/10 border border-red-500/20 rounded-lg mb-4">
+                                <p class="text-sm text-red-300"><strong>局限：</strong>SSM在推理和代码生成任务上弱于Transformer，且内部机制不透明（缺乏attention map可解释性）。</p>
+                            </div>
+                            <div class="flex flex-wrap gap-2">
+                                <span class="tag tag-green">线性复杂度</span>
+                                <span class="tag tag-green">O(1)推理内存</span>
+                                <span class="tag tag-green">Jamba 398B</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- RWKV-7 -->
+                <div class="relative md:grid md:grid-cols-2 md:gap-12 items-center">
+                    <div class="hidden md:block absolute left-1/2 top-1/2 w-4 h-4 rounded-full bg-orange-500 transform -translate-x-1/2 -translate-y-1/2 z-10 shadow-lg shadow-orange-500/50"></div>
+                    <div class="md:text-right md:pr-12">
+                        <div class="glass-card rounded-2xl p-8 neon-border paper-card">
+                            <div class="flex items-center gap-3 mb-4 md:justify-end">
+                                <span class="tag tag-orange">EleutherAI 2025</span>
+                                <h3 class="text-2xl font-bold text-slate-200">RWKV-7 "Goose"</h3>
+                            </div>
+                            <p class="text-lg font-medium text-orange-400 mb-3">Generalized Delta Rule</p>
+                            <p class="text-slate-300 leading-relaxed mb-4">
+                                用<strong>广义delta规则</strong>实现动态状态演化：<strong>向量值门控</strong>替代标量衰减，<strong>上下文学习率</strong>将SGD-like更新机制融入状态转移。理论可识别所有正则语言，超越Transformer的TC^0复杂度限制。训练O(N)，推理O(1)，内存O(1)。
+                            </p>
+                            <div class="flex flex-wrap gap-2 md:justify-end">
+                                <span class="tag tag-orange">正则语言完备</span>
+                                <span class="tag tag-orange">O(1)推理</span>
+                                <span class="tag tag-orange">2.9B→3B SOTA</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="hidden md:block"></div>
+                </div>
+
+                <!-- Diffusion -->
+                <div class="relative md:grid md:grid-cols-2 md:gap-12 items-center">
+                    <div class="hidden md:block"></div>
+                    <div class="hidden md:block absolute left-1/2 top-1/2 w-4 h-4 rounded-full bg-indigo-500 transform -translate-x-1/2 -translate-y-1/2 z-10 shadow-lg shadow-indigo-500/50"></div>
+                    <div class="md:pl-12">
+                        <div class="glass-card rounded-2xl p-8 neon-border paper-card">
+                            <div class="flex items-center gap-3 mb-4">
+                                <span class="tag tag-primary">上海AI Lab / Google 2025</span>
+                                <h3 class="text-2xl font-bold text-slate-200">扩散语言模型</h3>
+                            </div>
+                            <p class="text-lg font-medium text-indigo-400 mb-3">Diffusion LLM</p>
+                            <p class="text-slate-300 leading-relaxed mb-4">
+                                <strong>根本性的生成范式转换</strong>：不再从左到右逐个生成token，而是通过<strong>双向注意力</strong>迭代去噪（类似图像扩散）。LLaDA 8B性能匹敌LLaMA3；Gemini Diffusion声称5倍速度提升。使用完整双向注意力（非因果mask），每个位置可同时关注所有未mask位置。
+                            </p>
+                            <div class="flex flex-wrap gap-2">
+                                <span class="tag tag-primary">双向注意力</span>
+                                <span class="tag tag-primary">并行解码</span>
+                                <span class="tag tag-primary">5×速度</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Hybrid Architectures -->
+            <div class="glass-card rounded-2xl p-8 neon-border">
+                <h3 class="text-2xl font-bold mb-6 text-slate-200">混合架构：注意力 + RNN/SSM 的"缝合怪"们</h3>
+                <div class="grid md:grid-cols-3 gap-6">
+                    <div class="space-y-3">
+                        <h4 class="font-bold text-lg text-slate-200">HyMBA / Falcon-H1</h4>
+                        <p class="text-sm text-slate-400">层内混合头（Hybrid-Head）：同一层内并行运行自注意力头和SSM/RNN单元，输出通过相加或拼接融合。</p>
+                        <div class="flex gap-2">
+                            <span class="tag tag-purple">NVIDIA</span>
+                            <span class="tag tag-purple">TII</span>
+                        </div>
+                    </div>
+                    <div class="space-y-3">
+                        <h4 class="font-bold text-lg text-slate-200">WuNeng / RWKV-X</h4>
+                        <p class="text-sm text-slate-400">结合RWKV-7状态驱动机制与稀疏注意力，通过块扩展方法从预训练模型迁移，无需从头训练。</p>
+                        <div class="flex gap-2">
+                            <span class="tag tag-orange">块扩展迁移</span>
+                        </div>
+                    </div>
+                    <div class="space-y-3">
+                        <h4 class="font-bold text-lg text-slate-200">xLSTM / SWAX</h4>
+                        <p class="text-sm text-slate-400">矩阵记忆LSTM（mLSTM）通过协方差更新规则实现并行训练，与SWA组合处理长短期记忆。</p>
+                        <div class="flex gap-2">
+                            <span class="tag tag-green">NXAI</span>
+                            <span class="tag tag-green">JKU</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-6 p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                    <p class="text-sm text-yellow-300"><strong>⚠️ 共同局限：</strong>混合架构的KV Cache和RNN状态独立增长，未根本解决内存问题；且训练稳定性通常低于纯Transformer。</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 3: Comparison -->
+        <section id="comparison" class="space-y-12">
+            <div class="text-center mb-16">
+                <h2 class="text-4xl font-bold mb-4 gradient-text">全景对比与选型指南</h2>
+                <p class="text-slate-400 text-lg max-w-2xl mx-auto">不同场景下的架构选择策略</p>
+            </div>
+
+            <div class="glass-card rounded-2xl p-8 neon-border overflow-hidden">
+                <h3 class="text-2xl font-bold mb-6 text-slate-200">架构特性矩阵</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full comparison-table text-left text-sm">
+                        <thead>
+                            <tr class="border-b border-slate-700">
+                                <th class="py-4 px-4">架构</th>
+                                <th class="py-4 px-4">训练复杂度</th>
+                                <th class="py-4 px-4">推理复杂度</th>
+                                <th class="py-4 px-4">推理内存</th>
+                                <th class="py-4 px-4">长上下文</th>
+                                <th class="py-4 px-4">代码/推理</th>
+                                <th class="py-4 px-4">成熟度</th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-slate-300">
+                            <tr>
+                                <td class="py-4 px-4 font-semibold text-blue-400">MLA</td>
+                                <td class="py-4 px-4">O(N²)</td>
+                                <td class="py-4 px-4">O(N·d)</td>
+                                <td class="py-4 px-4 text-emerald-400">极低（潜向量）</td>
+                                <td class="py-4 px-4 text-yellow-400">中等</td>
+                                <td class="py-4 px-4 text-emerald-400">强</td>
+                                <td class="py-4 px-4 text-emerald-400">高（已部署）</td>
+                            </tr>
+                            <tr>
+                                <td class="py-4 px-4 font-semibold text-purple-400">GQA</td>
+                                <td class="py-4 px-4">O(N²)</td>
+                                <td class="py-4 px-4">O(N²)</td>
+                                <td class="py-4 px-4 text-yellow-400">中等（分组共享）</td>
+                                <td class="py-4 px-4 text-yellow-400">中等</td>
+                                <td class="py-4 px-4 text-emerald-400">强</td>
+                                <td class="py-4 px-4 text-emerald-400">高（已部署）</td>
+                            </tr>
+                            <tr>
+                                <td class="py-4 px-4 font-semibold text-emerald-400">SWA</td>
+                                <td class="py-4 px-4">O(N·k)</td>
+                                <td class="py-4 px-4">O(N·k)</td>
+                                <td class="py-4 px-4 text-emerald-400">低（窗口限制）</td>
+                                <td class="py-4 px-4 text-yellow-400">需混合全局</td>
+                                <td class="py-4 px-4 text-yellow-400">中等</td>
+                                <td class="py-4 px-4 text-emerald-400">高（已部署）</td>
+                            </tr>
+                            <tr>
+                                <td class="py-4 px-4 font-semibold text-blue-400">NSA</td>
+                                <td class="py-4 px-4">O(N·k)</td>
+                                <td class="py-4 px-4">O(N·k)</td>
+                                <td class="py-4 px-4 text-emerald-400">低</td>
+                                <td class="py-4 px-4 text-emerald-400">强（128K+）</td>
+                                <td class="py-4 px-4 text-emerald-400">强</td>
+                                <td class="py-4 px-4 text-yellow-400">中（论文级）</td>
+                            </tr>
+                            <tr>
+                                <td class="py-4 px-4 font-semibold text-purple-400">DSA</td>
+                                <td class="py-4 px-4">O(N·k) + 索引器</td>
+                                <td class="py-4 px-4">O(N·k)</td>
+                                <td class="py-4 px-4 text-emerald-400">低</td>
+                                <td class="py-4 px-4 text-emerald-400">强（1M+）</td>
+                                <td class="py-4 px-4 text-emerald-400">强</td>
+                                <td class="py-4 px-4 text-emerald-400">高（已部署）</td>
+                            </tr>
+                            <tr>
+                                <td class="py-4 px-4 font-semibold text-emerald-400">Mamba-2</td>
+                                <td class="py-4 px-4 text-emerald-400">O(N)</td>
+                                <td class="py-4 px-4 text-emerald-400">O(N)</td>
+                                <td class="py-4 px-4 text-emerald-400">O(1)</td>
+                                <td class="py-4 px-4 text-emerald-400">强</td>
+                                <td class="py-4 px-4 text-red-400">弱</td>
+                                <td class="py-4 px-4 text-yellow-400">中</td>
+                            </tr>
+                            <tr>
+                                <td class="py-4 px-4 font-semibold text-orange-400">RWKV-7</td>
+                                <td class="py-4 px-4 text-emerald-400">O(N)</td>
+                                <td class="py-4 px-4 text-emerald-400">O(1)</td>
+                                <td class="py-4 px-4 text-emerald-400">O(1)</td>
+                                <td class="py-4 px-4 text-emerald-400">强</td>
+                                <td class="py-4 px-4 text-yellow-400">中等</td>
+                                <td class="py-4 px-4 text-yellow-400">中</td>
+                            </tr>
+                            <tr>
+                                <td class="py-4 px-4 font-semibold text-indigo-400">Diffusion LLM</td>
+                                <td class="py-4 px-4">O(N²)（双向）</td>
+                                <td class="py-4 px-4">O(N²)（迭代）</td>
+                                <td class="py-4 px-4 text-yellow-400">中等</td>
+                                <td class="py-4 px-4 text-emerald-400">强（双向）</td>
+                                <td class="py-4 px-4 text-yellow-400">待验证</td>
+                                <td class="py-4 px-4 text-red-400">低（新兴）</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div class="glass-card rounded-xl p-6 border-l-4 border-blue-500">
+                    <h4 class="font-bold text-lg text-slate-200 mb-2">超长上下文推理</h4>
+                    <p class="text-sm text-slate-400 mb-3">1M+ tokens 生产环境</p>
+                    <div class="space-y-2">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                            <span class="text-emerald-400 font-medium">DSA + MLA</span>
+                        </div>
+                        <p class="text-xs text-slate-500">工程最成熟，DeepSeek/Kimi已验证</p>
+                    </div>
+                </div>
+                <div class="glass-card rounded-xl p-6 border-l-4 border-emerald-500">
+                    <h4 class="font-bold text-lg text-slate-200 mb-2">端侧/低内存设备</h4>
+                    <p class="text-sm text-slate-400 mb-3">手机、嵌入式、边缘计算</p>
+                    <div class="space-y-2">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                            <span class="text-emerald-400 font-medium">RWKV-7 / Mamba-2</span>
+                        </div>
+                        <p class="text-xs text-slate-500">O(1)内存，推理恒定成本</p>
+                    </div>
+                </div>
+                <div class="glass-card rounded-xl p-6 border-l-4 border-purple-500">
+                    <h4 class="font-bold text-lg text-slate-200 mb-2">代码/推理任务</h4>
+                    <p class="text-sm text-slate-400 mb-3">逻辑推理、数学、编程</p>
+                    <div class="space-y-2">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                            <span class="text-emerald-400 font-medium">Transformer + GQA + SWA</span>
+                        </div>
+                        <p class="text-xs text-slate-500">SSM在此类任务上仍弱于注意力</p>
+                    </div>
+                </div>
+                <div class="glass-card rounded-xl p-6 border-l-4 border-indigo-500">
+                    <h4 class="font-bold text-lg text-slate-200 mb-2">高吞吐批量生成</h4>
+                    <p class="text-sm text-slate-400 mb-3">大规模API服务、并行解码</p>
+                    <div class="space-y-2">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                            <span class="text-emerald-400 font-medium">扩散模型（LLaDA/Gemini）</span>
+                        </div>
+                        <p class="text-xs text-slate-500">并行解码，非串行，5×速度提升</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 4: Key Papers -->
+        <section id="papers" class="space-y-12">
+            <div class="text-center mb-16">
+                <h2 class="text-4xl font-bold mb-4 gradient-text">关键论文与来源</h2>
+                <p class="text-slate-400 text-lg max-w-2xl mx-auto">按时间线梳理2020-2025年高效注意力机制的重要学术文献</p>
+            </div>
+
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+                <div class="glass-card rounded-xl p-6 paper-card border border-slate-700/50">
+                    <div class="flex justify-between items-start mb-3">
+                        <span class="tag tag-green">2020</span>
+                        <span class="text-xs text-slate-500">ACL</span>
+                    </div>
+                    <h4 class="font-bold text-slate-200 mb-2">Longformer: The Long-Document Transformer</h4>
+                    <p class="text-sm text-slate-400 mb-3">Beltagy et al., Allen AI</p>
+                    <p class="text-sm text-slate-300">系统提出SWA及混合稀疏模式，奠定长文档处理基础。</p>
+                </div>
+
+                <div class="glass-card rounded-xl p-6 paper-card border border-slate-700/50">
+                    <div class="flex justify-between items-start mb-3">
+                        <span class="tag tag-green">2020</span>
+                        <span class="text-xs text-slate-500">NeurIPS</span>
+                    </div>
+                    <h4 class="font-bold text-slate-200 mb-2">Big Bird: Transformers for Longer Sequences</h4>
+                    <p class="text-sm text-slate-400 mb-3">Zaheer et al., Google</p>
+                    <p class="text-sm text-slate-300">随机+全局+局部注意力组合，证明稀疏注意力的表达能力。</p>
+                </div>
+
+                <div class="glass-card rounded-xl p-6 paper-card border border-slate-700/50">
+                    <div class="flex justify-between items-start mb-3">
+                        <span class="tag tag-purple">2023</span>
+                        <span class="text-xs text-slate-500">EMNLP</span>
+                    </div>
+                    <h4 class="font-bold text-slate-200 mb-2">GQA: Training Generalized Multi-Query Transformer Models</h4>
+                    <p class="text-sm text-slate-400 mb-3">Ainslie et al., Google</p>
+                    <p class="text-sm text-slate-300">提出GQA并验证从MHA迁移的可行性，平衡内存与质量。</p>
+                </div>
+
+                <div class="glass-card rounded-xl p-6 paper-card border border-slate-700/50">
+                    <div class="flex justify-between items-start mb-3">
+                        <span class="tag tag-green">2023</span>
+                        <span class="text-xs text-slate-500">ICML</span>
+                    </div>
+                    <h4 class="font-bold text-slate-200 mb-2">Mamba: Linear-Time Sequence Modeling with Selective State Spaces</h4>
+                    <p class="text-sm text-slate-400 mb-3">Gu & Dao, CMU/Princeton</p>
+                    <p class="text-sm text-slate-300">选择性SSM替代注意力，实现线性复杂度序列建模。</p>
+                </div>
+
+                <div class="glass-card rounded-xl p-6 paper-card border border-slate-700/50">
+                    <div class="flex justify-between items-start mb-3">
+                        <span class="tag tag-primary">2024</span>
+                        <span class="text-xs text-slate-500">DeepSeek</span>
+                    </div>
+                    <h4 class="font-bold text-slate-200 mb-2">DeepSeek-V2: A Strong, Economical, and Efficient MoE Language Model</h4>
+                    <p class="text-sm text-slate-400 mb-3">DeepSeek-AI</p>
+                    <p class="text-sm text-slate-300">首次引入MLA机制，KV Cache压缩至约4.5d_h每token。</p>
+                </div>
+
+                <div class="glass-card rounded-xl p-6 paper-card border border-slate-700/50">
+                    <div class="flex justify-between items-start mb-3">
+                        <span class="tag tag-green">2024</span>
+                        <span class="text-xs text-slate-500">ICML</span>
+                    </div>
+                    <h4 class="font-bold text-slate-200 mb-2">Mamba-2: Transformers Are SSMs</h4>
+                    <p class="text-sm text-slate-400 mb-3">Dao & Gu, CMU/Princeton</p>
+                    <p class="text-sm text-slate-300">将SSM与结构化矩阵理论统一，支持更大规模并行训练。</p>
+                </div>
+
+                <div class="glass-card rounded-xl p-6 paper-card border border-slate-700/50">
+                    <div class="flex justify-between items-start mb-3">
+                        <span class="tag tag-red">2024</span>
+                        <span class="text-xs text-slate-500">AI21 Labs</span>
+                    </div>
+                    <h4 class="font-bold text-slate-200 mb-2">Jamba: A Hybrid Transformer-Mamba Language Model</h4>
+                    <p class="text-sm text-slate-400 mb-3">AI21 Labs</p>
+                    <p class="text-sm text-slate-300">最大SSM-Transformer-MoE混合架构（398B），1:6注意力/Mamba比例。</p>
+                </div>
+
+                <div class="glass-card rounded-xl p-6 paper-card border border-slate-700/50">
+                    <div class="flex justify-between items-start mb-3">
+                        <span class="tag tag-primary">2025</span>
+                        <span class="text-xs text-slate-500">DeepSeek</span>
+                    </div>
+                    <h4 class="font-bold text-slate-200 mb-2">Native Sparse Attention: Hardware-Aligned and Natively Trainable Sparse Attention</h4>
+                    <p class="text-sm text-slate-400 mb-3">DeepSeek-AI</p>
+                    <p class="text-sm text-slate-300">训练级稀疏注意力，三种头类型+可微分选择，硬件友好。</p>
+                </div>
+
+                <div class="glass-card rounded-xl p-6 paper-card border border-slate-700/50">
+                    <div class="flex justify-between items-start mb-3">
+                        <span class="tag tag-purple">2025</span>
+                        <span class="text-xs text-slate-500">DeepSeek</span>
+                    </div>
+                    <h4 class="font-bold text-slate-200 mb-2">DeepSeek-V3.2: Dynamic Sparse Attention</h4>
+                    <p class="text-sm text-slate-400 mb-3">DeepSeek-AI</p>
+                    <p class="text-sm text-slate-300">Token级动态稀疏选择，HISA分层索引+IndexCache跨层复用。</p>
+                </div>
+
+                <div class="glass-card rounded-xl p-6 paper-card border border-slate-700/50">
+                    <div class="flex justify-between items-start mb-3">
+                        <span class="tag tag-red">2025</span>
+                        <span class="text-xs text-slate-500">Moonshot</span>
+                    </div>
+                    <h4 class="font-bold text-slate-200 mb-2">MoBA: Mixture of Block Attention</h4>
+                    <p class="text-sm text-slate-400 mb-3">Moonshot AI (Kimi)</p>
+                    <p class="text-sm text-slate-300">块级注意力混合路由，类似MoE机制应用于注意力块。</p>
+                </div>
+
+                <div class="glass-card rounded-xl p-6 paper-card border border-slate-700/50">
+                    <div class="flex justify-between items-start mb-3">
+                        <span class="tag tag-orange">2025</span>
+                        <span class="text-xs text-slate-500">EleutherAI</span>
+                    </div>
+                    <h4 class="font-bold text-slate-200 mb-2">RWKV-7 "Goose": Generalized Delta Rule with Vector-Valued Gates</h4>
+                    <p class="text-sm text-slate-400 mb-3">RWKV Project / EleutherAI</p>
+                    <p class="text-sm text-slate-300">广义delta规则，向量值门控，上下文学习率，正则语言完备。</p>
+                </div>
+
+                <div class="glass-card rounded-xl p-6 paper-card border border-slate-700/50">
+                    <div class="flex justify-between items-start mb-3">
+                        <span class="tag tag-primary">2025</span>
+                        <span class="text-xs text-slate-500">上海AI Lab</span>
+                    </div>
+                    <h4 class="font-bold text-slate-200 mb-2">LLaDA: Large Language Diffusion with mAsking</h4>
+                    <p class="text-sm text-slate-400 mb-3">Shanghai AI Laboratory</p>
+                    <p class="text-sm text-slate-300">8B参数扩散语言模型，双向注意力，性能匹敌LLaMA3。</p>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="text-center py-12 border-t border-slate-800/50">
+            <p class="text-slate-500 text-sm">
+                基于 DeepSeek, Google, Moonshot, EleutherAI, CMU, Princeton, 上海AI Lab 等机构公开发表论文整理<br>
+                生成时间：2025年4月 | 仅供学术研究参考
+            </p>
+        </footer>
+
+    </main>
+
+    <script>
+        // Scroll progress bar
+        window.addEventListener('scroll', () => {
+            const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+            const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            const scrolled = (winScroll / height) * 100;
+            document.getElementById('scrollBar').style.width = scrolled + '%';
+        });
+
+        // Smooth scroll for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+
+        // Highlight.js
+        hljs.highlightAll();
+
+        // Intersection Observer for fade-in animations
+        const observerOptions = {
+            root: null,
+            rootMargin: '0px',
+            threshold: 0.1
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        }, observerOptions);
+
+        document.querySelectorAll('.paper-card, .glass-card').forEach(el => {
+            el.style.opacity = '0';
+            el.style.transform = 'translateY(20px)';
+            el.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+            observer.observe(el);
+        });
+    </script>
+</body>
+</html>
