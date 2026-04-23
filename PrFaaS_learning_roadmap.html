@@ -1,0 +1,1224 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PrFaaS 架构师学习路线图 | 从前后端到万亿参数推理</title>
+    <style>
+        :root {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-card: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --accent: #38bdf8;
+            --accent-glow: rgba(56, 189, 248, 0.3);
+            --success: #4ade80;
+            --warning: #fbbf24;
+            --danger: #f87171;
+            --border: #475569;
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.8;
+            overflow-x: hidden;
+        }
+        
+        .bg-grid {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-image: 
+                linear-gradient(rgba(56, 189, 248, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(56, 189, 248, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+            z-index: 0;
+        }
+        
+        .bg-glow {
+            position: fixed;
+            width: 600px; height: 600px;
+            border-radius: 50%;
+            background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+            top: -200px; left: -200px;
+            pointer-events: none;
+            z-index: 0;
+            animation: float 20s infinite ease-in-out;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0); }
+            50% { transform: translate(100px, 100px); }
+        }
+        
+        .sidebar {
+            position: fixed;
+            left: 0; top: 0;
+            width: 280px; height: 100vh;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            overflow-y: auto;
+            z-index: 100;
+            padding: 20px 0;
+            transition: transform 0.3s;
+        }
+        
+        .sidebar-header {
+            padding: 0 20px 20px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 20px;
+        }
+        
+        .sidebar-header h1 {
+            font-size: 18px;
+            color: var(--accent);
+            font-weight: 700;
+        }
+        
+        .sidebar-header p {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 5px;
+        }
+        
+        .nav-item {
+            display: block;
+            padding: 10px 20px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 14px;
+            border-left: 3px solid transparent;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        
+        .nav-item:hover {
+            background: rgba(56, 189, 248, 0.1);
+            color: var(--text-primary);
+        }
+        
+        .nav-item.active {
+            border-left-color: var(--accent);
+            color: var(--accent);
+            background: rgba(56, 189, 248, 0.1);
+        }
+        
+        .nav-section {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+            padding: 15px 20px 5px;
+            font-weight: 600;
+        }
+        
+        .main {
+            margin-left: 280px;
+            padding: 40px 60px;
+            max-width: 900px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .progress-bar {
+            position: fixed;
+            top: 0; left: 280px; right: 0;
+            height: 3px;
+            background: var(--bg-secondary);
+            z-index: 200;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), var(--success));
+            width: 0%;
+            transition: width 0.3s;
+        }
+        
+        h1 {
+            font-size: 36px;
+            font-weight: 800;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, var(--accent), var(--success));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        h2 {
+            font-size: 28px;
+            font-weight: 700;
+            margin: 40px 0 20px;
+            color: var(--accent);
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 10px;
+        }
+        
+        h3 {
+            font-size: 22px;
+            font-weight: 600;
+            margin: 30px 0 15px;
+            color: var(--text-primary);
+        }
+        
+        h4 {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 25px 0 12px;
+            color: var(--warning);
+        }
+        
+        p { margin-bottom: 15px; color: var(--text-secondary); }
+        
+        .card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 25px;
+            margin: 20px 0;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 3px;
+            background: linear-gradient(90deg, var(--accent), var(--success));
+        }
+        
+        .card-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 15px;
+            color: var(--text-primary);
+        }
+        
+        .tag {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-right: 8px;
+            margin-bottom: 5px;
+        }
+        
+        .tag-blue { background: rgba(56, 189, 248, 0.2); color: var(--accent); }
+        .tag-green { background: rgba(74, 222, 128, 0.2); color: var(--success); }
+        .tag-yellow { background: rgba(251, 191, 36, 0.2); color: var(--warning); }
+        .tag-red { background: rgba(248, 113, 113, 0.2); color: var(--danger); }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 14px;
+        }
+        
+        th {
+            background: var(--bg-card);
+            padding: 12px 15px;
+            text-align: left;
+            font-weight: 600;
+            color: var(--accent);
+            border-bottom: 2px solid var(--border);
+        }
+        
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+        
+        tr:hover td {
+            background: rgba(56, 189, 248, 0.05);
+        }
+        
+        pre {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 20px;
+            overflow-x: auto;
+            margin: 20px 0;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        
+        code {
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            color: var(--accent);
+            background: rgba(56, 189, 248, 0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        
+        pre code {
+            background: none;
+            padding: 0;
+            color: #e6edf3;
+        }
+        
+        .checklist {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .checklist li {
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .checklist li:last-child { border-bottom: none; }
+        
+        .checkbox {
+            width: 20px; height: 20px;
+            border: 2px solid var(--border);
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+        
+        .checkbox:hover { border-color: var(--accent); }
+        .checkbox.checked {
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+        .checkbox.checked::after {
+            content: '✓';
+            color: var(--bg-primary);
+            font-weight: 700;
+        }
+        
+        .checklist li.checked-item {
+            opacity: 0.5;
+            text-decoration: line-through;
+        }
+        
+        .alert {
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid;
+        }
+        
+        .alert-info {
+            background: rgba(56, 189, 248, 0.1);
+            border-left-color: var(--accent);
+        }
+        
+        .alert-warning {
+            background: rgba(251, 191, 36, 0.1);
+            border-left-color: var(--warning);
+        }
+        
+        .alert-success {
+            background: rgba(74, 222, 128, 0.1);
+            border-left-color: var(--success);
+        }
+        
+        .timeline {
+            position: relative;
+            padding-left: 30px;
+        }
+        
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 8px; top: 0; bottom: 0;
+            width: 2px;
+            background: var(--border);
+        }
+        
+        .timeline-item {
+            position: relative;
+            margin-bottom: 30px;
+            padding-left: 20px;
+        }
+        
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -26px; top: 5px;
+            width: 12px; height: 12px;
+            border-radius: 50%;
+            background: var(--bg-primary);
+            border: 3px solid var(--accent);
+        }
+        
+        .timeline-item.completed::before {
+            background: var(--success);
+            border-color: var(--success);
+        }
+        
+        .accordion {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+        
+        .accordion-header {
+            padding: 15px 20px;
+            background: var(--bg-card);
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+        
+        .accordion-header:hover { background: var(--border); }
+        
+        .accordion-icon {
+            transition: transform 0.3s;
+            font-size: 20px;
+        }
+        
+        .accordion.open .accordion-icon { transform: rotate(180deg); }
+        
+        .accordion-body {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+        
+        .accordion.open .accordion-body {
+            max-height: 2000px;
+        }
+        
+        .accordion-content {
+            padding: 20px;
+        }
+        
+        .mobile-toggle {
+            display: none;
+            position: fixed;
+            top: 15px; left: 15px;
+            z-index: 300;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        
+        @media (max-width: 1024px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            .sidebar.open { transform: translateX(0); }
+            .main { margin-left: 0; padding: 60px 20px 20px; }
+            .mobile-toggle { display: block; }
+            .progress-bar { left: 0; }
+        }
+        
+        @media print {
+            .sidebar, .mobile-toggle, .progress-bar { display: none; }
+            .main { margin-left: 0; }
+            body { background: white; color: black; }
+            .card { border: 1px solid #ccc; break-inside: avoid; }
+        }
+        
+        html { scroll-behavior: smooth; }
+        
+        ::selection {
+            background: var(--accent);
+            color: var(--bg-primary);
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-grid"></div>
+    <div class="bg-glow"></div>
+    
+    <div class="progress-bar">
+        <div class="progress-fill" id="progressFill"></div>
+    </div>
+    
+    <button class="mobile-toggle" onclick="toggleSidebar()">☰ 导航</button>
+    
+    <nav class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h1>PrFaaS 学习路线图</h1>
+            <p>从前后端到万亿参数推理</p>
+        </div>
+        
+        <div class="nav-section">概览</div>
+        <a class="nav-item" href="#overview" onclick="setActive(this)">现状诊断</a>
+        <a class="nav-item" href="#hardware" onclick="setActive(this)">8GB显存策略</a>
+        
+        <div class="nav-section">第一阶段</div>
+        <a class="nav-item" href="#phase1" onclick="setActive(this)">推理基础构建</a>
+        <a class="nav-item" href="#week1" onclick="setActive(this)">Week 1: 注意力机制</a>
+        <a class="nav-item" href="#week2" onclick="setActive(this)">Week 2: vLLM引擎</a>
+        <a class="nav-item" href="#week3" onclick="setActive(this)">Week 3: 量化压缩</a>
+        <a class="nav-item" href="#week4" onclick="setActive(this)">Week 4: GPU架构</a>
+        
+        <div class="nav-section">第二阶段</div>
+        <a class="nav-item" href="#phase2" onclick="setActive(this)">分布式与PD分离</a>
+        <a class="nav-item" href="#week5" onclick="setActive(this)">Week 5-6: PD分离</a>
+        <a class="nav-item" href="#week7" onclick="setActive(this)">Week 7-8: 调度策略</a>
+        
+        <div class="nav-section">第三阶段</div>
+        <a class="nav-item" href="#phase3" onclick="setActive(this)">PrFaaS前沿架构</a>
+        <a class="nav-item" href="#week9" onclick="setActive(this)">Week 9-10: 混合注意力</a>
+        <a class="nav-item" href="#week11" onclick="setActive(this)">Week 11-12: 论文复现</a>
+        
+        <div class="nav-section">资源</div>
+        <a class="nav-item" href="#papers" onclick="setActive(this)">必读论文索引</a>
+        <a class="nav-item" href="#repos" onclick="setActive(this)">代码仓库</a>
+        <a class="nav-item" href="#tools" onclick="setActive(this)">工具链</a>
+    </nav>
+    
+    <main class="main">
+        <header style="margin-bottom: 40px;">
+            <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+                <span class="tag tag-blue">8GB显存优化版</span>
+                <span class="tag tag-green">12周计划</span>
+                <span class="tag tag-yellow">PrFaaS导向</span>
+                <span class="tag tag-red">工程实践优先</span>
+            </div>
+            <h1>PrFaaS 架构师<br>学习路线图</h1>
+            <p style="font-size: 18px; margin-top: 15px;">
+                从前后端工程师到万亿参数模型推理部署专家<br>
+                <span style="color: var(--accent);">基于月之暗面 PrFaaS 论文 (arXiv:2604.15039) 设计</span>
+            </p>
+        </header>
+        
+        <section id="overview">
+            <h2>🎯 现状诊断与核心认知</h2>
+            
+            <div class="card">
+                <div class="card-title">你的优势（不要低估）</div>
+                <ul style="margin-left: 20px; color: var(--text-secondary);">
+                    <li><strong>前后端工程能力</strong> → 分布式系统、网络通信、服务治理的思维基础</li>
+                    <li><strong>知道Transformer和GPT2架构</strong> → 已跨过"深度学习是什么"的门槛</li>
+                    <li><strong>8GB显存约束</strong> → 逼着你从第一性原理理解压缩和优化</li>
+                </ul>
+            </div>
+            
+            <div class="card">
+                <div class="card-title">缺失的核心拼图</div>
+                <table>
+                    <tr>
+                        <th>层面</th>
+                        <th>缺失内容</th>
+                        <th>PrFaaS关联</th>
+                    </tr>
+                    <tr>
+                        <td><span class="tag tag-blue">模型</span></td>
+                        <td>MLA/GQA/SWA 高效注意力</td>
+                        <td>KV Cache压缩36倍的前提</td>
+                    </tr>
+                    <tr>
+                        <td><span class="tag tag-green">系统</span></td>
+                        <td>PD分离、KV Cache管理</td>
+                        <td>跨机房调度的核心</td>
+                    </tr>
+                    <tr>
+                        <td><span class="tag tag-yellow">硬件</span></td>
+                        <td>GPU架构、带宽vs算力</td>
+                        <td>H200跑Prefill、H20跑Decode</td>
+                    </tr>
+                </table>
+            </div>
+            
+            <div class="alert alert-success">
+                <strong>关键认知：</strong>"前后端容易被大模型替代"是对的，但方向反了。真正会被替代的是写CRUD的，而<strong>懂大模型推理系统的后端工程师</strong>是当前最稀缺的岗位。PrFaaS这类架构把"算法问题"变成"系统工程问题"——这正是你的主场。
+            </div>
+        </section>
+        
+        <section id="hardware">
+            <h2>💾 8GB显存生存指南</h2>
+            
+            <div class="alert alert-info">
+                <strong>核心原则：</strong>用量化倒逼理解，用CPU+GPU混合扩展上限，用云实例补全大模型体验。Q4_K_M是2026年生产标准，质量损失仅1-2%。
+            </div>
+            
+            <table>
+                <tr>
+                    <th>模型</th>
+                    <th>量化</th>
+                    <th>显存占用</th>
+                    <th>速度</th>
+                    <th>学习重点</th>
+                </tr>
+                <tr>
+                    <td><strong>Llama 3.1 8B</strong></td>
+                    <td>Q4_K_M</td>
+                    <td>~4.9GB</td>
+                    <td>40-55 t/s</td>
+                    <td>标准Attention，资料最全</td>
+                </tr>
+                <tr>
+                    <td><strong>Mistral 7B</strong></td>
+                    <td>Q4_K_M</td>
+                    <td>~4.1GB</td>
+                    <td>更快</td>
+                    <td>SWA滑动窗口，KV更小</td>
+                </tr>
+                <tr>
+                    <td><strong>Phi-4 Mini 3.8B</strong></td>
+                    <td>Q4_K_M</td>
+                    <td>~3.5GB</td>
+                    <td>极快</td>
+                    <td>小模型高质量，适合调试</td>
+                </tr>
+                <tr>
+                    <td><strong>Qwen 2.5 Coder 7B</strong></td>
+                    <td>Q4_K_M</td>
+                    <td>~4.5GB</td>
+                    <td>60 t/s</td>
+                    <td>代码任务，HumanEval高分</td>
+                </tr>
+            </table>
+            
+            <div class="card">
+                <div class="card-title">8GB卡的隐藏优势</div>
+                <table>
+                    <tr>
+                        <th>约束</th>
+                        <th>倒逼出的能力</th>
+                        <th>在PrFaaS中的价值</th>
+                    </tr>
+                    <tr>
+                        <td>跑不了FP16</td>
+                        <td>必须精通量化</td>
+                        <td>PrFaaS传输压缩KV Cache</td>
+                    </tr>
+                    <tr>
+                        <td>KV Cache紧张</td>
+                        <td>必须优化context管理</td>
+                        <td>混合前缀缓存池核心</td>
+                    </tr>
+                    <tr>
+                        <td>单卡跑不了大模型</td>
+                        <td>必须理解分布式理论</td>
+                        <td>PD分离、跨节点调度</td>
+                    </tr>
+                    <tr>
+                        <td>带宽瓶颈明显</td>
+                        <td>必须优化数据传输</td>
+                        <td>普通以太网替代RDMA</td>
+                    </tr>
+                </table>
+            </div>
+        </section>
+        
+        <section id="phase1">
+            <h2>🚀 Phase 1：推理基础构建（Week 1-4）</h2>
+            <p><strong>目标：</strong>能独立部署和优化7B-70B模型的推理服务（8GB本地跑小模型，理论覆盖大模型）</p>
+        </section>
+        
+        <section id="week1">
+            <h3>Week 1：注意力机制与KV Cache本质</h3>
+            
+            <div class="timeline">
+                <div class="timeline-item">
+                    <h4>Day 1-2：MQA & GQA</h4>
+                    <ul style="margin-left: 20px; color: var(--text-secondary);">
+                        <li><strong>必读</strong>：《Fast Transformer Decoding: One Write-Head is All You Need》(MQA, 2019)</li>
+                        <li><strong>必读</strong>：《GQA: Training Generalized Multi-Query Transformer Models》(2023)</li>
+                        <li><strong>代码</strong>：用PyTorch手写GQA forward，对比MHA/GQA参数量和KV Cache大小</li>
+                        <li><strong>交付物</strong>：MHA/GQA/MQA在Llama-3-8B上的KV Cache显存占用对比表</li>
+                    </ul>
+                </div>
+                
+                <div class="timeline-item">
+                    <h4>Day 3-4：MLA —— PrFaaS的基石</h4>
+                    <ul style="margin-left: 20px; color: var(--text-secondary);">
+                        <li><strong>必读</strong>：《DeepSeek-V2: A Strong, Economical, and Efficient Mixture-of-Experts Language Model》</li>
+                        <li><strong>关键问题</strong>：为什么MLA能把KV Cache压缩到1/36？低秩压缩的数学直觉？</li>
+                        <li><strong>代码</strong>：参考DeepSeek-V2开源代码，打印中间tensor的shape变化</li>
+                        <li><strong>交付物</strong>：能向后端同事解释"MLA为什么省显存"</li>
+                    </ul>
+                </div>
+                
+                <div class="timeline-item">
+                    <h4>Day 5-7：KV Cache工程化</h4>
+                    <ul style="margin-left: 20px; color: var(--text-secondary);">
+                        <li><strong>阅读</strong>：vLLM文档中KV Cache管理章节</li>
+                        <li><strong>实验</strong>：用vLLM跑Llama-3-8B-Q4，记录max_model_len=2048和8192时的显存</li>
+                        <li><strong>关键公式</strong>：KV Cache大小 = 2 × num_layers × num_kv_heads × head_dim × seq_len × batch_size × sizeof(dtype)</li>
+                        <li><strong>交付物</strong>：Python脚本，输入模型配置输出预估KV Cache显存</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="alert alert-warning">
+                <strong>PrFaaS关联：</strong>论文中"KV Cache压缩了36倍"全靠MLA和混合注意力。不懂MLA，后续所有架构设计都是空中楼阁。
+            </div>
+        </section>
+        
+        <section id="week2">
+            <h3>Week 2：推理引擎核心 —— vLLM与PagedAttention</h3>
+            
+            <div class="timeline">
+                <div class="timeline-item">
+                    <h4>Day 1-2：PagedAttention论文精读</h4>
+                    <ul style="margin-left: 20px; color: var(--text-secondary);">
+                        <li><strong>必读</strong>：《Efficient Memory Management for Large Language Model Serving with PagedAttention》(SOSP 2023)</li>
+                        <li><strong>核心类比</strong>：KV Cache管理 = 操作系统虚拟内存和分页（你的后端优势）</li>
+                        <li><strong>关键问题</strong>：为什么连续存储KV Cache会导致内存碎片？PagedAttention如何解决？</li>
+                    </ul>
+                </div>
+                
+                <div class="timeline-item">
+                    <h4>Day 3-4：vLLM源码阅读（CPU模式理解架构）</h4>
+                    <ul style="margin-left: 20px; color: var(--text-secondary);">
+                        <li><strong>仓库</strong>：github.com/vllm-project/vllm</li>
+                        <li><strong>路径</strong>：vllm/core/scheduler.py → vllm/worker/model_runner.py → vllm/attention/ops/paged_attention.py</li>
+                        <li><strong>注意</strong>：8GB卡跑vLLM serving 7B会紧张，先用CPU模式跑Phi-4 Mini理解逻辑</li>
+                        <li><strong>交付物</strong>：vLLM调度流程图，标注Prefill和Decode阶段</li>
+                    </ul>
+                </div>
+                
+                <div class="timeline-item">
+                    <h4>Day 5-7：Prefix Caching实践</h4>
+                    <ul style="margin-left: 20px; color: var(--text-secondary);">
+                        <li><strong>实验</strong>：启动vLLM时开启<code>--enable-prefix-caching</code></li>
+                        <li><strong>测试</strong>：相同前缀的多个请求是否复用KV Cache</li>
+                        <li><strong>观察</strong>：nvidia-smi显存变化、TTFT对比</li>
+                        <li><strong>交付物</strong>：benchmark脚本，量化Prefix Caching加速效果</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="alert alert-warning">
+                <strong>PrFaaS关联：</strong>PrFaaS的"混合前缀缓存池"就是Prefix Caching的跨数据中心版本。
+            </div>
+        </section>
+        
+        <section id="week3">
+            <h3>Week 3：量化与压缩 —— 8GB卡的优势领域</h3>
+            
+            <div class="timeline">
+                <div class="timeline-item">
+                    <h4>Day 1-2：GGUF量化实操</h4>
+                    <ul style="margin-left: 20px; color: var(--text-secondary);">
+                        <li><strong>工具</strong>：llama.cpp的quantize工具</li>
+                        <li><strong>任务</strong>：下载7B模型FP16版本，自己量化出Q4_K_M、Q5_K_M、Q8_0</li>
+                        <li><strong>观察</strong>：对比不同量化级别的文件大小、加载速度、生成质量</li>
+                        <li><strong>交付物</strong>：量化前后的benchmark表（perplexity或简单问答测试）</li>
+                    </ul>
+                </div>
+                
+                <div class="timeline-item">
+                    <h4>Day 3-4：AWQ/GPTQ vs GGUF</h4>
+                    <ul style="margin-left: 20px; color: var(--text-secondary);">
+                        <li><strong>阅读</strong>：AWQ和GPTQ原理（GPU友好量化）</li>
+                        <li><strong>实验</strong>：用autoawq或autogptq量化7B模型，对比GGUF</li>
+                        <li><strong>关键问题</strong>：为什么AWQ在GPU上比GGUF更快？（提示：Tensor Core）</li>
+                    </ul>
+                </div>
+                
+                <div class="timeline-item">
+                    <h4>Day 5-7：KV Cache量化</h4>
+                    <ul style="margin-left: 20px; color: var(--text-secondary);">
+                        <li><strong>前沿</strong>：《KV Cache Quantization for Efficient LLM Inference》</li>
+                        <li><strong>实验</strong>：在llama.cpp中开启<code>--cache-type-k q8_0 --cache-type-v q4_0</code>，可再省1-2GB</li>
+                        <li><strong>交付物</strong>：不同KV Cache精度下的最大可支持context length对比表</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="alert alert-warning">
+                <strong>PrFaaS关联：</strong>36倍压缩后的KV Cache如果还能进一步量化，跨机房传输成本更低。
+            </div>
+        </section>
+        
+        <section id="week4">
+            <h3>Week 4：GPU架构与CUDA入门</h3>
+            
+            <div class="timeline">
+                <div class="timeline-item">
+                    <h4>Day 1-2：GPU硬件基础</h4>
+                    <ul style="margin-left: 20px; color: var(--text-secondary);">
+                        <li><strong>阅读</strong>：NVIDIA H100/H200/H20白皮书关键参数</li>
+                        <li><strong>关键理解</strong>：算力(TFLOPS) vs 显存带宽(TB/s) —— 为什么Decode是带宽瓶颈？</li>
+                        <li><strong>交付物</strong>：H100/H200/H20的算力、带宽、显存、价格对比表</li>
+                    </ul>
+                </div>
+                
+                <div class="timeline-item">
+                    <h4>Day 3-4：CUDA编程（CPU模拟理解模型）</h4>
+                    <ul style="margin-left: 20px; color: var(--text-secondary);">
+                        <li><strong>课程</strong>：NVIDIA CUDA官方教程前5章</li>
+                        <li><strong>实践</strong>：写简单矩阵乘法kernel，对比PyTorch speedup</li>
+                        <li><strong>交付物</strong>：能跑通的CUDA程序，理解thread/block/grid层次</li>
+                    </ul>
+                </div>
+                
+                <div class="timeline-item">
+                    <h4>Day 5-7：推理性能分析</h4>
+                    <ul style="margin-left: 20px; color: var(--text-secondary);">
+                        <li><strong>工具</strong>：PyTorch Profiler（轻量，8GB卡能跑）</li>
+                        <li><strong>实验</strong>：profile Phi-4 Mini推理过程</li>
+                        <li><strong>交付物</strong>：火焰图或timeline截图，指出attention和feedforward的kernel热点</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="alert alert-warning">
+                <strong>PrFaaS关联：</strong>PrFaaS用H200做Prefill（算力密集型）、H20做Decode（带宽密集型），这种异构调度需要硬件理解。
+            </div>
+        </section>
+        
+        <section id="phase1-check">
+            <h3>Phase 1 验收标准</h3>
+            <ul class="checklist" id="phase1-checklist">
+                <li><div class="checkbox" onclick="toggleCheck(this)"></div>能独立部署和优化一个70B以下模型的推理服务（理论+小模型实践）</li>
+                <li><div class="checkbox" onclick="toggleCheck(this)"></div>能解释清楚"为什么MLA能压缩KV Cache"</li>
+                <li><div class="checkbox" onclick="toggleCheck(this)"></div>能画出vLLM的调度流程图</li>
+                <li><div class="checkbox" onclick="toggleCheck(this)"></div>能根据硬件参数预估推理服务的最大并发</li>
+            </ul>
+        </section>
+        
+        <section id="phase2">
+            <h2>🌐 Phase 2：分布式推理与PD分离（Week 5-8）</h2>
+            <p><strong>目标：</strong>理解并搭建PD分离架构，掌握KV Cache的分布式管理（理论为主，云实例补充实践）</p>
+            
+            <div class="alert alert-info">
+                <strong>关键调整：</strong>PD分离需要至少两节点，单卡8GB无法本地搭建。方案：理论深度加强 + 云实例/借机器实践。
+            </div>
+        </section>
+        
+        <section id="week5">
+            <h3>Week 5-6：PD分离架构与KV Cache传输</h3>
+            
+            <div class="timeline">
+                <div class="timeline-item">
+                    <h4>Day 1-3：Mooncake架构精读</h4>
+                    <ul style="margin-left: 20px; color: var(--text-secondary);">
+                        <li><strong>必读</strong>：《Mooncake: A KVCache-centric Disaggregated Architecture for LLM Serving》</li>
+                        <li><strong>关键理解</strong>：为什么Prefill和Decode要分离？各自的SLO要求？</li>
+                        <li><strong>交付物</strong>：Mooncake架构图，标注Prefill Node和Decode Node的数据流</li>
+                    </ul>
+                </div>
+                
+                <div class="timeline-item">
+                    <h4>Day 4-5：Disaggregation通信开销</h4>
+                    <ul style="margin-left: 20px; color: var(--text-secondary);">
+                        <li><strong>阅读</strong>：Mooncake中KV Cache传输章节</li>
+                        <li><strong>关键问题</strong>：为什么传统PD分离依赖RDMA？以太网带宽和延迟差距？</li>
+                        <li><strong>交付物</strong>：计算题 —— 1M token的KV Cache，在100Gbps以太网和800Gbps RDMA下分别多久？</li>
+                    </ul>
+                </div>
+                
+                <div class="timeline-item">
+                    <h4>Day 6-7：模拟KV Cache传输 + 云实例实践</h4>
+                    <ul style="margin-left: 20px; color: var(--text-secondary);">
+                        <li><strong>代码</strong>：Python脚本模拟两进程间KV Cache传输，变量：大小、带宽、延迟</li>
+                        <li><strong>云实例</strong>：租两台最便宜GPU/CPU实例，搭建简单gRPC服务，A节点生成KV Cache，B节点接收继续生成</li>
+                        <li><strong>交付物</strong>：能跑通的跨节点推理demo（哪怕0.5B模型）</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="alert alert-warning">
+                <strong>PrFaaS关联：</strong>PrFaaS是PD分离的"跨数据中心版"，核心突破是打破了RDMA依赖，用普通以太网实现。
+            </div>
+        </section>
+        
+        <section id="week7">
+            <h3>Week 7-8：请求调度与异构硬件</h3>
+            
+            <div class="timeline">
+                <div class="timeline-item">
+                    <h4>Day 1-2：Continuous Batching</h4>
+                    <ul style="margin-left: 20px; color: var(--text-secondary);">
+                        <li><strong>阅读</strong>：Orca论文《Continuous Batching for Efficient LLM Inference》</li>
+                        <li><strong>代码</strong>：阅读vLLM scheduler实现，理解动态合并请求</li>
+                        <li><strong>交付物</strong>：解释"为什么静态batching浪费算力，continuous batching如何解决"</li>
+                    </ul>
+                </div>
+                
+                <div class="timeline-item">
+                    <h4>Day 3-4：Chunked Prefill</h4>
+                    <ul style="margin-left: 20px; color: var(--text-secondary);">
+                        <li><strong>阅读</strong>：Sarathi论文《Sarathi: Efficient LLM Inference by Piggybacking Decodes with Chunked Prefills》</li>
+                        <li><strong>理解</strong>：为什么把长Prefill拆成小块和Decode交错执行？</li>
+                        <li><strong>交付物</strong>：Chunked Prefill时间线示意图</li>
+                    </ul>
+                </div>
+                
+                <div class="timeline-item">
+                    <h4>Day 5-7：调度策略实现 + 异构硬件</h4>
+                    <ul style="margin-left: 20px; color: var(--text-secondary);">
+                        <li><strong>阅读</strong>：PrFaaS论文"双时间尺度调度"章节</li>
+                        <li><strong>代码</strong>：纯Python调度模拟器，输入请求trace和节点状态，输出调度决策</li>
+                        <li><strong>阅读</strong>：PrFaaS中H200/H20混合部署分析</li>
+                        <li><strong>交付物</strong>：调度模拟器 + 异构部署成本分析表</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="alert alert-warning">
+                <strong>PrFaaS关联：</strong>PrFaaS的带宽感知路由和双时间尺度调度是其核心创新，必须亲手实现才能理解异步流水线如何掩盖延迟。
+            </div>
+        </section>
+        
+        <section id="phase2-check">
+            <h3>Phase 2 验收标准</h3>
+            <ul class="checklist" id="phase2-checklist">
+                <li><div class="checkbox" onclick="toggleCheck(this)"></div>能解释PD分离的优缺点和适用场景</li>
+                <li><div class="checkbox" onclick="toggleCheck(this)"></div>能计算并优化KV Cache传输的延迟</li>
+                <li><div class="checkbox" onclick="toggleCheck(this)"></div>能实现一个简单的请求调度器</li>
+                <li><div class="checkbox" onclick="toggleCheck(this)"></div>能分析异构硬件部署的成本效益</li>
+            </ul>
+        </section>
+        
+        <section id="phase3">
+            <h2>🔬 Phase 3：PrFaaS与前沿架构（Week 9-12）</h2>
+            <p><strong>目标：</strong>深入理解PrFaaS类架构，具备设计下一代推理系统的能力（大模型体验靠云，核心理解靠小模型）</p>
+        </section>
+        
+        <section id="week9">
+            <h3>Week 9-10：混合注意力与万亿参数理论</h3>
+            
+            <div class="timeline">
+                <div class="timeline-item">
+                    <h4>Day 1-3：Linear Attention家族</h4>
+                    <ul style="margin-left: 20px; color: var(--text-secondary);">
+                        <li><strong>必读</strong>：《Transformers are RNNs: Fast Autoregressive Transformers with Linear Attention》</li>
+                        <li><strong>理解</strong>：为什么Linear Attention的KV Cache不随序列长度增长？</li>
+                        <li><strong>实验</strong>：PyTorch手写简化Linear Attention，对比复杂度</li>
+                        <li><strong>交付物</strong>：数学推导 + 代码实现</li>
+                    </ul>
+                </div>
+                
+                <div class="timeline-item">
+                    <h4>Day 4-5：Kimi Linear架构</h4>
+                    <ul style="margin-left: 20px; color: var(--text-secondary);">
+                        <li><strong>精读</strong>：PrFaaS论文"混合注意力"章节</li>
+                        <li><strong>关键</strong>：7:1的Linear:Full Attention比例，如何平衡质量和效率？</li>
+                        <li><strong>交付物</strong>：向团队做15分钟分享</li>
+                    </ul>
+                </div>
+                
+                <div class="timeline-item">
+                    <h4>Day 6-7：万亿参数模型设计</h4>
+                    <ul style="margin-left: 20px; color: var(--text-secondary);">
+                        <li><strong>任务</strong>：给定1T参数、MoE、混合注意力配置，计算：</li>
+                        <li>总参数量、激活参数量</li>
+                        <li>不同并行策略(EP/TP/PP)的通信量</li>
+                        <li>PrFaaS架构下的节点配置建议</li>
+                        <li><strong>交付物</strong>：一份完整的设计文档</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="alert alert-warning">
+                <strong>PrFaaS关联：</strong>36倍KV压缩来自混合注意力，这是跨机房调度的前提。Ring-2.5-1T用7:1比例实现压缩。
+            </div>
+        </section>
+        
+        <section id="week11">
+            <h3>Week 11-12：PrFaaS论文复现与开源项目</h3>
+            
+            <div class="timeline">
+                <div class="timeline-item">
+                    <h4>Day 1-4：PrFaaS调度算法复现</h4>
+                    <ul style="margin-left: 20px; color: var(--text-secondary);">
+                        <li><strong>精读</strong>：PrFaaS论文Architecture和Scheduling章节</li>
+                        <li><strong>代码</strong>：Python实现核心调度逻辑</li>
+                        <pre><code>class PrFaaSScheduler:
+    def __init__(self, prefill_nodes, decode_nodes, bandwidth_matrix):
+        self.prefill_nodes = prefill_nodes
+        self.decode_nodes = decode_nodes
+        self.bandwidth = bandwidth_matrix
+    
+    def route_request(self, request):
+        # 1. 检查前缀缓存池
+        # 2. 带宽感知选择Prefill节点
+        # 3. 双时间尺度调度
+        # 4. 动态算力重分配
+        pass</code></pre>
+                        <li><strong>交付物</strong>：能跑的调度模拟器，输入请求trace输出调度决策</li>
+                    </ul>
+                </div>
+                
+                <div class="timeline-item">
+                    <h4>Day 5-7：最终项目 —— 开源PrFaaS调度模拟器</h4>
+                    <ul style="margin-left: 20px; color: var(--text-secondary);">
+                        <li><strong>项目</strong>：基于PrFaaS论文，实现简化版跨节点推理调度原型</li>
+                        <li><strong>范围</strong>：纯CPU可跑，不需要真GPU</li>
+                        <li><strong>必须包含</strong>：混合前缀缓存池、带宽感知路由、双时间尺度调度</li>
+                        <li><strong>交付物</strong>：GitHub仓库，包含代码、文档、benchmark结果、可视化</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="alert alert-success">
+                <strong>最终验收：</strong>完成这个项目，你将能向面试官完整解释PrFaaS架构，并展示可运行的代码。
+            </div>
+        </section>
+        
+        <section id="phase3-check">
+            <h3>Phase 3 验收标准</h3>
+            <ul class="checklist" id="phase3-checklist">
+                <li><div class="checkbox" onclick="toggleCheck(this)"></div>能完整解释PrFaaS的架构设计和核心创新</li>
+                <li><div class="checkbox" onclick="toggleCheck(this)"></div>能复现PrFaaS的调度算法</li>
+                <li><div class="checkbox" onclick="toggleCheck(this)"></div>能设计万亿参数模型的分布式推理方案</li>
+                <li><div class="checkbox" onclick="toggleCheck(this)"></div>有一个可展示的开源项目</li>
+            </ul>
+        </section>
+        
+        <section id="papers">
+            <h2>📚 必读论文索引</h2>
+            
+            <table>
+                <tr>
+                    <th>论文</th>
+                    <th>Phase</th>
+                    <th>PrFaaS关联</th>
+                </tr>
+                <tr>
+                    <td>Fast Transformer Decoding: One Write-Head is All You Need</td>
+                    <td><span class="tag tag-blue">1</span></td>
+                    <td>MQA基础</td>
+                </tr>
+                <tr>
+                    <td>GQA: Training Generalized Multi-Query Transformer Models</td>
+                    <td><span class="tag tag-blue">1</span></td>
+                    <td>GQA基础</td>
+                </tr>
+                <tr>
+                    <td>DeepSeek-V2: A Strong... Language Model</td>
+                    <td><span class="tag tag-blue">1</span></td>
+                    <td>MLA首次提出</td>
+                </tr>
+                <tr>
+                    <td>Efficient Memory Management for LLM Serving with PagedAttention</td>
+                    <td><span class="tag tag-blue">1</span></td>
+                    <td>vLLM核心</td>
+                </tr>
+                <tr>
+                    <td>Mooncake: A KVCache-centric Disaggregated Architecture</td>
+                    <td><span class="tag tag-green">2</span></td>
+                    <td>PD分离先驱</td>
+                </tr>
+                <tr>
+                    <td>Sarathi: Efficient LLM Inference by Piggybacking Decodes with Chunked Prefills</td>
+                    <td><span class="tag tag-green">2</span></td>
+                    <td>Chunked Prefill</td>
+                </tr>
+                <tr>
+                    <td><strong>Prefill-as-a-Service: KVCache of Next-Generation Models Could Go Cross-Datacenter</strong></td>
+                    <td><span class="tag tag-yellow">3</span></td>
+                    <td><strong>终极目标</strong></td>
+                </tr>
+                <tr>
+                    <td>Transformers are RNNs: Fast Autoregressive Transformers with Linear Attention</td>
+                    <td><span class="tag tag-yellow">3</span></td>
+                    <td>Linear Attention</td>
+                </tr>
+            </table>
+        </section>
+        
+        <section id="repos">
+            <h2>💻 关键代码仓库</h2>
+            
+            <div class="card">
+                <div class="card-title">推理引擎</div>
+                <table>
+                    <tr><th>仓库</th><th>用途</th><th>学习重点</th></tr>
+                    <tr><td><code>github.com/vllm-project/vllm</code></td><td>当前最主流推理引擎</td><td>PagedAttention、Prefix Caching、Scheduler</td></tr>
+                    <tr><td><code>github.com/sgl-project/sglang</code></td><td>灵活推理框架</td><td>月之暗面深度参与，学习前沿特性</td></tr>
+                    <tr><td><code>github.com/kvcache-ai/Mooncake</code></td><td>PD分离开源实现</td><td>分离架构、KV Cache传输</td></tr>
+                </table>
+            </div>
+            
+            <div class="card">
+                <div class="card-title">模型参考</div>
+                <table>
+                    <tr><th>仓库</th><th>用途</th></tr>
+                    <tr><td><code>github.com/deepseek-ai/DeepSeek-V2</code></td><td>MLA实现参考</td></tr>
+                    <tr><td><code>github.com/ggerganov/llama.cpp</code></td><td>GGUF量化、CPU推理</td></tr>
+                </table>
+            </div>
+        </section>
+        
+        <section id="tools">
+            <h2>🛠️ 工具链</h2>
+            
+            <div class="accordion open">
+                <div class="accordion-header" onclick="toggleAccordion(this)">
+                    <span>推理与部署</span>
+                    <span class="accordion-icon">▼</span>
+                </div>
+                <div class="accordion-body">
+                    <div class="accordion-content">
+                        <ul style="margin-left: 20px; color: var(--text-secondary);">
+                            <li><strong>vLLM</strong>：生产级推理服务，支持PagedAttention和Prefix Caching</li>
+                            <li><strong>SGLang</strong>：更灵活的推理框架，适合实验新特性</li>
+                            <li><strong>TensorRT-LLM</strong>：NVIDIA高性能推理，适合学习GPU优化</li>
+                            <li><strong>Ollama</strong>：本地快速部署，8GB卡友好</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="accordion">
+                <div class="accordion-header" onclick="toggleAccordion(this)">
+                    <span>量化与压缩</span>
+                    <span class="accordion-icon">▼</span>
+                </div>
+                <div class="accordion-body">
+                    <div class="accordion-content">
+                        <ul style="margin-left: 20px; color: var(--text-secondary);">
+                            <li><strong>llama.cpp</strong>：GGUF量化工具链，支持多种量化级别</li>
+                            <li><strong>llm-compressor</strong>：SparseML团队，支持多种压缩算法</li>
+                            <li><strong>auto-gptq / autoawq</strong>：GPU友好量化</li>
+                            <li><strong>bitsandbytes</strong>：8bit/4bit量化，HuggingFace集成</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="accordion">
+                <div class="accordion-header" onclick="toggleAccordion(this)">
+                    <span>性能分析</span>
+                    <span class="accordion-icon">▼</span>
+                </div>
+                <div class="accordion-body">
+                    <div class="accordion-content">
+                        <ul style="margin-left: 20px; color: var(--text-secondary);">
+                            <li><strong>PyTorch Profiler</strong>：轻量，8GB卡可跑</li>
+                            <li><strong>Nsight Systems</strong>：NVIDIA官方，深入kernel级别</li>
+                            <li><strong>nvidia-smi</strong>：实时监控显存和利用率</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="accordion">
+                <div class="accordion-header" onclick="toggleAccordion(this)">
+                    <span>网络模拟</span>
+                    <span class="accordion-icon">▼</span>
+                </div>
+                <div class="accordion-body">
+                    <div class="accordion-content">
+                        <ul style="margin-left: 20px; color: var(--text-secondary);">
+                            <li><strong>Linux tc (traffic control)</strong>：模拟带宽限制和延迟</li>
+                            <li><strong>Mininet</strong>：SDN网络模拟，适合复杂拓扑</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <section id="today">
+            <h2>⚡ 今天就做</h2>
+            
+            <div class="card" style="border-left: 4px solid var(--success);">
+                <div class="card-title">第一步（5分钟）</div>
+                <pre><code># 安装Ollama
+curl -fsSL https://ollama.com/install.sh | sh
+
+# 拉取Phi-4 Mini
+ollama pull phi4:mini
+
+# 运行并测试
+ollama run phi4:mini</code></pre>
+            </div>
+            
+            <div class="card" style="border-left: 4px solid var(--warning);">
+                <div class="card-title">第二步（明天）</div>
+                <pre><code># 拉取Llama 3.1 8B Q4
+ollama pull llama3.1:8b
+
+# 对比Phi-4 Mini和Llama 3.1 8B的生成速度和显存
+# 观察 nvidia-smi 显存占用
+# 尝试调整 num_ctx 参数，观察显存变化</code></pre>
+            </div>
+            
+            <div class="card" style="border-left: 4px solid var(--accent);">
+                <div class="card-title">本周结束前</div>
+                <ul style="margin-left: 20px; color: var(--text-secondary);">
+                    <li>理解为什么Llama 3.1 8B Q4_K_M只占4.9GB，而不是16GB（FP16理论值）</li>
+                    <li>能向同事解释清楚"量化"和"KV Cache"的关系</li>
+                    <li>安装vLLM，用CPU模式跑通Phi-4 Mini</li>
+                </ul>
+            </div>
+        </section>
+        
+        <footer style="margin-top: 60px; padding-top: 30px; border-top: 1px solid var(--border); text-align: center; color: var(--text-secondary); font-size: 14px;">
+            <p>基于月之暗面 PrFaaS 论文 (arXiv:2604.15039) 设计</p>
+            <p style="margin-top: 10px;">为 8GB 显存的后端工程师量身定制</p>
+            <p style="margin-top: 20px; font-size: 12px;">保存为 .html 文件，用浏览器打开即可使用</p>
+        </footer>
+    </main>
+    
+    <script>
+        function setActive(element) {
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            element.classList.add('active');
+            if (window.innerWidth <= 1024) {
+                document.getElementById('sidebar').classList.remove('open');
+            }
+        }
+        
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+        }
+        
+        function toggleAccordion(header) {
+            const accordion = header.parentElement;
+            accordion.classList.toggle('open');
+        }
+        
+        function toggleCheck(checkbox) {
+            checkbox.classList.toggle('checked');
+            const li = checkbox.closest('li');
+            li.classList.toggle('checked-item');
+            updateProgress();
+        }
+        
+        function updateProgress() {
+            const total = document.querySelectorAll('.checkbox').length;
+            const checked = document.querySelectorAll('.checkbox.checked').length;
+            const percentage = (checked / total) * 100;
+            document.getElementById('progressFill').style.width = percentage + '%';
+        }
+        
+        window.addEventListener('scroll', () => {
+            const sections = document.querySelectorAll('section[id]');
+            const scrollPos = window.scrollY + 100;
+            
+            sections.forEach(section => {
+                if (scrollPos >= section.offsetTop && scrollPos < section.offsetTop + section.offsetHeight) {
+                    const id = section.getAttribute('id');
+                    document.querySelectorAll('.nav-item').forEach(el => {
+                        el.classList.remove('active');
+                        if (el.getAttribute('href') === '#' + id) {
+                            el.classList.add('active');
+                        }
+                    });
+                }
+            });
+            
+            updateProgress();
+        });
+        
+        updateProgress();
+    </script>
+</body>
+</html>

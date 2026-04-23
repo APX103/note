@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI时代工程师价值重构指南</title>
+    <style>
+        :root {
+            --bg: #0f0f12;
+            --surface: #1a1a1f;
+            --surface-2: #222228;
+            --text: #e8e8ec;
+            --text-secondary: #9ca3af;
+            --accent: #6366f1;
+            --accent-glow: rgba(99, 102, 241, 0.15);
+            --accent-2: #8b5cf6;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --border: rgba(255,255,255,0.06);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        /* Hero Section */
+        .hero {
+            padding: 80px 0 60px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(ellipse at 30% 20%, var(--accent-glow) 0%, transparent 50%),
+                        radial-gradient(ellipse at 70% 80%, rgba(139, 92, 246, 0.1) 0%, transparent 50%);
+            pointer-events: none;
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 100px;
+            font-size: 13px;
+            color: var(--accent);
+            margin-bottom: 24px;
+        }
+
+        .badge-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--accent);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        h1 {
+            font-size: 42px;
+            font-weight: 700;
+            line-height: 1.2;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, var(--text) 0%, var(--accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            font-size: 18px;
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin-bottom: 32px;
+        }
+
+        .meta {
+            display: flex;
+            gap: 24px;
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Navigation */
+        .nav {
+            position: sticky;
+            top: 0;
+            background: rgba(15, 15, 18, 0.8);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+            z-index: 100;
+            padding: 16px 0;
+        }
+
+        .nav-inner {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+
+        .nav-inner::-webkit-scrollbar {
+            display: none;
+        }
+
+        .nav-item {
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            white-space: nowrap;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+
+        .nav-item:hover {
+            background: var(--surface);
+            color: var(--text);
+        }
+
+        .nav-item.active {
+            background: var(--surface);
+            color: var(--accent);
+            border-color: var(--border);
+        }
+
+        /* Sections */
+        .section {
+            padding: 60px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .section:last-child {
+            border-bottom: none;
+        }
+
+        h2 {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .section-num {
+            font-size: 14px;
+            color: var(--accent);
+            font-weight: 500;
+            font-family: 'SF Mono', monospace;
+        }
+
+        .section-desc {
+            color: var(--text-secondary);
+            font-size: 16px;
+            margin-bottom: 32px;
+            max-width: 700px;
+        }
+
+        h3 {
+            font-size: 20px;
+            font-weight: 600;
+            margin: 32px 0 16px;
+            color: var(--text);
+        }
+
+        p {
+            margin-bottom: 16px;
+            color: var(--text-secondary);
+        }
+
+        /* Cards */
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+            margin: 24px 0;
+        }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+            transition: all 0.3s;
+        }
+
+        .card:hover {
+            border-color: rgba(99, 102, 241, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .card-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            margin-bottom: 16px;
+            background: var(--accent-glow);
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .card-text {
+            font-size: 14px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        /* Tables */
+        .table-wrap {
+            overflow-x: auto;
+            margin: 24px 0;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        th {
+            background: var(--surface-2);
+            padding: 14px 16px;
+            text-align: left;
+            font-weight: 500;
+            color: var(--text);
+            border-bottom: 1px solid var(--border);
+        }
+
+        td {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background: rgba(255,255,255,0.02);
+        }
+
+        /* Timeline */
+        .timeline {
+            position: relative;
+            padding-left: 32px;
+            margin: 24px 0;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 8px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: linear-gradient(to bottom, var(--accent), var(--accent-2));
+            border-radius: 2px;
+        }
+
+        .timeline-item {
+            position: relative;
+            padding-bottom: 32px;
+        }
+
+        .timeline-item:last-child {
+            padding-bottom: 0;
+        }
+
+        .timeline-dot {
+            position: absolute;
+            left: -28px;
+            top: 4px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--surface);
+            border: 3px solid var(--accent);
+        }
+
+        .timeline-date {
+            font-size: 13px;
+            color: var(--accent);
+            font-weight: 500;
+            margin-bottom: 8px;
+            font-family: 'SF Mono', monospace;
+        }
+
+        .timeline-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .timeline-text {
+            font-size: 14px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        /* Quote */
+        .quote {
+            background: var(--surface);
+            border-left: 3px solid var(--accent);
+            padding: 20px 24px;
+            border-radius: 0 12px 12px 0;
+            margin: 24px 0;
+            font-style: italic;
+            color: var(--text);
+        }
+
+        .quote-author {
+            margin-top: 12px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-style: normal;
+        }
+
+        /* Tags */
+        .tag {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            margin-right: 8px;
+            margin-bottom: 8px;
+        }
+
+        .tag-green {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+        }
+
+        .tag-yellow {
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--warning);
+        }
+
+        .tag-red {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+        }
+
+        /* Action Items */
+        .action-list {
+            list-style: none;
+            margin: 24px 0;
+        }
+
+        .action-list li {
+            display: flex;
+            gap: 16px;
+            padding: 16px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .action-list li:last-child {
+            border-bottom: none;
+        }
+
+        .action-check {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 2px solid var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 12px;
+            color: var(--accent);
+        }
+
+        .action-content h4 {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .action-content p {
+            font-size: 14px;
+            margin-bottom: 0;
+        }
+
+        /* Footer */
+        .footer {
+            padding: 60px 0;
+            text-align: center;
+            border-top: 1px solid var(--border);
+        }
+
+        .footer-text {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--surface-2);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--accent);
+        }
+
+        /* Print styles */
+        @media print {
+            .nav { display: none; }
+            .hero { padding: 40px 0; }
+            body { background: white; color: black; }
+            .card { break-inside: avoid; }
+        }
+
+        @media (max-width: 640px) {
+            h1 { font-size: 28px; }
+            h2 { font-size: 22px; }
+            .section { padding: 40px 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <section class="hero">
+        <div class="container hero-content">
+            <div class="badge">
+                <span class="badge-dot"></span>
+                2026年4月 · 深度研究
+            </div>
+            <h1>AI时代工程师价值重构指南</h1>
+            <p class="subtitle">当AI能写前端、后端、甚至专业软件时，资深工程师如何重新定义自己的价值坐标？一份不浮夸、可执行的转型路线图。</p>
+            <div class="meta">
+                <div class="meta-item">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                    面向：7年+经验软件工程师
+                </div>
+                <div class="meta-item">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                    阅读时间：约15分钟
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <nav class="nav">
+        <div class="container">
+            <div class="nav-inner">
+                <a href="#dilemma" class="nav-item">困境本质</a>
+                <a href="#cost" class="nav-item">转型成本</a>
+                <a href="#future" class="nav-item">未来图景</a>
+                <a href="#paths" class="nav-item">五条路径</a>
+                <a href="#strategy" class="nav-item">破局策略</a>
+                <a href="#action" class="nav-item">行动计划</a>
+            </div>
+        </div>
+    </nav>
+
+    <section class="section" id="dilemma">
+        <div class="container">
+            <h2><span class="section-num">01</span>困境本质：成就感危机</h2>
+            <p class="section-desc">你的迷茫不是技术问题，而是价值坐标系的坍塌与重建。</p>
+
+            <div class="card-grid">
+                <div class="card">
+                    <div class="card-icon">🎯</div>
+                    <div class="card-title">执行层被覆盖</div>
+                    <div class="card-text">AI在已知问题空间表现优异，写代码、做前端、搭后端都变得"顺手"。旧的成就感来源（写代码）被AI分流。</div>
+                </div>
+                <div class="card">
+                    <div class="card-icon">🔍</div>
+                    <div class="card-title">价值层未显性化</div>
+                    <div class="card-text">你的架构思维、风险嗅觉、系统直觉依然有价值，但它们是隐性的，组织看不到，你自己也感知不到。</div>
+                </div>
+                <div class="card">
+                    <div class="card-icon">⚠️</div>
+                    <div class="card-title">身份认同危机</div>
+                    <div class="card-text">"我是谁？"从"写代码的人"变成了"看AI写代码的人"，角色模糊带来存在性焦虑。</div>
+                </div>
+            </div>
+
+            <div class="quote">
+                当工具提升了你的执行效率，真正的价值并没有消失，而是向上转移了——从"写代码"转移到了"决定写什么代码"和"为什么写"。
+            </div>
+
+            <h3>三个需要破除的幻觉</h3>
+            <p><strong>幻觉一："AI什么都能做"</strong> —— AI在已知问题空间强，在未知问题空间（即业务真正产生价值的部分）往往捉襟见肘。AI能写CRUD，但不能定义什么值得被CRUD。</p>
+            <p><strong>幻觉二："效率提升=价值消失"</strong> —— 空闲不等于无用。你的时间被释放出来，是为了让你做更高维度的事，而不是让你失业。</p>
+            <p><strong>幻觉三："顺手就能做的是坏生意"</strong> —— 这句话适用于商业模式选择，不适用于个人职业定位。个人能力的"顺手"与商业的"顺手"是两个维度。</p>
+        </div>
+    </section>
+
+    <section class="section" id="cost">
+        <div class="container">
+            <h2><span class="section-num">02</span>转型成本：比你想象的低</h2>
+            <p class="section-desc">你担心的沉没成本，其实大部分都可以复用。</p>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>你担心的成本</th>
+                            <th>实际情况</th>
+                            <th>成本评级</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>旧知识沉没成本</td>
+                            <td>架构思维、系统设计、工程化经验<strong>直接复用</strong>，不是沉没，是底座</td>
+                            <td><span class="tag tag-green">极低</span></td>
+                        </tr>
+                        <tr>
+                            <td>学习速度不如年轻人</td>
+                            <td>年轻人学"如何用AI写代码"，你学"如何让AI写对代码"，<strong>维度不同</strong></td>
+                            <td><span class="tag tag-green">低</span></td>
+                        </tr>
+                        <tr>
+                            <td>年轻人不需要学这些</td>
+                            <td>恰恰错了，年轻人<strong>最缺</strong>的就是你的上下文理解力和风险嗅觉</td>
+                            <td><span class="tag tag-green">低</span></td>
+                        </tr>
+                        <tr>
+                            <td>重新定义身份的心理成本</td>
+                            <td>从"工程师"到"AI指挥官"的自我认知转变，需要勇气</td>
+                            <td><span class="tag tag-yellow">中等</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="quote">
+                这不是一个"学新东西"的问题，这是一个"重新包装旧东西"的问题。成本远低于你的想象。
+            </div>
+        </div>
+    </section>
+
+    <section class="section" id="future">
+        <div class="container">
+            <h2><span class="section-num">03</span>未来图景：2026-2031</h2>
+            <p class="section-desc">基于Anthropic 2026报告及行业分析，软件工程领域的演变路径。</p>
+
+            <div class="timeline">
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-date">2026 - 2027</div>
+                    <div class="timeline-title">AI编码普及期</div>
+                    <div class="timeline-text">AI生成代码成为标配，初级编码岗位压缩。你的角色从"写代码"转向"审代码+把控架构"。AWS CEO预测：24个月后大多数开发人员可能不再编写代码。</div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-date">2027 - 2029</div>
+                    <div class="timeline-title">规范驱动开发(SDD)主流期</div>
+                    <div class="timeline-text">"规范驱动开发"成为主流。工程师不再写代码，而是写"AI能理解的规范"——定义系统边界、接口契约、业务规则。架构能力直接转化为AI的生产力。</div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-date">2029 - 2031</div>
+                    <div class="timeline-title">非技术人员开发期</div>
+                    <div class="timeline-text">非技术人员也能用AI开发应用。技术决策者的价值凸显——因为非技术人员需要有人为AI的决策"背锅"和校准。人类架构师的独特价值体现在战略判断、组织协调和创新能力。</div>
+                </div>
+            </div>
+
+            <div class="quote">
+                程序员不会消失，但"只会写代码"的程序员会消失。未来的软件工程师，是编排者、架构师、决策者。
+                <div class="quote-author">— Anthropic 2026年行业报告</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section" id="paths">
+        <div class="container">
+            <h2><span class="section-num">04</span>五条转型路径</h2>
+            <p class="section-desc">按"复用旧经验程度"排序，最贴合你现状的方向。</p>
+
+            <div class="card-grid">
+                <div class="card">
+                    <div class="card-icon" style="background: rgba(99, 102, 241, 0.15);">🛡️</div>
+                    <div class="card-title">AI代码审计师</div>
+                    <div class="card-text">
+                        <strong>做什么：</strong>建立AI生成代码的review标准、安全红线、长期维护性评估体系。<br><br>
+                        <strong>为什么适合你：</strong>你现在就在做review，只是把对象从"人写的代码"变成"AI写的代码"，但<strong>标准制定权</strong>在你手里。<br><br>
+                        <span class="tag tag-green">成本：极低</span>
+                        <span class="tag tag-green">收入：60-100万</span>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-icon" style="background: rgba(139, 92, 246, 0.15);">📐</div>
+                    <div class="card-title">规范驱动开发(SDD)架构师</div>
+                    <div class="card-text">
+                        <strong>做什么：</strong>不再写代码，而是写"AI能理解的规范"——定义系统边界、接口契约、业务规则。<br><br>
+                        <strong>为什么适合你：</strong>这本质上是<strong>架构设计的下沉</strong>。你的架构图、技术方案，未来就是AI的"prompt"。<br><br>
+                        <span class="tag tag-yellow">成本：中低</span>
+                        <span class="tag tag-green">未来3年黄金期</span>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-icon" style="background: rgba(16, 185, 129, 0.15);">🏭</div>
+                    <div class="card-title">领域解决方案架构师</div>
+                    <div class="card-text">
+                        <strong>做什么：</strong>深入垂直领域（金融、医疗、供应链），成为"懂业务+懂技术+懂AI"的复合型人才。<br><br>
+                        <strong>为什么适合你：</strong>年轻人很难积累领域知识，你的工程经验+业务理解是<strong>双重壁垒</strong>。<br><br>
+                        <span class="tag tag-yellow">成本：中等</span>
+                        <span class="tag tag-green">收入：60-120万+</span>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-icon" style="background: rgba(245, 158, 11, 0.15);">🚀</div>
+                    <div class="card-title">技术产品经理</div>
+                    <div class="card-text">
+                        <strong>做什么：</strong>主导AI工具的产品化，或将AI能力嵌入现有产品。<br><br>
+                        <strong>为什么适合你：</strong>你懂技术可行性，能避免"天马行空"的需求，这是非技术产品经理最大的痛点。<br><br>
+                        <span class="tag tag-yellow">成本：中等</span>
+                        <span class="tag tag-yellow">需补产品思维</span>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-icon" style="background: rgba(239, 68, 68, 0.15);">🤖</div>
+                    <div class="card-title">多智能体(Agent)架构师</div>
+                    <div class="card-text">
+                        <strong>做什么：</strong>设计AI Agent之间的协作规则、工作流编排、多Agent系统架构。<br><br>
+                        <strong>为什么适合你：</strong>这就是<strong>系统架构在AI时代的自然延伸</strong>。Agent通信、状态管理、故障恢复，本质还是分布式系统问题。<br><br>
+                        <span class="tag tag-red">成本：中高</span>
+                        <span class="tag tag-green">溢价+90%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section" id="strategy">
+        <div class="container">
+            <h2><span class="section-num">05</span>破局策略：领导不理你怎么办？</h2>
+            <p class="section-desc">不向上要答案，而是向下要影响力。用成果倒逼认可。</p>
+
+            <h3>核心逻辑</h3>
+            <p>你在当前组织内的"隐性价值"没有被识别。但这不是问题，而是<strong>机会</strong>——你可以自己创造方向，然后用成果倒逼认可。</p>
+
+            <h3>30天静默实验（不需要领导批准）</h3>
+            <ul class="action-list">
+                <li>
+                    <div class="action-check">1</div>
+                    <div class="action-content">
+                        <h4>选一个小项目，全部用AI生成代码</h4>
+                        <p>你只写规范和review，刻意不自己写任何业务代码</p>
+                    </div>
+                </li>
+                <li>
+                    <div class="action-check">2</div>
+                    <div class="action-content">
+                        <h4>记录数据</h4>
+                        <p>AI生成了多少行？你花了多少时间在review？发现了多少AI的隐患？</p>
+                    </div>
+                </li>
+                <li>
+                    <div class="action-check">3</div>
+                    <div class="action-content">
+                        <h4>产出《AI代码质量评估报告》</h4>
+                        <p>发给团队（不是领导），让自己成为"那个最懂AI代码风险的人"</p>
+                    </div>
+                </li>
+                <li>
+                    <div class="action-check">4</div>
+                    <div class="action-content">
+                        <h4>建立AI Review Checklist</h4>
+                        <p>当团队开始依赖你的AI review能力时，领导自然会注意到</p>
+                    </div>
+                </li>
+            </ul>
+
+            <div class="quote">
+                不向上要答案，而是向下要影响力。当团队开始依赖你的AI review能力时，领导自然会注意到。
+            </div>
+
+            <h3>关于"超级个体"的务实修正</h3>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>超级个体类型</th>
+                            <th>特征</th>
+                            <th>是否可持续</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>工具型</strong></td>
+                            <td>一个人用AI干10个人的活</td>
+                            <td><span class="tag tag-red">❌ 不可持续</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>判断型</strong></td>
+                            <td>一个人用AI+自己的判断力定义方向</td>
+                            <td><span class="tag tag-green">✅ 壁垒在于人的认知</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>关系型</strong></td>
+                            <td>一个人用AI+信任网络整合资源</td>
+                            <td><span class="tag tag-green">✅ 壁垒在于社会资本</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <p>你要做的不是"一个人干更多活"的工具型超级个体，而是<strong>"一个人做更关键决策"的判断型超级个体</strong>。</p>
+        </div>
+    </section>
+
+    <section class="section" id="action">
+        <div class="container">
+            <h2><span class="section-num">06</span>行动计划：本周就开始</h2>
+            <p class="section-desc">最小成本验证，不冒风险，立即执行。</p>
+
+            <h3>本周就做的事</h3>
+            <ul class="action-list">
+                <li>
+                    <div class="action-check" style="border-color: var(--success); color: var(--success);">✓</div>
+                    <div class="action-content">
+                        <h4>整理《AI辅助开发复盘》</h4>
+                        <p>把你最近一个用AI完成的模块，整理成文档：哪些AI做得好？哪些踩了坑？你的review发现了什么？发到内部技术群或写成博客。</p>
+                    </div>
+                </li>
+            </ul>
+
+            <h3>本月做的事</h3>
+            <ul class="action-list">
+                <li>
+                    <div class="action-check" style="border-color: var(--warning); color: var(--warning);">→</div>
+                    <div class="action-content">
+                        <h4>主动承担"跨系统整合"或"遗留系统改造"</h4>
+                        <p>这类工作需要大量隐性上下文，AI难以独立完成，你的价值会自然凸显。</p>
+                    </div>
+                </li>
+            </ul>
+
+            <h3>本季度做的事</h3>
+            <ul class="action-list">
+                <li>
+                    <div class="action-check" style="border-color: var(--accent); color: var(--accent);">★</div>
+                    <div class="action-content">
+                        <h4>向团队提出《AI代码Review Checklist》</h4>
+                        <p>基于你的复盘，建立一套标准，让自己成为标准的制定者。这是从"执行者"到"定义者"的关键一跃。</p>
+                    </div>
+                </li>
+            </ul>
+
+            <div class="quote">
+                你的经验不是"用不上"了，而是"藏得太深，别人看不见"。你需要做的不是抛弃它，而是把它从隐性变成显性——写成规范、做成流程、变成别人离不开的标准。
+            </div>
+
+            <h3>最后的话</h3>
+            <p>你的迷茫恰恰说明你触及了一个真实的时代命题。那些完全没有这种危机感的人，可能才是真正危险的——他们要么在做AI很快能替代的事而不自知，要么已经放弃了思考。</p>
+            <p>你现在的"无事可做"感，本质上是因为<strong>旧的成就感来源（写代码）被AI分流了，而新的成就感来源（定义问题、把控方向）还没有被你和你的组织正式承认</strong>。</p>
+            <p>解决这个问题，一部分在你自己（重新定义价值），一部分在环境（找到认可这种价值的土壤）。如果环境暂时不认可，那就先在自己能控制的范围内建立新的价值证明，然后带着这些证明去寻找或创造认可它的环境。</p>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <div class="container">
+            <p class="footer-text">本报告基于2026年4月行业数据与研究整理 · 仅供个人参考</p>
+        </div>
+    </footer>
+
+    <script>
+        // Smooth scroll for nav links
+        document.querySelectorAll('.nav-item').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+
+        // Active nav on scroll
+        const sections = document.querySelectorAll('.section');
+        const navItems = document.querySelectorAll('.nav-item');
+
+        window.addEventListener('scroll', () => {
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                if (scrollY >= sectionTop - 100) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            navItems.forEach(item => {
+                item.classList.remove('active');
+                if (item.getAttribute('href') === '#' + current) {
+                    item.classList.add('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

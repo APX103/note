@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MoE 架构与 Kimi K2.6 深度解析</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap');
+
+        body {
+            font-family: 'Inter', 'Noto Sans SC', sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 50%, #f472b6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .card {
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            border-color: rgba(96, 165, 250, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .expert-node {
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            border: 1px solid #475569;
+            transition: all 0.3s ease;
+        }
+
+        .expert-node.active {
+            background: linear-gradient(135deg, #1e3a5f 0%, #3b82f6 100%);
+            border-color: #60a5fa;
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+        }
+
+        .router-arrow {
+            stroke: #64748b;
+            stroke-width: 2;
+            fill: none;
+            marker-end: url(#arrowhead);
+        }
+
+        .router-arrow.active {
+            stroke: #60a5fa;
+            stroke-width: 3;
+        }
+
+        .code-block {
+            background: #1e293b;
+            border-radius: 12px;
+            border: 1px solid #334155;
+        }
+
+        .comparison-table th {
+            background: rgba(59, 130, 246, 0.1);
+            color: #60a5fa;
+        }
+
+        .comparison-table td {
+            border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .tag-blue {
+            background: rgba(59, 130, 246, 0.15);
+            color: #60a5fa;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        .tag-purple {
+            background: rgba(168, 85, 247, 0.15);
+            color: #a78bfa;
+            border: 1px solid rgba(168, 85, 247, 0.3);
+        }
+
+        .tag-green {
+            background: rgba(34, 197, 94, 0.15);
+            color: #4ade80;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        .tag-red {
+            background: rgba(239, 68, 68, 0.15);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: #334155;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+            border-radius: 4px;
+            transition: width 1s ease;
+        }
+
+        .section-divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, #475569, transparent);
+        }
+
+        .highlight-box {
+            border-left: 4px solid #60a5fa;
+            background: rgba(59, 130, 246, 0.05);
+        }
+
+        .warning-box {
+            border-left: 4px solid #f59e0b;
+            background: rgba(245, 158, 11, 0.05);
+        }
+
+        .error-box {
+            border-left: 4px solid #ef4444;
+            background: rgba(239, 68, 68, 0.05);
+        }
+
+        .success-box {
+            border-left: 4px solid #22c55e;
+            background: rgba(34, 197, 94, 0.05);
+        }
+
+        /* Smooth scrolling */
+        html {
+            scroll-behavior: smooth;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <!-- Hero Section -->
+    <header class="relative overflow-hidden py-20 px-6">
+        <div class="absolute inset-0 bg-gradient-to-br from-blue-900/20 via-purple-900/20 to-pink-900/20"></div>
+        <div class="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-blue-500/10 blur-[120px] rounded-full"></div>
+
+        <div class="relative max-w-5xl mx-auto text-center">
+            <div class="flex items-center justify-center gap-3 mb-6">
+                <span class="tag tag-blue">Kimi K2.6</span>
+                <span class="tag tag-purple">MoE 架构</span>
+                <span class="tag tag-green">深度思考模式</span>
+            </div>
+            <h1 class="text-5xl md:text-6xl font-bold mb-6 leading-tight">
+                <span class="gradient-text">混合专家架构</span><br>
+                <span class="text-slate-300">从原理到工程实践</span>
+            </h1>
+            <p class="text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed">
+                一次关于 MoE、K2.6 双模式、动态路由与专家专科化的完整技术对话记录
+            </p>
+            <div class="mt-8 flex items-center justify-center gap-4 text-sm text-slate-500">
+                <span>2026-04-23</span>
+                <span class="w-1 h-1 bg-slate-500 rounded-full"></span>
+                <span>7 个核心问答</span>
+                <span class="w-1 h-1 bg-slate-500 rounded-full"></span>
+                <span>从入门到深入</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Table of Contents -->
+    <nav class="sticky top-0 z-50 bg-slate-900/80 backdrop-blur-xl border-b border-slate-800">
+        <div class="max-w-5xl mx-auto px-6 py-4">
+            <div class="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                <a href="#q1" class="tag tag-blue whitespace-nowrap hover:bg-blue-500/30 transition">Q1: 思考模式本质</a>
+                <a href="#q2" class="tag tag-purple whitespace-nowrap hover:bg-purple-500/30 transition">Q2: MoE 架构详解</a>
+                <a href="#q3" class="tag tag-green whitespace-nowrap hover:bg-green-500/30 transition">Q3: 网络堆叠辨析</a>
+                <a href="#q4" class="tag tag-blue whitespace-nowrap hover:bg-blue-500/30 transition">Q4: 固定激活数</a>
+                <a href="#q5" class="tag tag-purple whitespace-nowrap hover:bg-purple-500/30 transition">Q5: 32B 激活量</a>
+                <a href="#q6" class="tag tag-green whitespace-nowrap hover:bg-green-500/30 transition">Q6: 逐层 Router</a>
+                <a href="#q7" class="tag tag-red whitespace-nowrap hover:bg-red-500/30 transition">Q7: 专家功能边界</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-5xl mx-auto px-6 py-12 space-y-16">
+
+        <!-- Q1: 思考模式本质 -->
+        <section id="q1" class="scroll-mt-24">
+            <div class="flex items-center gap-4 mb-8">
+                <div class="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center text-blue-400 font-bold text-xl">1</div>
+                <div>
+                    <h2 class="text-3xl font-bold text-white">思考模式是什么？</h2>
+                    <p class="text-slate-400 mt-1">快速模式 vs 深度思考模式的本质区别</p>
+                </div>
+            </div>
+
+            <div class="card rounded-2xl p-8 mb-6">
+                <div class="highlight-box p-6 rounded-xl mb-6">
+                    <p class="text-lg leading-relaxed">
+                        <strong class="text-blue-400">核心结论：</strong>
+                        快速模式和深度思考模式是<strong class="text-white">同一个基础模型（K2.6）的两种运行状态</strong>，而非两个独立模型。深度思考模式也不是"带 Prompt 的 Agent"，而是模型通过 MoE 架构<strong class="text-white">动态激活更多推理专家</strong>实现的。
+                    </p>
+                </div>
+
+                <h3 class="text-xl font-semibold text-white mb-4">架构对比</h3>
+                <div class="grid md:grid-cols-2 gap-6 mb-8">
+                    <div class="bg-slate-800/50 rounded-xl p-6 border border-slate-700">
+                        <div class="flex items-center gap-2 mb-4">
+                            <span class="w-3 h-3 rounded-full bg-green-400"></span>
+                            <h4 class="font-semibold text-green-400">快速模式</h4>
+                        </div>
+                        <ul class="space-y-2 text-slate-300 text-sm">
+                            <li class="flex items-start gap-2">
+                                <span class="text-green-400 mt-1">▸</span>
+                                <span>激活较少的专家网络</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-green-400 mt-1">▸</span>
+                                <span>优先响应速度</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-green-400 mt-1">▸</span>
+                                <span>适合简单问答、自动补全</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-green-400 mt-1">▸</span>
+                                <span>不输出 reasoning_content</span>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="bg-slate-800/50 rounded-xl p-6 border border-slate-700">
+                        <div class="flex items-center gap-2 mb-4">
+                            <span class="w-3 h-3 rounded-full bg-purple-400"></span>
+                            <h4 class="font-semibold text-purple-400">深度思考模式</h4>
+                        </div>
+                        <ul class="space-y-2 text-slate-300 text-sm">
+                            <li class="flex items-start gap-2">
+                                <span class="text-purple-400 mt-1">▸</span>
+                                <span>动态激活更多推理专家</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-purple-400 mt-1">▸</span>
+                                <span>生成内部思维链 (thinking)</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-purple-400 mt-1">▸</span>
+                                <span>适合复杂编程、数学推理</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-purple-400 mt-1">▸</span>
+                                <span>thinking token 按输出计费</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <h3 class="text-xl font-semibold text-white mb-4">API 层面的实现</h3>
+                <div class="code-block p-6 mb-6">
+                    <pre><code class="language-python"># API 返回结构示例
+{
+  "content": "最终回答...",           # 正式输出
+  "reasoning_content": "让我先分析..." # 思考过程（仅开启思考模式时存在）
+}
+
+# 通过 enableThinking 参数控制
+# K2.6: 默认关闭
+# K2.5: 默认开启</code></pre>
+                </div>
+
+                <div class="warning-box p-6 rounded-xl">
+                    <p class="text-amber-300 font-semibold mb-2">⚠️ 关键区分</p>
+                    <p class="text-slate-300 leading-relaxed">
+                        深度思考模式<strong class="text-white">不是</strong>"带 Prompt 的 Agent"（如早期 Qwen3-Max-Preview 的做法）。K2.6 的深度思考是<strong class="text-white">架构级能力</strong>：MoE 架构根据问题复杂度自动选择激活哪些专家网络，简单问题走"捷径"，复杂问题调用深层推理专家。
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <div class="section-divider"></div>
+
+        <!-- Q2: MoE 架构详解 -->
+        <section id="q2" class="scroll-mt-24">
+            <div class="flex items-center gap-4 mb-8">
+                <div class="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-400 font-bold text-xl">2</div>
+                <div>
+                    <h2 class="text-3xl font-bold text-white">MoE 架构详解</h2>
+                    <p class="text-slate-400 mt-1">从系统架构师视角理解专家网络</p>
+                </div>
+            </div>
+
+            <div class="card rounded-2xl p-8 mb-6">
+                <h3 class="text-xl font-semibold text-white mb-6">核心概念：从 Dense 到 Sparse</h3>
+
+                <div class="grid md:grid-cols-2 gap-8 mb-8">
+                    <div>
+                        <h4 class="text-lg font-medium text-slate-200 mb-4">Dense 模型（如 GPT-3）</h4>
+                        <div class="bg-slate-800/50 rounded-lg p-4 font-mono text-sm text-slate-400">
+                            <div class="text-green-400 mb-2"># 所有参数都参与计算</div>
+                            <div>输入 → [1.75T 参数全部激活] → 输出</div>
+                            <div class="mt-2 text-red-400">计算成本: O(总参数量)</div>
+                        </div>
+                    </div>
+                    <div>
+                        <h4 class="text-lg font-medium text-slate-200 mb-4">MoE 模型（如 K2.6）</h4>
+                        <div class="bg-slate-800/50 rounded-lg p-4 font-mono text-sm text-slate-400">
+                            <div class="text-green-400 mb-2"># 仅激活部分参数</div>
+                            <div>输入 → [Router] → Top-K 专家 → 输出</div>
+                            <div class="mt-2 text-blue-400">1T 总参数 → 32B 激活参数</div>
+                        </div>
+                    </div>
+                </div>
+
+                <h3 class="text-xl font-semibold text-white mb-6">MoE Layer 的微观结构</h3>
+
+                <div class="bg-slate-800/30 rounded-xl p-6 mb-8 border border-slate-700">
+                    <div class="space-y-4 font-mono text-sm">
+                        <div class="flex items-center gap-4">
+                            <span class="text-slate-500 w-24">输入</span>
+                            <span class="text-blue-400">x (维度 d_model)</span>
+                        </div>
+                        <div class="text-slate-600">↓</div>
+                        <div class="flex items-center gap-4">
+                            <span class="text-slate-500 w-24">共享层</span>
+                            <span class="text-green-400">Shared Self-Attention</span>
+                            <span class="text-slate-500">← 所有专家共用</span>
+                        </div>
+                        <div class="text-slate-600">↓</div>
+                        <div class="flex items-center gap-4">
+                            <span class="text-slate-500 w-24">路由层</span>
+                            <span class="text-purple-400">Router / Gate</span>
+                            <span class="text-slate-500">← 输出 N 个专家权重分数</span>
+                        </div>
+                        <div class="text-slate-600">↓</div>
+                        <div class="flex items-center gap-4">
+                            <span class="text-slate-500 w-24">选择</span>
+                            <span class="text-amber-400">Top-K Selection</span>
+                            <span class="text-slate-500">← 只保留 K 个最高权重</span>
+                        </div>
+                        <div class="text-slate-600">↓</div>
+                        <div class="flex items-center gap-4">
+                            <span class="text-slate-500 w-24">专家计算</span>
+                            <span class="text-cyan-400">Expert FFNs (K 个并行)</span>
+                        </div>
+                        <div class="text-slate-600">↓</div>
+                        <div class="flex items-center gap-4">
+                            <span class="text-slate-500 w-24">聚合</span>
+                            <span class="text-pink-400">Weighted Sum</span>
+                            <span class="text-slate-500">← 按 Router 权重聚合</span>
+                        </div>
+                        <div class="text-slate-600">↓</div>
+                        <div class="flex items-center gap-4">
+                            <span class="text-slate-500 w-24">输出</span>
+                            <span class="text-blue-400">y (维度 d_model)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <h3 class="text-xl font-semibold text-white mb-4">K2.6 配置推测</h3>
+                <div class="grid md:grid-cols-3 gap-4 mb-8">
+                    <div class="bg-slate-800/50 rounded-lg p-4 text-center">
+                        <div class="text-3xl font-bold text-blue-400 mb-1">1T</div>
+                        <div class="text-sm text-slate-400">总参数量</div>
+                    </div>
+                    <div class="bg-slate-800/50 rounded-lg p-4 text-center">
+                        <div class="text-3xl font-bold text-purple-400 mb-1">32B</div>
+                        <div class="text-sm text-slate-400">激活参数量</div>
+                    </div>
+                    <div class="bg-slate-800/50 rounded-lg p-4 text-center">
+                        <div class="text-3xl font-bold text-green-400 mb-1">3.2%</div>
+                        <div class="text-sm text-slate-400">激活率</div>
+                    </div>
+                </div>
+
+                <h3 class="text-xl font-semibold text-white mb-4">训练动态：专家的"专科化"</h3>
+                <div class="code-block p-6 mb-6">
+                    <pre><code class="language-python"># 负载均衡损失（核心难点）
+# 目标：防止 Router 总是选择固定几个专家
+
+aux_loss = α * Σ(f_i * P_i)
+
+# f_i: 专家 i 在当前 batch 中被选中的次数（负载）
+# P_i: Router 分配给专家 i 的平均概率（重要性）
+# 当 f_i 和 P_i 都均匀分布时，loss 最小
+
+# 效果：强制 Router 分散选择，倒逼专家差异化</code></pre>
+                </div>
+
+                <div class="success-box p-6 rounded-xl">
+                    <p class="text-green-300 font-semibold mb-2">✓ 关键洞察</p>
+                    <p class="text-slate-300 leading-relaxed">
+                        MoE 的"专科化"是 <strong class="text-white">emergent 现象</strong>，不是人为指定专家领域。专家 A 发现"如果我专精代码 token，Router 在代码场景会选我"，专家 B 发现"我专精数学推理"——通过这种<strong class="text-white">博弈均衡</strong>，专家自然分化。
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <div class="section-divider"></div>
+
+        <!-- Q3: 网络堆叠辨析 -->
+        <section id="q3" class="scroll-mt-24">
+            <div class="flex items-center gap-4 mb-8">
+                <div class="w-12 h-12 rounded-xl bg-green-500/20 flex items-center justify-center text-green-400 font-bold text-xl">3</div>
+                <div>
+                    <h2 class="text-3xl font-bold text-white">MoE 是"堆叠网络"吗？</h2>
+                    <p class="text-slate-400 mt-1">辨析常见误解：加层 vs 稀疏重构</p>
+                </div>
+            </div>
+
+            <div class="card rounded-2xl p-8 mb-6">
+                <div class="error-box p-6 rounded-xl mb-8">
+                    <p class="text-red-300 font-semibold mb-2">✗ 常见误解</p>
+                    <p class="text-slate-300 leading-relaxed">
+                        "MoE 就是在 Transformer 上加一层全连接做路由，Softmax 取 Top-K，然后送到下面的 Decoder"
+                    </p>
+                </div>
+
+                <h3 class="text-xl font-semibold text-white mb-6">实际架构对比</h3>
+
+                <div class="grid md:grid-cols-2 gap-8 mb-8">
+                    <div class="bg-slate-800/50 rounded-xl p-6">
+                        <h4 class="text-lg font-medium text-red-400 mb-4">误解：加层设计</h4>
+                        <div class="space-y-2 text-sm text-slate-400">
+                            <div class="flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-slate-600"></span>
+                                <span>Router 是独立新增层</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-slate-600"></span>
+                                <span>Softmax 后直接 Top-K</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-slate-600"></span>
+                                <span>专家是下游模块</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-slate-600"></span>
+                                <span>类似任务分发系统</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-slate-800/50 rounded-xl p-6 border border-blue-500/30">
+                        <h4 class="text-lg font-medium text-blue-400 mb-4">实际：稀疏重构</h4>
+                        <div class="space-y-2 text-sm text-slate-300">
+                            <div class="flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-blue-400"></span>
+                                <span>Router 是轻量门控，嵌入 FFN 入口</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-blue-400"></span>
+                                <span>Noisy Top-K Gating + 负载均衡损失</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-blue-400"></span>
+                                <span>专家就是 FFN 本身，并行计算</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-blue-400"></span>
+                                <span>条件计算：不同输入走不同路径</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <h3 class="text-xl font-semibold text-white mb-4">关键修正：Noisy Top-K Gating</h3>
+                <div class="code-block p-6 mb-6">
+                    <pre><code class="language-python">def noisy_top_k_gating(x, W_gate, W_noise, k=2, noise_epsilon=1e-2):
+    # 1. 标准路由分数
+    logits = x @ W_gate  # [batch, num_experts]
+
+    # 2. 添加噪声（训练时），防止路由过早固化
+    noise = torch.randn_like(logits) * (x @ W_noise).softplus()
+    noisy_logits = logits + noise * noise_epsilon
+
+    # 3. Top-K 选择
+    top_k_logits, top_k_indices = noisy_logits.topk(k, dim=-1)
+
+    # 4. 只在 K 个专家内部做 Softmax（关键！）
+    top_k_gates = top_k_logits.softmax(dim=-1)
+
+    # 5. 负载均衡辅助损失（防止专家崩溃）
+    aux_loss = load_balancing_loss(top_k_indices, top_k_gates)
+
+    return top_k_gates, top_k_indices, aux_loss</code></pre>
+                </div>
+
+                <div class="highlight-box p-6 rounded-xl">
+                    <p class="text-blue-300 font-semibold mb-2">💡 核心区别</p>
+                    <p class="text-slate-300 leading-relaxed">
+                        MoE 不是"在 Transformer 上加东西"，而是<strong class="text-white">把 FFN 层从单个 Dense 网络重构为稀疏激活的专家集合</strong>。Attention 和残差连接完全不变，变的是 FFN 区域从"一个网络"变成"N 个稀疏激活的网络"。
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <div class="section-divider"></div>
+
+        <!-- Q4: 固定激活数 -->
+        <section id="q4" class="scroll-mt-24">
+            <div class="flex items-center gap-4 mb-8">
+                <div class="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center text-blue-400 font-bold text-xl">4</div>
+                <div>
+                    <h2 class="text-3xl font-bold text-white">能否固定激活专家数量？</h2>
+                    <p class="text-slate-400 mt-1">工程可行性与训练稳定性的权衡</p>
+                </div>
+            </div>
+
+            <div class="card rounded-2xl p-8 mb-6">
+                <div class="grid md:grid-cols-2 gap-6 mb-8">
+                    <div class="bg-slate-800/50 rounded-xl p-6">
+                        <h4 class="text-lg font-medium text-green-400 mb-4">工程上：可以实现</h4>
+                        <div class="code-block p-4">
+                            <pre><code class="language-python"># 硬编码固定激活
+def fixed_top_k_gating(x, k=10):
+    logits = x @ W_gate
+    _, top_k_indices = logits.topk(k, dim=-1)
+    # 永远取前 10 个专家
+    return top_k_gates, top_k_indices</code></pre>
+                        </div>
+                    </div>
+                    <div class="bg-slate-800/50 rounded-xl p-6 border border-red-500/30">
+                        <h4 class="text-lg font-medium text-red-400 mb-4">但不应该这样做</h4>
+                        <ul class="space-y-2 text-sm text-slate-300">
+                            <li class="flex items-start gap-2">
+                                <span class="text-red-400 mt-1">✗</span>
+                                <span>负载均衡损失失效，梯度消失</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-red-400 mt-1">✗</span>
+                                <span>90% 专家永久闲置，10% 专家过载</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-red-400 mt-1">✗</span>
+                                <span>简单输入浪费算力，复杂输入能力受限</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-red-400 mt-1">✗</span>
+                                <span>退化为 Dense 模型的"全量计算"</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <h3 class="text-xl font-semibold text-white mb-4">不同复杂度输入的需求差异</h3>
+                <div class="space-y-4 mb-8">
+                    <div class="flex items-center gap-4 p-4 bg-slate-800/30 rounded-lg">
+                        <div class="w-32 text-sm text-slate-400">简单输入 "你好"</div>
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="text-sm text-green-400">实际需要 2 个专家</span>
+                                <span class="text-sm text-slate-500">→</span>
+                                <span class="text-sm text-red-400">强制 10 个 = 浪费 + 噪声</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: 20%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-4 p-4 bg-slate-800/30 rounded-lg">
+                        <div class="w-32 text-sm text-slate-400">复杂输入 "证明..."</div>
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="text-sm text-purple-400">实际需要 15 个专家</span>
+                                <span class="text-sm text-slate-500">→</span>
+                                <span class="text-sm text-red-400">强制 10 个 = 能力受限</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: 66%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="success-box p-6 rounded-xl">
+                    <p class="text-green-300 font-semibold mb-2">✓ MoE 的正确用法</p>
+                    <p class="text-slate-300 leading-relaxed">
+                        <strong class="text-white">动态 K 值</strong>：让 Router 根据输入复杂度决定激活 2 个还是 20 个专家。同个问题在思考模式下，Router 会<strong class="text-white">逐层动态调整</strong>专家组合。
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <div class="section-divider"></div>
+
+        <!-- Q5: 32B 激活量 -->
+        <section id="q5" class="scroll-mt-24">
+            <div class="flex items-center gap-4 mb-8">
+                <div class="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-400 font-bold text-xl">5</div>
+                <div>
+                    <h2 class="text-3xl font-bold text-white">32B 激活量如何确定？</h2>
+                    <p class="text-slate-400 mt-1">上限约束 vs 实际计算量</p>
+                </div>
+            </div>
+
+            <div class="card rounded-2xl p-8 mb-6">
+                <div class="highlight-box p-6 rounded-xl mb-8">
+                    <p class="text-lg leading-relaxed">
+                        <strong class="text-blue-400">核心澄清：</strong>
+                        32B 是<strong class="text-white">硬件设计的峰值容量</strong>（类似服务器带宽峰值），不是每次推理的固定账单（类似实际流量）。MoE 的精髓是"用多少算多少"，但硬件必须按峰值 provisioning。
+                    </p>
+                </div>
+
+                <h3 class="text-xl font-semibold text-white mb-4">32B 的计算逻辑（推测）</h3>
+                <div class="bg-slate-800/30 rounded-xl p-6 mb-8 border border-slate-700">
+                    <div class="space-y-3 font-mono text-sm">
+                        <div class="text-slate-400"># 单层参数构成（假设值）</div>
+                        <div class="text-green-400">Attention (共享，始终激活): <span class="text-white">~268M</span></div>
+                        <div class="text-purple-400">Router (轻量): <span class="text-white">~2M</span></div>
+                        <div class="text-blue-400">Expert FFN (Top-K=2): <span class="text-white">~1.07B</span></div>
+                        <div class="text-slate-500">─────────────────────</div>
+                        <div class="text-amber-400">单层总计: <span class="text-white">~1.34B</span></div>
+                        <div class="mt-4 text-slate-400"># 全模型（80 层）</div>
+                        <div class="text-amber-400">80 × 1.34B = <span class="text-white">107B 参数参与计算</span></div>
+                        <div class="mt-2 text-slate-500"># 但 Attention 参数跨层共享，实际只存一份</div>
+                        <div class="text-slate-500"># 专家参数按需加载，缓存命中后不重读</div>
+                        <div class="mt-2 text-blue-400">工程优化后等效于: <span class="text-white font-bold">32B Dense 模型</span></div>
+                    </div>
+                </div>
+
+                <h3 class="text-xl font-semibold text-white mb-4">32B 能不能更小？</h3>
+                <div class="grid md:grid-cols-3 gap-4 mb-8">
+                    <div class="bg-slate-800/50 rounded-lg p-4">
+                        <div class="text-lg font-semibold text-green-400 mb-2">情况 1</div>
+                        <p class="text-sm text-slate-300">简单输入天然激活更少</p>
+                        <p class="text-xs text-slate-500 mt-2">Router 每层选择通用专家，跨层重复率高</p>
+                    </div>
+                    <div class="bg-slate-800/50 rounded-lg p-4">
+                        <div class="text-lg font-semibold text-blue-400 mb-2">情况 2</div>
+                        <p class="text-sm text-slate-300">早退机制 (Early Exit)</p>
+                        <p class="text-xs text-slate-500 mt-2">Router 发现"已经够了"，跳过后续层</p>
+                    </div>
+                    <div class="bg-slate-800/50 rounded-lg p-4">
+                        <div class="text-lg font-semibold text-purple-400 mb-2">情况 3</div>
+                        <p class="text-sm text-slate-300">动态 K 值 (Adaptive Top-K)</p>
+                        <p class="text-xs text-slate-500 mt-2">简单问题 K=2，复杂问题 K=6~8</p>
+                    </div>
+                </div>
+
+                <div class="warning-box p-6 rounded-xl">
+                    <p class="text-amber-300 font-semibold mb-2">⚠️ 商业机密</p>
+                    <p class="text-slate-300 leading-relaxed">
+                        官方只披露"1T 总参数，32B 激活"，具体层数、专家数、K 值未公开。32B 的精确计算涉及<strong class="text-white">专家并行分组、通信优化、缓存策略</strong>等工程细节，是核心商业机密。
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <div class="section-divider"></div>
+
+        <!-- Q6: 逐层 Router -->
+        <section id="q6" class="scroll-mt-24">
+            <div class="flex items-center gap-4 mb-8">
+                <div class="w-12 h-12 rounded-xl bg-green-500/20 flex items-center justify-center text-green-400 font-bold text-xl">6</div>
+                <div>
+                    <h2 class="text-3xl font-bold text-white">每层都有 Router 吗？</h2>
+                    <p class="text-slate-400 mt-1">逐层独立路由的条件计算链</p>
+                </div>
+            </div>
+
+            <div class="card rounded-2xl p-8 mb-6">
+                <div class="success-box p-6 rounded-xl mb-8">
+                    <p class="text-lg leading-relaxed">
+                        <strong class="text-green-400">答案：是的。</strong>
+                        每层都有<strong class="text-white">独立的 Router</strong>，参数不共享。这是 MoE 实现"动态深度思考"的根本原因。
+                    </p>
+                </div>
+
+                <h3 class="text-xl font-semibold text-white mb-6">逐层路由的完整流程</h3>
+
+                <div class="space-y-6 mb-8">
+                    <div class="flex gap-4">
+                        <div class="w-12 h-12 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-400 font-bold shrink-0">L1</div>
+                        <div class="flex-1 bg-slate-800/30 rounded-lg p-4 border border-slate-700">
+                            <div class="text-sm text-slate-400 mb-1">Router_1 决策</div>
+                            <div class="text-white">输入: "证明" → 激活 Expert_7 (数学) + Expert_89 (推理)</div>
+                            <div class="text-xs text-slate-500 mt-1">当前语义: 识别到数学证明场景</div>
+                        </div>
+                    </div>
+                    <div class="flex gap-4">
+                        <div class="w-12 h-12 rounded-lg bg-purple-500/20 flex items-center justify-center text-purple-400 font-bold shrink-0">L2</div>
+                        <div class="flex-1 bg-slate-800/30 rounded-lg p-4 border border-slate-700">
+                            <div class="text-sm text-slate-400 mb-1">Router_2 决策</div>
+                            <div class="text-white">输入: "考虑 n³-n" → 激活 Expert_89 (推理) + Expert_156 (因式分解)</div>
+                            <div class="text-xs text-slate-500 mt-1">当前语义: 需要代数变形能力</div>
+                        </div>
+                    </div>
+                    <div class="flex gap-4">
+                        <div class="w-12 h-12 rounded-lg bg-amber-500/20 flex items-center justify-center text-amber-400 font-bold shrink-0">L3</div>
+                        <div class="flex-1 bg-slate-800/30 rounded-lg p-4 border border-slate-700">
+                            <div class="text-sm text-slate-400 mb-1">Router_3 决策</div>
+                            <div class="text-white">输入: "= n(n+1)(n-1)" → 激活 Expert_156 (因式分解) + Expert_203 (数论)</div>
+                            <div class="text-xs text-slate-500 mt-1">当前语义: 需要数论性质分析</div>
+                        </div>
+                    </div>
+                    <div class="flex gap-4">
+                        <div class="w-12 h-12 rounded-lg bg-slate-700 flex items-center justify-center text-slate-400 font-bold shrink-0">...</div>
+                        <div class="flex-1 flex items-center text-slate-500 text-sm">形成专家路径：通用 → 数学 → 因式分解 → 数论 → 验证</div>
+                    </div>
+                </div>
+
+                <h3 class="text-xl font-semibold text-white mb-4">为什么必须每层独立？</h3>
+                <div class="grid md:grid-cols-2 gap-6 mb-8">
+                    <div class="bg-slate-800/50 rounded-lg p-5">
+                        <h4 class="text-lg font-medium text-blue-400 mb-3">原因 1：语义逐层演化</h4>
+                        <table class="w-full text-sm">
+                            <tr class="border-b border-slate-700">
+                                <td class="py-2 text-slate-400">Layer 5</td>
+                                <td class="py-2 text-slate-300">浅层语法特征</td>
+                                <td class="py-2 text-green-400">通用数学专家</td>
+                            </tr>
+                            <tr class="border-b border-slate-700">
+                                <td class="py-2 text-slate-400">Layer 20</td>
+                                <td class="py-2 text-slate-300">中层结构特征</td>
+                                <td class="py-2 text-blue-400">因式分解专家</td>
+                            </tr>
+                            <tr class="border-b border-slate-700">
+                                <td class="py-2 text-slate-400">Layer 40</td>
+                                <td class="py-2 text-slate-300">深层语义特征</td>
+                                <td class="py-2 text-purple-400">数论 + 归纳法</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 text-slate-400">Layer 60</td>
+                                <td class="py-2 text-slate-300">抽象推理特征</td>
+                                <td class="py-2 text-amber-400">逻辑验证专家</td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="bg-slate-800/50 rounded-lg p-5">
+                        <h4 class="text-lg font-medium text-purple-400 mb-3">原因 2：路径依赖</h4>
+                        <div class="code-block p-4">
+                            <pre><code class="language-python"># 专家组合是路径依赖的
+Layer_20 的选择 ← 取决于 Layer_19 的输出
+Layer_19 的选择 ← 取决于 Layer_18 的输出
+...
+形成"专家路径": 
+  通用 → 数学 → 因式分解 → 数论 → 验证
+
+# 每层独立 Router 才能实现
+# 这种条件计算链</code></pre>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="error-box p-6 rounded-xl">
+                    <p class="text-red-300 font-semibold mb-2">✗ 单层路由的问题</p>
+                    <p class="text-slate-300 leading-relaxed">
+                        如果只有一层 Router（比如只在输入层）：初始 token "证明" 只能触发"数学证明"专家，但后续 token "猜想"、"归纳"、"反证"需要不同专家。单层 Router 无法预见后续需求，<strong class="text-white">专家组合僵化</strong>。
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <div class="section-divider"></div>
+
+        <!-- Q7: 专家功能边界 -->
+        <section id="q7" class="scroll-mt-24">
+            <div class="flex items-center gap-4 mb-8">
+                <div class="w-12 h-12 rounded-xl bg-red-500/20 flex items-center justify-center text-red-400 font-bold text-xl">7</div>
+                <div>
+                    <h2 class="text-3xl font-bold text-white">专家的功能边界</h2>
+                    <p class="text-slate-400 mt-1">纠正过度拟人化的误解</p>
+                </div>
+            </div>
+
+            <div class="card rounded-2xl p-8 mb-6">
+                <div class="error-box p-6 rounded-xl mb-8">
+                    <p class="text-lg leading-relaxed">
+                        <strong class="text-red-400">核心纠正：</strong>
+                        之前表述的"Expert_7 专精数学证明"是<strong class="text-white">严重简化，甚至具有误导性</strong>。专家的"功能"是<strong class="text-white">统计相关性</strong>，不是<strong class="text-white">模块化设计</strong>。
+                    </p>
+                </div>
+
+                <h3 class="text-xl font-semibold text-white mb-6">三个关键事实</h3>
+
+                <div class="space-y-6 mb-8">
+                    <div class="bg-slate-800/50 rounded-xl p-6">
+                        <div class="flex items-center gap-3 mb-3">
+                            <span class="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 font-bold">1</span>
+                            <h4 class="text-lg font-medium text-white">专家没有预设功能标签</h4>
+                        </div>
+                        <div class="grid md:grid-cols-2 gap-4 text-sm">
+                            <div class="code-block p-4">
+                                <div class="text-slate-500 mb-2"># 错误理解（拟人化）</div>
+                                <div class="text-red-400">Expert_7 = "数学证明专家"</div>
+                                <div class="text-red-400">Expert_89 = "形式化推理专家"</div>
+                            </div>
+                            <div class="code-block p-4">
+                                <div class="text-slate-500 mb-2"># 实际情况</div>
+                                <div class="text-green-400">Expert_7 的权重矩阵</div>
+                                <div class="text-slate-400">恰好对"证明类 token"响应较强</div>
+                                <div class="text-green-400 mt-2">Expert_89 的权重矩阵</div>
+                                <div class="text-slate-400">恰好对"推理链 token"响应较强</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-800/50 rounded-xl p-6">
+                        <div class="flex items-center gap-3 mb-3">
+                            <span class="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400 font-bold">2</span>
+                            <h4 class="text-lg font-medium text-white">专家功能是分布式、重叠的</h4>
+                        </div>
+                        <div class="code-block p-4 mb-3">
+                            <pre><code class="language-python"># 同一概念在不同层由不同专家组合处理
+输入 token "归纳法"
+
+Layer 20: Expert_7 (0.6) + Expert_89 (0.4)
+Layer 21: Expert_89 (0.5) + Expert_156 (0.5)  
+Layer 22: Expert_7 (0.3) + Expert_203 (0.7)
+
+→ 没有"归纳法专家"这个实体
+→ 是多个专家以不同权重组合
+→ 功能边界模糊、重叠、上下文依赖</code></pre>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-800/50 rounded-xl p-6">
+                        <div class="flex items-center gap-3 mb-3">
+                            <span class="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-400 font-bold">3</span>
+                            <h4 class="text-lg font-medium text-white">可解释性研究的发现</h4>
+                        </div>
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <div class="space-y-2">
+                                <div class="flex items-center gap-2 text-sm">
+                                    <span class="w-2 h-2 rounded-full bg-green-400"></span>
+                                    <span class="text-slate-300">某些专家对特定 token 敏感</span>
+                                </div>
+                                <div class="flex items-center gap-2 text-sm">
+                                    <span class="w-2 h-2 rounded-full bg-green-400"></span>
+                                    <span class="text-slate-300">但没有"干净"的功能分离</span>
+                                </div>
+                            </div>
+                            <div class="space-y-2">
+                                <div class="flex items-center gap-2 text-sm">
+                                    <span class="w-2 h-2 rounded-full bg-red-400"></span>
+                                    <span class="text-slate-300">一个专家可能对"Python缩进"和"诗歌韵脚"都敏感</span>
+                                </div>
+                                <div class="flex items-center gap-2 text-sm">
+                                    <span class="w-2 h-2 rounded-full bg-red-400"></span>
+                                    <span class="text-slate-300">高层专家比低层更难解释</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="highlight-box p-6 rounded-xl">
+                    <p class="text-blue-300 font-semibold mb-2">💡 更准确的认知框架</p>
+                    <p class="text-slate-300 leading-relaxed">
+                        MoE 不是"专家会诊系统"（模块化 AI），而是<strong class="text-white">"参数空间的条件采样"</strong>（统计稀疏化）。1T 参数是"潜在的计算可能性"，Router + Top-K 是"根据输入选择激活哪些可能性"，专家的"功能"是<strong class="text-white">事后观察到的统计规律，不是预先设计</strong>。
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Summary -->
+        <section class="mt-16">
+            <div class="card rounded-2xl p-8">
+                <h2 class="text-2xl font-bold text-white mb-6 text-center">核心要点总结</h2>
+                <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="bg-slate-800/50 rounded-lg p-4 text-center">
+                        <div class="text-3xl mb-2">🎯</div>
+                        <div class="text-sm font-semibold text-blue-400 mb-1">同一模型</div>
+                        <div class="text-xs text-slate-400">快速/深度模式是 K2.6 的两种运行状态</div>
+                    </div>
+                    <div class="bg-slate-800/50 rounded-lg p-4 text-center">
+                        <div class="text-3xl mb-2">🔀</div>
+                        <div class="text-sm font-semibold text-purple-400 mb-1">动态路由</div>
+                        <div class="text-xs text-slate-400">每层独立 Router，根据上下文选择专家</div>
+                    </div>
+                    <div class="bg-slate-800/50 rounded-lg p-4 text-center">
+                        <div class="text-3xl mb-2">⚡</div>
+                        <div class="text-sm font-semibold text-green-400 mb-1">稀疏激活</div>
+                        <div class="text-xs text-slate-400">1T 参数中仅激活 32B，按需计算</div>
+                    </div>
+                    <div class="bg-slate-800/50 rounded-lg p-4 text-center">
+                        <div class="text-3xl mb-2">🧠</div>
+                        <div class="text-sm font-semibold text-amber-400 mb-1">涌现特性</div>
+                        <div class="text-xs text-slate-400">专家功能非预设，是训练后统计规律</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="py-12 text-center text-slate-500 text-sm">
+        <div class="max-w-5xl mx-auto px-6">
+            <div class="section-divider mb-8"></div>
+            <p>基于 Kimi K2.6 技术对话整理 | 2026-04-23</p>
+            <p class="mt-2">参考资料：Kimi API 文档、DeepSeek-V3 论文、Anthropic 可解释性研究</p>
+        </div>
+    </footer>
+
+    <script>
+        // Initialize syntax highlighting
+        hljs.highlightAll();
+
+        // Smooth scroll for navigation
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // Add scroll-based animations
+        const observerOptions = {
+            root: null,
+            rootMargin: '0px',
+            threshold: 0.1
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        }, observerOptions);
+
+        document.querySelectorAll('.card').forEach(card => {
+            card.style.opacity = '0';
+            card.style.transform = 'translateY(20px)';
+            card.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+            observer.observe(card);
+        });
+    </script>
+</body>
+</html>
