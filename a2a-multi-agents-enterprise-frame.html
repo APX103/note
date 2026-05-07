@@ -1,0 +1,1322 @@
+<!DOCTYPE html><html lang="zh-CN"><head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>支持A2A协议的企业级多智能体解决方案架构分析</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;600;700&amp;family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
+    <style>
+        :root {
+            --color-primary: #0f766e;
+            --color-secondary: #374151;
+            --color-accent: #14b8a6;
+            --color-neutral: #f8fafc;
+            --color-muted: #64748b;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            line-height: 1.7;
+            color: var(--color-secondary);
+        }
+        
+        .serif {
+            font-family: 'Noto Serif SC', serif;
+        }
+        
+        .hero-gradient {
+            background: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%);
+        }
+        
+        .text-gradient {
+            background: linear-gradient(135deg, #0f766e, #14b8a6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .toc-fixed {
+            position: fixed;
+            top: 2rem;
+            left: 2rem;
+            width: 280px;
+            max-height: calc(100vh - 4rem);
+            overflow-y: auto;
+            z-index: 50;
+            background: rgba(248, 250, 252, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+        
+        .main-content {
+            margin-left: 320px;
+            max-width: calc(100vw - 360px);
+        }
+        
+        .citation-link {
+            color: var(--color-accent);
+            text-decoration: none;
+            font-weight: 500;
+            border-bottom: 1px dotted var(--color-accent);
+        }
+        
+        .citation-link:hover {
+            background-color: rgba(20, 184, 166, 0.1);
+            border-bottom-style: solid;
+        }
+        
+        .section-divider {
+            height: 2px;
+            background: linear-gradient(90deg, var(--color-accent), transparent);
+            margin: 3rem 0;
+            border-radius: 1px;
+        }
+        
+        .highlight-box {
+            background: linear-gradient(135deg, rgba(15, 118, 110, 0.05), rgba(20, 184, 166, 0.05));
+            border-left: 4px solid var(--color-accent);
+            padding: 1.5rem;
+            margin: 2rem 0;
+            border-radius: 0 8px 8px 0;
+        }
+        
+        .mermaid-container {
+            display: flex;
+            justify-content: center;
+            min-height: 300px;
+            max-height: 800px;
+            background: #ffffff;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 30px;
+            margin: 30px 0;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .mermaid-container .mermaid {
+            width: 100%;
+            max-width: 100%;
+            height: 100%;
+            cursor: grab;
+            transition: transform 0.3s ease;
+            transform-origin: center center;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            touch-action: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+
+        .mermaid-container .mermaid svg {
+            max-width: 100%;
+            height: 100%;
+            display: block;
+            margin: 0 auto;
+        }
+
+        .mermaid-container .mermaid:active {
+            cursor: grabbing;
+        }
+
+        .mermaid-container.zoomed .mermaid {
+            height: 100%;
+            width: 100%;
+            cursor: grab;
+        }
+
+        .mermaid-controls {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            display: flex;
+            gap: 10px;
+            z-index: 20;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 8px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .mermaid-control-btn {
+            background: #ffffff;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            padding: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: #374151;
+            font-size: 14px;
+            min-width: 36px;
+            height: 36px;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .mermaid-control-btn:hover {
+            background: #f8fafc;
+            border-color: #3b82f6;
+            color: #3b82f6;
+            transform: translateY(-1px);
+        }
+
+        .mermaid-control-btn:active {
+            transform: scale(0.95);
+        }
+        
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+            gap: 1rem;
+            margin: 2rem 0;
+        }
+        
+        .comparison-cell {
+            padding: 1rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background: white;
+        }
+        
+        .architecture-card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 2rem;
+            margin: 2rem 0;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+        }
+        
+        .architecture-card:hover {
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+        
+        @media (max-width: 1280px) {
+            .toc-fixed {
+                position: relative;
+                width: 100%;
+                margin: 0 0 2rem 0;
+            }
+            .main-content {
+                margin-left: 0;
+                max-width: 100%;
+            }
+        }
+        
+        @media (max-width: 1024px) {
+            .mermaid-control-btn:not(.reset-zoom) {
+                display: none;
+            }
+            .mermaid-controls {
+                top: auto;
+                bottom: 15px;
+                right: 15px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .comparison-grid {
+                grid-template-columns: 1fr;
+            }
+            .toc-fixed {
+                display: none;
+            }
+            .main-content {
+                margin-left: 0;
+                max-width: 100%;
+            }
+            .mermaid-container {
+                padding: 15px;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .px-8 {
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+            .hero-gradient {
+                padding: 1.5rem;
+            }
+            .hero-gradient h1 {
+                font-size: 1.875rem;
+                line-height: 2.25rem;
+            }
+            .hero-gradient p {
+                font-size: 1rem;
+            }
+            .grid.grid-cols-1.md\:grid-cols-2 {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        @media (max-width: 390px) {
+            .px-8 {
+                padding-left: 0.5rem;
+                padding-right: 0.5rem;
+            }
+            .hero-gradient {
+                padding: 1rem;
+            }
+            .hero-gradient h1 {
+                font-size: 1.5rem;
+                line-height: 2rem;
+            }
+            .hero-gradient p {
+                font-size: 0.875rem;
+            }
+        }
+    </style>
+  <base target="_blank">
+</head>
+
+  <body class="bg-gray-50">
+    <!-- Fixed Table of Contents -->
+    <nav class="toc-fixed">
+      <h3 class="text-lg font-semibold mb-4 serif text-gray-800">目录导航</h3>
+      <ul class="space-y-2 text-sm">
+        <li>
+          <a href="#overview" class="citation-link">概述</a>
+        </li>
+        <li>
+          <a href="#core-requirements" class="citation-link">核心需求解析</a>
+        </li>
+        <li>
+          <a href="#a2a-ecosystem" class="citation-link">A2A协议生态</a>
+        </li>
+        <li>
+          <a href="#control-platform" class="citation-link">中控平台实现</a>
+        </li>
+        <li>
+          <a href="#message-proxy" class="citation-link">消息代理方案</a>
+        </li>
+        <li>
+          <a href="#architecture-design" class="citation-link">综合架构设计</a>
+        </li>
+        <li>
+          <a href="#decision-guide" class="citation-link">选型决策指南</a>
+        </li>
+      </ul>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="main-content">
+      <!-- Hero Section -->
+      <section class="hero-gradient text-white py-12 px-8 rounded-2xl mb-12">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+          <div>
+            <h1 class="text-4xl md:text-5xl font-bold serif mb-6 leading-tight">
+              <em class="text-gradient bg-white bg-clip-text text-transparent">支持A2A协议</em>
+              <br/>
+              企业级多智能体解决方案架构分析
+            </h1>
+            <p class="text-xl opacity-90 mb-8">
+              深度解析Agent-to-Agent协议生态，构建可扩展的企业级智能体基础设施
+            </p>
+            <div class="flex flex-wrap gap-4">
+              <span class="bg-white/20 px-4 py-2 rounded-full text-sm font-medium">
+                <i class="fas fa-network-wired mr-2"></i>A2A协议
+              </span>
+              <span class="bg-white/20 px-4 py-2 rounded-full text-sm font-medium">
+                <i class="fas fa-cogs mr-2"></i>智能路由
+              </span>
+              <span class="bg-white/20 px-4 py-2 rounded-full text-sm font-medium">
+                <i class="fas fa-database mr-2"></i>消息代理
+              </span>
+            </div>
+          </div>
+          <div class="relative">
+            <img src="https://fixedplaceholder" alt="AI智能体协作网络架构图" class="rounded-lg shadow-2xl opacity-90" size="medium" aspect="wide" color="blue" style="photo" query="AI智能体协作网络" referrerpolicy="no-referrer" data-modified="1" data-score="0.00"/>
+          </div>
+        </div>
+      </section>
+
+      <!-- TL;DR Overview -->
+      <section id="overview" class="mb-16">
+        <div class="architecture-card">
+          <h2 class="text-3xl font-bold serif mb-6 text-gradient">核心观点概述</h2>
+
+          <div class="highlight-box">
+            <p class="text-lg font-medium mb-4">
+              <strong>目前没有完全成熟的一站式商业产品</strong>同时原生集成A2A协议、中控平台（智能路由调度）和可配置消息代理三大能力。
+            </p>
+            <p class="text-base">
+              最接近的可用方案是<strong>分层组合架构</strong>：以 <strong>Google ADK</strong> 实现A2A协议兼容的智能体开发，<strong>OpenAgents</strong> 或自研服务承担中控平台职责，<strong>Apache Kafka</strong>（推荐Confluent平台）作为中心化消息代理提供持久化与可配置存储。
+            </p>
+          </div>
+
+          <div class="comparison-grid">
+            <div class="comparison-cell">
+              <h4 class="font-semibold text-lg mb-2 text-green-700">
+                <i class="fas fa-rocket mr-2"></i>小规模验证
+              </h4>
+              <p class="text-sm"><strong>&lt;10 Agents</strong></p>
+              <p class="text-sm text-gray-600">ADK + a2a-proxy 快速验证</p>
+            </div>
+            <div class="comparison-cell">
+              <h4 class="font-semibold text-lg mb-2 text-blue-700">
+                <i class="fas fa-industry mr-2"></i>中等规模
+              </h4>
+              <p class="text-sm"><strong>10-50 Agents</strong></p>
+              <p class="text-sm text-gray-600">ADK + OpenAgents + Kafka</p>
+            </div>
+            <div class="comparison-cell">
+              <h4 class="font-semibold text-lg mb-2 text-purple-700">
+                <i class="fas fa-building mr-2"></i>大规模部署
+              </h4>
+              <p class="text-sm"><strong>50+ Agents</strong></p>
+              <p class="text-sm text-gray-600">四层架构 + 服务网格治理</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Core Requirements Analysis -->
+      <section id="core-requirements" class="mb-16">
+        <h2 class="text-3xl font-bold serif mb-8 text-gradient">核心需求解析与架构定位</h2>
+
+        <div class="architecture-card">
+          <h3 class="text-2xl font-semibold mb-6">用户核心诉求拆解</h3>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div>
+              <h4 class="text-xl font-semibold mb-4 text-teal-700">
+                <i class="fas fa-plug mr-2"></i>A2A协议原生兼容性
+              </h4>
+              <p class="text-gray-700 mb-4">
+                A2A协议由Google于2025年4月推出，现由Linux基金会托管，建立跨厂商、跨框架的AI智能体互操作机制
+                <a href="https://www.ibm.com/cn-zh/think/topics/agent2agent-protocol" class="citation-link">[282]</a>
+                <a href="https://ikala.ai/zh-tw/blog/ikala-ai-insight/an-in-depth-analysis-of-googles-a2a-protocol-and-its-relationship-with-anthropics-mcp-ch/" class="citation-link">[290]</a>。
+              </p>
+              <ul class="list-disc list-inside space-y-2 text-sm text-gray-600">
+                <li><strong>协议语法层</strong>：正确解析和生成Agent Card、Task、Message、Artifact</li>
+                <li><strong>协议行为层</strong>：支持同步请求、流式订阅、异步推送三种交互模式</li>
+                <li><strong>协议语义层</strong>：实现任务状态机、多模态内容协商</li>
+              </ul>
+            </div>
+
+            <div>
+              <h4 class="text-xl font-semibold mb-4 text-blue-700">
+                <i class="fas fa-sitemap mr-2"></i>中控平台功能需求
+              </h4>
+              <p class="text-gray-700 mb-4">
+                中控平台作为多智能体系统的&#34;神经中枢&#34;，实现任务请求与执行资源之间的最优匹配
+                <a href="https://blog.csdn.net/2301_76243776/article/details/160384224" class="citation-link">[287]</a>。
+              </p>
+              <ul class="list-disc list-inside space-y-2 text-sm text-gray-600">
+                <li><strong>能力发现子系统</strong>：维护动态Agent注册表，解析Agent Card</li>
+                <li><strong>意图理解子系统</strong>：将自然语言查询映射为可执行任务</li>
+                <li><strong>决策执行子系统</strong>：综合能力匹配度、负载状态、安全策略</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="highlight-box">
+            <h4 class="text-xl font-semibold mb-4">
+              <i class="fas fa-lightbulb mr-2"></i>关键洞察
+            </h4>
+            <p class="text-gray-700">
+              Google ADK作为官方开发框架，其定位是<strong>智能体行为定义</strong>与<strong>多智能体层级编排</strong>，但并未包含用户所需的&#34;中控平台&#34;和&#34;消息代理&#34;组件
+              <a href="https://juejin.cn/post/7493359957129543689" class="citation-link">[294]</a>。
+              用户对&#34;灵活配置选项&#34;和&#34;整体架构可配置性&#34;的期望，实质上要求解决方案能够<strong>解耦ADK的开发便利性与企业级运行时的可靠性</strong>。
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- A2A Ecosystem -->
+      <section id="a2a-ecosystem" class="mb-16">
+        <h2 class="text-3xl font-bold serif mb-8 text-gradient">A2A协议生态与官方技术栈</h2>
+
+        <div class="architecture-card">
+          <h3 class="text-2xl font-semibold mb-6">协议核心规范</h3>
+
+          <div class="mb-8">
+            <div class="mermaid-container">
+              <div class="mermaid-controls">
+                <button class="mermaid-control-btn zoom-in" title="放大">
+                  <i class="fas fa-search-plus"></i>
+                </button>
+                <button class="mermaid-control-btn zoom-out" title="缩小">
+                  <i class="fas fa-search-minus"></i>
+                </button>
+                <button class="mermaid-control-btn reset-zoom" title="重置">
+                  <i class="fas fa-expand-arrows-alt"></i>
+                </button>
+                <button class="mermaid-control-btn fullscreen" title="全屏查看">
+                  <i class="fas fa-expand"></i>
+                </button>
+              </div>
+              <div class="mermaid">
+                graph TD
+                A[&#34;A2A协议栈&#34;] --&gt; B[&#34;传输层: HTTP(S) + SSE&#34;]
+                A --&gt; C[&#34;数据格式: JSON-RPC 2.0&#34;]
+                A --&gt; D[&#34;核心组件&#34;]
+                D --&gt; E[&#34;Agent Card: 能力描述&#34;]
+                D --&gt; F[&#34;Task: 生命周期管理&#34;]
+                D --&gt; G[&#34;Artifact: 内容交换&#34;]
+                A --&gt; H[&#34;安全机制&#34;]
+                H --&gt; I[&#34;OIDC Token认证&#34;]
+                H --&gt; J[&#34;企业级授权&#34;]
+
+                style A fill:#0f766e,stroke:#14b8a6,stroke-width:3px,color:#ffffff
+                style B fill:#f0fdfa,stroke:#14b8a6,stroke-width:2px,color:#0f766e
+                style C fill:#f0fdfa,stroke:#14b8a6,stroke-width:2px,color:#0f766e
+                style D fill:#f0fdfa,stroke:#14b8a6,stroke-width:2px,color:#0f766e
+                style E fill:#ffffff,stroke:#64748b,stroke-width:1px,color:#374151
+                style F fill:#ffffff,stroke:#64748b,stroke-width:1px,color:#374151
+                style G fill:#ffffff,stroke:#64748b,stroke-width:1px,color:#374151
+                style H fill:#f0fdfa,stroke:#14b8a6,stroke-width:2px,color:#0f766e
+                style I fill:#ffffff,stroke:#64748b,stroke-width:1px,color:#374151
+                style J fill:#ffffff,stroke:#64748b,stroke-width:1px,color:#374151
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="comparison-cell">
+              <h4 class="font-semibold text-lg mb-3 text-green-700">传输机制</h4>
+              <ul class="text-sm space-y-2">
+                <li><strong>HTTP(S) + JSON-RPC 2.0</strong>：同步请求/响应</li>
+                <li><strong>SSE</strong>：长时间任务的实时流式更新</li>
+                <li><strong>Push Notification</strong>：异步任务完成通知</li>
+              </ul>
+            </div>
+            <div class="comparison-cell">
+              <h4 class="font-semibold text-lg mb-3 text-blue-700">核心组件</h4>
+              <ul class="text-sm space-y-2">
+                <li><strong>Agent Card</strong>：智能体的&#34;数字名片&#34;</li>
+                <li><strong>Task生命周期</strong>：submitted → working → completed/failed</li>
+                <li><strong>Artifact交换</strong>：支持多模态内容传递</li>
+              </ul>
+            </div>
+            <div class="comparison-cell">
+              <h4 class="font-semibold text-lg mb-3 text-purple-700">安全设计</h4>
+              <ul class="text-sm space-y-2">
+                <li><strong>OIDC Token</strong>：Agent间认证机制</li>
+                <li><strong>RBAC/ABAC</strong>：细粒度权限控制</li>
+                <li><strong>默认安全</strong>：与OpenAPI认证方案对齐</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="highlight-box">
+            <h4 class="text-xl font-semibold mb-4">
+              <i class="fas fa-code mr-2"></i>Google ADK能力边界
+            </h4>
+            <p class="text-gray-700 mb-4">
+              Google ADK作为代码优先的AI智能体开发框架，其核心能力是<strong>多智能体层级编排与动态路由</strong>，但存在关键局限：
+              <a href="https://aiguide.cc/16104/" class="citation-link">[293]</a>
+              <a href="https://developer.aliyun.com/article/1661263" class="citation-link">[295]</a>
+            </p>
+            <ul class="list-disc list-inside space-y-2 text-sm text-gray-600">
+              <li><strong>无原生中控平台</strong>：内存中的层级委托模型，无分布式能力</li>
+              <li><strong>无消息代理组件</strong>：依赖LLM上下文窗口传递信息</li>
+              <li><strong>配置灵活性有限</strong>：Python代码静态定义，修改需重启</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- Control Platform Implementation -->
+      <section id="control-platform" class="mb-16">
+        <h2 class="text-3xl font-bold serif mb-8 text-gradient">中控平台（Agent路由调度）实现方案</h2>
+
+        <div class="architecture-card">
+          <h3 class="text-2xl font-semibold mb-6">基于LLM的智能路由机制</h3>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div>
+              <h4 class="text-xl font-semibold mb-4 text-teal-700">
+                <i class="fas fa-brain mr-2"></i>AIAgentRouter架构
+              </h4>
+              <p class="text-gray-700 mb-4">
+                LLM驱动的查询意图识别，通过语义理解实现智能路由决策
+                <a href="https://blog.csdn.net/2301_76243776/article/details/160384224" class="citation-link">[287]</a>。
+              </p>
+              <div class="bg-gray-50 p-4 rounded-lg">
+                <h5 class="font-semibold mb-2">核心工作流程：</h5>
+                <ol class="list-decimal list-inside text-sm space-y-1 text-gray-600">
+                  <li><strong>查询编码</strong>：转换用户查询为LLM提示</li>
+                  <li><strong>推理决策</strong>：生成路由决策和置信度</li>
+                  <li><strong>协议执行</strong>：通过A2A协议发送任务</li>
+                </ol>
+              </div>
+            </div>
+
+            <div>
+              <h4 class="text-xl font-semibold mb-4 text-blue-700">
+                <i class="fas fa-network-wired mr-2"></i>AgentNetwork注册表
+              </h4>
+              <p class="text-gray-700 mb-4">
+                动态Agent能力发现，支持运行时拓扑变化
+                <a href="https://blog.csdn.net/2301_76243776/article/details/160384224" class="citation-link">[287]</a>。
+              </p>
+              <div class="bg-gray-50 p-4 rounded-lg">
+                <h5 class="font-semibold mb-2">关键API：</h5>
+                <ul class="list-disc list-inside text-sm space-y-1 text-gray-600">
+                  <li><code>add(agent_name, agent_url)</code>：注册Agent</li>
+                  <li><code>list_agents()</code>：返回结构化信息</li>
+                  <li><code>get_agent(agent_name)</code>：获取客户端实例</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div class="highlight-box">
+            <h4 class="text-xl font-semibold mb-4">
+              <i class="fas fa-cogs mr-2"></i>开源平台级解决方案：OpenAgents
+            </h4>
+            <p class="text-gray-700 mb-4">
+              OpenAgents作为社区涌现的平台级解决方案，在2026年2月正式披露其A2A协议支持实现
+              <a href="https://github.com/a2aproject/A2A/issues/1508" class="citation-link">[296]</a>。
+            </p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <h5 class="font-semibold mb-2">核心特性：</h5>
+                <ul class="list-disc list-inside text-sm space-y-1 text-gray-600">
+                  <li>原生A2A协议支持</li>
+                  <li>集中式与去中心化混合架构</li>
+                  <li>多协议兼容（A2A/MCP/WebSocket/gRPC）</li>
+                </ul>
+              </div>
+              <div>
+                <h5 class="font-semibold mb-2">架构优势：</h5>
+                <ul class="list-disc list-inside text-sm space-y-1 text-gray-600">
+                  <li>控制与效率的权衡</li>
+                  <li>渐进式迁移支持</li>
+                  <li>丰富的配置选项</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Message Proxy Solutions -->
+      <section id="message-proxy" class="mb-16">
+        <h2 class="text-3xl font-bold serif mb-8 text-gradient">消息代理（中心化Proxy + 可配置存储）实现方案</h2>
+
+        <div class="architecture-card">
+          <h3 class="text-2xl font-semibold mb-6">Apache Kafka深度集成方案</h3>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div>
+              <h4 class="text-xl font-semibold mb-4 text-teal-700">
+                <i class="fas fa-stream mr-2"></i>Confluent平台A2A原生支持
+              </h4>
+              <p class="text-gray-700 mb-4">
+                Confluent于2026年2月26日正式宣布支持A2A协议，将Kafka定位为智能体间通信的实时基础设施
+                <a href="https://www.confluent.io/blog/2026-q1-confluent-intelligence-update/" class="citation-link">[223]</a>
+                <a href="https://www.confluent.io/press-release/2026-q1-confluent-intelligence-launch/" class="citation-link">[225]</a>。
+              </p>
+              <div class="bg-gray-50 p-4 rounded-lg">
+                <h5 class="font-semibold mb-2">关键优势：</h5>
+                <ul class="list-disc list-inside text-sm space-y-1 text-gray-600">
+                  <li>Streaming Agents能力</li>
+                  <li>完整的治理和可观测性</li>
+                  <li>不可变的审计日志</li>
+                </ul>
+              </div>
+            </div>
+
+            <div>
+              <h4 class="text-xl font-semibold mb-4 text-blue-700">
+                <i class="fas fa-database mr-2"></i>可配置消息存储
+              </h4>
+              <p class="text-gray-700 mb-4">
+                Kafka提供精细的存储策略配置，满足企业级消息持久化需求
+                <a href="https://www.confluent.io/blog/google-agent2agent-protocol-needs-kafka/" class="citation-link">[228]</a>。
+              </p>
+              <div class="bg-gray-50 p-4 rounded-lg">
+                <h5 class="font-semibold mb-2">核心配置：</h5>
+                <ul class="list-disc list-inside text-sm space-y-1 text-gray-600">
+                  <li><code>retention.ms</code>：基于时间的保留</li>
+                  <li><code>retention.bytes</code>：基于容量的保留</li>
+                  <li><code>cleanup.policy</code>：清理策略</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-8">
+            <div class="mermaid-container">
+              <div class="mermaid-controls">
+                <button class="mermaid-control-btn zoom-in" title="放大">
+                  <i class="fas fa-search-plus"></i>
+                </button>
+                <button class="mermaid-control-btn zoom-out" title="缩小">
+                  <i class="fas fa-search-minus"></i>
+                </button>
+                <button class="mermaid-control-btn reset-zoom" title="重置">
+                  <i class="fas fa-expand-arrows-alt"></i>
+                </button>
+                <button class="mermaid-control-btn fullscreen" title="全屏查看">
+                  <i class="fas fa-expand"></i>
+                </button>
+              </div>
+              <div class="mermaid">
+                graph LR
+                A[&#34;A2A客户端&#34;] --&gt; B[&#34;Kafka Producer&#34;]
+                B --&gt; C[&#34;Kafka Topic&#34;]
+                C --&gt; D[&#34;消息代理集群&#34;]
+                D --&gt; E[&#34;分区1: 活跃任务&#34;]
+                D --&gt; F[&#34;分区2: 已完成&#34;]
+                D --&gt; G[&#34;分区3: 审计日志&#34;]
+
+                H[&#34;智能体1&#34;] --&gt; I[&#34;Kafka Consumer&#34;]
+                J[&#34;智能体2&#34;] --&gt; K[&#34;Kafka Consumer&#34;]
+                L[&#34;监控系统&#34;] --&gt; M[&#34;Kafka Consumer&#34;]
+
+                C --&gt; I
+                C --&gt; K
+                C --&gt; M
+
+                I --&gt; N[&#34;任务处理&#34;]
+                K --&gt; O[&#34;任务处理&#34;]
+                M --&gt; P[&#34;实时分析&#34;]
+
+                N --&gt; Q[&#34;状态更新&#34;]
+                O --&gt; Q
+                Q --&gt; R[&#34;Kafka Producer&#34;]
+                R --&gt; S[&#34;状态Topic&#34;]
+
+                style A fill:#f0fdfa,stroke:#14b8a6,stroke-width:2px,color:#0f766e
+                style B fill:#f0fdfa,stroke:#14b8a6,stroke-width:2px,color:#0f766e
+                style C fill:#0f766e,stroke:#14b8a6,stroke-width:3px,color:#ffffff
+                style D fill:#0f766e,stroke:#14b8a6,stroke-width:3px,color:#ffffff
+                style E fill:#ffffff,stroke:#64748b,stroke-width:1px,color:#374151
+                style F fill:#ffffff,stroke:#64748b,stroke-width:1px,color:#374151
+                style G fill:#ffffff,stroke:#64748b,stroke-width:1px,color:#374151
+                style H fill:#f0fdfa,stroke:#14b8a6,stroke-width:2px,color:#0f766e
+                style I fill:#f0fdfa,stroke:#14b8a6,stroke-width:2px,color:#0f766e
+                style J fill:#f0fdfa,stroke:#14b8a6,stroke-width:2px,color:#0f766e
+                style K fill:#f0fdfa,stroke:#14b8a6,stroke-width:2px,color:#0f766e
+                style L fill:#f0fdfa,stroke:#14b8a6,stroke-width:2px,color:#0f766e
+                style M fill:#f0fdfa,stroke:#14b8a6,stroke-width:2px,color:#0f766e
+                style N fill:#ffffff,stroke:#64748b,stroke-width:1px,color:#374151
+                style O fill:#ffffff,stroke:#64748b,stroke-width:1px,color:#374151
+                style P fill:#ffffff,stroke:#64748b,stroke-width:1px,color:#374151
+                style Q fill:#f0fdfa,stroke:#14b8a6,stroke-width:2px,color:#0f766e
+                style R fill:#f0fdfa,stroke:#14b8a6,stroke-width:2px,color:#0f766e
+                style S fill:#0f766e,stroke:#14b8a6,stroke-width:3px,color:#ffffff
+              </div>
+            </div>
+          </div>
+
+          <div class="highlight-box">
+            <h4 class="text-xl font-semibold mb-4">
+              <i class="fas fa-chart-line mr-2"></i>四层架构模型
+            </h4>
+            <p class="text-gray-700 mb-4">
+              业界正在形成智能体基础设施的分层架构共识，将复杂系统分解为四个相对独立的层次
+              <a href="https://juejin.cn/post/7504128296789770275" class="citation-link">[203]</a>
+              <a href="https://www.51cto.com/article/817330.html" class="citation-link">[206]</a>：
+            </p>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div class="bg-white p-4 rounded-lg border">
+                <h5 class="font-semibold text-sm mb-2 text-green-700">协议层</h5>
+                <p class="text-xs text-gray-600">A2A、MCP</p>
+                <p class="text-xs text-gray-500 mt-1">定义&#34;是什么&#34;</p>
+              </div>
+              <div class="bg-white p-4 rounded-lg border">
+                <h5 class="font-semibold text-sm mb-2 text-blue-700">框架层</h5>
+                <p class="text-xs text-gray-600">ADK、LangGraph</p>
+                <p class="text-xs text-gray-500 mt-1">定义&#34;如何做&#34;</p>
+              </div>
+              <div class="bg-white p-4 rounded-lg border">
+                <h5 class="font-semibold text-sm mb-2 text-purple-700">消息层</h5>
+                <p class="text-xs text-gray-600">Apache Kafka</p>
+                <p class="text-xs text-gray-500 mt-1">支持&#34;流动&#34;</p>
+              </div>
+              <div class="bg-white p-4 rounded-lg border">
+                <h5 class="font-semibold text-sm mb-2 text-orange-700">计算层</h5>
+                <p class="text-xs text-gray-600">Apache Flink</p>
+                <p class="text-xs text-gray-500 mt-1">支持&#34;思考&#34;</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Comprehensive Architecture Design -->
+      <section id="architecture-design" class="mb-16">
+        <h2 class="text-3xl font-bold serif mb-8 text-gradient">综合解决方案架构设计</h2>
+
+        <div class="architecture-card">
+          <h3 class="text-2xl font-semibold mb-6">推荐架构：ADK + Kafka + 自定义中控层</h3>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div>
+              <h4 class="text-xl font-semibold mb-4 text-teal-700">
+                <i class="fas fa-layer-group mr-2"></i>分层架构设计
+              </h4>
+              <div class="space-y-4">
+                <div class="bg-gray-50 p-4 rounded-lg">
+                  <h5 class="font-semibold text-sm mb-2 text-green-700">协议层：ADK实现</h5>
+                  <p class="text-xs text-gray-600">A2A标准通信、Agent Card管理、Task生命周期</p>
+                </div>
+                <div class="bg-gray-50 p-4 rounded-lg">
+                  <h5 class="font-semibold text-sm mb-2 text-blue-700">控制层：OpenAgents</h5>
+                  <p class="text-xs text-gray-600">路由调度、Agent注册发现、任务编排</p>
+                </div>
+                <div class="bg-gray-50 p-4 rounded-lg">
+                  <h5 class="font-semibold text-sm mb-2 text-purple-700">消息层：Kafka集群</h5>
+                  <p class="text-xs text-gray-600">中心化Proxy、持久化存储、流量整形</p>
+                </div>
+                <div class="bg-gray-50 p-4 rounded-lg">
+                  <h5 class="font-semibold text-sm mb-2 text-orange-700">存储层：分级归档</h5>
+                  <p class="text-xs text-gray-600">实时访问、短期保留、长期审计</p>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h4 class="text-xl font-semibold mb-4 text-blue-700">
+                <i class="fas fa-cogs mr-2"></i>配置灵活性设计
+              </h4>
+              <div class="space-y-4">
+                <div class="bg-gray-50 p-4 rounded-lg">
+                  <h5 class="font-semibold text-sm mb-2">Agent Card动态配置</h5>
+                  <p class="text-xs text-gray-600">支持运行时更新、热加载、版本控制</p>
+                </div>
+                <div class="bg-gray-50 p-4 rounded-lg">
+                  <h5 class="font-semibold text-sm mb-2">路由策略可插拔</h5>
+                  <p class="text-xs text-gray-600">规则引擎与LLM混合决策、A/B测试</p>
+                </div>
+                <div class="bg-gray-50 p-4 rounded-lg">
+                  <h5 class="font-semibold text-sm mb-2">消息存储策略</h5>
+                  <p class="text-xs text-gray-600">实时/短期/长期归档、分级配置</p>
+                </div>
+                <div class="bg-gray-50 p-4 rounded-lg">
+                  <h5 class="font-semibold text-sm mb-2">安全策略配置</h5>
+                  <p class="text-xs text-gray-600">OAuth2/OIDC/mTLS、RBAC/ABAC</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="highlight-box">
+            <h4 class="text-xl font-semibold mb-4">
+              <i class="fas fa-shield-alt mr-2"></i>生产级增强组件
+            </h4>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <h5 class="font-semibold mb-2 text-green-700">可观测性体系</h5>
+                <ul class="text-sm space-y-1 text-gray-600">
+                  <li>• 日志、指标、追踪三位一体</li>
+                  <li>• Prometheus + Grafana监控</li>
+                  <li>• ELK/Loki日志管理</li>
+                </ul>
+              </div>
+              <div>
+                <h5 class="font-semibold mb-2 text-blue-700">灰度发布与灾备</h5>
+                <ul class="text-sm space-y-1 text-gray-600">
+                  <li>• 金丝雀发布与自动回滚</li>
+                  <li>• 多副本与跨地域部署</li>
+                  <li>• 定期灾难恢复演练</li>
+                </ul>
+              </div>
+              <div>
+                <h5 class="font-semibold mb-2 text-purple-700">多模态支持</h5>
+                <ul class="text-sm space-y-1 text-gray-600">
+                  <li>• 文本/音频/视频流统一处理</li>
+                  <li>• 差异化存储策略</li>
+                  <li>• 质量参数与成本平衡</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Decision Guide -->
+      <section id="decision-guide" class="mb-16">
+        <h2 class="text-3xl font-bold serif mb-8 text-gradient">选型决策与实施路径</h2>
+
+        <div class="architecture-card">
+          <h3 class="text-2xl font-semibold mb-6">场景化方案匹配</h3>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="comparison-cell">
+              <h4 class="font-semibold text-lg mb-3 text-green-700">
+                <i class="fas fa-flask mr-2"></i>小规模快速验证
+              </h4>
+              <p class="text-sm font-medium mb-2">&lt;10 Agents</p>
+              <div class="space-y-2 text-sm">
+                <p><strong>方案：</strong>ADK + a2a-proxy</p>
+                <p><strong>周期：</strong>2-4周</p>
+                <p><strong>重点：</strong>技术验证、原型开发</p>
+                <p><strong>注意：</strong>缺乏生产级特性</p>
+              </div>
+            </div>
+            <div class="comparison-cell">
+              <h4 class="font-semibold text-lg mb-3 text-blue-700">
+                <i class="fas fa-industry mr-2"></i>中等规模生产
+              </h4>
+              <p class="text-sm font-medium mb-2">10-50 Agents</p>
+              <div class="space-y-2 text-sm">
+                <p><strong>方案：</strong>ADK + OpenAgents + Kafka</p>
+                <p><strong>周期：</strong>2-3个月</p>
+                <p><strong>重点：</strong>完整功能覆盖</p>
+                <p><strong>注意：</strong>需要运维能力</p>
+              </div>
+            </div>
+            <div class="comparison-cell">
+              <h4 class="font-semibold text-lg mb-3 text-purple-700">
+                <i class="fas fa-building mr-2"></i>大规模企业部署
+              </h4>
+              <p class="text-sm font-medium mb-2">50+ Agents</p>
+              <div class="space-y-2 text-sm">
+                <p><strong>方案：</strong>四层架构 + 服务网格</p>
+                <p><strong>周期：</strong>6-12个月</p>
+                <p><strong>重点：</strong>高扩展性与治理</p>
+                <p><strong>注意：</strong>专业平台团队</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="highlight-box">
+            <h4 class="text-xl font-semibold mb-4">
+              <i class="fas fa-chart-bar mr-2"></i>关键评估维度
+            </h4>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="border-b">
+                    <th class="text-left py-2">评估维度</th>
+                    <th class="text-left py-2">关键指标</th>
+                    <th class="text-left py-2">验证方法</th>
+                  </tr>
+                </thead>
+                <tbody class="text-gray-600">
+                  <tr class="border-b">
+                    <td class="py-2 font-medium">协议兼容性</td>
+                    <td class="py-2">Agent Card、Task状态机、SSE流式</td>
+                    <td class="py-2">官方SDK互操作测试</td>
+                  </tr>
+                  <tr class="border-b">
+                    <td class="py-2 font-medium">路由能力</td>
+                    <td class="py-2">规则引擎、LLM决策、负载均衡</td>
+                    <td class="py-2">压力测试、故障注入</td>
+                  </tr>
+                  <tr class="border-b">
+                    <td class="py-2 font-medium">存储配置</td>
+                    <td class="py-2">retention策略、分级存储、审计追踪</td>
+                    <td class="py-2">配置变更测试</td>
+                  </tr>
+                  <tr>
+                    <td class="py-2 font-medium">安全机制</td>
+                    <td class="py-2">OIDC认证、RBAC/ABAC、审计日志</td>
+                    <td class="py-2">渗透测试、合规审计</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="mt-8 p-6 bg-gradient-to-r from-teal-50 to-blue-50 rounded-lg border-l-4 border-teal-500">
+            <h4 class="text-xl font-semibold mb-4 text-gray-800">
+              <i class="fas fa-lightbulb mr-2"></i>实施建议
+            </h4>
+            <p class="text-gray-700 mb-4">
+              基于当前A2A协议生态发展现状，建议企业采用<strong>渐进式演进策略</strong>：从技术验证开始，逐步构建完整的企业级多智能体基础设施。
+              重点关注协议兼容性、路由智能化、消息可靠性三个核心维度，同时预留扩展接口以适应协议演进和技术发展。
+            </p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <h5 class="font-semibold mb-2 text-green-700">短期目标（3-6个月）</h5>
+                <ul class="text-sm space-y-1 text-gray-600">
+                  <li>• 建立A2A协议技术验证环境</li>
+                  <li>• 实施ADK框架与现有系统集成</li>
+                  <li>• 部署基础消息代理基础设施</li>
+                </ul>
+              </div>
+              <div>
+                <h5 class="font-semibold mb-2 text-blue-700">长期愿景（12-24个月）</h5>
+                <ul class="text-sm space-y-1 text-gray-600">
+                  <li>• 构建完整的企业级中控平台</li>
+                  <li>• 实现跨组织Agent协作能力</li>
+                  <li>• 建立完善的安全治理体系</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="section-divider"></div>
+
+      <!-- Footer -->
+      <footer class="text-center py-8 text-gray-500">
+        <p class="text-sm">
+          本分析基于2025年5月A2A协议生态现状，建议定期关注
+          <a href="https://a2a-protocol.org/" class="citation-link">Linux Foundation A2A项目</a>
+          最新进展。
+        </p>
+        <p class="text-xs mt-2">
+          数据来源：官方文档、社区实现、技术博客、企业公告
+        </p>
+      </footer>
+    </div>
+
+    <script>
+        // Initialize Mermaid
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'base',
+            themeVariables: {
+                // 主要颜色 - 确保高对比度
+                primaryColor: '#ffffff',
+                primaryTextColor: '#0f172a',
+                primaryBorderColor: '#0f766e',
+                lineColor: '#64748b',
+                
+                // 次要颜色
+                secondaryColor: '#f0fdfa',
+                secondaryTextColor: '#0f766e',
+                secondaryBorderColor: '#14b8a6',
+                
+                // 第三级颜色
+                tertiaryColor: '#f8fafc',
+                tertiaryTextColor: '#374151',
+                tertiaryBorderColor: '#e2e8f0',
+                
+                // 背景色
+                background: '#ffffff',
+                mainBkg: '#ffffff',
+                secondBkg: '#f0fdfa',
+                tertiaryBkg: '#f8fafc',
+                
+                // 节点特定颜色
+                cScale0: '#ffffff',
+                cScale1: '#f0fdfa',
+                cScale2: '#ccfbf1',
+                cScale3: '#99f6e4',
+                cScale4: '#5eead4',
+                cScale5: '#2dd4bf',
+                
+                // 文本颜色确保对比度
+                nodeTextColor: '#0f172a',
+                textColor: '#0f172a',
+                
+                // 边框颜色
+                nodeBorder: '#0f766e',
+                clusterBkg: '#f8fafc',
+                clusterBorder: '#e2e8f0',
+                
+                // 连接线和箭头
+                edgeLabelBackground: '#ffffff',
+                edgeLabelText: '#0f172a'
+            },
+            flowchart: {
+                useMaxWidth: false,
+                htmlLabels: true,
+                curve: 'basis',
+                padding: 20,
+                nodeSpacing: 50,
+                rankSpacing: 50
+            },
+            sequence: {
+                useMaxWidth: false,
+                padding: 20
+            },
+            gantt: {
+                useMaxWidth: false,
+                padding: 20
+            }
+        });
+
+        // Initialize Mermaid Controls for zoom and pan
+        function initializeMermaidControls() {
+            const containers = document.querySelectorAll('.mermaid-container');
+
+            containers.forEach(container => {
+            const mermaidElement = container.querySelector('.mermaid');
+            let scale = 1;
+            let isDragging = false;
+            let startX, startY, translateX = 0, translateY = 0;
+
+            // 触摸相关状态
+            let isTouch = false;
+            let touchStartTime = 0;
+            let initialDistance = 0;
+            let initialScale = 1;
+            let isPinching = false;
+
+            // Zoom controls
+            const zoomInBtn = container.querySelector('.zoom-in');
+            const zoomOutBtn = container.querySelector('.zoom-out');
+            const resetBtn = container.querySelector('.reset-zoom');
+            const fullscreenBtn = container.querySelector('.fullscreen');
+
+            function updateTransform() {
+                mermaidElement.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+
+                if (scale > 1) {
+                container.classList.add('zoomed');
+                } else {
+                container.classList.remove('zoomed');
+                }
+
+                mermaidElement.style.cursor = isDragging ? 'grabbing' : 'grab';
+            }
+
+            if (zoomInBtn) {
+                zoomInBtn.addEventListener('click', () => {
+                scale = Math.min(scale * 1.25, 4);
+                updateTransform();
+                });
+            }
+
+            if (zoomOutBtn) {
+                zoomOutBtn.addEventListener('click', () => {
+                scale = Math.max(scale / 1.25, 0.3);
+                if (scale <= 1) {
+                    translateX = 0;
+                    translateY = 0;
+                }
+                updateTransform();
+                });
+            }
+
+            if (resetBtn) {
+                resetBtn.addEventListener('click', () => {
+                scale = 1;
+                translateX = 0;
+                translateY = 0;
+                updateTransform();
+                });
+            }
+
+            if (fullscreenBtn) {
+                fullscreenBtn.addEventListener('click', () => {
+                if (container.requestFullscreen) {
+                    container.requestFullscreen();
+                } else if (container.webkitRequestFullscreen) {
+                    container.webkitRequestFullscreen();
+                } else if (container.msRequestFullscreen) {
+                    container.msRequestFullscreen();
+                }
+                });
+            }
+
+            // Mouse Events
+            mermaidElement.addEventListener('mousedown', (e) => {
+                if (isTouch) return; // 如果是触摸设备，忽略鼠标事件
+
+                isDragging = true;
+                startX = e.clientX - translateX;
+                startY = e.clientY - translateY;
+                mermaidElement.style.cursor = 'grabbing';
+                updateTransform();
+                e.preventDefault();
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (isDragging && !isTouch) {
+                translateX = e.clientX - startX;
+                translateY = e.clientY - startY;
+                updateTransform();
+                }
+            });
+
+            document.addEventListener('mouseup', () => {
+                if (isDragging && !isTouch) {
+                isDragging = false;
+                mermaidElement.style.cursor = 'grab';
+                updateTransform();
+                }
+            });
+
+            document.addEventListener('mouseleave', () => {
+                if (isDragging && !isTouch) {
+                isDragging = false;
+                mermaidElement.style.cursor = 'grab';
+                updateTransform();
+                }
+            });
+
+            // 获取两点之间的距离
+            function getTouchDistance(touch1, touch2) {
+                return Math.hypot(
+                touch2.clientX - touch1.clientX,
+                touch2.clientY - touch1.clientY
+                );
+            }
+
+            // Touch Events - 触摸事件处理
+            mermaidElement.addEventListener('touchstart', (e) => {
+                isTouch = true;
+                touchStartTime = Date.now();
+
+                if (e.touches.length === 1) {
+                // 单指拖动
+                isPinching = false;
+                isDragging = true;
+
+                const touch = e.touches[0];
+                startX = touch.clientX - translateX;
+                startY = touch.clientY - translateY;
+
+                } else if (e.touches.length === 2) {
+                // 双指缩放
+                isPinching = true;
+                isDragging = false;
+
+                const touch1 = e.touches[0];
+                const touch2 = e.touches[1];
+                initialDistance = getTouchDistance(touch1, touch2);
+                initialScale = scale;
+                }
+
+                e.preventDefault();
+            }, { passive: false });
+
+            mermaidElement.addEventListener('touchmove', (e) => {
+                if (e.touches.length === 1 && isDragging && !isPinching) {
+                // 单指拖动
+                const touch = e.touches[0];
+                translateX = touch.clientX - startX;
+                translateY = touch.clientY - startY;
+                updateTransform();
+
+                } else if (e.touches.length === 2 && isPinching) {
+                // 双指缩放
+                const touch1 = e.touches[0];
+                const touch2 = e.touches[1];
+                const currentDistance = getTouchDistance(touch1, touch2);
+
+                if (initialDistance > 0) {
+                    const newScale = Math.min(Math.max(
+                    initialScale * (currentDistance / initialDistance),
+                    0.3
+                    ), 4);
+                    scale = newScale;
+                    updateTransform();
+                }
+                }
+
+                e.preventDefault();
+            }, { passive: false });
+
+            mermaidElement.addEventListener('touchend', (e) => {
+                // 重置状态
+                if (e.touches.length === 0) {
+                isDragging = false;
+                isPinching = false;
+                initialDistance = 0;
+
+                // 延迟重置isTouch，避免鼠标事件立即触发
+                setTimeout(() => {
+                    isTouch = false;
+                }, 100);
+                } else if (e.touches.length === 1 && isPinching) {
+                // 从双指变为单指，切换为拖动模式
+                isPinching = false;
+                isDragging = true;
+
+                const touch = e.touches[0];
+                startX = touch.clientX - translateX;
+                startY = touch.clientY - translateY;
+                }
+
+                updateTransform();
+            });
+
+            mermaidElement.addEventListener('touchcancel', (e) => {
+                isDragging = false;
+                isPinching = false;
+                initialDistance = 0;
+
+                setTimeout(() => {
+                isTouch = false;
+                }, 100);
+
+                updateTransform();
+            });
+
+            // Enhanced wheel zoom with better center point handling
+            container.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const rect = container.getBoundingClientRect();
+                const centerX = rect.width / 2;
+                const centerY = rect.height / 2;
+
+                const delta = e.deltaY > 0 ? 0.9 : 1.1;
+                const newScale = Math.min(Math.max(scale * delta, 0.3), 4);
+
+                // Adjust translation to zoom towards center
+                if (newScale !== scale) {
+                const scaleDiff = newScale / scale;
+                translateX = translateX * scaleDiff;
+                translateY = translateY * scaleDiff;
+                scale = newScale;
+
+                if (scale <= 1) {
+                    translateX = 0;
+                    translateY = 0;
+                }
+
+                updateTransform();
+                }
+            });
+
+            // Initialize display
+            updateTransform();
+            });
+        }
+
+        // Initialize mermaid controls
+        initializeMermaidControls();
+
+        // Smooth scrolling for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // Highlight active section in TOC
+        window.addEventListener('scroll', function() {
+            const sections = document.querySelectorAll('section[id]');
+            const tocLinks = document.querySelectorAll('.toc-fixed a[href^="#"]');
+            
+            let currentSection = '';
+            sections.forEach(section => {
+                const rect = section.getBoundingClientRect();
+                if (rect.top <= 100 && rect.bottom >= 100) {
+                    currentSection = section.id;
+                }
+            });
+            
+            tocLinks.forEach(link => {
+                link.classList.remove('font-semibold', 'text-teal-700');
+                if (link.getAttribute('href') === `#${currentSection}`) {
+                    link.classList.add('font-semibold', 'text-teal-700');
+                }
+            });
+        });
+    </script>
+  
+
+</body></html>
