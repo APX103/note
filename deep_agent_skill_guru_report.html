@@ -1,0 +1,1027 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Deep Agent + Skill Guru — 深度研究范式报告</title>
+<style>
+  :root {
+    --bg: #fafbfc;
+    --surface: #ffffff;
+    --surface-elevated: #ffffff;
+    --text-primary: #111827;
+    --text-secondary: #4b5563;
+    --text-tertiary: #9ca3af;
+    --border: #e5e7eb;
+    --border-light: #f3f4f6;
+    --accent: #4f46e5;
+    --accent-light: #eef2ff;
+    --accent-dark: #3730a3;
+    --success: #059669;
+    --success-bg: #ecfdf5;
+    --warning: #d97706;
+    --warning-bg: #fffbeb;
+    --danger: #dc2626;
+    --danger-bg: #fef2f2;
+    --code-bg: #f6f8fa;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 80px;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+                 "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "WenQuanYi Zen Hei", sans-serif;
+    background: var(--bg);
+    color: var(--text-primary);
+    line-height: 1.75;
+    font-size: 15.5px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Layout */
+  .layout {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    max-width: 1280px;
+    margin: 0 auto;
+    min-height: 100vh;
+  }
+
+  /* Sidebar */
+  aside {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    padding: 32px 20px;
+    border-right: 1px solid var(--border-light);
+    background: var(--surface);
+  }
+
+  .brand {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 4px;
+    letter-spacing: -0.3px;
+  }
+
+  .brand-sub {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    margin-bottom: 28px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .toc-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 12px;
+  }
+
+  .toc ul { list-style: none; }
+  .toc li { margin-bottom: 2px; }
+  .toc a {
+    display: block;
+    padding: 6px 10px;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 13px;
+    line-height: 1.5;
+    transition: all 0.15s;
+    border-left: 2px solid transparent;
+  }
+  .toc a:hover {
+    background: var(--accent-light);
+    color: var(--accent-dark);
+    border-left-color: var(--accent);
+  }
+  .toc a.active {
+    background: var(--accent-light);
+    color: var(--accent-dark);
+    font-weight: 600;
+    border-left-color: var(--accent);
+  }
+  .toc .toc-h2 { padding-left: 10px; }
+  .toc .toc-h3 { padding-left: 22px; font-size: 12px; }
+  .toc .toc-h4 { padding-left: 34px; font-size: 11.5px; color: var(--text-tertiary); }
+
+  /* Main content */
+  main {
+    padding: 48px 64px 80px;
+    max-width: 900px;
+  }
+
+  /* Header */
+  .doc-header {
+    margin-bottom: 48px;
+    padding-bottom: 32px;
+    border-bottom: 1px solid var(--border);
+  }
+  .doc-header h1 {
+    font-size: 40px;
+    font-weight: 800;
+    line-height: 1.15;
+    letter-spacing: -0.8px;
+    margin-bottom: 12px;
+    background: linear-gradient(135deg, var(--text-primary) 0%, var(--accent) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .doc-header .subtitle {
+    font-size: 18px;
+    color: var(--text-secondary);
+    font-weight: 400;
+    margin-bottom: 20px;
+  }
+  .meta-bar {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    font-size: 13px;
+    color: var(--text-tertiary);
+  }
+  .meta-bar span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--border-light);
+    padding: 4px 10px;
+    border-radius: 20px;
+  }
+
+  /* Typography */
+  h2 {
+    font-size: 26px;
+    font-weight: 700;
+    margin-top: 56px;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--accent-light);
+    color: var(--text-primary);
+    letter-spacing: -0.3px;
+  }
+  h3 {
+    font-size: 20px;
+    font-weight: 600;
+    margin-top: 36px;
+    margin-bottom: 14px;
+    color: var(--text-primary);
+  }
+  h4 {
+    font-size: 16px;
+    font-weight: 600;
+    margin-top: 28px;
+    margin-bottom: 10px;
+    color: var(--accent-dark);
+  }
+  p { margin-bottom: 16px; color: var(--text-secondary); }
+  strong { color: var(--text-primary); font-weight: 600; }
+
+  /* Lists */
+  ul, ol {
+    margin: 16px 0 20px 4px;
+    padding-left: 22px;
+  }
+  li { margin-bottom: 10px; color: var(--text-secondary); }
+  li::marker { color: var(--accent); }
+
+  /* Cards & Boxes */
+  .card {
+    background: var(--surface-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px 28px;
+    margin: 24px 0;
+    box-shadow: var(--shadow-sm);
+  }
+  .card-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .highlight-box {
+    background: linear-gradient(135deg, var(--accent-light) 0%, #f5f3ff 100%);
+    border-left: 4px solid var(--accent);
+    padding: 20px 24px;
+    margin: 24px 0;
+    border-radius: 0 var(--radius) var(--radius) 0;
+    color: var(--text-primary);
+  }
+  .highlight-box strong { color: var(--accent-dark); }
+
+  .info-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 20px 24px;
+    margin: 24px 0;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .success-box {
+    background: var(--success-bg);
+    border-left: 4px solid var(--success);
+    padding: 20px 24px;
+    margin: 24px 0;
+    border-radius: 0 var(--radius) var(--radius) 0;
+  }
+  .success-box strong { color: var(--success); }
+
+  .warning-box {
+    background: var(--warning-bg);
+    border-left: 4px solid var(--warning);
+    padding: 20px 24px;
+    margin: 24px 0;
+    border-radius: 0 var(--radius) var(--radius) 0;
+  }
+  .warning-box strong { color: var(--warning); }
+
+  .danger-box {
+    background: var(--danger-bg);
+    border-left: 4px solid var(--danger);
+    padding: 20px 24px;
+    margin: 24px 0;
+    border-radius: 0 var(--radius) var(--radius) 0;
+  }
+
+  /* Tags */
+  .tags { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+  .tag {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12.5px;
+    font-weight: 500;
+    background: var(--accent-light);
+    color: var(--accent-dark);
+    border: 1px solid #c7d2fe;
+  }
+  .tag-success { background: var(--success-bg); color: var(--success); border-color: #a7f3d0; }
+  .tag-warning { background: var(--warning-bg); color: var(--warning); border-color: #fcd34d; }
+  .tag-danger { background: var(--danger-bg); color: var(--danger); border-color: #fecaca; }
+
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin: 24px 0;
+    font-size: 14px;
+    border-radius: var(--radius);
+    overflow: hidden;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-sm);
+  }
+  th {
+    background: #f8fafc;
+    color: var(--text-primary);
+    padding: 14px 16px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    border-bottom: 2px solid var(--border);
+  }
+  td {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border-light);
+    vertical-align: top;
+    color: var(--text-secondary);
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #fafafa; }
+
+  /* Code */
+  code {
+    background: var(--code-bg);
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-family: "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, monospace;
+    font-size: 13.5px;
+    color: var(--accent-dark);
+    border: 1px solid var(--border);
+  }
+  pre {
+    background: var(--code-bg);
+    padding: 20px 24px;
+    border-radius: var(--radius);
+    overflow-x: auto;
+    margin: 20px 0;
+    border: 1px solid var(--border);
+    font-family: "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, monospace;
+    font-size: 13.5px;
+    line-height: 1.6;
+    color: var(--text-primary);
+  }
+  pre code {
+    background: none;
+    padding: 0;
+    border: none;
+    font-size: inherit;
+    color: inherit;
+  }
+
+  /* Architecture diagram placeholder */
+  .figure {
+    text-align: center;
+    margin: 32px 0;
+    padding: 16px;
+    background: var(--surface);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+  }
+  .figure img {
+    max-width: 100%;
+    border-radius: var(--radius-sm);
+  }
+  .figure-caption {
+    font-size: 13px;
+    color: var(--text-tertiary);
+    margin-top: 12px;
+    font-style: italic;
+  }
+
+  /* Quote */
+  blockquote {
+    border-left: 3px solid var(--accent);
+    padding-left: 20px;
+    margin: 20px 0;
+    color: var(--text-tertiary);
+    font-style: italic;
+  }
+
+  /* Footer */
+  .footer {
+    margin-top: 80px;
+    padding-top: 32px;
+    border-top: 1px solid var(--border);
+    color: var(--text-tertiary);
+    font-size: 13px;
+    line-height: 1.8;
+  }
+
+  /* Mobile */
+  @media (max-width: 1024px) {
+    .layout { grid-template-columns: 1fr; }
+    aside { display: none; }
+    main { padding: 24px 20px; }
+    .doc-header h1 { font-size: 28px; }
+    h2 { font-size: 22px; }
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-tertiary); }
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <aside>
+    <div class="brand">Deep Agent</div>
+    <div class="brand-sub">Skill Guru Report</div>
+    <div class="toc-title">目录</div>
+    <nav class="toc">
+      <ul>
+        <li class="toc-h2"><a href="#sec1">一、执行摘要</a></li>
+        <li class="toc-h2"><a href="#sec2">二、开源Agent架构三强</a></li>
+        <li class="toc-h3"><a href="#sec2-1">2.1 架构总览</a></li>
+        <li class="toc-h3"><a href="#sec2-2">2.2 OpenClaw</a></li>
+        <li class="toc-h3"><a href="#sec2-3">2.3 DeepSeek-TUI</a></li>
+        <li class="toc-h3"><a href="#sec2-4">2.4 Hermes</a></li>
+        <li class="toc-h2"><a href="#sec3">三、行业洞察</a></li>
+        <li class="toc-h3"><a href="#sec3-1">3.1 市场规模</a></li>
+        <li class="toc-h3"><a href="#sec3-2">3.2 学术前沿</a></li>
+        <li class="toc-h3"><a href="#sec3-3">3.3 多Agent演进</a></li>
+        <li class="toc-h2"><a href="#sec4">四、前沿探索</a></li>
+        <li class="toc-h3"><a href="#sec4-1">4.1 协议栈分层</a></li>
+        <li class="toc-h3"><a href="#sec4-2">4.2 自进化算法</a></li>
+        <li class="toc-h3"><a href="#sec4-3">4.3 多模态研究</a></li>
+        <li class="toc-h3"><a href="#sec4-4">4.4 Agent身份经济</a></li>
+        <li class="toc-h3"><a href="#sec4-5">4.5 ANX协议</a></li>
+        <li class="toc-h2"><a href="#sec5">五、架构设计</a></li>
+        <li class="toc-h3"><a href="#sec5-1">5.1 设计理念</a></li>
+        <li class="toc-h3"><a href="#sec5-2">5.2 架构分层</a></li>
+        <li class="toc-h3"><a href="#sec5-3">5.3 工作流示例</a></li>
+        <li class="toc-h2"><a href="#sec6">六、场景应用</a></li>
+        <li class="toc-h2"><a href="#sec7">七、实施路线图</a></li>
+        <li class="toc-h2"><a href="#sec8">八、风险与对策</a></li>
+      </ul>
+    </nav>
+  </aside>
+
+  <main>
+    <div class="doc-header">
+      <h1>Deep Agent + Skill Guru</h1>
+      <div class="subtitle">开源Agent架构在深度研究（科研 / 行研）领域的应用报告</div>
+      <div class="meta-bar">
+        <span>📅 2026年5月7日</span>
+        <span>🔬 技术调研报告</span>
+        <span>⚡ OpenClaw / DeepSeek-TUI / Hermes / MCP / A2A / RoboPhD</span>
+      </div>
+    </div>
+
+    <h2 id="sec1">一、执行摘要</h2>
+    <div class="highlight-box">
+      <strong>核心判断：</strong>2026年是Agentic AI从"辅助工具"向"深度研究伙伴"转型的关键年份。Gartner预测，到2028年大多数企业将放弃仅提供建议的Copilot模式，转向能够交付完整成果的Outcome-Focused Workflow。在科研和行研领域，这一趋势表现为：Agent不再只是帮你"查资料"，而是能够自主执行多轮递归研究、生成可复用的领域技能（Skill）、并将研究成果转化为可验证的工作流。
+    </div>
+
+    <p>本报告聚焦三个2026年最具代表性的开源Agent框架——<strong>OpenClaw</strong>（本地优先的自主OS）、<strong>DeepSeek-TUI</strong>（终端原生的深度推理引擎）、<strong>Hermes</strong>（具备自进化能力的Skill Guru）——并结合2026年最前沿的协议标准（MCP/A2A/AP2）、自进化算法突破（RoboPhD）与多模态深度研究（MM-DeepResearch），提出一套面向深度研究场景的 <strong>Deep Agent + Skill Guru</strong> 架构方案。</p>
+
+    <div class="card">
+      <div class="card-title">💡 核心价值主张</div>
+      <ul>
+        <li><strong>递归深度研究（Deep Research）</strong>：通过递归调用和可控的探索循环，突破单次检索-生成的信息天花板</li>
+        <li><strong>技能资产化（Skill Guru）</strong>：将领域专家的研究方法论编码为可版本控制、可进化、可共享的Skill文档</li>
+        <li><strong>协议原生（Protocol-Native）</strong>：内建MCP工具调用、A2A跨Agent协作与AP2自主支付能力，无缝接入开放的Agent经济</li>
+        <li><strong>确定性保障</strong>：通过Semantic-Deterministic-Knowledge三层分离，将LLM的非确定性限制在意图提取层</li>
+        <li><strong>成本可控</strong>：单次复杂科研查询的LLM开销可控制在 $0.001 级别，且支持本地模型部署</li>
+      </ul>
+    </div>
+
+    <h2 id="sec2">二、开源Agent架构三强深度对比</h2>
+
+    <h3 id="sec2-1">2.1 架构总览</h3>
+    <table>
+      <tr>
+        <th style="width:18%">维度</th>
+        <th style="width:27%">OpenClaw</th>
+        <th style="width:27%">DeepSeek-TUI</th>
+        <th style="width:28%">Hermes Agent</th>
+      </tr>
+      <tr>
+        <td><strong>定位</strong></td>
+        <td>本地优先的自主AI OS</td>
+        <td>终端原生的深度Coding Agent</td>
+        <td>自进化的Skill Guru框架</td>
+      </tr>
+      <tr>
+        <td><strong>语言/运行时</strong></td>
+        <td>TypeScript / Node.js (v22.14+)</td>
+        <td>Rust (单二进制，~12MB内存)</td>
+        <td>Python</td>
+      </tr>
+      <tr>
+        <td><strong>核心哲学</strong></td>
+        <td>"One Process, Five Subsystems"<br>持久记忆 + 多通道集成</td>
+        <td>模型原生优化（DeepSeek V4专用）<br>1M Token上下文 + RLM并行子Agent</td>
+        <td>"越用越聪明"<br>GEPA自进化 + 三层记忆</td>
+      </tr>
+      <tr>
+        <td><strong>记忆系统</strong></td>
+        <td>SOUL.md / IDENTITY.md / USER.md<br>本地Markdown持久化</td>
+        <td>项目级上下文缓存<br>Prefix Cache优化</td>
+        <td>三层记忆 + Skill Documents<br>自动从历史任务生成可复用Skill</td>
+      </tr>
+      <tr>
+        <td><strong>技能系统</strong></td>
+        <td>ClawHub技能市场<br>JSON Schema函数</td>
+        <td>SKILL.md<br>兼容.claude/skills路径</td>
+        <td>自生成Skill Documents<br>GEPA进化优化（$2-10/次）</td>
+      </tr>
+      <tr>
+        <td><strong>并行/子Agent</strong></td>
+        <td>序列化Agent Loop（避免竞态）</td>
+        <td>RLM：1-16个V4-Flash并行子Agent</td>
+        <td>多Agent编排（计划中的Hierarchical Reflective优化）</td>
+      </tr>
+      <tr>
+        <td><strong>模型支持</strong></td>
+        <td>Claude, GPT, Gemini, Ollama本地</td>
+        <td>DeepSeek V4-Pro/Flash为主<br>支持NVIDIA NIM/Fireworks</td>
+        <td>模型无关：15+提供商<br>OpenRouter, Ollama, Anthropic等</td>
+      </tr>
+      <tr>
+        <td><strong>部署模式</strong></td>
+        <td>本地Daemon + 多通道网关</td>
+        <td>终端TUI / HTTP Server</td>
+        <td>本地/Docker/SSH/Daytona/Modal</td>
+      </tr>
+      <tr>
+        <td><strong>开源协议</strong></td>
+        <td>MIT</td>
+        <td>MIT</td>
+        <td>MIT</td>
+      </tr>
+      <tr>
+        <td><strong>最佳场景</strong></td>
+        <td>个人知识管理、跨应用自动化</td>
+        <td>代码密集型深度研究、大规模上下文分析</td>
+        <td>需要持续学习和领域技能积累的研究场景</td>
+      </tr>
+    </table>
+
+    <h3 id="sec2-2">2.2 OpenClaw：本地优先的自主数字员工</h3>
+    <p>OpenClaw由前OpenAI工程师Peter Steinberger创建，其核心创新在于将Agent视为一个<strong>"自主操作系统"</strong>而非聊天机器人。它通过本地Node.js网关将LLM连接到50+通信渠道（WhatsApp、Telegram、Slack、Discord等），并以Markdown文件形式维护持久记忆。</p>
+
+    <div class="info-box">
+      <div class="card-title">🔧 关键子系统</div>
+      <ul>
+        <li><strong>Channel Adapters</strong>：平台无关的消息翻译层</li>
+        <li><strong>Session Manager</strong>：每会话的上下文窗口管理</li>
+        <li><strong>Queue</strong>：消息摄入与执行解耦，防止峰值过载</li>
+        <li><strong>Agent Runtime</strong>：观察-计划-行动循环（Observe-Plan-Act）</li>
+        <li><strong>Control Plane</strong>：基于WebSocket的管理UI</li>
+      </ul>
+    </div>
+
+    <p>对于深度研究场景，OpenClaw的优势在于其<strong>多通道集成能力</strong>——研究者可以通过Telegram向Agent发送研究指令，Agent自动在后台执行文献检索、数据抓取、代码运行，并将结果推送回对话。其<strong>SOUL.md协议</strong>使得Agent能够记住研究者的偏好（如"优先使用Nature/Science文献"、"输出格式为Markdown"），实现跨会话的个性化服务。</p>
+
+    <div class="warning-box">
+      <strong>局限：</strong>OpenClaw的序列化Agent Loop设计（每个会话一次只处理一个任务）虽然避免了多Agent竞态，但在需要大规模并行文献分析时可能成为瓶颈。
+    </div>
+
+    <h3 id="sec2-3">2.3 DeepSeek-TUI：为深度推理而生的终端Agent</h3>
+    <p>DeepSeek-TUI是独立开发者Hunter Bown基于Rust和ratatui构建的终端原生Agent，其核心设计完全围绕<strong>DeepSeek V4的API经济学</strong>展开。这不是一个通用Agent包装器，而是一个模型专用Harness。</p>
+
+    <div class="success-box">
+      <div class="card-title">🚀 DeepSeek-TUI 的差异化能力</div>
+      <ul>
+        <li><strong>1M Token上下文窗口</strong>：可一次性加载整本教科书或大型代码库，避免RAG的片段化问题</li>
+        <li><strong>RLM（Recursive Language Model）系统</strong>：可扇出1-16个廉价的V4-Flash子Agent并行处理子任务，主Agent负责协调与综合</li>
+        <li><strong>Thinking-mode Streaming</strong>：原生支持DeepSeek的推理过程流式展示</li>
+        <li><strong>实时成本追踪</strong>：每轮对话显示token用量、缓存命中/未命中、预估费用</li>
+        <li><strong>三种执行模式</strong>：Plan（只读调研）、Agent（交互式审批）、YOLO（全自动）</li>
+      </ul>
+    </div>
+
+    <p>在科研场景中，DeepSeek-TUI的RLM系统特别适合<strong>大规模文献综述</strong>：主Agent将研究问题分解为16个子问题，每个子Agent并行检索和分析，最后由主Agent综合成连贯的综述报告。其<strong>Plan模式</strong>则适合高风险任务（如实验设计审查），在Agent执行任何修改前展示完整计划供研究者审批。</p>
+
+    <div class="warning-box">
+      <strong>局限：</strong>架构决策（成本估算器、上下文压缩策略、RLM子Agent选择）均针对DeepSeek V4优化，难以直接迁移到Claude或GPT系列。
+    </div>
+
+    <h3 id="sec2-4">2.4 Hermes：首个生产级自进化Agent</h3>
+    <p>Hermes Agent由Nous Research发布，是2026年增长最快的开源Agent框架之一。其根本差异化在于解决了所有其他框架的通病：<strong>状态丢失</strong>。传统Agent每次会话从零开始，而Hermes通过<strong>GEPA（Generative Evolution through Pareto Accumulation）</strong>机制，将完成的任务转化为可复用的Skill Documents。</p>
+
+    <div class="highlight-box">
+      <div class="card-title">🧬 GEPA算法的三大支柱</div>
+      <ol>
+        <li><strong>Reflective Mutation（反思式变异）</strong>：LLM读取历史执行轨迹，反思"为什么做对/做错"，生成针对性的Prompt改进建议</li>
+        <li><strong>Pareto Frontier Selection（帕累托前沿选择）</strong>：不保留全局平均分最高的Skill，而是保留在<strong>任意评估样本</strong>上表现最好的候选，确保技能多样性和鲁棒性</li>
+        <li><strong>Natural Language Feedback as Mutation Signal</strong>：用自然语言反馈（如"这一步没有检查边界条件"）而非数值奖励指导进化，可解释性远超传统RL</li>
+      </ol>
+    </div>
+
+    <p>Hermes的<strong>Skill Document</strong>是Markdown格式的文本文件，由Agent自动编写，经人类审核后合并。当Agent积累了20+个自生成Skill后，在重复任务上的速度提升可达<strong>40%</strong>。这对于深度研究极具价值——一个长期从事基因组学研究的Agent，可以逐步积累"GWAS数据分析"、"LD Score回归"、"曼哈顿图绘制"等专属技能，形成真正的<strong>领域知识资产</strong>。</p>
+
+    <h2 id="sec3">三、行业洞察：Agentic AI 在深度研究领域的趋势</h2>
+
+    <h3 id="sec3-1">3.1 市场规模与增长预测</h3>
+    <p>根据The Business Research Company的数据，<strong>Agentic AI在科学发现与研究领域的市场规模</strong>在2026年约为 <strong>$0.4 billion</strong>，预计到2035年将增长至 <strong>$2.4 billion</strong>，复合年增长率（CAGR）高达 <strong>57.0%</strong>。这一增速远超通用Agent市场，反映出科研领域对自动化工作流的刚性需求。</p>
+
+    <div class="card">
+      <div class="card-title">📊 Gartner五阶段演进模型（2025-2029）</div>
+      <table>
+        <tr><th>阶段</th><th>年份</th><th>能力</th><th>企业影响</th></tr>
+        <tr><td>Stage 1</td><td>2025</td><td>AI助手普及</td><td>几乎所有企业应用嵌入AI助手</td></tr>
+        <tr><td>Stage 2</td><td>2026</td><td>任务专用Agent</td><td>40%企业应用集成独立行动Agent</td></tr>
+        <tr><td>Stage 3</td><td>2027</td><td>应用内协作Agent</td><td>1/3实现组合不同技能的复杂任务</td></tr>
+        <tr><td>Stage 4</td><td>2028</td><td>跨应用Agent生态</td><td>15%日常决策自主完成</td></tr>
+        <tr><td>Stage 5</td><td>2029</td><td>新常态</td><td>50%知识工作者具备按需创建Agent的能力</td></tr>
+      </table>
+    </div>
+
+    <p>2026年被行业定义为<strong>"Operationalization Year"</strong>——62%正在实验Agent的企业面临"规模化或搁置"的二元选择。在科研领域，这意味着从"用Agent辅助查文献"转向"用Agent执行端到端研究流程"。</p>
+
+    <h3 id="sec3-2">3.2 学术前沿：从研究问题到科学工作流</h3>
+    <p>2026年4月发表于arXiv的论文《From Research Question to Scientific Workflow》提出了一个关键洞察：科学工作流系统（如Snakemake、Nextflow）自动化了执行层（调度、容错、资源管理），但<strong>没有自动化语义翻译层</strong>——科学家仍需手动将研究问题转换为工作流规范。该论文提出的三层Agentic架构已成为科研Agent设计的事实标准：</p>
+
+    <div class="card">
+      <div class="card-title">🏗️ 三层Agentic架构</div>
+      <div style="margin:16px 0; padding:16px; background:#f8fafc; border-radius:8px; border-left:3px solid var(--accent);">
+        <strong>Knowledge Layer（知识层）</strong><br>
+        <span style="color:var(--text-secondary);">领域专家编写Skills：Markdown文档编码词汇映射、参数约束、优化策略<br>例："European" → EUR（1000 Genomes人群代码）</span>
+      </div>
+      <div style="margin:16px 0; padding:16px; background:#f8fafc; border-radius:8px; border-left:3px solid var(--success);">
+        <strong>Semantic Layer（语义层）</strong><br>
+        <span style="color:var(--text-secondary);">LLM将自然语言查询解释为结构化意图（ResearchIntent）<br>非确定性被限制在此层</span>
+      </div>
+      <div style="margin:16px 0; padding:16px; background:#f8fafc; border-radius:8px; border-left:3px solid var(--warning);">
+        <strong>Deterministic Layer（确定性层）</strong><br>
+        <span style="color:var(--text-secondary);">验证过的生成器将意图转换为可复现的工作流DAG<br>相同意图始终产生相同工作流</span>
+      </div>
+    </div>
+
+    <p>该架构的评估结果显示：使用Skills后，意图提取的完全匹配准确率从44%提升至83%；基于Skill的延迟工作流生成减少了92%的数据传输；端到端查询的LLM开销低于15秒，成本低于$0.001。</p>
+
+    <h3 id="sec3-3">3.3 多Agent科研系统的范式演进</h3>
+    <p>当前科研Agent架构正从<strong>"协调者-工作者"（Coordinator-Worker）</strong>的固定拓扑，向<strong>动态重构拓扑</strong>演进：</p>
+
+    <ul>
+      <li><strong>Google AI Co-Scientist</strong>（Gemini 2.0）：Supervisor Agent分配任务给Generation、Reflection、Ranking、Evolution、Meta-review等专业工作者，但所有Agent运行在同一模型族，且无法自主停止调查或招募外部专家</li>
+      <li><strong>FutureHouse Kosmos</strong>：文献合成、数据分析、实验化学子Agent在固定管道中协作，已完成从靶点发现到药物候选的端到端验证</li>
+      <li><strong>SciAgents / DeepResearch</strong>：引入递归探索循环，通过显式的深度和广度参数控制研究范围，支持 progressively focused 或 diversified 推理</li>
+    </ul>
+
+    <p>关键趋势是：<strong>真正的深度研究需要递归调用能力</strong>——Agent必须能够根据中间发现反复钻取问题的细微差别，而非单次检索-生成。</p>
+
+    <h2 id="sec4">四、前沿探索：2026年Agent技术的边界突破</h2>
+
+    <h3 id="sec4-1">4.1 协议栈的收敛与分层：MCP × A2A × AP2</h3>
+    <p>2026年最重大的结构性转变不是某个新协议，而是<strong>治理收敛</strong>。2025年12月，Anthropic、OpenAI、Google、Microsoft、AWS、Block、Cloudflare、Bloomberg联合在Linux Foundation下成立了<strong>Agentic AI Foundation (AAIF)</strong>，将MCP和A2A纳入同一治理框架。这标志着Agent协议战争时代的结束，互补分层时代的开始。</p>
+
+    <div class="card">
+      <div class="card-title">🔗 四层Agent协议栈（2026共识架构）</div>
+      <table>
+        <tr><th>层级</th><th>协议</th><th>功能</th><th>创建者</th><th>2026状态</th></tr>
+        <tr><td>工具层</td><td>MCP</td><td>Agent ↔ 工具/数据</td><td>Anthropic (2024.11)</td><td>97M+月下载，8,600+服务器</td></tr>
+        <tr><td>通信层</td><td>A2A</td><td>Agent ↔ Agent协作</td><td>Google (2025.04)</td><td>v1.0发布，150+企业支持</td></tr>
+        <tr><td>支付层</td><td>AP2 / x402</td><td>Agent间自主支付</td><td>Google / Coinbase</td><td>60+组织，加密签名委托链</td></tr>
+        <tr><td>界面层</td><td>AG-UI</td><td>Agent ↔ 用户界面</td><td>CopilotKit</td><td>流式交互标准</td></tr>
+      </table>
+    </div>
+
+    <p><strong>MCP（Model Context Protocol）</strong>在2026年3月达到<strong>9700万月SDK下载</strong>，OpenAI已在2026年初废弃Assistants API全面转向MCP。它标准化了Tools、Resources、Prompts、Sampling四种能力类型，采用无状态的JSON-RPC 2.0设计。2026年路线图包括：Streamable HTTP传输、OAuth 2.1 + PKCE企业认证、MCP Server Cards自动发现、以及Q3的Agent-to-Agent协调原语（与A2A深度集成）。</p>
+
+    <p><strong>A2A（Agent-to-Agent Protocol）</strong>的核心创新是<strong>Agent Cards</strong>——发布在<code>/.well-known/agent.json</code>的JSON元数据，描述Agent能力、认证需求和通信方式。与MCP的无状态设计不同，A2A是<strong>有状态</strong>的，内置任务生命周期（working → input-required → completed → failed）。IBM的ACP协议已于2025年8月合并入A2A，Salesforce、SAP、ServiceNow、Cisco均已支持。</p>
+
+    <p><strong>AP2（Agent Payment Protocol）</strong>和<strong>UCP（Universal Commercial Protocol）</strong>则是2026年新兴的Agent经济基础设施。AP2提供加密签名的支付委托链，允许Agent代表主体授权支付并留下可审计的委托链路；UCP则标准化Agent间的商业谈判语言。Google DeepMind的Tomašev等人在2026年指出，当前四个协议（MCP、A2A、AP2、UCP）各自只解决了智能委托全周期的一部分，综合标准仍有巨大空间。</p>
+
+    <h3 id="sec4-2">4.2 自进化算法的军备竞赛：从GEPA到RoboPhD</h3>
+    <p>2026年见证了LLM引导的Agent进化从"概念验证"进入"算法竞争"阶段。三个优化范式在固定评估预算下展开了首次系统性对决：</p>
+
+    <div class="card">
+      <div class="card-title">⚔️ 三大进化范式对比（1,500次评估预算）</div>
+      <table>
+        <tr><th>范式</th><th>代表系统</th><th>核心机制</th><th>优势场景</th></tr>
+        <tr><td>帕累托选择</td><td>GEPA (Hermes)</td><td>反思式变异 + 帕累托前沿保留</td><td>需要多样性和鲁棒性的复杂任务</td></tr>
+        <tr><td>贪婪爬山</td><td>Autoresearch (Karpathy)</td><td>单上下文连续进化</td><td>简单任务（<90行代码）</td></tr>
+        <tr><td>Elo锦标赛</td><td>RoboPhD (Borthwick)</td><td>训练数据上的Elo竞争 + 无验证集</td><td>复杂推理任务（ARC-AGI等）</td></tr>
+      </table>
+    </div>
+
+    <p><strong>RoboPhD</strong>在2026年4月的论文中展示了惊人的结果：在ARC-AGI抽象推理基准上，它将一个22行的种子Agent进化为1,013行的多策略系统，准确率从<strong>27.8%提升至65.8%</strong>，使用Gemini 3.1 Flash Lite作为求解器。其关键创新包括：</p>
+
+    <ul>
+      <li><strong>无验证集进化（Validation-Free）</strong>：不将预算拆分为训练/验证，而是在训练数据上直接进行Elo竞争，同时完成评估与进化信号提取。在预算紧张时，这比验证-再选择范式更高效</li>
+      <li><strong>自检测Agent（Self-Instrumenting Agents）</strong>：在种子代码中植入<code>print()</code>诊断语句，进化压力迫使Agent发展出越来越丰富的诊断能力——从单一演示输出进化为20+个追踪决策点、中间结果和失败模式的诊断链</li>
+      <li><strong>Deep Focus精炼</strong>：每个Agent在全新会话中创建，但立即在同一会话内测试先前迭代的数据，既保持多样性又获得上下文精炼的好处</li>
+    </ul>
+
+    <p>对于深度研究场景，这意味着<strong>Skill进化可以更加激进</strong>：不再需要为验证集保留预算，所有评估资源都用于探索更优的研究方法论变体。RoboPhD的<code>optimize_anything()</code> API与GEPA兼容，团队可以在Hermes框架内实验Elo选择 vs 帕累托选择，找到最适合自身领域的进化策略。</p>
+
+    <h3 id="sec4-3">4.3 多模态深度研究：MM-DeepResearch与超图推理</h3>
+    <p>2026年3月发表的<strong>MM-DeepResearch</strong>代表了多模态Agentic搜索的最新突破。传统深度研究Agent主要处理文本，但科研实践中大量关键信息存在于图表、显微镜图像、凝胶电泳照片、晶体结构可视化等非文本模态中。</p>
+
+    <div class="success-box">
+      <div class="card-title">👁️ MM-DeepResearch 的三项核心设计</div>
+      <ul>
+        <li><strong>Hyper-Search</strong>：基于超图的QA生成方法，将视觉节点和文本节点在模态内和跨模态间建模连接，生成需要调用多种搜索工具才能解决的搜索密集型多模态QA对</li>
+        <li><strong>DR-TTS（Decompose-Recompose Tool-Tree Search）</strong>：先将搜索任务按工具类型分解为多个类别（文献检索、图像搜索、代码仓库、专利数据库），为每类训练专门的搜索工具专家；再通过树搜索重组这些专家，联合探索解决复杂任务的搜索轨迹</li>
+        <li><strong>离线搜索引擎</strong>：支持多种搜索工具的离线环境，使Agentic强化学习无需调用昂贵的在线搜索API即可完成训练</li>
+      </ul>
+    </div>
+
+    <p>这对生物医药研究具有直接价值：一个分析新型抗体结构的Agent，需要同时检索<strong>序列数据库</strong>（文本）、<strong>冷冻电镜密度图</strong>（图像）、<strong>分子动力学模拟代码</strong>（代码）和<strong>专利结构图</strong>（图文混合）。MM-DeepResearch的跨模态信息融合能力使这种"全模态深度研究"成为可能。</p>
+
+    <h3 id="sec4-4">4.4 Agent身份经济学：从匿名协作到可验证委托</h3>
+    <p>随着Agent获得调用工具、花费资金和委托工作的能力，<strong>身份与授权</strong>成为2026年的关键安全议题。当前MCP和A2A协议定义了Agent如何通信，但没有定义Agent<strong>是谁</strong>。</p>
+
+    <p>2026年初，四项IETF Internet-Draft同时瞄准这一缺口：</p>
+    <ul>
+      <li><strong>AIMS</strong>（Kasselman et al.）：Agent身份管理标准</li>
+      <li><strong>WIMSE</strong>（Ni and Liu）：工作负载身份安全</li>
+      <li><strong>Agentic JWT</strong>（Goswami）：Agent专用的JSON Web Token扩展</li>
+      <li><strong>SCIM for Agents</strong>：Agent配置管理的跨域身份标准</li>
+    </ul>
+
+    <p>Google DeepMind的Tomašev等人（2026）提出了基于<strong>macaroons</strong>的Delegation Capability Tokens，采用"衰减优先"设计哲学：当Agent A委托任务给Agent B时，Token自动衰减B的权限范围（如"只能读取PubMed，不能访问内部数据库"），并记录完整委托链供审计。Mastercard的Verifiable Intent提案则瞄准Agent商务场景，确保Agent间的支付委托可验证、可撤销。</p>
+
+    <p>对深度研究Agent而言，这意味着<strong>企业级部署的安全基础正在形成</strong>：研究Agent可以被授予"只读访问文献数据库"的衰减Token，即使其自主委托子Agent，子Agent也无法突破原始权限边界。</p>
+
+    <h3 id="sec4-5">4.5 学术前沿：ANX协议与Agent交互范式</h3>
+    <p>2026年4月的论文《ANX: Agent-Native Interaction Protocol》提出了一个系统性的四维评估框架，将现有Agent交互方法分为四个流：</p>
+
+    <table>
+      <tr><th>流派</th><th>代表</th><th>优势</th><th>局限</th></tr>
+      <tr><td>GUI自动化</td><td>屏幕解析、元素检测</td><td>无需修改网站，通用性最高</td><td>空间-语义对齐弱，Token成本高，DOM变化脆弱，无安全隔离</td></tr>
+      <tr><td>工具调用协议</td><td>MCP及扩展</td><td>声明式、可组合接口</td><td>需预安装，动态选项Token开销大，无数据隔离</td></tr>
+      <tr><td>Agent原生协议</td><td>A2A、CHEQ、VACP</td><td>标准化确认/上下文压缩</td><td>无数据隔离（CHEQ）、领域特定（VACP）</td></tr>
+      <tr><td>多Agent协作框架</td><td>CrewAI、LangGraph</td><td>内部推理、记忆、自组织</td><td>未解决协议层效率和安全缺口</td></tr>
+    </table>
+
+    <p>ANX协议的设计目标正是填补这些缺口：在协议层内置<strong>发现与检索</strong>（自动发现Agent能力）、<strong>安全</strong>（数据隔离与权限衰减）、<strong>协作</strong>（SOP与多Agent编排）能力。虽然ANX尚处于学术原型阶段，但其四维框架已成为评估新Agent架构的参考标准。</p>
+
+    <h2 id="sec5">五、Deep Agent + Skill Guru 架构设计</h2>
+
+    <div class="figure">
+      <img src="deep_agent_diagram.png" alt="Deep Agent + Skill Guru 架构概念图" style="max-width:100%; border-radius:8px;">
+      <div class="figure-caption">图1：Deep Agent + Skill Guru 范式概念图 — 展示从传统Agent到下一代深度研究Agent的四大能力跃迁</div>
+    </div>
+
+    <h3 id="sec5-1">5.1 设计理念</h3>
+    <p>基于上述调研，我们提出<strong>Deep Agent + Skill Guru</strong>架构，融合三家之长与2026年最前沿的协议标准：</p>
+
+    <div class="tags">
+      <span class="tag">OpenClaw — 持久记忆与多通道集成</span>
+      <span class="tag tag-success">DeepSeek-TUI — 递归推理与并行子Agent</span>
+      <span class="tag tag-warning">Hermes — Skill自进化与领域资产积累</span>
+      <span class="tag tag-danger">MCP/A2A/AP2 — 协议原生与开放经济</span>
+    </div>
+
+    <h3 id="sec5-2">5.2 架构分层</h3>
+
+    <h4>Layer 1：交互与记忆层（OpenClaw模式）</h4>
+    <ul>
+      <li><strong>多通道接入</strong>：研究者通过Telegram/Slack/Web UI提交研究请求，Agent以异步方式执行并推送结果</li>
+      <li><strong>持久化身份记忆</strong>：RESEARCHER.md记录研究者偏好（领域、常用数据库、输出格式、严谨性要求）；PROJECT.md记录当前项目上下文</li>
+      <li><strong>会话状态机</strong>：区分"探索模式"（发散性检索）与"交付模式"（收敛性报告生成）</li>
+    </ul>
+
+    <h4>Layer 2：深度推理层（DeepSeek-TUI模式）</h4>
+    <ul>
+      <li><strong>递归研究循环</strong>：主Agent（DeepSeek V4-Pro）将研究问题分解为子问题，每个子问题触发RLM子Agent（V4-Flash）并行深度调研</li>
+      <li><strong>广度-深度控制</strong>：通过参数控制每个子问题的递归深度（如"机制研究"深度=3，"竞品分析"深度=2）</li>
+      <li><strong>中间推理透明化</strong>：暴露SERP式子查询、结构化"学习成果"（learnings）和后续问题，供研究者监督与纠偏</li>
+      <li><strong>1M上下文窗口</strong>：整篇论文、完整数据集或大型代码库可一次性加载，避免RAG的上下文碎片化</li>
+    </ul>
+
+    <h4>Layer 3：Skill Guru层（Hermes + RoboPhD模式）</h4>
+    <ul>
+      <li><strong>Skill即知识资产</strong>：每个完成的深度研究任务自动生成SKILL.md，记录：研究方法论、数据源清单、验证步骤、常见陷阱、优化策略</li>
+      <li><strong>GEPA/RoboPhD持续进化</strong>：定期离线运行进化算法（$2-10/次），分析历史执行轨迹。支持帕累托选择（GEPA）或Elo锦标赛（RoboPhD）两种策略，生成Skill变体，经帕累托选择后提交PR供人类审核</li>
+      <li><strong>领域Skill库</strong>：按学科分类（如"生物医药"、"宏观经济"、"半导体行业"），支持跨项目复用</li>
+      <li><strong>约束门控</strong>：所有进化后的Skill必须通过测试套件、大小限制（≤15KB）、语义保持检查和人类审核</li>
+    </ul>
+
+    <h4>Layer 4：协议原生层（MCP × A2A × AP2）</h4>
+    <ul>
+      <li><strong>MCP工具接入</strong>：通过MCP Server Cards自动发现文献数据库（PubMed、Semantic Scholar）、实验设备接口、数据仓库的连接能力</li>
+      <li><strong>A2A跨Agent协作</strong>：发布Agent Card到<code>/.well-known/agent.json</code>，使外部Agent（如合作机构的文献Agent）可以发现并委托任务给本Agent</li>
+      <li><strong>AP2自主支付</strong>：当Agent需要调用付费API（如专利数据库、商业数据终端）时，通过AP2委托链自动授权支付，无需人工干预</li>
+      <li><strong>衰减权限控制</strong>：基于macaroons的Delegation Capability Tokens确保子Agent和外部协作Agent无法突破原始权限边界</li>
+    </ul>
+
+    <h4>Layer 5：确定性执行层（学术论文模式）</h4>
+    <ul>
+      <li><strong>意图-工作流分离</strong>：LLM仅负责提取结构化ResearchIntent，工作流DAG由确定性生成器产生，确保可复现性</li>
+      <li><strong>延迟生成</strong>：在获取实际数据量和基础设施状态后，再生成最终工作流参数（避免过度并行化）</li>
+      <li><strong>人类在环验证</strong>：关键节点（实验设计、结论推导）强制暂停等待研究者审批</li>
+    </ul>
+
+    <h3 id="sec5-3">5.3 核心工作流示例：行业深度研报生成</h3>
+    <pre>Phase 1: 意图提取（Semantic Layer）
+├── 研究者输入："分析2026年人形机器人产业链的投资机会，重点关注减速器和力传感器"
+├── Conductor Agent路由至"智能制造"领域Workflow Composer
+├── Composer查阅Skills：
+│   ├── industry_research.SKILL.md（行研方法论）
+│   ├── humanoid_robot.SKILL.md（人形机器人专用知识）
+│   └── financial_modeling.SKILL.md（估值模型：PE/PS/DCF）
+└── 输出ResearchIntent：
+    ├── 产业链环节：[减速器, 力传感器, 整机集成]
+    ├── 分析维度：[技术成熟度, 竞争格局, 产能规划, 客户验证]
+    ├── 时间范围：2024-2027
+    └── 输出格式：Markdown研报 + Excel财务模型
+
+Phase 2: 递归深度研究（Deep Agent）
+├── RLM扇出6个子Agent：
+│   ├── Agent-1: 减速器技术路线对比（谐波 vs RV vs 行星）
+│   ├── Agent-2: 力传感器市场格局（ATI, 宇立, 坤维, 蓝点触控）
+│   ├── Agent-3: 特斯拉Optimus / Figure / 宇树科技供应链拆解
+│   ├── Agent-4: 2025-2026年融资与产能扩张数据
+│   ├── Agent-5: 政策与标准（工信部指导意见）
+│   └── Agent-6: 风险因素（技术迭代、客户集中度、估值泡沫）
+├── 每个子Agent执行深度=2的递归检索
+│   └── 例：Agent-1 → "谐波减速器" → "绿的谐波技术参数" → "日本哈默纳科专利壁垒"
+└── 主Agent综合：去重、冲突检测、逻辑串联
+
+Phase 3: Skill沉淀（Skill Guru）
+├── 自动生成humanoid_robot_v2.SKILL.md
+│   ├── 新增：2026年Q1供应链最新动态
+│   ├── 修正：力传感器市场规模数据（原Skill使用2024年数据）
+│   └── 优化：估值模型参数（根据实际执行调整折现率）
+├── GEPA/RoboPhD评估：与humanoid_robot_v1.SKILL.md对比
+│   └── 帕累托/Elo选择：保留在"供应链拆解"子任务上表现最优的变体
+└── 提交PR，等待首席研究员审核合并
+
+Phase 4: 协议化交付（Protocol-Native）
+├── 通过MCP连接Bloomberg/ Wind终端获取实时股价数据
+├── 通过A2A委托外部"专利分析Agent"完成FTO（自由实施）分析
+├── 通过AP2自动支付专利数据库查询费用
+└── Conductor推送最终报告至研究者Slack</pre>
+
+    <h2 id="sec6">六、科研与行研场景的深度应用方案</h2>
+
+    <h3>6.1 科研场景：从假设到验证的闭环</h3>
+    <div class="info-box">
+      <div class="card-title">🧪 适用领域</div>
+      <p style="margin:0; color:var(--text-secondary);">药物发现、基因组学、材料科学、高能物理</p>
+    </div>
+
+    <p><strong>场景：靶点发现与验证</strong></p>
+    <ol>
+      <li><strong>假设生成</strong>：Agent基于最新文献（通过PubMed/ bioRxiv API）和内部实验数据，提出"XX基因在YY疾病中的潜在调控机制"假设</li>
+      <li><strong>文献深度综述</strong>：RLM并行检索：机制研究（深度=3）、临床试验（深度=2）、竞品药物（深度=2）、副作用谱（深度=1）</li>
+      <li><strong>实验设计</strong>：查阅experimental_design.SKILL.md，生成CRISPR筛选 + 单细胞测序的实验方案，包括对照组设置、样本量计算、批次控制</li>
+      <li><strong>代码与数据分析</strong>：自动生成Scanpy分析流程（QC → 降维 → 聚类 → 差异表达 → 通路富集），并在Kubernetes上调度执行</li>
+      <li><strong>结果解释与迭代</strong>：Agent解释统计结果，若发现意外模式（如"该基因在免疫细胞中高表达而非靶细胞"），自动触发新一轮文献检索和假设修正</li>
+      <li><strong>Skill积累</strong>：将本次靶点研究的完整方法论沉淀为drug_target_discovery.SKILL.md，供后续项目复用</li>
+    </ol>
+
+    <h3>6.2 行研场景：产业链穿透与竞争情报</h3>
+    <div class="info-box">
+      <div class="card-title">📈 适用领域</div>
+      <p style="margin:0; color:var(--text-secondary);">半导体、新能源、生物医药、AI基础设施、消费零售</p>
+    </div>
+
+    <p><strong>场景：半导体设备行业季度跟踪</strong></p>
+    <ol>
+      <li><strong>数据抓取与清洗</strong>：Agent自动抓取ASML、Lam Research、Applied Materials财报、产业链调研数据、招标信息</li>
+      <li><strong>供应链穿透</strong>：利用supply_chain.SKILL.md，从"光刻机出货量"向下穿透至"光学元件→蔡司镜头→德国特种玻璃→稀土抛光材料"</li>
+      <li><strong>竞争格局动态建模</strong>：基于RLM的多维度分析（技术参数、客户份额、产能利用率、研发投入），生成实时更新的竞争矩阵</li>
+      <li><strong>专家访谈辅助</strong>：Agent根据已有研究生成访谈提纲，访谈后自动提取关键洞察并更新知识库</li>
+      <li><strong>预测与情景分析</strong>：运行蒙特卡洛模拟，生成乐观/基准/悲观三种情景下的财务预测</li>
+      <li><strong>报告生成与合规检查</strong>：自动生成符合内部合规要求的研报，包括防火墙声明、评级标准、利益冲突披露</li>
+    </ol>
+
+    <h3>6.3 Skill Guru 的核心价值：知识资产化</h3>
+    <p>传统研究机构的知识管理依赖个人经验和分散的Excel/Word文件。Skill Guru模式将隐性知识转化为显性、可版本控制、可进化的资产：</p>
+
+    <table>
+      <tr><th style="width:40%">传统模式</th><th>Skill Guru模式</th></tr>
+      <tr><td>资深分析师离职带走方法论</td><td>方法论编码为SKILL.md，存入Git仓库</td></tr>
+      <tr><td>新人重复踩坑（数据源错误、模型假设过时）</td><td>Skill自动继承历史教训和最佳实践</td></tr>
+      <tr><td>跨团队研究标准不一</td><td>GEPA/RoboPhD进化确保Skill在组织层面收敛至帕累托/Elo最优</td></tr>
+      <tr><td>每次研究从零开始构建分析框架</td><td>基于已有Skill快速启动，专注增量创新</td></tr>
+    </table>
+
+    <h2 id="sec7">七、实施路线图与关键决策建议</h2>
+
+    <h3>7.1 分阶段实施路线图</h3>
+    <table>
+      <tr><th>阶段</th><th>时间</th><th>目标</th><th>技术栈</th><th>里程碑</th></tr>
+      <tr>
+        <td><strong>Phase 0<br>试点验证</strong></td>
+        <td>1-2个月</td>
+        <td>验证单Agent在单一领域的可行性</td>
+        <td>DeepSeek-TUI + 手动Skill编写</td>
+        <td>完成3份深度研报/科研综述，评估质量与成本</td>
+      </tr>
+      <tr>
+        <td><strong>Phase 1<br>记忆与集成</strong></td>
+        <td>2-3个月</td>
+        <td>建立持久记忆和多通道工作流</td>
+        <td>OpenClaw网关 + Slack/Telegram集成</td>
+        <td>研究者可通过IM提交请求，Agent异步交付结果</td>
+      </tr>
+      <tr>
+        <td><strong>Phase 2<br>Skill体系</strong></td>
+        <td>3-4个月</td>
+        <td>构建领域Skill库并启动GEPA/RoboPhD进化</td>
+        <td>Hermes Agent + 自进化流水线</td>
+        <td>积累20+个自生成Skill，重复任务效率提升40%</td>
+      </tr>
+      <tr>
+        <td><strong>Phase 3<br>协议原生</strong></td>
+        <td>4-5个月</td>
+        <td>接入MCP/A2A/AP2开放生态</td>
+        <td>MCP Server Cards + A2A Agent Cards + AP2支付网关</td>
+        <td>Agent可自动发现工具、与外部Agent协作、自主支付</td>
+      </tr>
+      <tr>
+        <td><strong>Phase 4<br>多Agent协作</strong></td>
+        <td>5-7个月</td>
+        <td>实现递归深度研究与确定性交付</td>
+        <td>RLM并行子Agent + 工作流DAG生成器</td>
+        <td>端到端自动化：从研究问题到可执行工作流</td>
+      </tr>
+      <tr>
+        <td><strong>Phase 5<br>生态扩展</strong></td>
+        <td>7-12个月</td>
+        <td>跨领域Skill共享与组织级知识中台</td>
+        <td>Skill Registry + A2A联邦 + 内部Skill市场</td>
+        <td>全机构研究者共享Skill库，新领域启动时间缩短80%</td>
+      </tr>
+    </table>
+
+    <h3>7.2 关键技术决策</h3>
+
+    <h4>决策1：模型选择策略</h4>
+    <ul>
+      <li><strong>深度推理主Agent</strong>：DeepSeek V4-Pro（1M上下文，成本低，适合长文档分析）</li>
+      <li><strong>并行子Agent</strong>：DeepSeek V4-Flash（成本为Pro的1/10，适合大规模并行检索）</li>
+      <li><strong>Skill进化与评估</strong>：Claude Haiku 4.5 / GPT-5.4 Mini（GEPA/RoboPhD的进化循环需要低成本高频调用）</li>
+      <li><strong>本地/隐私场景</strong>：Ollama部署Hermes 4 70B或Qwen3-235B-A22B（通过OpenClaw本地网关接入）</li>
+    </ul>
+
+    <h4>决策2：Skill进化策略选择</h4>
+    <div class="success-box">
+      <div class="card-title">🎯 GEPA vs RoboPhD 选择指南</div>
+      <ul>
+        <li><strong>选择GEPA（帕累托选择）</strong>：如果研究领域需要高度多样性（如跨学科研究），或任务评估成本较高（需人工判断），帕累托前沿保留能确保鲁棒性</li>
+        <li><strong>选择RoboPhD（Elo锦标赛）</strong>：如果研究领域有明确的自动化评估指标（如代码通过率、检索准确率），且预算紧张，Elo竞争能提取更多性能/评估美元</li>
+        <li><strong>混合策略</strong>：用RoboPhD进行快速探索，用GEPA进行最终筛选，结合两者优势</li>
+      </ul>
+    </div>
+
+    <h4>决策3：协议栈实施优先级</h4>
+    <ul>
+      <li><strong>立即实施</strong>：MCP（工具接入）——生态最成熟，97M月下载，所有主流模型支持</li>
+      <li><strong>3个月内实施</strong>：A2A（跨Agent协作）——v1.0已发布，150+企业支持，适合需要外部协作的研究场景</li>
+      <li><strong>6个月内评估</strong>：AP2（自主支付）——目前60+组织支持，适合需要频繁调用付费数据源的金融/行研场景</li>
+      <li><strong>持续跟踪</strong>：UCP（商业谈判协议）和ANX（Agent原生交互）——尚处早期，但可能定义2027年的标准</li>
+    </ul>
+
+    <h4>决策4：基础设施架构</h4>
+    <ul>
+      <li><strong>轻量级部署</strong>：个人研究者可用Mac Mini + Ollama本地运行OpenClaw + Hermes</li>
+      <li><strong>团队级部署</strong>：2 vCPU + 4GB RAM VPS（约15欧元/月）运行Hermes Agent，GPU集群通过SSH/Daytona后端对接</li>
+      <li><strong>企业级部署</strong>：Kubernetes集群运行工作流执行层，Agent编排层独立部署，通过A2A协议通信，MCP Server Cards实现工具自动发现</li>
+    </ul>
+
+    <h3>7.3 成本估算</h3>
+    <table>
+      <tr><th>项目</th><th>个人研究者</th><th>研究团队（5人）</th><th>企业级（50人+）</th></tr>
+      <tr><td>基础设施</td><td>$0（本地Mac/PC）</td><td>$50-100/月（VPS+存储）</td><td>$2,000-5,000/月（K8s集群）</td></tr>
+      <tr><td>API Token</td><td>$5-30/月</td><td>$300-800/月</td><td>$3,000-10,000/月</td></tr>
+      <tr><td>GEPA/RoboPhD进化</td><td>$10-50/月</td><td>$100-300/月</td><td>$500-1,500/月</td></tr>
+      <tr><td>协议栈集成</td><td>$0</td><td>$50-100/月（MCP/A2A网关）</td><td>$500-1,000/月</td></tr>
+      <tr><td>总成本</td><td><strong>$15-80/月</strong></td><td><strong>$500-1,300/月</strong></td><td><strong>$6,000-17,500/月</strong></td></tr>
+      <tr><td>等效人力</td><td>0.2名研究助理</td><td>2-3名分析师</td><td>15-20名分析师</td></tr>
+    </table>
+
+    <h2 id="sec8">八、风险、局限与对策</h2>
+
+    <h3>8.1 技术风险</h3>
+    <ul>
+      <li><strong>幻觉与事实错误</strong>：深度研究对准确性要求极高。对策：强制来源追溯（所有论断必须标注原始文献/数据源）；引入"事实核查Agent"交叉验证关键数据点；高风险结论强制人类审核</li>
+      <li><strong>Skill进化失控</strong>：GEPA/RoboPhD可能生成偏离原始目的的Skill变体。对策：Semantic Preservation门控 + 人类PR审核 + 版本回滚机制</li>
+      <li><strong>上下文窗口瓶颈</strong>：即使1M上下文，超大规模数据集（如全基因组测序）仍无法直接加载。对策：结合RAG与上下文加载，对数据采用"摘要-分层"策略</li>
+      <li><strong>协议安全缺口</strong>：MCP的认证缺口（2026年Q2前约2000个MCP服务器均缺乏认证）和A2A的Agent Card自声明身份问题。对策：在MCP层前置OAuth 2.1 + PKCE网关；在A2A层实施macaroons-based Delegation Capability Tokens</li>
+    </ul>
+
+    <h3>8.2 组织风险</h3>
+    <ul>
+      <li><strong>研究者抵触</strong>：资深研究者可能视Agent为威胁。对策：将Agent定位为"放大器"而非"替代者"——处理信息收集和初稿生成，人类专注洞察提炼和战略判断</li>
+      <li><strong>Skill碎片化</strong>：各团队独立进化Skill，导致组织级不一致。对策：建立中央Skill Registry和领域维护者制度，参考Linux Foundation的AAIF治理模式</li>
+      <li><strong>合规与知识产权</strong>：Agent生成的研报是否构成投资建议？使用的文献数据是否侵犯版权？对策：明确披露AI辅助程度；建立防火墙机制；使用开放获取（Open Access）文献优先；AP2支付链确保商业数据使用的合规审计</li>
+    </ul>
+
+    <h3>8.3 生态局限</h3>
+    <ul>
+      <li><strong>Hermes的成熟度</strong>：v0.10.0虽增长迅猛（57K GitHub stars），但API稳定性在v0.x阶段不保证，文档尚不完整。建议：用于非关键路径的科研辅助，核心ERP/交易系统暂不接入</li>
+      <li><strong>DeepSeek-TUI的模型锁定</strong>：若DeepSeek API政策变化或模型迭代，可能需重构RLM逻辑。建议：在RLM层抽象子Agent接口，保留切换空间</li>
+      <li><strong>OpenClaw的安全隐患</strong>：本地Daemon拥有广泛的文件系统和浏览器访问权限。建议：在隔离环境（Docker/VM）中运行，避免部署在生产工作站</li>
+      <li><strong>AP2/UCP的早期阶段</strong>：Agent支付协议尚未形成统一标准，存在Google AP2与Coinbase x402的分歧。建议：采用抽象支付接口，底层可切换不同协议实现</li>
+    </ul>
+
+    <div class="highlight-box">
+      <strong>最终建议：</strong>对于希望构建深度研究能力的个人或团队，建议以<strong>Hermes的Skill自进化</strong>为核心差异化，以<strong>DeepSeek-TUI的递归推理</strong>为深度引擎，以<strong>OpenClaw的多通道集成</strong>为交互入口，以<strong>MCP/A2A/AP2协议栈</strong>为开放生态接口，构建"越用越聪明"、"越协作越强大"的领域研究Agent。这不是一个现成的产品，而是一个需要持续投入的知识基础设施——但其回报是指数级的：每一次研究都在为下一次研究积累资产，每一次协作都在扩展Agent的能力边界。
+    </div>
+
+    <div class="footer">
+      <p>本报告基于2026年5月前的公开信息、学术论文及开源项目文档编制。Agentic AI领域发展极快，建议读者定期回访各项目官方仓库获取最新动态。</p>
+      <p style="margin-top: 8px;">关键引用来源：Nous Research Hermes Agent GitHub / DeepSeek-TUI Repository / OpenClaw Official Docs / arXiv:2604.21910 / arXiv:2604.04347 (RoboPhD) / arXiv:2603.01050 (MM-DeepResearch) / arXiv:2603.24775 (Agent Identity) / arXiv:2604.04820 (ANX Protocol) / Gartner 2026 Forecasts / The Business Research Company / Agentic AI Foundation (Linux Foundation)</p>
+    </div>
+  </main>
+</div>
+
+<script>
+// Active TOC highlighting on scroll
+const sections = document.querySelectorAll('h2[id], h3[id], h4[id]');
+const tocLinks = document.querySelectorAll('.toc a');
+
+window.addEventListener('scroll', () => {
+  let current = '';
+  sections.forEach(section => {
+    const sectionTop = section.offsetTop;
+    if (scrollY >= sectionTop - 100) {
+      current = section.getAttribute('id');
+    }
+  });
+  tocLinks.forEach(link => {
+    link.classList.remove('active');
+    if (link.getAttribute('href') === '#' + current) {
+      link.classList.add('active');
+    }
+  });
+});
+</script>
+
+</body>
+</html>
