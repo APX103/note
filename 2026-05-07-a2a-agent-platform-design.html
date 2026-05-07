@@ -164,10 +164,73 @@
             padding: 24px;
             overflow-x: auto;
             margin-bottom: 28px;
-            font-family: "SF Mono", Monaco, "Cascadia Code", monospace;
-            font-size: 0.8rem;
-            line-height: 1.5;
+        }
+
+        .arch-viz {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            min-width: 640px;
+        }
+
+        .arch-row {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+            width: 100%;
+        }
+
+        .arch-card {
+            background: linear-gradient(135deg, rgba(88,166,255,0.08), rgba(139,92,246,0.08));
+            border: 1px solid rgba(88,166,255,0.22);
+            border-radius: 8px;
+            padding: 10px 16px;
+            text-align: center;
+        }
+
+        .arch-card-title {
+            font-weight: 600;
+            font-size: 0.85rem;
             color: var(--text-primary);
+        }
+
+        .arch-card-sub {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            margin-top: 3px;
+        }
+
+        .arch-arrow {
+            color: var(--accent);
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .arch-section {
+            border: 1px dashed var(--border-color);
+            border-radius: 10px;
+            padding: 14px 16px;
+            width: 100%;
+        }
+
+        .arch-section-title {
+            text-align: center;
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+
+        .arch-chip {
+            background: rgba(88,166,255,0.08);
+            border: 1px solid rgba(88,166,255,0.15);
+            border-radius: 6px;
+            padding: 5px 10px;
+            font-size: 0.72rem;
+            text-align: center;
+            color: var(--text-secondary);
         }
 
         .badge {
@@ -268,58 +331,86 @@
         <h2>Architecture</h2>
         <p>Three go-zero services, one embedded Vue3 SPA, and a Prometheus/Grafana observability layer.</p>
         <div class="arch-diagram">
-                         ┌─────────────────────────┐
-                         │     Vue3 Frontend        │
-                         │  TailwindCSS + Vite      │
-                         │  Static SPA (embedded)   │
-                         └───────────┬─────────────┘
-                                     │ HTTP
-┌────────────────────────────────────┼────────────────────────────────────┐
-│                        A2A Gateway Service                           │
-│                      go-zero API Server                              │
-│  ┌──────────────┐  ┌──────────────┐  ┌───────────────────────────┐   │
-│  │ Agent        │  │ A2A Proxy    │  │ Auth & Group Filter       │   │
-│  │ Registry     │  │ (forwarding) │  │ (message scoping)         │   │
-│  │ + HealthCheck│  │              │  │                           │   │
-│  └──────┬───────┘  └──────┬───────┘  └───────────────────────────┘   │
-└─────────┼─────────────────┼──────────────────────────────────────────┘
-          │                 │ go-zero RPC
-          │    ┌────────────┼────────────┐
-          │    │            │            │
-┌─────────┼────┼────────────┼────────────┼─────────────────────────────┐
-│         │ Message Service            │ Platform Service              │
-│         │ go-zero RPC Server         │ go-zero RPC Server           │
-│  ┌──────┴──────────┐          ┌──────┴──────────────┐              │
-│  │ go-queue        │          │ Agent Management    │              │
-│  │ (event bus)     │          │ Task Lifecycle      │              │
-│  │                 │          │ Trace Storage       │              │
-│  │ Message Store   │          │ Group Management    │              │
-│  │ (MySQL)         │          │ User & Permission   │              │
-│  └─────────────────┘          └─────────────────────┘              │
-└─────────────────────────────────────────────────────────────────────┘
-          │
-┌─────────┼───────────────────────────────────────────────────────────┐
-│         │                Data Layer                                 │
-│  ┌──────┴──────┐  ┌───────────┐  ┌────────────────────────────┐   │
-│  │   MySQL     │  │   Redis   │  │   go-queue (kafka/rabbitmq) │   │
-│  │  Messages   │  │  Cache    │  │   Event Streaming           │   │
-│  │  Tasks      │  │  Session  │  │                            │   │
-│  │  Agents     │  │  Registry │  │                            │   │
-│  │  Traces     │  │           │  │                            │   │
-│  └─────────────┘  └───────────┘  └────────────────────────────┘   │
-└───────────────────────────────────────────────────────────────────┘
-          │
-┌─────────┼───────────────────────────────────────────────────────────┐
-│         │             Observability Layer                            │
-│  ┌──────┴──────┐  ┌───────────┐                                    │
-│  │ Prometheus  │→ │  Grafana  │                                    │
-│  │  Metrics    │  │  Dashboards│                                    │
-│  └─────────────┘  └───────────┘                                    │
-└───────────────────────────────────────────────────────────────────┘
-
-          ↕ A2A Protocol (HTTP/SSE + JSON-RPC 2.0)
-   ┌──────────┼──────────┐
-Agent-A     Agent-B     Agent-C
+            <div class="arch-viz">
+                <div class="arch-card" style="border-color: #a371f7;">
+                    <div class="arch-card-title">Vue3 Frontend</div>
+                    <div class="arch-card-sub">TailwindCSS + Vite · Static SPA</div>
+                </div>
+                <div class="arch-arrow">↓ HTTP</div>
+                <div class="arch-section">
+                    <div class="arch-section-title">A2A Gateway Service · go-zero API Server</div>
+                    <div class="arch-row">
+                        <div class="arch-chip">Agent Registry + HealthCheck</div>
+                        <div class="arch-chip">A2A Proxy (forwarding)</div>
+                        <div class="arch-chip">Auth & Group Filter</div>
+                    </div>
+                </div>
+                <div class="arch-arrow">↓ go-zero RPC</div>
+                <div class="arch-row">
+                    <div class="arch-section" style="flex: 1; min-width: 260px;">
+                        <div class="arch-section-title">Message Service · RPC Server</div>
+                        <div class="arch-row">
+                            <div class="arch-chip">go-queue (event bus)</div>
+                            <div class="arch-chip">Message Store (MySQL)</div>
+                        </div>
+                    </div>
+                    <div class="arch-section" style="flex: 1; min-width: 260px;">
+                        <div class="arch-section-title">Platform Service · RPC Server</div>
+                        <div class="arch-row">
+                            <div class="arch-chip">Agent Management</div>
+                            <div class="arch-chip">Task Lifecycle</div>
+                            <div class="arch-chip">Trace Storage</div>
+                            <div class="arch-chip">Group Management</div>
+                            <div class="arch-chip">User & Permission</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="arch-arrow">↓</div>
+                <div class="arch-section">
+                    <div class="arch-section-title">Data Layer</div>
+                    <div class="arch-row">
+                        <div class="arch-card" style="border-color: #d29922; min-width: 150px;">
+                            <div class="arch-card-title">MySQL</div>
+                            <div class="arch-card-sub">Messages · Tasks · Agents · Traces</div>
+                        </div>
+                        <div class="arch-card" style="border-color: #d29922; min-width: 150px;">
+                            <div class="arch-card-title">Redis</div>
+                            <div class="arch-card-sub">Cache · Session · Registry</div>
+                        </div>
+                        <div class="arch-card" style="border-color: #d29922; min-width: 150px;">
+                            <div class="arch-card-title">go-queue</div>
+                            <div class="arch-card-sub">Kafka / RabbitMQ · Events</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="arch-arrow">↓</div>
+                <div class="arch-section">
+                    <div class="arch-section-title">Observability Layer</div>
+                    <div class="arch-row">
+                        <div class="arch-card" style="border-color: #f85149; min-width: 130px;">
+                            <div class="arch-card-title">Prometheus</div>
+                            <div class="arch-card-sub">Metrics</div>
+                        </div>
+                        <div class="arch-arrow" style="align-self: center;">→</div>
+                        <div class="arch-card" style="border-color: #f85149; min-width: 130px;">
+                            <div class="arch-card-title">Grafana</div>
+                            <div class="arch-card-sub">Dashboards</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="arch-arrow">↕ A2A Protocol (HTTP/SSE + JSON-RPC 2.0)</div>
+                <div class="arch-row">
+                    <div class="arch-card" style="border-color: #8b949e;">
+                        <div class="arch-card-title">Agent-A</div>
+                    </div>
+                    <div class="arch-card" style="border-color: #8b949e;">
+                        <div class="arch-card-title">Agent-B</div>
+                    </div>
+                    <div class="arch-card" style="border-color: #8b949e;">
+                        <div class="arch-card-title">Agent-C</div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <h2>Services</h2>
