@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A2A Agent Platform Design</title>
+    <style>
+        :root {
+            --bg-color: #0d1117;
+            --card-bg: #161b22;
+            --border-color: #30363d;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --accent: #58a6ff;
+            --accent-hover: #79c0ff;
+            --code-bg: #1f2937;
+            --success: #3fb950;
+            --warning: #d29922;
+            --danger: #f85149;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            line-height: 1.7;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 960px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+            background: linear-gradient(90deg, var(--accent), var(--accent-hover));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            margin-bottom: 40px;
+        }
+
+        h2 {
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin-top: 48px;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+
+        h3 {
+            font-size: 1.35rem;
+            font-weight: 600;
+            margin-top: 32px;
+            margin-bottom: 14px;
+            color: var(--accent);
+        }
+
+        h4 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-top: 24px;
+            margin-bottom: 10px;
+            color: var(--text-primary);
+        }
+
+        p {
+            margin-bottom: 14px;
+            color: var(--text-secondary);
+        }
+
+        ul, ol {
+            margin-bottom: 20px;
+            padding-left: 24px;
+        }
+
+        li {
+            margin-bottom: 8px;
+            color: var(--text-secondary);
+        }
+
+        li strong {
+            color: var(--text-primary);
+        }
+
+        code {
+            background: var(--code-bg);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: "SF Mono", Monaco, "Cascadia Code", monospace;
+            font-size: 0.9em;
+            color: var(--accent-hover);
+        }
+
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 20px;
+            overflow-x: auto;
+            margin-bottom: 24px;
+        }
+
+        pre code {
+            background: none;
+            padding: 0;
+            color: var(--text-primary);
+            font-size: 0.85rem;
+            line-height: 1.6;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 28px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        th {
+            background: var(--card-bg);
+            color: var(--text-primary);
+            font-weight: 600;
+            text-align: left;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        td {
+            padding: 10px 16px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background: rgba(88, 166, 255, 0.04);
+        }
+
+        .arch-diagram {
+            background: var(--code-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 24px;
+            overflow-x: auto;
+            margin-bottom: 28px;
+            font-family: "SF Mono", Monaco, "Cascadia Code", monospace;
+            font-size: 0.8rem;
+            line-height: 1.5;
+            color: var(--text-primary);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .badge-post { background: rgba(63, 185, 80, 0.15); color: var(--success); }
+        .badge-get { background: rgba(88, 166, 255, 0.15); color: var(--accent); }
+        .badge-put { background: rgba(210, 153, 34, 0.15); color: var(--warning); }
+        .badge-delete { background: rgba(248, 81, 73, 0.15); color: var(--danger); }
+
+        .endpoint-table td:first-child {
+            white-space: nowrap;
+            width: 80px;
+        }
+
+        .metric-type {
+            font-family: monospace;
+            color: var(--accent-hover);
+        }
+
+        .highlight-box {
+            background: var(--card-bg);
+            border-left: 4px solid var(--accent);
+            padding: 16px 20px;
+            border-radius: 0 8px 8px 0;
+            margin-bottom: 20px;
+        }
+
+        .step-list {
+            counter-reset: step;
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .step-list li {
+            counter-increment: step;
+            position: relative;
+            padding-left: 40px;
+            margin-bottom: 12px;
+        }
+
+        .step-list li::before {
+            content: counter(step);
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 26px;
+            height: 26px;
+            background: var(--accent);
+            color: var(--bg-color);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            font-weight: 700;
+        }
+
+        .tree {
+            font-family: "SF Mono", Monaco, "Cascadia Code", monospace;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .tree .dir { color: var(--accent); }
+        .tree .file { color: var(--text-secondary); }
+
+        @media (max-width: 768px) {
+            h1 { font-size: 1.8rem; }
+            h2 { font-size: 1.4rem; }
+            body { padding: 20px 14px; }
+            table { font-size: 0.85rem; }
+            th, td { padding: 8px 10px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>A2A Agent Platform Design</h1>
+        <p class="subtitle">A modular microservices platform for managing A2A-protocol-compatible agents, built with go-zero and a modern SaaS-style static frontend.</p>
+
+        <h2>Goals</h2>
+        <ul>
+            <li><strong>Agent-agnostic</strong>: Any service implementing the A2A protocol can register and participate.</li>
+            <li><strong>Group isolation</strong>: Each agent belongs to one group. Messages are scoped to groups at the Gateway layer.</li>
+            <li><strong>Dual-mode tasks</strong>: Users can initiate tasks from the web UI, and agents can call each other autonomously via A2A. Both modes share unified trace tracking.</li>
+            <li><strong>Full-chain tracing</strong>: Every task generates a <code>trace_id</code> that flows through Gateway → Queue → Agent call → Response. Frontend renders a DAG visualization of the message graph.</li>
+            <li><strong>Observable</strong>: Prometheus metrics + Grafana dashboards for agent health, message throughput, task latency, and queue depth.</li>
+            <li><strong>User-friendly</strong>: Modern SaaS-style UI (Vue3 + TailwindCSS), simple agent onboarding, clear documentation.</li>
+        </ul>
+
+        <h2>Architecture</h2>
+        <p>Three go-zero services, one embedded Vue3 SPA, and a Prometheus/Grafana observability layer.</p>
+        <div class="arch-diagram">
+                         ┌─────────────────────────┐
+                         │     Vue3 Frontend        │
+                         │  TailwindCSS + Vite      │
+                         │  Static SPA (embedded)   │
+                         └───────────┬─────────────┘
+                                     │ HTTP
+┌────────────────────────────────────┼────────────────────────────────────┐
+│                        A2A Gateway Service                           │
+│                      go-zero API Server                              │
+│  ┌──────────────┐  ┌──────────────┐  ┌───────────────────────────┐   │
+│  │ Agent        │  │ A2A Proxy    │  │ Auth & Group Filter       │   │
+│  │ Registry     │  │ (forwarding) │  │ (message scoping)         │   │
+│  │ + HealthCheck│  │              │  │                           │   │
+│  └──────┬───────┘  └──────┬───────┘  └───────────────────────────┘   │
+└─────────┼─────────────────┼──────────────────────────────────────────┘
+          │                 │ go-zero RPC
+          │    ┌────────────┼────────────┐
+          │    │            │            │
+┌─────────┼────┼────────────┼────────────┼─────────────────────────────┐
+│         │ Message Service            │ Platform Service              │
+│         │ go-zero RPC Server         │ go-zero RPC Server           │
+│  ┌──────┴──────────┐          ┌──────┴──────────────┐              │
+│  │ go-queue        │          │ Agent Management    │              │
+│  │ (event bus)     │          │ Task Lifecycle      │              │
+│  │                 │          │ Trace Storage       │              │
+│  │ Message Store   │          │ Group Management    │              │
+│  │ (MySQL)         │          │ User & Permission   │              │
+│  └─────────────────┘          └─────────────────────┘              │
+└─────────────────────────────────────────────────────────────────────┘
+          │
+┌─────────┼───────────────────────────────────────────────────────────┐
+│         │                Data Layer                                 │
+│  ┌──────┴──────┐  ┌───────────┐  ┌────────────────────────────┐   │
+│  │   MySQL     │  │   Redis   │  │   go-queue (kafka/rabbitmq) │   │
+│  │  Messages   │  │  Cache    │  │   Event Streaming           │   │
+│  │  Tasks      │  │  Session  │  │                            │   │
+│  │  Agents     │  │  Registry │  │                            │   │
+│  │  Traces     │  │           │  │                            │   │
+│  └─────────────┘  └───────────┘  └────────────────────────────┘   │
+└───────────────────────────────────────────────────────────────────┘
+          │
+┌─────────┼───────────────────────────────────────────────────────────┐
+│         │             Observability Layer                            │
+│  ┌──────┴──────┐  ┌───────────┐                                    │
+│  │ Prometheus  │→ │  Grafana  │                                    │
+│  │  Metrics    │  │  Dashboards│                                    │
+│  └─────────────┘  └───────────┘                                    │
+└───────────────────────────────────────────────────────────────────┘
+
+          ↕ A2A Protocol (HTTP/SSE + JSON-RPC 2.0)
+   ┌──────────┼──────────┐
+Agent-A     Agent-B     Agent-C
+        </div>
+
+        <h2>Services</h2>
+
+        <h3>Gateway Service (go-zero API Server)</h3>
+        <p>The single HTTP entry point for both the frontend and agents.</p>
+
+        <h4>Agent Registration</h4>
+        <ul>
+            <li>Agent POSTs to <code>/api/v1/agents/register</code> with name, endpoint, group, auth_token.</li>
+            <li>Gateway fetches <code>/.well-known/agent.json</code> from the endpoint, validates the Agent Card, and stores it.</li>
+            <li>Heartbeat monitor probes each agent at a configurable interval (default 30s). On repeated failure, agent status flips to <code>offline</code>.</li>
+        </ul>
+
+        <h4>A2A Proxy</h4>
+        <ul>
+            <li>Agent-to-agent calls arrive as A2A JSON-RPC at <code>/a2a/{agent_name}</code>.</li>
+            <li>Gateway resolves the target, enforces group isolation (sender group must match target group), generates <code>trace_id</code>, stores the message, and publishes to go-queue.</li>
+            <li>SSE proxy at <code>/a2a/{agent_name}/tasks/{taskId}</code> streams long-running task updates.</li>
+        </ul>
+
+        <h4>Auth & Group Filter</h4>
+        <ul>
+            <li>Every message dispatch checks that <code>sender.group_id == target.group_id</code>.</li>
+            <li>Cross-group messages are rejected with HTTP 403.</li>
+        </ul>
+
+        <h4>Prometheus Endpoint</h4>
+        <ul>
+            <li>Exposes <code>/metrics</code> for Prometheus scraping.</li>
+            <li>go-zero's built-in <code>PrometheusHandler</code> covers HTTP metrics; custom middleware emits A2A-specific counters and histograms.</li>
+        </ul>
+
+        <h3>Message Service (go-zero RPC Server)</h3>
+        <p>Consumes from go-queue and handles message delivery.</p>
+
+        <h4>Message Processing</h4>
+        <ul>
+            <li>Consumes events from topic <code>a2a.messages.{group_id}</code>.</li>
+            <li>Forwards the A2A request to the target agent's endpoint via HTTP/SSE.</li>
+            <li>On response: stores the message in MySQL, publishes the response to the queue for async propagation.</li>
+            <li>On failure: retries with exponential backoff (1s initial, 2x factor, 60s max, 5 attempts).</li>
+        </ul>
+
+        <h4>Message Storage</h4>
+        <ul>
+            <li>All messages (request, response, delegate, notify) are persisted to the <code>messages</code> table with <code>trace_id</code> for trace reconstruction.</li>
+        </ul>
+
+        <h3>Platform Service (go-zero RPC Server)</h3>
+        <p>Manages agent metadata, groups, tasks, and trace queries.</p>
+
+        <h4>Agent Management</h4>
+        <p>CRUD for agents and groups. Group membership controls message scope.</p>
+
+        <h4>Task Lifecycle</h4>
+        <p>Tracks tasks from <code>submitted</code> → <code>working</code> → <code>completed</code>/<code>failed</code>. Supports user-initiated and agent-initiated tasks.</p>
+
+        <h4>Trace Query</h4>
+        <p>Given a <code>trace_id</code>, fetches all messages from the <code>messages</code> table ordered by <code>created_at</code>, constructs DAG nodes and edges via <code>parent_message_id</code>, and returns the graph structure for frontend visualization.</p>
+
+        <h2>Frontend</h2>
+        <p>Vue3 single-page application, built with Vite, styled with TailwindCSS. Embedded as static files in the go-zero binary.</p>
+
+        <h3>Pages</h3>
+        <ol>
+            <li><strong>Dashboard</strong> — Overview cards (online agents, tasks today, avg latency, failures) + recent task list + quick actions.</li>
+            <li><strong>Agent Management</strong> — Agent list with health status, registration form, group assignment, Agent Card viewer.</li>
+            <li><strong>Task Center</strong> — Create task (select target agent/group, input content, set priority), task list with filters, task detail with SSE streaming output.</li>
+            <li><strong>Message Flow</strong> — Per-task DAG visualization (D3.js), message timeline, artifact viewer, group scope indicator.</li>
+            <li><strong>Group Management</strong> — Group CRUD, member list, message retention settings, activity summary.</li>
+            <li><strong>Platform Settings</strong> — Prometheus endpoint config, Grafana links, message retention policies, health check intervals, access tokens.</li>
+        </ol>
+
+        <h3>Tech Stack</h3>
+        <ul>
+            <li>Vue 3 (Composition API)</li>
+            <li>Vite (build tool)</li>
+            <li>TailwindCSS (styling)</li>
+            <li>D3.js or vis.js (DAG graph visualization)</li>
+            <li>Pinia (state management)</li>
+        </ul>
+
+        <h2>Data Model</h2>
+
+        <h3>MySQL Tables</h3>
+
+        <h4>groups</h4>
+        <table>
+            <tr><th>Column</th><th>Type</th><th>Notes</th></tr>
+            <tr><td>id</td><td>BIGINT PK AUTO_INCREMENT</td><td></td></tr>
+            <tr><td>name</td><td>VARCHAR(128) UNIQUE NOT NULL</td><td></td></tr>
+            <tr><td>description</td><td>TEXT</td><td></td></tr>
+            <tr><td>message_retention_days</td><td>INT DEFAULT 30</td><td></td></tr>
+            <tr><td>max_agents</td><td>INT DEFAULT 50</td><td></td></tr>
+            <tr><td>created_at</td><td>DATETIME</td><td>DEFAULT NOW()</td></tr>
+            <tr><td>updated_at</td><td>DATETIME</td><td>ON UPDATE NOW()</td></tr>
+        </table>
+
+        <h4>agents</h4>
+        <table>
+            <tr><th>Column</th><th>Type</th><th>Notes</th></tr>
+            <tr><td>id</td><td>BIGINT PK AUTO_INCREMENT</td><td></td></tr>
+            <tr><td>name</td><td>VARCHAR(128) UNIQUE NOT NULL</td><td></td></tr>
+            <tr><td>description</td><td>TEXT</td><td></td></tr>
+            <tr><td>endpoint</td><td>VARCHAR(512) NOT NULL</td><td>A2A HTTP endpoint</td></tr>
+            <tr><td>group_id</td><td>BIGINT FK → groups.id</td><td></td></tr>
+            <tr><td>agent_card_json</td><td>JSON</td><td>Full Agent Card</td></tr>
+            <tr><td>status</td><td>ENUM(online, offline, error)</td><td></td></tr>
+            <tr><td>health_status</td><td>JSON</td><td>Last health check result</td></tr>
+            <tr><td>auth_token_hash</td><td>VARCHAR(256)</td><td></td></tr>
+            <tr><td>last_heartbeat_at</td><td>DATETIME</td><td></td></tr>
+            <tr><td>created_at</td><td>DATETIME</td><td>DEFAULT NOW()</td></tr>
+            <tr><td>updated_at</td><td>DATETIME</td><td>ON UPDATE NOW()</td></tr>
+        </table>
+
+        <h4>tasks</h4>
+        <table>
+            <tr><th>Column</th><th>Type</th><th>Notes</th></tr>
+            <tr><td>id</td><td>BIGINT PK AUTO_INCREMENT</td><td></td></tr>
+            <tr><td>trace_id</td><td>VARCHAR(64) NOT NULL INDEX</td><td></td></tr>
+            <tr><td>group_id</td><td>BIGINT FK → groups.id</td><td></td></tr>
+            <tr><td>initiator_type</td><td>ENUM(user, agent)</td><td></td></tr>
+            <tr><td>initiator_id</td><td>VARCHAR(256)</td><td>User ID or agent name</td></tr>
+            <tr><td>target_agent_id</td><td>BIGINT FK → agents.id</td><td></td></tr>
+            <tr><td>content</td><td>TEXT NOT NULL</td><td></td></tr>
+            <tr><td>status</td><td>ENUM(submitted, working, completed, failed)</td><td></td></tr>
+            <tr><td>priority</td><td>ENUM(low, normal, high)</td><td></td></tr>
+            <tr><td>result_json</td><td>JSON</td><td></td></tr>
+            <tr><td>created_at</td><td>DATETIME</td><td>DEFAULT NOW()</td></tr>
+            <tr><td>updated_at</td><td>DATETIME</td><td>ON UPDATE NOW()</td></tr>
+            <tr><td>completed_at</td><td>DATETIME NULLABLE</td><td></td></tr>
+        </table>
+
+        <h4>messages</h4>
+        <table>
+            <tr><th>Column</th><th>Type</th><th>Notes</th></tr>
+            <tr><td>id</td><td>BIGINT PK AUTO_INCREMENT</td><td></td></tr>
+            <tr><td>trace_id</td><td>VARCHAR(64) NOT NULL INDEX</td><td></td></tr>
+            <tr><td>task_id</td><td>BIGINT FK → tasks.id</td><td></td></tr>
+            <tr><td>group_id</td><td>BIGINT FK → groups.id</td><td></td></tr>
+            <tr><td>parent_message_id</td><td>BIGINT FK → messages.id NULLABLE</td><td>DAG edge</td></tr>
+            <tr><td>from_agent</td><td>VARCHAR(256) NOT NULL</td><td></td></tr>
+            <tr><td>to_agent</td><td>VARCHAR(256) NOT NULL</td><td></td></tr>
+            <tr><td>msg_type</td><td>ENUM(request, response, delegate, notify)</td><td></td></tr>
+            <tr><td>content</td><td>TEXT NOT NULL</td><td></td></tr>
+            <tr><td>artifact_json</td><td>JSON NULLABLE</td><td></td></tr>
+            <tr><td>a2a_task_id</td><td>VARCHAR(256) NULL</td><td>Remote A2A task reference</td></tr>
+            <tr><td>created_at</td><td>DATETIME DEFAULT NOW() INDEX</td><td></td></tr>
+        </table>
+
+        <h3>Redis Keys</h3>
+        <table>
+            <tr><th>Key Pattern</th><th>Type</th><th>Purpose</th><th>TTL</th></tr>
+            <tr><td><code>agents:active</code></td><td>SET</td><td>Active agent names</td><td>Heartbeat-refreshed</td></tr>
+            <tr><td><code>agent:{name}:info</code></td><td>HASH</td><td>Endpoint, group_id, status, skills</td><td>Heartbeat-refreshed</td></tr>
+            <tr><td><code>agent_card:{name}</code></td><td>STRING</td><td>Cached Agent Card JSON</td><td>5 min</td></tr>
+            <tr><td><code>task:{task_id}:stream</code></td><td>LIST</td><td>SSE streaming chunks</td><td>Expires on completion</td></tr>
+            <tr><td><code>ratelimit:{agent_name}</code></td><td>STRING</td><td>Sliding window counter</td><td>1 s</td></tr>
+        </table>
+
+        <h2>API Endpoints</h2>
+
+        <h3>Agent Management</h3>
+        <table class="endpoint-table">
+            <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+            <tr><td><span class="badge badge-post">POST</span></td><td>/api/v1/agents/register</td><td>Register agent (auto-discovers Agent Card)</td></tr>
+            <tr><td><span class="badge badge-put">PUT</span></td><td>/api/v1/agents/{id}</td><td>Update agent config</td></tr>
+            <tr><td><span class="badge badge-delete">DELETE</span></td><td>/api/v1/agents/{id}</td><td>Deregister agent</td></tr>
+            <tr><td><span class="badge badge-get">GET</span></td><td>/api/v1/agents</td><td>List agents (filter by group, status)</td></tr>
+            <tr><td><span class="badge badge-get">GET</span></td><td>/api/v1/agents/{id}</td><td>Agent detail + health</td></tr>
+            <tr><td><span class="badge badge-get">GET</span></td><td>/api/v1/agents/{id}/card</td><td>Get cached Agent Card</td></tr>
+            <tr><td><span class="badge badge-post">POST</span></td><td>/api/v1/agents/{id}/health</td><td>Trigger manual health check</td></tr>
+        </table>
+
+        <h3>Tasks</h3>
+        <table class="endpoint-table">
+            <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+            <tr><td><span class="badge badge-post">POST</span></td><td>/api/v1/tasks</td><td>Create and dispatch task (user-initiated)</td></tr>
+            <tr><td><span class="badge badge-get">GET</span></td><td>/api/v1/tasks</td><td>List tasks (filter by group, status, agent)</td></tr>
+            <tr><td><span class="badge badge-get">GET</span></td><td>/api/v1/tasks/{id}</td><td>Task detail with result</td></tr>
+            <tr><td><span class="badge badge-get">GET</span></td><td>/api/v1/tasks/{id}/stream</td><td>SSE real-time task output</td></tr>
+            <tr><td><span class="badge badge-post">POST</span></td><td>/api/v1/tasks/{id}/cancel</td><td>Cancel running task</td></tr>
+        </table>
+
+        <h3>Messages & Traces</h3>
+        <table class="endpoint-table">
+            <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+            <tr><td><span class="badge badge-get">GET</span></td><td>/api/v1/traces/{trace_id}</td><td>Full trace with message chain</td></tr>
+            <tr><td><span class="badge badge-get">GET</span></td><td>/api/v1/traces/{trace_id}/graph</td><td>DAG nodes + edges for visualization</td></tr>
+            <tr><td><span class="badge badge-get">GET</span></td><td>/api/v1/messages</td><td>Message list (filter by group, task, agent, time)</td></tr>
+            <tr><td><span class="badge badge-get">GET</span></td><td>/api/v1/messages/{id}/artifact</td><td>Get message artifact</td></tr>
+        </table>
+
+        <h3>Groups</h3>
+        <table class="endpoint-table">
+            <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+            <tr><td><span class="badge badge-post">POST</span></td><td>/api/v1/groups</td><td>Create group</td></tr>
+            <tr><td><span class="badge badge-get">GET</span></td><td>/api/v1/groups</td><td>List groups with agent count</td></tr>
+            <tr><td><span class="badge badge-put">PUT</span></td><td>/api/v1/groups/{id}</td><td>Update group settings</td></tr>
+            <tr><td><span class="badge badge-post">POST</span></td><td>/api/v1/groups/{id}/agents</td><td>Add agent to group</td></tr>
+            <tr><td><span class="badge badge-delete">DELETE</span></td><td>/api/v1/groups/{id}/agents/{agentId}</td><td>Remove agent from group</td></tr>
+        </table>
+
+        <h3>A2A Proxy (Agent-facing)</h3>
+        <table class="endpoint-table">
+            <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+            <tr><td><span class="badge badge-post">POST</span></td><td>/a2a/{agent_name}</td><td>Proxy A2A JSON-RPC to target agent</td></tr>
+            <tr><td><span class="badge badge-get">GET</span></td><td>/a2a/{agent_name}/tasks/{taskId}</td><td>SSE stream for long-running tasks</td></tr>
+            <tr><td><span class="badge badge-get">GET</span></td><td>/a2a/discovery</td><td>List discoverable agents (within caller's group)</td></tr>
+        </table>
+
+        <h3>Prometheus Metrics</h3>
+        <p>Exposed at <code>/metrics</code>.</p>
+        <table>
+            <tr><th>Metric</th><th>Type</th><th>Labels</th><th>Description</th></tr>
+            <tr><td><code>a2a_agents_online_total</code></td><td class="metric-type">Gauge</td><td>group</td><td>Online agent count per group</td></tr>
+            <tr><td><code>a2a_tasks_total</code></td><td class="metric-type">Counter</td><td>group, status</td><td>Task count by group and status</td></tr>
+            <tr><td><code>a2a_task_duration_seconds</code></td><td class="metric-type">Histogram</td><td>group</td><td>Task completion latency</td></tr>
+            <tr><td><code>a2a_messages_total</code></td><td class="metric-type">Counter</td><td>group, msg_type</td><td>Message count by group and type</td></tr>
+            <tr><td><code>a2a_message_duration_seconds</code></td><td class="metric-type">Histogram</td><td>group</td><td>Message round-trip latency</td></tr>
+            <tr><td><code>a2a_proxy_errors_total</code></td><td class="metric-type">Counter</td><td>error_type</td><td>Proxy error count by type</td></tr>
+            <tr><td><code>a2a_queue_depth</code></td><td class="metric-type">Gauge</td><td>group</td><td>Queue depth per group topic</td></tr>
+            <tr><td><code>a2a_heartbeat_failures</code></td><td class="metric-type">Counter</td><td>agent</td><td>Heartbeat failure count per agent</td></tr>
+        </table>
+
+        <h2>Core Data Flows</h2>
+
+        <h3>Agent Registration</h3>
+        <ol class="step-list">
+            <li>Agent starts up, POSTs to <code>/api/v1/agents/register</code> with name, endpoint, group, auth_token.</li>
+            <li>Gateway validates auth_token.</li>
+            <li>Gateway fetches <code>{endpoint}/.well-known/agent.json</code> — the Agent Card.</li>
+            <li>Gateway parses and validates the Agent Card (name, description, skills, url, authentication).</li>
+            <li>Gateway stores agent record + Agent Card in MySQL, registers in Redis active set.</li>
+            <li>Gateway starts heartbeat monitor (default 30s interval), probing <code>{endpoint}/.well-known/agent.json</code>.</li>
+            <li>Returns success — agent is now discoverable and routable.</li>
+        </ol>
+
+        <h3>Message Dispatch</h3>
+        <p><strong>Mode A — User initiates from Web UI:</strong></p>
+        <ol>
+            <li>User submits task via <code>/api/v1/tasks</code> with target group, target agent, content, priority.</li>
+            <li>Gateway resolves target agent from Redis/MySQL.</li>
+        </ol>
+
+        <p><strong>Mode B — Agent-to-Agent A2A call:</strong></p>
+        <ol>
+            <li>Agent sends A2A JSON-RPC to <code>/a2a/{agent_name}</code>.</li>
+            <li>Gateway parses the request and resolves the target.</li>
+        </ol>
+
+        <p><strong>Common path (both modes):</strong></p>
+        <ol start="3" class="step-list">
+            <li>Gateway generates <code>trace_id</code> (UUID), propagated via HTTP header.</li>
+            <li>Gateway enforces group isolation: sender.group_id must equal target.group_id. Returns 403 on mismatch.</li>
+            <li>Gateway stores task + initial message in MySQL.</li>
+            <li>Gateway publishes to go-queue topic <code>a2a.messages.{group_id}</code>.</li>
+            <li>Message Service consumes from queue, forwards the request to the target agent via A2A HTTP/SSE.</li>
+            <li>Message Service stores the response in MySQL, emits trace events to Prometheus.</li>
+        </ol>
+
+        <h3>Trace Query & DAG Visualization</h3>
+        <ol class="step-list">
+            <li>Frontend requests <code>GET /api/v1/traces/{trace_id}/graph</code>.</li>
+            <li>Platform Service queries all messages with that <code>trace_id</code>, ordered by <code>created_at</code>.</li>
+            <li>Platform Service constructs DAG: each message is a node, <code>parent_message_id</code> defines edges.</li>
+            <li>Frontend renders the graph with D3.js/vis.js — interactive nodes with timestamps, latency annotations, and status colors.</li>
+        </ol>
+
+        <h2>Project Structure</h2>
+        <pre class="tree"><span class="dir">adkplat/</span>
+├── <span class="dir">cmd/</span>
+│   ├── <span class="dir">gateway/</span>          # Gateway service entry point
+│   ├── <span class="dir">message/</span>          # Message service entry point
+│   └── <span class="dir">platform/</span>         # Platform service entry point
+├── <span class="dir">internal/</span>
+│   ├── <span class="dir">gateway/</span>
+│   │   ├── <span class="dir">handler/</span>      # HTTP handlers (API routes)
+│   │   ├── <span class="dir">logic/</span>        # Business logic
+│   │   ├── <span class="dir">svc/</span>          # Service context (dependencies)
+│   │   ├── <span class="dir">middleware/</span>   # Auth, group filter, Prometheus
+│   │   ├── <span class="dir">config/</span>       # go-zero config struct
+│   │   └── <span class="dir">types/</span>        # Request/response types
+│   ├── <span class="dir">message/</span>
+│   │   ├── <span class="dir">logic/</span>
+│   │   ├── <span class="dir">svc/</span>
+│   │   ├── <span class="dir">config/</span>
+│   │   └── <span class="dir">types/</span>
+│   ├── <span class="dir">platform/</span>
+│   │   ├── <span class="dir">logic/</span>
+│   │   ├── <span class="dir">svc/</span>
+│   │   ├── <span class="dir">config/</span>
+│   │   └── <span class="dir">types/</span>
+│   ├── <span class="dir">model/</span>            # MySQL model (sqlx generated)
+│   └── <span class="dir">pkg/</span>              # Shared utilities
+│       ├── <span class="dir">a2a/</span>          # A2A protocol client/server helpers
+│       ├── <span class="dir">trace/</span>        # trace_id generation and propagation
+│       └── <span class="dir">metrics/</span>      # Prometheus metric definitions
+├── <span class="dir">web/</span>                  # Vue3 frontend
+│   ├── <span class="dir">src/</span>
+│   │   ├── <span class="dir">views/</span>        # Page components
+│   │   ├── <span class="dir">components/</span>   # Reusable UI components
+│   │   ├── <span class="dir">composables/</span>  # Vue composables
+│   │   ├── <span class="dir">api/</span>          # API client
+│   │   ├── <span class="dir">stores/</span>       # Pinia stores
+│   │   ├── <span class="dir">router/</span>       # Vue Router
+│   │   └── <span class="file">App.vue</span>
+│   ├── <span class="file">index.html</span>
+│   ├── <span class="file">vite.config.ts</span>
+│   ├── <span class="file">tailwind.config.js</span>
+│   └── <span class="file">package.json</span>
+├── <span class="dir">etc/</span>                  # go-zero config files
+│   ├── <span class="file">gateway.yaml</span>
+│   ├── <span class="file">message.yaml</span>
+│   └── <span class="file">platform.yaml</span>
+├── <span class="dir">deploy/</span>               # Docker Compose, Grafana dashboards
+│   ├── <span class="file">docker-compose.yaml</span>
+│   ├── <span class="dir">grafana/</span>
+│   │   └── <span class="dir">dashboards/</span>
+│   └── <span class="dir">prometheus/</span>
+│       └── <span class="file">prometheus.yml</span>
+├── <span class="dir">doc/</span>                  # User documentation
+│   ├── <span class="file">getting-started.md</span>
+│   ├── <span class="file">agent-onboarding.md</span>
+│   └── <span class="file">api-reference.md</span>
+├── <span class="dir">docs/superpowers/specs/</span>
+├── <span class="file">go.mod</span>
+├── <span class="file">go.sum</span>
+├── <span class="file">Makefile</span>
+└── <span class="file">README.md</span></pre>
+
+        <h2>Deployment</h2>
+        <p>Single <code>docker-compose.yaml</code> brings up all services:</p>
+        <ul>
+            <li>MySQL 8</li>
+            <li>Redis 7</li>
+            <li>go-queue (kafka or rabbitmq, selectable via config; docker-compose defaults to kafka)</li>
+            <li>Prometheus</li>
+            <li>Grafana (with pre-built dashboards)</li>
+            <li>Gateway Service (port 8080)</li>
+            <li>Message Service (internal RPC)</li>
+            <li>Platform Service (internal RPC)</li>
+        </ul>
+        <p>The Vue3 frontend is built (<code>npm run build</code>) and the static output is embedded into the Gateway service binary. Users access everything through a single port.</p>
+
+        <h2>Agent Onboarding</h2>
+        <p>Agents built with Google ADK can use <code>to_a2a()</code> or <code>adk api_server --a2a</code> to expose an A2A-compatible endpoint. Agents built with any other framework just need to implement:</p>
+        <ol>
+            <li><code>GET /.well-known/agent.json</code> — return a valid Agent Card.</li>
+            <li><code>POST /</code> — accept JSON-RPC 2.0 <code>tasks/send</code> requests and return task responses.</li>
+            <li><code>GET /tasks/{taskId}</code> — support SSE streaming for long-running tasks.</li>
+        </ol>
+        <p>The platform provides a quick-start guide with curl examples and a sample Agent Card.</p>
+    </div>
+</body>
+</html>
