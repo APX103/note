@@ -1,0 +1,1645 @@
+<!DOCTYPE html><html lang="zh-CN"><head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Google ADK 全方位技术解析：面向 A2A Proxy 与群组服务构建</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'serif': ['Noto Sans SC', 'serif'],
+                        'sans': ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        'editorial': {
+                            50: '#f8fafc',
+                            100: '#f1f5f9',
+                            200: '#e2e8f0',
+                            300: '#cbd5e1',
+                            400: '#94a3b8',
+                            500: '#64748b',
+                            600: '#475569',
+                            700: '#334155',
+                            800: '#1e293b',
+                            900: '#0f172a',
+                        },
+                        'accent': {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            200: '#bae6fd',
+                            300: '#7dd3fc',
+                            400: '#38bdf8',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                            800: '#075985',
+                            900: '#0c4a6e',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .toc-fixed {
+            position: fixed;
+            top: 2rem;
+            left: 2rem;
+            width: 280px;
+            max-height: calc(100vh - 4rem);
+            overflow-y: auto;
+            z-index: 50;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+        
+        .content-main {
+            margin-left: 320px;
+            max-width: calc(100vw - 360px);
+        }
+        
+        .hero-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            grid-template-rows: auto auto;
+            gap: 2rem;
+            align-items: start;
+        }
+        
+        .hero-title {
+            grid-column: 1 / -1;
+            position: relative;
+            z-index: 10;
+        }
+        
+        .hero-visual {
+            grid-column: 1;
+            grid-row: 2;
+            position: relative;
+            overflow: hidden;
+            border-radius: 16px;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+        }
+        
+        .hero-highlights {
+            grid-column: 2;
+            grid-row: 2;
+        }
+        
+        @media (max-width: 1024px) {
+            .toc-fixed {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 280px;
+                height: 100vh;
+                z-index: 100;
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+                margin-bottom: 0;
+                border-radius: 0;
+            }
+            .toc-fixed.toc-visible {
+                transform: translateX(0);
+            }
+            .content-main {
+                margin-left: 0;
+                max-width: 100%;
+            }
+            .hero-grid {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto auto;
+            }
+            .hero-visual {
+                grid-column: 1;
+                grid-row: 2;
+            }
+            .hero-highlights {
+                grid-column: 1;
+                grid-row: 3;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .px-8 {
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+            .hero-grid {
+                gap: 1rem;
+            }
+            .hero-title h1 {
+                font-size: 2rem;
+                line-height: 1.2;
+            }
+            .hero-title p {
+                font-size: 1rem;
+            }
+        }
+    </style>
+  <base target="_blank">
+</head>
+
+  <body class="font-sans bg-editorial-50 text-editorial-900 leading-relaxed">
+
+    <!-- Fixed Table of Contents -->
+    <nav class="toc-fixed">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="font-semibold text-lg text-editorial-800">目录导航</h3>
+        <button id="toc-close" class="lg:hidden text-editorial-600 hover:text-editorial-800">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <ul class="space-y-2 text-sm">
+        <li>
+          <a href="#core-architecture" class="block py-1 px-2 rounded hover:bg-editorial-100 text-editorial-700 hover:text-editorial-900 transition-colors">1. ADK 核心架构</a>
+        </li>
+        <li>
+          <a href="#linkage-mechanisms" class="block py-1 px-2 rounded hover:bg-editorial-100 text-editorial-700 hover:text-editorial-900 transition-colors">2. Agent 间链接机制</a>
+        </li>
+        <li>
+          <a href="#task-orchestration" class="block py-1 px-2 rounded hover:bg-editorial-100 text-editorial-700 hover:text-editorial-900 transition-colors">3. 任务编排与协作</a>
+        </li>
+        <li>
+          <a href="#debugging" class="block py-1 px-2 rounded hover:bg-editorial-100 text-editorial-700 hover:text-editorial-900 transition-colors">4. 调试体系</a>
+        </li>
+        <li>
+          <a href="#engineering-practices" class="block py-1 px-2 rounded hover:bg-editorial-100 text-editorial-700 hover:text-editorial-900 transition-colors">5. 工程实践</a>
+        </li>
+        <li>
+          <a href="#sdk-comparison" class="block py-1 px-2 rounded hover:bg-editorial-100 text-editorial-700 hover:text-editorial-900 transition-colors">6. SDK 对比</a>
+        </li>
+        <li>
+          <a href="#extension-mechanisms" class="block py-1 px-2 rounded hover:bg-editorial-100 text-editorial-700 hover:text-editorial-900 transition-colors">7. 扩展机制</a>
+        </li>
+      </ul>
+    </nav>
+
+    <!-- Toggle button for mobile TOC -->
+    <button id="toc-toggle" class="fixed top-4 left-4 z-50 p-2 bg-white rounded shadow lg:hidden">
+      <i class="fas fa-bars"></i>
+    </button>
+
+    <!-- Main Content -->
+    <main class="content-main px-8 py-12">
+
+      <!-- Hero Section with Bento Grid -->
+      <section class="hero-grid mb-16">
+        <!-- Title spanning full width -->
+        <div class="hero-title">
+          <h1 class="text-5xl font-serif font-bold text-editorial-900 mb-6 leading-tight">
+            <span class="italic text-accent-600">Google ADK</span> 全方位技术解析
+          </h1>
+          <p class="text-xl text-editorial-600 font-light leading-relaxed max-w-4xl">
+            面向 A2A Proxy 与群组服务构建的完整技术指南
+          </p>
+        </div>
+
+        <!-- Visual Element -->
+        <div class="hero-visual">
+          <div class="absolute inset-0 bg-gradient-to-br from-editorial-900 via-editorial-800 to-accent-800 opacity-90"></div>
+          <img src="https://kimi-web-img.moonshot.cn/img/help-static-aliyun-doc.aliyuncs.com/5bdb2c601d6dfd2defa595394bdd624b5f679957.png" alt="AI代理网络连接示意图" class="w-full h-64 object-cover opacity-60" size="medium" aspect="wide" query="AI代理网络连接" referrerpolicy="no-referrer" data-modified="1" data-score="0.00"/>
+          <div class="absolute inset-0 flex items-center justify-center">
+            <div class="text-center text-white">
+              <div class="text-4xl font-light italic mb-2">Agent-to-Agent</div>
+              <div class="text-lg opacity-90">协议驱动的智能协作</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Key Highlights -->
+        <div class="hero-highlights space-y-4">
+          <div class="bg-white p-6 rounded-lg border border-editorial-200 shadow-sm">
+            <div class="flex items-center mb-3">
+              <i class="fas fa-network-wired text-accent-600 mr-3"></i>
+              <h3 class="font-semibold text-editorial-800">多语言支持</h3>
+            </div>
+            <p class="text-sm text-editorial-600">Python、Go、Java、TypeScript 四语言实现，Python 为主推版本</p>
+          </div>
+
+          <div class="bg-white p-6 rounded-lg border border-editorial-200 shadow-sm">
+            <div class="flex items-center mb-3">
+              <i class="fas fa-code-branch text-accent-600 mr-3"></i>
+              <h3 class="font-semibold text-editorial-800">双模式链接</h3>
+            </div>
+            <p class="text-sm text-editorial-600">本地 Sub-Agent 层级 + 远程 A2A 协议通信</p>
+          </div>
+
+          <div class="bg-white p-6 rounded-lg border border-editorial-200 shadow-sm">
+            <div class="flex items-center mb-3">
+              <i class="fas fa-cogs text-accent-600 mr-3"></i>
+              <h3 class="font-semibold text-editorial-800">三层次编排</h3>
+            </div>
+            <p class="text-sm text-editorial-600">LLM 动态路由 + Workflow 确定性流程 + 群组服务聚合</p>
+          </div>
+
+          <div class="bg-white p-6 rounded-lg border border-editorial-200 shadow-sm">
+            <div class="flex items-center mb-3">
+              <i class="fas fa-bug text-accent-600 mr-3"></i>
+              <h3 class="font-semibold text-editorial-800">全链路调试</h3>
+            </div>
+            <p class="text-sm text-editorial-600">Dev UI + OpenTelemetry 追踪 + 结构化日志</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- TL;DR Summary -->
+      <div class="bg-accent-50 border-l-4 border-accent-500 p-8 rounded-r-lg mb-16">
+        <div class="flex items-start">
+          <i class="fas fa-lightbulb text-accent-600 text-2xl mr-4 mt-1"></i>
+          <div>
+            <h3 class="text-xl font-semibold text-editorial-800 mb-4">TL;DR 核心要点</h3>
+            <p class="text-editorial-700 leading-relaxed">
+              Google ADK 是一个多语言、代码优先的 Agent 开发框架，核心能力在于通过 Sub-Agent 层级实现本地 Agent 协作，通过 A2A（Agent-to-Agent）开放协议实现跨网络、跨框架的远程 Agent 互操作。对于构建 A2A Proxy + 群组服务，关键路径是：利用 Python SDK 的 <code class="bg-editorial-100 px-2 py-1 rounded">RemoteA2aAgent</code> 消费远程服务、<code class="bg-editorial-100 px-2 py-1 rounded">to_a2a()</code> 暴露本地服务，通过 LLM 自主路由或 Workflow Agent 实现智能编排，借助 ADK Dev UI 和 OpenTelemetry 完成全链路调试，最终在 Proxy 层扩展组播、共识聚合和动态成员管理实现群组服务。
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 1: Core Architecture -->
+      <section id="core-architecture" class="mb-16">
+        <h2 class="text-3xl font-serif font-bold text-editorial-900 mb-8 border-b-2 border-accent-500 pb-4">
+          1. ADK 核心架构与设计理念
+        </h2>
+
+        <div class="grid lg:grid-cols-2 gap-8 mb-12">
+          <div class="bg-white p-8 rounded-lg border border-editorial-200 shadow-sm">
+            <h3 class="text-xl font-semibold text-editorial-800 mb-4 flex items-center">
+              <i class="fas fa-layer-group text-accent-600 mr-3"></i>
+              框架定位与多语言支持
+            </h3>
+            <p class="text-editorial-700 mb-4 leading-relaxed">
+              Google Agent Development Kit（ADK）是一个<strong>开源、代码优先（code-first）的框架</strong>，旨在将软件开发原则系统性地应用于 AI Agent 的创建、测试、部署和编排
+              <a href="#ref-1" class="text-accent-600 hover:text-accent-800">[1]</a>。
+            </p>
+            <div class="bg-editorial-50 p-4 rounded border-l-4 border-accent-500">
+              <p class="text-sm text-editorial-600">
+                <strong>设计哲学：</strong>围绕&#34;强大的简洁性&#34;展开，开发者可以从简单的提示词和工具调用开始，逐步扩展到复杂的多 Agent 协作网络。
+              </p>
+            </div>
+          </div>
+
+          <div class="bg-white p-8 rounded-lg border border-editorial-200 shadow-sm">
+            <h3 class="text-xl font-semibold text-editorial-800 mb-4 flex items-center">
+              <i class="fas fa-sitemap text-accent-600 mr-3"></i>
+              Agent 基础模型
+            </h3>
+            <p class="text-editorial-700 mb-4 leading-relaxed">
+              ADK 的 Agent 体系建立在
+              <code class="bg-editorial-100 px-2 py-1 rounded">BaseAgent</code> 抽象基类之上，通过继承和组合形成三种核心类型。
+            </p>
+            <div class="space-y-2 text-sm">
+              <div class="flex items-center">
+                <span class="w-3 h-3 bg-accent-500 rounded-full mr-3"></span>
+                <span class="text-editorial-700"><strong>LLM Agent：</strong>基于大语言模型的核心智能体</span>
+              </div>
+              <div class="flex items-center">
+                <span class="w-3 h-3 bg-accent-400 rounded-full mr-3"></span>
+                <span class="text-editorial-700"><strong>Workflow Agent：</strong>确定性流程控制</span>
+              </div>
+              <div class="flex items-center">
+                <span class="w-3 h-3 bg-accent-300 rounded-full mr-3"></span>
+                <span class="text-editorial-700"><strong>生命周期管理：</strong>创建、运行、销毁与状态维护</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Language Support Table -->
+        <div class="bg-white rounded-lg border border-editorial-200 shadow-sm overflow-hidden mb-8">
+          <div class="bg-editorial-50 px-6 py-4 border-b border-editorial-200">
+            <h4 class="text-lg font-semibold text-editorial-800">多语言版本对比</h4>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full">
+              <thead class="bg-editorial-50">
+                <tr>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-editorial-700 uppercase tracking-wider">语言版本</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-editorial-700 uppercase tracking-wider">版本状态</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-editorial-700 uppercase tracking-wider">核心优势</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-editorial-700 uppercase tracking-wider">A2A 支持</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-editorial-200">
+                <tr class="hover:bg-editorial-50">
+                  <td class="px-6 py-4 whitespace-nowrap font-medium text-editorial-900">Python</td>
+                  <td class="px-6 py-4 text-sm text-editorial-700">v1.32.0（19.5k stars，最成熟）</td>
+                  <td class="px-6 py-4 text-sm text-editorial-700">功能最完整、文档最丰富、工具生态最完善</td>
+                  <td class="px-6 py-4">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      暴露与消费双向完整支持
+                    </span>
+                  </td>
+                </tr>
+                <tr class="hover:bg-editorial-50">
+                  <td class="px-6 py-4 whitespace-nowrap font-medium text-editorial-900">Go</td>
+                  <td class="px-6 py-4 text-sm text-editorial-700">v1.32.0（稳定可用）</td>
+                  <td class="px-6 py-4 text-sm text-editorial-700">高性能并发、云原生部署友好、静态编译</td>
+                  <td class="px-6 py-4">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                      暴露能力完善，消费侧有限
+                    </span>
+                  </td>
+                </tr>
+                <tr class="hover:bg-editorial-50">
+                  <td class="px-6 py-4 whitespace-nowrap font-medium text-editorial-900">Java</td>
+                  <td class="px-6 py-4 text-sm text-editorial-700">v1.32.0（稳定可用）</td>
+                  <td class="px-6 py-4 text-sm text-editorial-700">企业级生态集成、Spring 兼容、JVM 性能</td>
+                  <td class="px-6 py-4">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      基础支持
+                    </span>
+                  </td>
+                </tr>
+                <tr class="hover:bg-editorial-50">
+                  <td class="px-6 py-4 whitespace-nowrap font-medium text-editorial-900">TypeScript</td>
+                  <td class="px-6 py-4 text-sm text-editorial-700">v1.32.0（实验性）</td>
+                  <td class="px-6 py-4 text-sm text-editorial-700">前端集成、Node.js 生态、全栈开发</td>
+                  <td class="px-6 py-4">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                      实验性
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="bg-white p-8 rounded-lg border border-editorial-200 shadow-sm">
+          <h3 class="text-xl font-semibold text-editorial-800 mb-4 flex items-center">
+            <i class="fas fa-lightbulb text-accent-600 mr-3"></i>
+            关键设计原则
+          </h3>
+          <div class="grid md:grid-cols-3 gap-6">
+            <div class="text-center">
+              <div class="w-16 h-16 bg-accent-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-code text-accent-600 text-xl"></i>
+              </div>
+              <h4 class="font-semibold text-editorial-800 mb-2">双模式配置</h4>
+              <p class="text-sm text-editorial-600">声明式配置与代码驱动并行支持</p>
+            </div>
+            <div class="text-center">
+              <div class="w-16 h-16 bg-accent-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-layer-group text-accent-600 text-xl"></i>
+              </div>
+              <h4 class="font-semibold text-editorial-800 mb-2">分层解耦</h4>
+              <p class="text-sm text-editorial-600">模型、工具、记忆、编排独立扩展</p>
+            </div>
+            <div class="text-center">
+              <div class="w-16 h-16 bg-accent-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-exchange-alt text-accent-600 text-xl"></i>
+              </div>
+              <h4 class="font-semibold text-editorial-800 mb-2">框架无关</h4>
+              <p class="text-sm text-editorial-600">A2A 协议实现跨框架互操作</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 2: Linkage Mechanisms -->
+      <section id="linkage-mechanisms" class="mb-16">
+        <h2 class="text-3xl font-serif font-bold text-editorial-900 mb-8 border-b-2 border-accent-500 pb-4">
+          2. Agent 间链接机制深度解析
+        </h2>
+
+        <div class="grid lg:grid-cols-2 gap-8 mb-12">
+          <div class="bg-white p-8 rounded-lg border border-editorial-200 shadow-sm">
+            <h3 class="text-xl font-semibold text-editorial-800 mb-4 flex items-center">
+              <i class="fas fa-sitemap text-accent-600 mr-3"></i>
+              本地链接模式：Sub-Agent 架构
+            </h3>
+            <div class="space-y-4">
+              <div class="bg-editorial-50 p-4 rounded border-l-4 border-accent-500">
+                <h4 class="font-medium text-editorial-800 mb-2">父子层级关系</h4>
+                <p class="text-sm text-editorial-600">通过
+                  <code class="bg-white px-1 rounded">sub_agents</code> 参数建立严格树形结构，避免循环依赖
+                </p>
+              </div>
+              <div class="bg-editorial-50 p-4 rounded border-l-4 border-accent-400">
+                <h4 class="font-medium text-editorial-800 mb-2">运行时委托</h4>
+                <p class="text-sm text-editorial-600">根 Agent LLM 自动分析请求语义，生成
+                  <code class="bg-white px-1 rounded">transfer_to_agent()</code> 调用
+                </p>
+              </div>
+              <div class="bg-editorial-50 p-4 rounded border-l-4 border-accent-300">
+                <h4 class="font-medium text-editorial-800 mb-2">选型对比</h4>
+                <p class="text-sm text-editorial-600">Tool 型适合原子任务，Sub-Agent 适合协作分层场景</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-white p-8 rounded-lg border border-editorial-200 shadow-sm">
+            <h3 class="text-xl font-semibold text-editorial-800 mb-4 flex items-center">
+              <i class="fas fa-network-wired text-accent-600 mr-3"></i>
+              远程链接模式：A2A 协议
+            </h3>
+            <div class="space-y-4">
+              <div class="bg-editorial-50 p-4 rounded border-l-4 border-accent-500">
+                <h4 class="font-medium text-editorial-800 mb-2">Agent Card 发现</h4>
+                <p class="text-sm text-editorial-600">标准端点
+                  <code class="bg-white px-1 rounded">/.well-known/agent.json</code> 提供服务元数据
+                </p>
+              </div>
+              <div class="bg-editorial-50 p-4 rounded border-l-4 border-accent-400">
+                <h4 class="font-medium text-editorial-800 mb-2">远程 Agent 消费</h4>
+                <p class="text-sm text-editorial-600">
+                  <code class="bg-white px-1 rounded">RemoteA2aAgent</code> 类无缝集成远程服务
+                </p>
+              </div>
+              <div class="bg-editorial-50 p-4 rounded border-l-4 border-accent-300">
+                <h4 class="font-medium text-editorial-800 mb-2">服务暴露</h4>
+                <p class="text-sm text-editorial-600">
+                  <code class="bg-white px-1 rounded">to_a2a()</code> 快速模式或
+                  <code class="bg-white px-1 rounded">adk api_server --a2a</code> 多 Agent 托管
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- A2A Protocol Core Concepts -->
+        <div class="bg-white rounded-lg border border-editorial-200 shadow-sm overflow-hidden mb-8">
+          <div class="bg-editorial-50 px-6 py-4 border-b border-editorial-200">
+            <h4 class="text-lg font-semibold text-editorial-800">A2A 协议核心抽象</h4>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full">
+              <thead class="bg-editorial-50">
+                <tr>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-editorial-700 uppercase tracking-wider">抽象概念</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-editorial-700 uppercase tracking-wider">说明</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-editorial-700 uppercase tracking-wider">在 Proxy 设计中的作用</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-editorial-200">
+                <tr class="hover:bg-editorial-50">
+                  <td class="px-6 py-4 whitespace-nowrap font-medium text-editorial-900">Agent Card</td>
+                  <td class="px-6 py-4 text-sm text-editorial-700">Agent 的公开元数据，描述能力、端点、认证要求</td>
+                  <td class="px-6 py-4 text-sm text-editorial-700">服务发现的基础，路由决策的依据</td>
+                </tr>
+                <tr class="hover:bg-editorial-50">
+                  <td class="px-6 py-4 whitespace-nowrap font-medium text-editorial-900">Task</td>
+                  <td class="px-6 py-4 text-sm text-editorial-700">Agent 间协作的基本工作单元，包含唯一 ID 和消息</td>
+                  <td class="px-6 py-4 text-sm text-editorial-700">请求转发的载体，状态追踪的实体</td>
+                </tr>
+                <tr class="hover:bg-editorial-50">
+                  <td class="px-6 py-4 whitespace-nowrap font-medium text-editorial-900">Message</td>
+                  <td class="px-6 py-4 text-sm text-editorial-700">Task 中的通信内容，支持文本、文件、结构化数据</td>
+                  <td class="px-6 py-4 text-sm text-editorial-700">协议转换的核心对象</td>
+                </tr>
+                <tr class="hover:bg-editorial-50">
+                  <td class="px-6 py-4 whitespace-nowrap font-medium text-editorial-900">Artifact</td>
+                  <td class="px-6 py-4 text-sm text-editorial-700">Task 执行过程中产生的中间产物</td>
+                  <td class="px-6 py-4 text-sm text-editorial-700">结果聚合和透传的单元</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="bg-white p-8 rounded-lg border border-editorial-200 shadow-sm">
+          <h3 class="text-xl font-semibold text-editorial-800 mb-4 flex items-center">
+            <i class="fas fa-project-diagram text-accent-600 mr-3"></i>
+            混合拓扑架构
+          </h3>
+          <div class="grid md:grid-cols-3 gap-6">
+            <div class="text-center">
+              <div class="w-16 h-16 bg-accent-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-layer-group text-accent-600 text-xl"></i>
+              </div>
+              <h4 class="font-semibold text-editorial-800 mb-2">本地 + 远程并存</h4>
+              <p class="text-sm text-editorial-600">延迟优化、能力扩展、故障隔离</p>
+            </div>
+            <div class="text-center">
+              <div class="w-16 h-16 bg-accent-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-link text-accent-600 text-xl"></i>
+              </div>
+              <h4 class="font-semibold text-editorial-800 mb-2">多跳链路</h4>
+              <p class="text-sm text-editorial-600">Agent A → B → C 的级联调用</p>
+            </div>
+            <div class="text-center">
+              <div class="w-16 h-16 bg-accent-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-broadcast-tower text-accent-600 text-xl"></i>
+              </div>
+              <h4 class="font-semibold text-editorial-800 mb-2">群组服务</h4>
+              <p class="text-sm text-editorial-600">广播、多播、扇出-扇入模式</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 3: Task Orchestration -->
+      <section id="task-orchestration" class="mb-16">
+        <h2 class="text-3xl font-serif font-bold text-editorial-900 mb-8 border-b-2 border-accent-500 pb-4">
+          3. 任务编排与协作模式
+        </h2>
+
+        <div class="grid lg:grid-cols-3 gap-8 mb-12">
+          <div class="bg-white p-6 rounded-lg border border-editorial-200 shadow-sm">
+            <h3 class="text-lg font-semibold text-editorial-800 mb-4 flex items-center">
+              <i class="fas fa-list-ol text-accent-600 mr-3"></i>
+              顺序 Agent
+            </h3>
+            <p class="text-sm text-editorial-600 mb-4">
+              <code class="bg-editorial-100 px-1 rounded">SequentialAgent</code> 实现严格的线性流程控制
+            </p>
+            <div class="bg-editorial-50 p-3 rounded text-xs text-editorial-600">
+              <strong>关键机制：</strong>通过
+              <code>output_key</code> 实现状态传递，前一个步骤的输出自动写入会话状态
+            </div>
+          </div>
+
+          <div class="bg-white p-6 rounded-lg border border-editorial-200 shadow-sm">
+            <h3 class="text-lg font-semibold text-editorial-800 mb-4 flex items-center">
+              <i class="fas fa-parallel text-accent-600 mr-3"></i>
+              并行 Agent
+            </h3>
+            <p class="text-sm text-editorial-600 mb-4">
+              <code class="bg-editorial-100 px-1 rounded">ParallelAgent</code> 同时触发所有子 Agent
+            </p>
+            <div class="bg-editorial-50 p-3 rounded text-xs text-editorial-600">
+              <strong>应用场景：</strong>多 API 数据获取、多视角分析、冗余执行取最优
+            </div>
+          </div>
+
+          <div class="bg-white p-6 rounded-lg border border-editorial-200 shadow-sm">
+            <h3 class="text-lg font-semibold text-editorial-800 mb-4 flex items-center">
+              <i class="fas fa-sync-alt text-accent-600 mr-3"></i>
+              循环 Agent
+            </h3>
+            <p class="text-sm text-editorial-600 mb-4">
+              <code class="bg-editorial-100 px-1 rounded">LoopAgent</code> 实现条件迭代
+            </p>
+            <div class="bg-editorial-50 p-3 rounded text-xs text-editorial-600">
+              <strong>终止条件：</strong>通过
+              <code>continue_condition</code> 表达式或
+              <code>max_iterations</code> 控制
+            </div>
+          </div>
+        </div>
+
+        <!-- Workflow Agent Details -->
+        <div class="bg-white rounded-lg border border-editorial-200 shadow-sm overflow-hidden mb-8">
+          <div class="bg-editorial-50 px-6 py-4 border-b border-editorial-200">
+            <h4 class="text-lg font-semibold text-editorial-800">Workflow Agent 类型对比</h4>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full">
+              <thead class="bg-editorial-50">
+                <tr>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-editorial-700 uppercase tracking-wider">Workflow 类型</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-editorial-700 uppercase tracking-wider">类名</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-editorial-700 uppercase tracking-wider">执行模式</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-editorial-700 uppercase tracking-wider">数据传递机制</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-editorial-700 uppercase tracking-wider">典型应用场景</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-editorial-200">
+                <tr class="hover:bg-editorial-50">
+                  <td class="px-6 py-4 whitespace-nowrap font-medium text-editorial-900">顺序 Agent</td>
+                  <td class="px-6 py-4 text-sm text-editorial-700">SequentialAgent</td>
+                  <td class="px-6 py-4 text-sm text-editorial-700">按 sub_agents 列表线性依次执行</td>
+                  <td class="px-6 py-4 text-sm text-editorial-700">前一个 Agent 通过 output_key 写入 session.state，后一个通过 {key} 模板引用</td>
+                  <td class="px-6 py-4 text-sm text-editorial-700">数据验证→处理→报告的多步骤流水线</td>
+                </tr>
+                <tr class="hover:bg-editorial-50">
+                  <td class="px-6 py-4 whitespace-nowrap font-medium text-editorial-900">并行 Agent</td>
+                  <td class="px-6 py-4 text-sm text-editorial-700">ParallelAgent</td>
+                  <td class="px-6 py-4 text-sm text-editorial-700">同时并发执行所有子 Agent</td>
+                  <td class="px-6 py-4 text-sm text-editorial-700">各分支通过独立 output_key 写入状态，后续 Agent 聚合读取</td>
+                  <td class="px-6 py-4 text-sm text-editorial-700">多 API 数据获取后的结果综合</td>
+                </tr>
+                <tr class="hover:bg-editorial-50">
+                  <td class="px-6 py-4 whitespace-nowrap font-medium text-editorial-900">循环 Agent</td>
+                  <td class="px-6 py-4 text-sm text-editorial-700">LoopAgent</td>
+                  <td class="px-6 py-4 text-sm text-editorial-700">重复执行直至满足终止条件</td>
+                  <td class="px-6 py-4 text-sm text-editorial-700">每次迭代读取并更新共享状态</td>
+                  <td class="px-6 py-4 text-sm text-editorial-700">代码迭代优化、质量检查直至达标</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="bg-white p-8 rounded-lg border border-editorial-200 shadow-sm">
+          <h3 class="text-xl font-semibold text-editorial-800 mb-6 flex items-center">
+            <i class="fas fa-users text-accent-600 mr-3"></i>
+            动态协作编排模式
+          </h3>
+
+          <div class="grid md:grid-cols-2 gap-8">
+            <div>
+              <h4 class="font-semibold text-editorial-800 mb-3 flex items-center">
+                <span class="w-3 h-3 bg-accent-500 rounded-full mr-3"></span>
+                LLM 自主路由
+              </h4>
+              <p class="text-sm text-editorial-600 mb-3">基于任务描述智能选择子 Agent，通过语义匹配和动态决策实现灵活路由</p>
+              <div class="bg-editorial-50 p-3 rounded text-xs text-editorial-600">
+                <strong>优势：</strong>极强的适应性，新增子 Agent 只需更新 description 即可自动参与路由
+              </div>
+            </div>
+
+            <div>
+              <h4 class="font-semibold text-editorial-800 mb-3 flex items-center">
+                <span class="w-3 h-3 bg-accent-400 rounded-full mr-3"></span>
+                多 Agent 并行调用
+              </h4>
+              <p class="text-sm text-editorial-600 mb-3">同时触发多个子 Agent 并聚合结果，支持多视角并行分析</p>
+              <div class="bg-editorial-50 p-3 rounded text-xs text-editorial-600">
+                <strong>应用场景：</strong>多 Agent 投票、多源信息综合、冗余执行取最优
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-6">
+            <h4 class="font-semibold text-editorial-800 mb-3 flex items-center">
+              <span class="w-3 h-3 bg-accent-300 rounded-full mr-3"></span>
+              人机协同中断点
+            </h4>
+            <p class="text-sm text-editorial-600 mb-3">通过
+              <code class="bg-editorial-100 px-1 rounded">input-required</code> 状态实现人工审核与继续机制
+            </p>
+            <div class="bg-editorial-50 p-3 rounded text-xs text-editorial-600">
+              <strong>价值：</strong>平衡效率与风险，在关键决策点引入人类监督
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 4: Debugging -->
+      <section id="debugging" class="mb-16">
+        <h2 class="text-3xl font-serif font-bold text-editorial-900 mb-8 border-b-2 border-accent-500 pb-4">
+          4. 调试体系与诊断方法
+        </h2>
+
+        <div class="grid lg:grid-cols-2 gap-8 mb-12">
+          <div class="bg-white p-8 rounded-lg border border-editorial-200 shadow-sm">
+            <h3 class="text-xl font-semibold text-editorial-800 mb-4 flex items-center">
+              <i class="fas fa-desktop text-accent-600 mr-3"></i>
+              开发时调试：ADK Dev UI
+            </h3>
+            <div class="space-y-4">
+              <div class="bg-editorial-50 p-4 rounded border-l-4 border-accent-500">
+                <h4 class="font-medium text-editorial-800 mb-2">交互式对话测试</h4>
+                <p class="text-sm text-editorial-600">单 Agent 输入输出验证，支持多轮对话和 Agent 切换</p>
+              </div>
+              <div class="bg-editorial-50 p-4 rounded border-l-4 border-accent-400">
+                <h4 class="font-medium text-editorial-800 mb-2">执行轨迹可视化</h4>
+                <p class="text-sm text-editorial-600">步骤级调用链展示，包括 LLM 调用、工具执行、子 Agent 委托</p>
+              </div>
+              <div class="bg-editorial-50 p-4 rounded border-l-4 border-accent-300">
+                <h4 class="font-medium text-editorial-800 mb-2">状态检查点</h4>
+                <p class="text-sm text-editorial-600">会话历史与变量快照，支持任意时刻的状态回溯</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-white p-8 rounded-lg border border-editorial-200 shadow-sm">
+            <h3 class="text-xl font-semibold text-editorial-800 mb-4 flex items-center">
+              <i class="fas fa-chart-line text-accent-600 mr-3"></i>
+              运行时调试：OpenTelemetry
+            </h3>
+            <div class="space-y-4">
+              <div class="bg-editorial-50 p-4 rounded border-l-4 border-accent-500">
+                <h4 class="font-medium text-editorial-800 mb-2">Span 层级结构</h4>
+                <p class="text-sm text-editorial-600">Agent → Tool → Sub-Agent → A2A Call 的完整追踪</p>
+              </div>
+              <div class="bg-editorial-50 p-4 rounded border-l-4 border-accent-400">
+                <h4 class="font-medium text-editorial-800 mb-2">跨进程追踪</h4>
+                <p class="text-sm text-editorial-600">A2A 远程调用的 Trace 传播，实现端到端延迟分析</p>
+              </div>
+              <div class="bg-editorial-50 p-4 rounded border-l-4 border-accent-300">
+                <h4 class="font-medium text-editorial-800 mb-2">性能指标</h4>
+                <p class="text-sm text-editorial-600">延迟、Token 消耗、调用频率等关键指标监控</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Debugging Workflow -->
+        <div class="bg-white p-8 rounded-lg border border-editorial-200 shadow-sm mb-8">
+          <h3 class="text-xl font-semibold text-editorial-800 mb-6 flex items-center">
+            <i class="fas fa-search text-accent-600 mr-3"></i>
+            链接调试专项技术
+          </h3>
+
+          <div class="grid md:grid-cols-2 gap-8">
+            <div>
+              <h4 class="font-semibold text-editorial-800 mb-4">Agent Card 可达性检测</h4>
+              <div class="space-y-3">
+                <div class="flex items-start">
+                  <span class="w-6 h-6 bg-accent-500 text-white rounded-full flex items-center justify-center text-xs mr-3 mt-0.5">1</span>
+                  <div>
+                    <p class="text-sm font-medium text-editorial-800">HTTP 探测</p>
+                    <p class="text-xs text-editorial-600">curl -f http://&lt;agent-url&gt;/.well-known/agent.json</p>
+                  </div>
+                </div>
+                <div class="flex items-start">
+                  <span class="w-6 h-6 bg-accent-500 text-white rounded-full flex items-center justify-center text-xs mr-3 mt-0.5">2</span>
+                  <div>
+                    <p class="text-sm font-medium text-editorial-800">JSON 校验</p>
+                    <p class="text-xs text-editorial-600">使用 JSON Schema 验证返回结构</p>
+                  </div>
+                </div>
+                <div class="flex items-start">
+                  <span class="w-6 h-6 bg-accent-500 text-white rounded-full flex items-center justify-center text-xs mr-3 mt-0.5">3</span>
+                  <div>
+                    <p class="text-sm font-medium text-editorial-800">语义检查</p>
+                    <p class="text-xs text-editorial-600">确认 skills 描述清晰，url 可解析</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h4 class="font-semibold text-editorial-800 mb-4">调用链断点定位</h4>
+              <div class="space-y-3">
+                <div class="bg-red-50 border border-red-200 p-3 rounded">
+                  <p class="text-sm font-medium text-red-800">网络层：超时、DNS 失败</p>
+                  <p class="text-xs text-red-600">ping、telnet、抓包工具</p>
+                </div>
+                <div class="bg-yellow-50 border border-yellow-200 p-3 rounded">
+                  <p class="text-sm font-medium text-yellow-800">传输层：HTTP 4xx/5xx</p>
+                  <p class="text-xs text-yellow-600">检查服务端日志、路由配置</p>
+                </div>
+                <div class="bg-blue-50 border border-blue-200 p-3 rounded">
+                  <p class="text-sm font-medium text-blue-800">协议层：JSON 解析错误</p>
+                  <p class="text-xs text-blue-600">对比 A2A 协议规范、验证 Schema</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white p-8 rounded-lg border border-editorial-200 shadow-sm">
+          <h3 class="text-xl font-semibold text-editorial-800 mb-4 flex items-center">
+            <i class="fas fa-file-alt text-accent-600 mr-3"></i>
+            日志策略与分级诊断
+          </h3>
+
+          <div class="overflow-x-auto">
+            <table class="w-full">
+              <thead class="bg-editorial-50">
+                <tr>
+                  <th class="px-4 py-3 text-left text-xs font-medium text-editorial-700 uppercase tracking-wider">级别</th>
+                  <th class="px-4 py-3 text-left text-xs font-medium text-editorial-700 uppercase tracking-wider">适用场景</th>
+                  <th class="px-4 py-3 text-left text-xs font-medium text-editorial-700 uppercase tracking-wider">典型输出内容</th>
+                  <th class="px-4 py-3 text-left text-xs font-medium text-editorial-700 uppercase tracking-wider">生产建议</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-editorial-200">
+                <tr class="hover:bg-editorial-50">
+                  <td class="px-4 py-3 whitespace-nowrap">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">DEBUG</span>
+                  </td>
+                  <td class="px-4 py-3 text-sm text-editorial-700">主动故障排查</td>
+                  <td class="px-4 py-3 text-sm text-editorial-700">完整 LLM 请求/响应、工具参数、状态变更</td>
+                  <td class="px-4 py-3 text-sm text-editorial-700">仅临时启用</td>
+                </tr>
+                <tr class="hover:bg-editorial-50">
+                  <td class="px-4 py-3 whitespace-nowrap">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">INFO</span>
+                  </td>
+                  <td class="px-4 py-3 text-sm text-editorial-700">常规运行监控</td>
+                  <td class="px-4 py-3 text-sm text-editorial-700">Agent 调用开始/结束、路由决策、任务状态转换</td>
+                  <td class="px-4 py-3 text-sm text-editorial-700">默认级别</td>
+                </tr>
+                <tr class="hover:bg-editorial-50">
+                  <td class="px-4 py-3 whitespace-nowrap">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">WARNING</span>
+                  </td>
+                  <td class="px-4 py-3 text-sm text-editorial-700">异常但可恢复</td>
+                  <td class="px-4 py-3 text-sm text-editorial-700">重试触发、降级处理、配置缺失</td>
+                  <td class="px-4 py-3 text-sm text-editorial-700">持续关注</td>
+                </tr>
+                <tr class="hover:bg-editorial-50">
+                  <td class="px-4 py-3 whitespace-nowrap">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">ERROR</span>
+                  </td>
+                  <td class="px-4 py-3 text-sm text-editorial-700">功能受损</td>
+                  <td class="px-4 py-3 text-sm text-editorial-700">工具执行失败、A2A 调用超时、状态不一致</td>
+                  <td class="px-4 py-3 text-sm text-editorial-700">立即处理</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 5: Engineering Practices -->
+      <section id="engineering-practices" class="mb-16">
+        <h2 class="text-3xl font-serif font-bold text-editorial-900 mb-8 border-b-2 border-accent-500 pb-4">
+          5. 面向 A2A Proxy 与群组服务的工程实践
+        </h2>
+
+        <div class="grid lg:grid-cols-2 gap-8 mb-12">
+          <div class="bg-white p-8 rounded-lg border border-editorial-200 shadow-sm">
+            <h3 class="text-xl font-semibold text-editorial-800 mb-4 flex items-center">
+              <i class="fas fa-server text-accent-600 mr-3"></i>
+              Proxy 服务设计要点
+            </h3>
+            <div class="space-y-4">
+              <div class="bg-editorial-50 p-4 rounded border-l-4 border-accent-500">
+                <h4 class="font-medium text-editorial-800 mb-2">协议转换层</h4>
+                <p class="text-sm text-editorial-600">A2A 标准消息与内部格式的双向映射，保留完整语义信息</p>
+              </div>
+              <div class="bg-editorial-50 p-4 rounded border-l-4 border-accent-400">
+                <h4 class="font-medium text-editorial-800 mb-2">服务注册中心</h4>
+                <p class="text-sm text-editorial-600">Agent Card 的聚合与缓存，支持拉模式、推模式、混合模式</p>
+              </div>
+              <div class="bg-editorial-50 p-4 rounded border-l-4 border-accent-300">
+                <h4 class="font-medium text-editorial-800 mb-2">路由决策引擎</h4>
+                <p class="text-sm text-editorial-600">基于技能匹配的智能转发，支持规则路由、语义路由、混合路由</p>
+              </div>
+              <div class="bg-editorial-50 p-4 rounded border-l-4 border-accent-200">
+                <h4 class="font-medium text-editorial-800 mb-2">负载均衡与故障转移</h4>
+                <p class="text-sm text-editorial-600">多实例 Agent 的调度策略，包括健康检查和故障转移</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-white p-8 rounded-lg border border-editorial-200 shadow-sm">
+            <h3 class="text-xl font-semibold text-editorial-800 mb-4 flex items-center">
+              <i class="fas fa-users-cog text-accent-600 mr-3"></i>
+              群组服务核心机制
+            </h3>
+            <div class="space-y-4">
+              <div class="bg-editorial-50 p-4 rounded border-l-4 border-accent-500">
+                <h4 class="font-medium text-editorial-800 mb-2">组播模式</h4>
+                <p class="text-sm text-editorial-600">一对多任务分发与结果收集，支持异步并发和超时控制</p>
+              </div>
+              <div class="bg-editorial-50 p-4 rounded border-l-4 border-accent-400">
+                <h4 class="font-medium text-editorial-800 mb-2">共识聚合</h4>
+                <p class="text-sm text-editorial-600">多 Agent 结果的去重与投票，支持多种聚合策略</p>
+              </div>
+              <div class="bg-editorial-50 p-4 rounded border-l-4 border-accent-300">
+                <h4 class="font-medium text-editorial-800 mb-2">动态成员管理</h4>
+                <p class="text-sm text-editorial-600">Agent 的加入、退出、心跳检测，支持优雅退出和故障剔除</p>
+              </div>
+              <div class="bg-editorial-50 p-4 rounded border-l-4 border-accent-200">
+                <h4 class="font-medium text-editorial-800 mb-2">权限与隔离</h4>
+                <p class="text-sm text-editorial-600">群组内访问控制与命名空间，支持多租户隔离</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Implementation Patterns -->
+        <div class="bg-white rounded-lg border border-editorial-200 shadow-sm overflow-hidden mb-8">
+          <div class="bg-editorial-50 px-6 py-4 border-b border-editorial-200">
+            <h4 class="text-lg font-semibold text-editorial-800">关键实现模式对比</h4>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full">
+              <thead class="bg-editorial-50">
+                <tr>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-editorial-700 uppercase tracking-wider">实现模式</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-editorial-700 uppercase tracking-wider">架构</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-editorial-700 uppercase tracking-wider">优势</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-editorial-700 uppercase tracking-wider">适用场景</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-editorial-200">
+                <tr class="hover:bg-editorial-50">
+                  <td class="px-6 py-4 whitespace-nowrap font-medium text-editorial-900">根 Agent 作为 Proxy</td>
+                  <td class="px-6 py-4 text-sm text-editorial-700">统一入口委托至后端 Agent 集群</td>
+                  <td class="px-6 py-4 text-sm text-editorial-700">实现简单，直接利用 ADK 内置路由能力</td>
+                  <td class="px-6 py-4 text-sm text-editorial-700">Agent 数量较少（10-20个）、任务类型简单</td>
+                </tr>
+                <tr class="hover:bg-editorial-50">
+                  <td class="px-6 py-4 whitespace-nowrap font-medium text-editorial-900">独立 Proxy 进程</td>
+                  <td class="px-6 py-4 text-sm text-editorial-700">Sidecar 模式解耦业务与通信</td>
+                  <td class="px-6 py-4 text-sm text-editorial-700">通信逻辑与业务逻辑彻底分离</td>
+                  <td class="px-6 py-4 text-sm text-editorial-700">生产环境，需要独立升级和水平扩展</td>
+                </tr>
+                <tr class="hover:bg-editorial-50">
+                  <td class="px-6 py-4 whitespace-nowrap font-medium text-editorial-900">混合云部署</td>
+                  <td class="px-6 py-4 text-sm text-editorial-700">本地子 Agent + 云端远程 Agent</td>
+                  <td class="px-6 py-4 text-sm text-editorial-700">数据安全与弹性扩展的平衡</td>
+                  <td class="px-6 py-4 text-sm text-editorial-700">敏感数据处理 + 大模型能力需求</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="bg-white p-8 rounded-lg border border-editorial-200 shadow-sm">
+          <h3 class="text-xl font-semibold text-editorial-800 mb-6 flex items-center">
+            <i class="fas fa-shield-alt text-accent-600 mr-3"></i>
+            可靠性保障机制
+          </h3>
+
+          <div class="grid md:grid-cols-3 gap-6">
+            <div class="bg-editorial-50 p-6 rounded-lg border border-editorial-200">
+              <h4 class="font-semibold text-editorial-800 mb-3 flex items-center">
+                <i class="fas fa-redo text-accent-600 mr-2"></i>
+                重试与退避
+              </h4>
+              <div class="space-y-2 text-sm text-editorial-600">
+                <div class="flex justify-between">
+                  <span>初始延迟：</span>
+                  <span class="font-medium">1秒</span>
+                </div>
+                <div class="flex justify-between">
+                  <span>退避系数：</span>
+                  <span class="font-medium">2</span>
+                </div>
+                <div class="flex justify-between">
+                  <span>最大延迟：</span>
+                  <span class="font-medium">60秒</span>
+                </div>
+                <div class="flex justify-between">
+                  <span>最大重试：</span>
+                  <span class="font-medium">5次</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-editorial-50 p-6 rounded-lg border border-editorial-200">
+              <h4 class="font-semibold text-editorial-800 mb-3 flex items-center">
+                <i class="fas fa-power-off text-accent-600 mr-2"></i>
+                熔断降级
+              </h4>
+              <div class="space-y-2 text-sm text-editorial-600">
+                <div class="flex justify-between">
+                  <span>触发条件：</span>
+                  <span class="font-medium">连续失败率 &gt; 50%</span>
+                </div>
+                <div class="flex justify-between">
+                  <span>状态：</span>
+                  <span class="font-medium">Closed/Open/Half-Open</span>
+                </div>
+                <div class="flex justify-between">
+                  <span>降级策略：</span>
+                  <span class="font-medium">缓存/备用/简化</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-editorial-50 p-6 rounded-lg border border-editorial-200">
+              <h4 class="font-semibold text-editorial-800 mb-3 flex items-center">
+                <i class="fas fa-clock text-accent-600 mr-2"></i>
+                超时控制
+              </h4>
+              <div class="space-y-2 text-sm text-editorial-600">
+                <div class="flex justify-between">
+                  <span>请求超时：</span>
+                  <span class="font-medium">HTTP 层</span>
+                </div>
+                <div class="flex justify-between">
+                  <span>任务超时：</span>
+                  <span class="font-medium">Task 生命周期</span>
+                </div>
+                <div class="flex justify-between">
+                  <span>Deadline 传递：</span>
+                  <span class="font-medium">跨进程传递</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 6: SDK Comparison -->
+      <section id="sdk-comparison" class="mb-16">
+        <h2 class="text-3xl font-serif font-bold text-editorial-900 mb-8 border-b-2 border-accent-500 pb-4">
+          6. 多语言 SDK 对比与选型建议
+        </h2>
+
+        <div class="grid lg:grid-cols-3 gap-8 mb-12">
+          <div class="bg-white p-8 rounded-lg border border-editorial-200 shadow-sm">
+            <h3 class="text-xl font-semibold text-editorial-800 mb-4 flex items-center">
+              <i class="fab fa-python text-accent-600 mr-3"></i>
+              Python SDK 深度能力
+            </h3>
+            <div class="space-y-4">
+              <div class="bg-editorial-50 p-4 rounded">
+                <h4 class="font-medium text-editorial-800 mb-2">完整 A2A 支持</h4>
+                <p class="text-sm text-editorial-600">暴露与消费的双向实现，支持 A2A Extension V2</p>
+              </div>
+              <div class="bg-editorial-50 p-4 rounded">
+                <h4 class="font-medium text-editorial-800 mb-2">丰富的内置工具</h4>
+                <p class="text-sm text-editorial-600">Google Search、代码执行、Vertex AI、BigQuery 等</p>
+              </div>
+              <div class="bg-editorial-50 p-4 rounded">
+                <h4 class="font-medium text-editorial-800 mb-2">快速原型优势</h4>
+                <p class="text-sm text-editorial-600">adk create 模板生成，adk web 实时重载</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-white p-8 rounded-lg border border-editorial-200 shadow-sm">
+            <h3 class="text-xl font-semibold text-editorial-800 mb-4 flex items-center">
+              <i class="fas fa-rocket text-accent-600 mr-3"></i>
+              Go SDK 服务端特性
+            </h3>
+            <div class="space-y-4">
+              <div class="bg-editorial-50 p-4 rounded">
+                <h4 class="font-medium text-editorial-800 mb-2">高性能并发</h4>
+                <p class="text-sm text-editorial-600">goroutine 和 channel 机制，单机数万并发</p>
+              </div>
+              <div class="bg-editorial-50 p-4 rounded">
+                <h4 class="font-medium text-editorial-800 mb-2">A2A 暴露能力</h4>
+                <p class="text-sm text-editorial-600">完整的 A2A 服务暴露，消费侧支持有限</p>
+              </div>
+              <div class="bg-editorial-50 p-4 rounded">
+                <h4 class="font-medium text-editorial-800 mb-2">云原生友好</h4>
+                <p class="text-sm text-editorial-600">静态编译，容器镜像极小，启动速度快</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-white p-8 rounded-lg border border-editorial-200 shadow-sm">
+            <h3 class="text-xl font-semibold text-editorial-800 mb-4 flex items-center">
+              <i class="fas fa-handshake text-accent-600 mr-3"></i>
+              跨语言互操作
+            </h3>
+            <div class="space-y-4">
+              <div class="bg-editorial-50 p-4 rounded">
+                <h4 class="font-medium text-editorial-800 mb-2">协议兼容性</h4>
+                <p class="text-sm text-editorial-600">基于 JSON-RPC 2.0 和 HTTP 的标准化传输</p>
+              </div>
+              <div class="bg-editorial-50 p-4 rounded">
+                <h4 class="font-medium text-editorial-800 mb-2">验证覆盖</h4>
+                <p class="text-sm text-editorial-600">Agent Card 解析、Task 序列化、SSE 兼容</p>
+              </div>
+              <div class="bg-editorial-50 p-4 rounded">
+                <h4 class="font-medium text-editorial-800 mb-2">保障机制</h4>
+                <p class="text-sm text-editorial-600">JSON Schema 校验、HTTP 契约遵守</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SDK Feature Matrix -->
+        <div class="bg-white rounded-lg border border-editorial-200 shadow-sm overflow-hidden mb-8">
+          <div class="bg-editorial-50 px-6 py-4 border-b border-editorial-200">
+            <h4 class="text-lg font-semibold text-editorial-800">多语言 SDK 功能矩阵</h4>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full">
+              <thead class="bg-editorial-50">
+                <tr>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-editorial-700 uppercase tracking-wider">功能特性</th>
+                  <th class="px-6 py-3 text-center text-xs font-medium text-editorial-700 uppercase tracking-wider">Python</th>
+                  <th class="px-6 py-3 text-center text-xs font-medium text-editorial-700 uppercase tracking-wider">Go</th>
+                  <th class="px-6 py-3 text-center text-xs font-medium text-editorial-700 uppercase tracking-wider">Java</th>
+                  <th class="px-6 py-3 text-center text-xs font-medium text-editorial-700 uppercase tracking-wider">TypeScript</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-editorial-200">
+                <tr class="hover:bg-editorial-50">
+                  <td class="px-6 py-4 font-medium text-editorial-900">A2A 协议双向支持</td>
+                  <td class="px-6 py-4 text-center">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">完整</span>
+                  </td>
+                  <td class="px-6 py-4 text-center">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">部分</span>
+                  </td>
+                  <td class="px-6 py-4 text-center">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">基础</span>
+                  </td>
+                  <td class="px-6 py-4 text-center">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">实验</span>
+                  </td>
+                </tr>
+                <tr class="hover:bg-editorial-50">
+                  <td class="px-6 py-4 font-medium text-editorial-900">Workflow Agent 支持</td>
+                  <td class="px-6 py-4 text-center">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">完整</span>
+                  </td>
+                  <td class="px-6 py-4 text-center">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">部分</span>
+                  </td>
+                  <td class="px-6 py-4 text-center">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">部分</span>
+                  </td>
+                  <td class="px-6 py-4 text-center">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">开发中</span>
+                  </td>
+                </tr>
+                <tr class="hover:bg-editorial-50">
+                  <td class="px-6 py-4 font-medium text-editorial-900">内置工具生态</td>
+                  <td class="px-6 py-4 text-center">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">丰富</span>
+                  </td>
+                  <td class="px-6 py-4 text-center">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">基础</span>
+                  </td>
+                  <td class="px-6 py-4 text-center">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">基础</span>
+                  </td>
+                  <td class="px-6 py-4 text-center">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">有限</span>
+                  </td>
+                </tr>
+                <tr class="hover:bg-editorial-50">
+                  <td class="px-6 py-4 font-medium text-editorial-900">调试工具链</td>
+                  <td class="px-6 py-4 text-center">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">完整</span>
+                  </td>
+                  <td class="px-6 py-4 text-center">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">部分</span>
+                  </td>
+                  <td class="px-6 py-4 text-center">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">部分</span>
+                  </td>
+                  <td class="px-6 py-4 text-center">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">基础</span>
+                  </td>
+                </tr>
+                <tr class="hover:bg-editorial-50">
+                  <td class="px-6 py-4 font-medium text-editorial-900">性能与并发</td>
+                  <td class="px-6 py-4 text-center">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">中等</span>
+                  </td>
+                  <td class="px-6 py-4 text-center">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">优秀</span>
+                  </td>
+                  <td class="px-6 py-4 text-center">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">优秀</span>
+                  </td>
+                  <td class="px-6 py-4 text-center">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">良好</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="bg-white p-8 rounded-lg border border-editorial-200 shadow-sm">
+          <h3 class="text-xl font-semibold text-editorial-800 mb-6 flex items-center">
+            <i class="fas fa-lightbulb text-accent-600 mr-3"></i>
+            选型建议
+          </h3>
+
+          <div class="grid md:grid-cols-2 gap-8">
+            <div>
+              <h4 class="font-semibold text-editorial-800 mb-4 text-green-700">
+                <i class="fas fa-check-circle mr-2"></i>选择 Python SDK 当：
+              </h4>
+              <ul class="space-y-2 text-sm text-editorial-600">
+                <li class="flex items-start">
+                  <span class="w-2 h-2 bg-green-500 rounded-full mr-3 mt-1.5"></span>
+                  需要完整的 A2A 协议双向支持
+                </li>
+                <li class="flex items-start">
+                  <span class="w-2 h-2 bg-green-500 rounded-full mr-3 mt-1.5"></span>
+                  快速原型开发和频繁迭代
+                </li>
+                <li class="flex items-start">
+                  <span class="w-2 h-2 bg-green-500 rounded-full mr-3 mt-1.5"></span>
+                  需要丰富的内置工具生态
+                </li>
+                <li class="flex items-start">
+                  <span class="w-2 h-2 bg-green-500 rounded-full mr-3 mt-1.5"></span>
+                  构建复杂的 Agent 编排逻辑
+                </li>
+              </ul>
+            </div>
+
+            <div>
+              <h4 class="font-semibold text-editorial-800 mb-4 text-blue-700">
+                <i class="fas fa-check-circle mr-2"></i>选择 Go SDK 当：
+              </h4>
+              <ul class="space-y-2 text-sm text-editorial-600">
+                <li class="flex items-start">
+                  <span class="w-2 h-2 bg-blue-500 rounded-full mr-3 mt-1.5"></span>
+                  高性能网关或协议转换层
+                </li>
+                <li class="flex items-start">
+                  <span class="w-2 h-2 bg-blue-500 rounded-full mr-3 mt-1.5"></span>
+                  云原生部署和 Serverless 架构
+                </li>
+                <li class="flex items-start">
+                  <span class="w-2 h-2 bg-blue-500 rounded-full mr-3 mt-1.5"></span>
+                  主要作为 A2A 服务提供者
+                </li>
+                <li class="flex items-start">
+                  <span class="w-2 h-2 bg-blue-500 rounded-full mr-3 mt-1.5"></span>
+                  需要极小的容器镜像和快速启动
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="mt-6 bg-yellow-50 border border-yellow-200 p-4 rounded">
+            <h4 class="font-semibold text-yellow-800 mb-2 flex items-center">
+              <i class="fas fa-exclamation-triangle mr-2"></i>
+              混合使用建议
+            </h4>
+            <p class="text-sm text-yellow-700">
+              对于复杂系统，可以考虑<strong>Python + Go 混合架构</strong>：Python 实现业务逻辑复杂的 Agent，Go 实现高性能的 Proxy 网关和协议转换层，通过 A2A 协议进行无缝协作。
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 7: Extension Mechanisms -->
+      <section id="extension-mechanisms" class="mb-16">
+        <h2 class="text-3xl font-serif font-bold text-editorial-900 mb-8 border-b-2 border-accent-500 pb-4">
+          7. 扩展机制与自定义开发
+        </h2>
+
+        <div class="grid lg:grid-cols-3 gap-8 mb-12">
+          <div class="bg-white p-6 rounded-lg border border-editorial-200 shadow-sm">
+            <h3 class="text-lg font-semibold text-editorial-800 mb-4 flex items-center">
+              <i class="fas fa-tools text-accent-600 mr-3"></i>
+              自定义工具集成
+            </h3>
+            <div class="space-y-3">
+              <div class="bg-editorial-50 p-3 rounded">
+                <h4 class="font-medium text-editorial-800 text-sm mb-1">Python 函数注册</h4>
+                <p class="text-xs text-editorial-600">@tool 装饰器注册，类型注解自动生成 Schema</p>
+              </div>
+              <div class="bg-editorial-50 p-3 rounded">
+                <h4 class="font-medium text-editorial-800 text-sm mb-1">外部 API 封装</h4>
+                <p class="text-xs text-editorial-600">RESTful/GraphQL API 适配为 LLM 友好工具</p>
+              </div>
+              <div class="bg-editorial-50 p-3 rounded">
+                <h4 class="font-medium text-editorial-800 text-sm mb-1">MCP 工具桥接</h4>
+                <p class="text-xs text-editorial-600">McpToolset 类集成 MCP 服务器生态</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-white p-6 rounded-lg border border-editorial-200 shadow-sm">
+            <h3 class="text-lg font-semibold text-editorial-800 mb-4 flex items-center">
+              <i class="fas fa-cog text-accent-600 mr-3"></i>
+              Agent 行为定制
+            </h3>
+            <div class="space-y-3">
+              <div class="bg-editorial-50 p-3 rounded">
+                <h4 class="font-medium text-editorial-800 text-sm mb-1">指令模板化</h4>
+                <p class="text-xs text-editorial-600">{variable} 模板语法，session.state 动态替换</p>
+              </div>
+              <div class="bg-editorial-50 p-3 rounded">
+                <h4 class="font-medium text-editorial-800 text-sm mb-1">记忆系统扩展</h4>
+                <p class="text-xs text-editorial-600">短期会话 + 中期工作 + 长期知识三层架构</p>
+              </div>
+              <div class="bg-editorial-50 p-3 rounded">
+                <h4 class="font-medium text-editorial-800 text-sm mb-1">回调钩子</h4>
+                <p class="text-xs text-editorial-600">Before/After Tool Call 拦截，实现横切关注点</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-white p-6 rounded-lg border border-editorial-200 shadow-sm">
+            <h3 class="text-lg font-semibold text-editorial-800 mb-4 flex items-center">
+              <i class="fas fa-network-wired text-accent-600 mr-3"></i>
+              传输层扩展
+            </h3>
+            <div class="space-y-3">
+              <div class="bg-editorial-50 p-3 rounded">
+                <h4 class="font-medium text-editorial-800 text-sm mb-1">自定义 A2A 传输</h4>
+                <p class="text-xs text-editorial-600">WebSocket、gRPC 替代 HTTP，支持实时双向通信</p>
+              </div>
+              <div class="bg-editorial-50 p-3 rounded">
+                <h4 class="font-medium text-editorial-800 text-sm mb-1">认证插件</h4>
+                <p class="text-xs text-editorial-600">OAuth、API Key、mTLS 可插拔认证架构</p>
+              </div>
+              <div class="bg-editorial-50 p-3 rounded">
+                <h4 class="font-medium text-editorial-800 text-sm mb-1">多租户支持</h4>
+                <p class="text-xs text-editorial-600">命名空间隔离、角色权限、审计日志</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Memory System Architecture -->
+        <div class="bg-white p-8 rounded-lg border border-editorial-200 shadow-sm mb-8">
+          <h3 class="text-xl font-semibold text-editorial-800 mb-6 flex items-center">
+            <i class="fas fa-brain text-accent-600 mr-3"></i>
+            记忆系统架构
+          </h3>
+
+          <div class="grid md:grid-cols-3 gap-6">
+            <div class="bg-editorial-50 p-6 rounded-lg border border-editorial-200">
+              <h4 class="font-semibold text-editorial-800 mb-3 flex items-center">
+                <i class="fas fa-clock text-accent-600 mr-2"></i>
+                短期会话记忆
+              </h4>
+              <p class="text-sm text-editorial-600 mb-3">当前对话的上下文维护</p>
+              <div class="space-y-2 text-xs text-editorial-600">
+                <div class="flex justify-between">
+                  <span>实现：</span>
+                  <span class="font-medium">Session + State</span>
+                </div>
+                <div class="flex justify-between">
+                  <span>存储：</span>
+                  <span class="font-medium">InMemory/Database</span>
+                </div>
+                <div class="flex justify-between">
+                  <span>生命周期：</span>
+                  <span class="font-medium">单次对话</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-editorial-50 p-6 rounded-lg border border-editorial-200">
+              <h4 class="font-semibold text-editorial-800 mb-3 flex items-center">
+                <i class="fas fa-tasks text-accent-600 mr-2"></i>
+                中期工作记忆
+              </h4>
+              <p class="text-sm text-editorial-600 mb-3">单次调用的参数和中间结果</p>
+              <div class="space-y-2 text-xs text-editorial-600">
+                <div class="flex justify-between">
+                  <span>实现：</span>
+                  <span class="font-medium">InvocationContext</span>
+                </div>
+                <div class="flex justify-between">
+                  <span>管理：</span>
+                  <span class="font-medium">框架自动</span>
+                </div>
+                <div class="flex justify-between">
+                  <span>生命周期：</span>
+                  <span class="font-medium">单次调用</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-editorial-50 p-6 rounded-lg border border-editorial-200">
+              <h4 class="font-semibold text-editorial-800 mb-3 flex items-center">
+                <i class="fas fa-database text-accent-600 mr-2"></i>
+                长期知识记忆
+              </h4>
+              <p class="text-sm text-editorial-600 mb-3">跨会话的知识积累和经验复用</p>
+              <div class="space-y-2 text-xs text-editorial-600">
+                <div class="flex justify-between">
+                  <span>实现：</span>
+                  <span class="font-medium">Memory 组件</span>
+                </div>
+                <div class="flex justify-between">
+                  <span>存储：</span>
+                  <span class="font-medium">向量数据库</span>
+                </div>
+                <div class="flex justify-between">
+                  <span>生命周期：</span>
+                  <span class="font-medium">长期持久</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white p-8 rounded-lg border border-editorial-200 shadow-sm">
+          <h3 class="text-xl font-semibold text-editorial-800 mb-6 flex items-center">
+            <i class="fas fa-code text-accent-600 mr-3"></i>
+            回调钩子系统
+          </h3>
+
+          <div class="overflow-x-auto">
+            <table class="w-full">
+              <thead class="bg-editorial-50">
+                <tr>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-editorial-700 uppercase tracking-wider">回调点</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-editorial-700 uppercase tracking-wider">触发时机</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-editorial-700 uppercase tracking-wider">典型用途</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-editorial-200">
+                <tr class="hover:bg-editorial-50">
+                  <td class="px-6 py-4 font-medium text-editorial-900">before_model_callback</td>
+                  <td class="px-6 py-4 text-sm text-editorial-700">LLM 调用前</td>
+                  <td class="px-6 py-4 text-sm text-editorial-700">输入安全过滤、提示注入检测、上下文压缩</td>
+                </tr>
+                <tr class="hover:bg-editorial-50">
+                  <td class="px-6 py-4 font-medium text-editorial-900">after_model_callback</td>
+                  <td class="px-6 py-4 text-sm text-editorial-700">LLM 调用后</td>
+                  <td class="px-6 py-4 text-sm text-editorial-700">输出脱敏、格式校验、内容审核</td>
+                </tr>
+                <tr class="hover:bg-editorial-50">
+                  <td class="px-6 py-4 font-medium text-editorial-900">before_tool_callback</td>
+                  <td class="px-6 py-4 text-sm text-editorial-700">工具执行前</td>
+                  <td class="px-6 py-4 text-sm text-editorial-700">参数校验、权限检查、审计日志、速率限制</td>
+                </tr>
+                <tr class="hover:bg-editorial-50">
+                  <td class="px-6 py-4 font-medium text-editorial-900">after_tool_callback</td>
+                  <td class="px-6 py-4 text-sm text-editorial-700">工具执行后</td>
+                  <td class="px-6 py-4 text-sm text-editorial-700">结果缓存、错误处理、性能监控、数据脱敏</td>
+                </tr>
+                <tr class="hover:bg-editorial-50">
+                  <td class="px-6 py-4 font-medium text-editorial-900">after_agent_callback</td>
+                  <td class="px-6 py-4 text-sm text-editorial-700">Agent 完成后</td>
+                  <td class="px-6 py-4 text-sm text-editorial-700">资源清理、会话持久化、指标上报</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="mt-6 bg-accent-50 border border-accent-200 p-4 rounded">
+            <h4 class="font-semibold text-accent-800 mb-2 flex items-center">
+              <i class="fas fa-lightbulb mr-2"></i>
+              最佳实践
+            </h4>
+            <p class="text-sm text-accent-700">
+              回调钩子是实现横切关注点（cross-cutting concerns）的理想位置，建议在 Proxy 服务中统一实现认证鉴权、速率限制、请求改写、响应缓存等功能，保持业务 Agent 的纯净性。
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Conclusion -->
+      <section class="bg-gradient-to-r from-editorial-900 to-accent-800 text-white p-12 rounded-lg mb-16">
+        <h2 class="text-3xl font-serif font-bold mb-6">总结与展望</h2>
+        <div class="grid md:grid-cols-2 gap-8">
+          <div>
+            <h3 class="text-xl font-semibold mb-4 flex items-center">
+              <i class="fas fa-trophy text-yellow-400 mr-3"></i>
+              核心优势
+            </h3>
+            <ul class="space-y-2 text-sm text-gray-200">
+              <li class="flex items-start">
+                <span class="w-2 h-2 bg-yellow-400 rounded-full mr-3 mt-2"></span>
+                完整的 A2A 协议实现，真正的跨框架互操作
+              </li>
+              <li class="flex items-start">
+                <span class="w-2 h-2 bg-yellow-400 rounded-full mr-3 mt-2"></span>
+                灵活的双模式配置，代码驱动与声明式并行
+              </li>
+              <li class="flex items-start">
+                <span class="w-2 h-2 bg-yellow-400 rounded-full mr-3 mt-2"></span>
+                强大的编排能力，动态路由与确定性流程结合
+              </li>
+              <li class="flex items-start">
+                <span class="w-2 h-2 bg-yellow-400 rounded-full mr-3 mt-2"></span>
+                全链路调试体系，Dev UI + OpenTelemetry 追踪
+              </li>
+            </ul>
+          </div>
+
+          <div>
+            <h3 class="text-xl font-semibold mb-4 flex items-center">
+              <i class="fas fa-rocket text-yellow-400 mr-3"></i>
+              未来展望
+            </h3>
+            <ul class="space-y-2 text-sm text-gray-200">
+              <li class="flex items-start">
+                <span class="w-2 h-2 bg-yellow-400 rounded-full mr-3 mt-2"></span>
+                A2A 协议的进一步发展，支持更多传输层选项
+              </li>
+              <li class="flex items-start">
+                <span class="w-2 h-2 bg-yellow-400 rounded-full mr-3 mt-2"></span>
+                Workflow Agent 的能力增强，更复杂的流程控制
+              </li>
+              <li class="flex items-start">
+                <span class="w-2 h-2 bg-yellow-400 rounded-full mr-3 mt-2"></span>
+                多语言 SDK 的功能对齐，统一的开发体验
+              </li>
+              <li class="flex items-start">
+                <span class="w-2 h-2 bg-yellow-400 rounded-full mr-3 mt-2"></span>
+                与云原生生态的深度融合，Serverless 部署支持
+              </li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- References -->
+      <section class="bg-editorial-50 p-8 rounded-lg border border-editorial-200">
+        <h2 class="text-2xl font-serif font-bold text-editorial-800 mb-6 flex items-center">
+          <i class="fas fa-link text-accent-600 mr-3"></i>
+          参考资料
+        </h2>
+        <div class="grid md:grid-cols-2 gap-6 text-sm">
+          <div class="space-y-3">
+            <div id="ref-1" class="flex items-start">
+              <span class="text-accent-600 font-medium mr-2">[1]</span>
+              <a href="https://adk.dev/" target="_blank" class="text-editorial-700 hover:text-accent-600 transition-colors">
+                Google ADK 官方文档 - 核心框架介绍
+              </a>
+            </div>
+            <div id="ref-2" class="flex items-start">
+              <span class="text-accent-600 font-medium mr-2">[2]</span>
+              <a href="https://www.linkedin.com/posts/the-new-stack_what-is-googles-agent-development-kit-an-activity-7427667870626611200-kZVU" target="_blank" class="text-editorial-700 hover:text-accent-600 transition-colors">
+                What is Google&#39;s Agent Development Kit - LinkedIn Analysis
+              </a>
+            </div>
+            <div id="ref-3" class="flex items-start">
+              <span class="text-accent-600 font-medium mr-2">[3]</span>
+              <a href="https://www.linkedin.com/posts/the-new-stack_what-is-googles-agent-development-kit-an-activity-7427667870626611200-kZVU" target="_blank" class="text-editorial-700 hover:text-accent-600 transition-colors">
+                Google ADK Workflow Agents Explained
+              </a>
+            </div>
+            <div id="ref-4" class="flex items-start">
+              <span class="text-accent-600 font-medium mr-2">[4]</span>
+              <a href="https://medium.aiplanet.com/a2a-agent-to-agent-communication-using-google-adk-a560383c56c2" target="_blank" class="text-editorial-700 hover:text-accent-600 transition-colors">
+                A2A Agent Communication using Google ADK
+              </a>
+            </div>
+            <div id="ref-5" class="flex items-start">
+              <span class="text-accent-600 font-medium mr-2">[5]</span>
+              <a href="https://adk.dev/tutorials/agent-team/" target="_blank" class="text-editorial-700 hover:text-accent-600 transition-colors">
+                ADK Agent Teams Tutorial
+              </a>
+            </div>
+            <div id="ref-6" class="flex items-start">
+              <span class="text-accent-600 font-medium mr-2">[6]</span>
+              <a href="https://www.a2aprotocol.org/de/tutorials/agent-to-agent-communication-implementing-a2a-protocol-in-adk-projects" target="_blank" class="text-editorial-700 hover:text-accent-600 transition-colors">
+                Implementing A2A Protocol in ADK Projects
+              </a>
+            </div>
+          </div>
+          <div class="space-y-3">
+            <div id="ref-7" class="flex items-start">
+              <span class="text-accent-600 font-medium mr-2">[7]</span>
+              <a href="https://adk.dev/integrations/" target="_blank" class="text-editorial-700 hover:text-accent-600 transition-colors">
+                ADK Integrations - 扩展能力
+              </a>
+            </div>
+            <div id="ref-8" class="flex items-start">
+              <span class="text-accent-600 font-medium mr-2">[8]</span>
+              <a href="https://discuss.google.dev/t/how-to-connect-adk-agents-to-vertex-ai-api-key-setup-issue/186935" target="_blank" class="text-editorial-700 hover:text-accent-600 transition-colors">
+                Vertex AI API Key Setup for ADK
+              </a>
+            </div>
+            <div id="ref-9" class="flex items-start">
+              <span class="text-accent-600 font-medium mr-2">[9]</span>
+              <a href="https://partner.skills.google/focuses/125062?parent=catalog" target="_blank" class="text-editorial-700 hover:text-accent-600 transition-colors">
+                Google Partner Skills - ADK Go Implementation
+              </a>
+            </div>
+            <div id="ref-10" class="flex items-start">
+              <span class="text-accent-600 font-medium mr-2">[10]</span>
+              <a href="https://iamulya.one/posts/telemetry,-logging,-and-debugging/" target="_blank" class="text-editorial-700 hover:text-accent-600 transition-colors">
+                Telemetry, Logging, and Debugging in ADK
+              </a>
+            </div>
+            <div id="ref-11" class="flex items-start">
+              <span class="text-accent-600 font-medium mr-2">[11]</span>
+              <a href="https://adk.dev/observability/logging/" target="_blank" class="text-editorial-700 hover:text-accent-600 transition-colors">
+                ADK Observability and Logging
+              </a>
+            </div>
+            <div id="ref-12" class="flex items-start">
+              <span class="text-accent-600 font-medium mr-2">[12]</span>
+              <a href="https://discuss.ai.google.dev/t/is-there-a-built-in-debugger-or-visual-trace-tool-for-google-adk-agents-like-langgraph-s-debugger/92167" target="_blank" class="text-editorial-700 hover:text-accent-600 transition-colors">
+                ADK Debugger and Visual Trace Tools Discussion
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script>
+        // Smooth scrolling for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // Toggle TOC visibility on mobile
+        document.getElementById('toc-toggle').addEventListener('click', function() {
+            document.querySelector('.toc-fixed').classList.add('toc-visible');
+        });
+
+        document.getElementById('toc-close').addEventListener('click', function() {
+            document.querySelector('.toc-fixed').classList.remove('toc-visible');
+        });
+
+        // Highlight active section in TOC
+        const sections = document.querySelectorAll('section[id]');
+        const tocLinks = document.querySelectorAll('.toc-fixed a[href^="#"]');
+
+        function highlightActiveSection() {
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                const sectionHeight = section.clientHeight;
+                if (window.scrollY >= sectionTop - 200) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            tocLinks.forEach(link => {
+                link.classList.remove('bg-accent-100', 'text-accent-800', 'font-medium');
+                if (link.getAttribute('href') === `#${current}`) {
+                    link.classList.add('bg-accent-100', 'text-accent-800', 'font-medium');
+                }
+            });
+        }
+
+        window.addEventListener('scroll', highlightActiveSection);
+        highlightActiveSection(); // Initial call
+    </script>
+  
+
+</body></html>
