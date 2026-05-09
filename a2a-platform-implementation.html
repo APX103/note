@@ -288,8 +288,8 @@ model Task {
   createdAt     DateTime   @default(now())
   completedAt   DateTime?
   timeoutAt     DateTime?
-  maxRounds     Int        @default(20)
-  currentRound  Int        @default(0)
+  maxMessages   Int        @default(100)     // ← 替代 maxRounds：DAG 中消息数上限
+  messageCount  Int        @default(0)        // ← 替代 currentRound：总消息计数
 
   participants  TaskParticipant[]
   messages      Message[]
@@ -312,19 +312,25 @@ model TaskParticipant {
 }
 
 model Message {
-  id           String   @id @default(cuid())
-  taskId       String
-  task         Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  fromAgentId  String
-  toAgentId    String
-  messageType  MessageType @default(TEXT)
-  payload      Json     @default("{}")
-  metadata     Json     @default("{}")  // traceId, spanId, latency, etc.
-  createdAt    DateTime @default(now())
+  id              String   @id @default(cuid())
+  taskId          String
+  task            Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  parentMessageId String?  // ← 新增：父消息 ID，建立 DAG 调用树
+  parent          Message? @relation("MessageTree", fields: [parentMessageId], references: [id])
+  children        Message[] @relation("MessageTree")
+  depth           Int      @default(0)  // ← 新增：DAG 深度（从 Task Owner 出发的层级）
+  fromAgentId     String
+  toAgentId       String
+  messageType     MessageType @default(TEXT)
+  payload         Json     @default("{}")
+  metadata        Json     @default("{}")  // traceId, spanId, latency, branchReason?
+  createdAt       DateTime @default(now())
 
-  artifacts    Artifact[]
+  artifacts       Artifact[]
 
   @@index([taskId])
+  @@index([parentMessageId])
+  @@index([depth])
   @@index([fromAgentId, toAgentId])
   @@index([createdAt])
 }
@@ -344,6 +350,7 @@ model SessionContext {
   task           Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
   sharedContext  Json     @default("{}")
   history        Json     @default("[]")
+  version        Int      @default(0)   // ← 新增：乐观锁版本号，防止并发覆盖
   updatedAt      DateTime @updatedAt
 }
 
@@ -373,6 +380,82 @@ enum MessageType {
   HEARTBEAT
   SYSTEM
 }</pre>
+
+<h3 class="text-lg font-semibold text-gray-900 mt-10 mb-3">3.3 DAG 执行流支持设计</h3>
+
+<p class="mb-3">一个 Task 中，Agent 可能<strong>并发</strong>调用多个 Agent，也可能基于条件<strong>串行</strong>调用，最终形成 DAG（有向无环图）。以下是一个典型场景：</p>
+
+<div class="bg-white rounded-2xl border border-gray-200 p-5 mb-5">
+<div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant U as 用户
+    participant A1 as Agent 1<br/>(Task Owner)
+    participant A2 as Agent 2<br/>(天气)
+    participant A3 as Agent 3<br/>(火车票)
+    participant A4 as Agent 4<br/>(美食)
+    participant A5 as Agent 5<br/>(机票)
+
+    U->>A1: "帮我订个票"
+    Note over A1: 创建 Task T-001
+
+    rect rgb(230,245,255)
+        Note over A1,A4: 并行调用（depth=1）
+        par
+            A1->>A2: "当地天气？"
+        and
+            A1->>A3: "有火车票吗？"
+        and
+            A1->>A4: "当地美食推荐？"
+        end
+    end
+
+    A2-->>A1: "晴朗 25°C"
+    A4-->>A1: "火锅、串串"
+    A3-->>A1: "没有火车票了"
+
+    rect rgb(255,245,230)
+        Note over A1,A5: 条件分支（depth=2）
+        A1->>A5: "有机票吗？"
+    end
+
+    A5-->>A1: "经济舱800/商务1500/头等3000"
+
+    rect rgb(240,255,240)
+        Note over A1,A5: 串行追问（depth=3）
+        A1->>A5: "要最便宜的"
+    end
+
+    A5-->>A1: "经济舱800，已预留"
+
+    A1-->>U: "天气好，推荐火锅，机票800已订好"
+</div>
+</div>
+
+<h4 class="font-semibold text-gray-900 mt-4 mb-2">DAG 结构的关键特征</h4>
+<ul class="list-disc pl-5 space-y-1 mb-3">
+<li><strong>并行</strong>：Agent 2、3、4 被同时调用，没有依赖关系（同一 depth=1）</li>
+<li><strong>条件分支</strong>：Agent 3 返回失败后，才触发 Agent 5 调用（depth=2）</li>
+<li><strong>串行追问</strong>：Agent 5 返回多个选项后，Agent 1 追问最便宜（depth=3）</li>
+<li><strong>并发安全</strong>：Agent 2、3、4 同时返回时，Session Context 需要正确合并</li>
+</ul>
+
+<h4 class="font-semibold text-gray-900 mt-4 mb-2">为此 Schema 做的关键调整</h4>
+<table class="mb-4">
+<thead><tr><th style="width:22%">调整项</th><th style="width:35%">原设计问题</th><th>修复方案</th></tr></thead>
+<tbody>
+<tr><td><code>Message.parentMessageId</code></td><td>无法重建"谁因为什么调用了谁"的调用树</td><td>自引用关系，建立 DAG 节点树</td></tr>
+<tr><td><code>Message.depth</code></td><td><code>currentRound</code> 语义错误（并发调用不应+3）</td><td>DAG 深度 = 从 Task Owner 出发的最长路径</td></tr>
+<tr><td><code>Task.messageCount / maxMessages</code></td><td><code>currentRound / maxRounds</code> 不适合 DAG</td><td>总消息数上限，超限熔断</td></tr>
+<tr><td><code>SessionContext.version</code></td><td>并发返回时 race condition 覆盖数据</td><td>乐观锁：PG 的 version 字段 + 重试机制</td></tr>
+</tbody>
+</table>
+
+<h4 class="font-semibold text-gray-900 mt-4 mb-2">死循环检测算法（适配 DAG）</h4>
+<pre>// 不再用 Round 计数，改为：
+// 1. 消息总数 >= maxMessages → 熔断
+// 2. 同一对 Agent 在同一 depth 发送完全相同 payload → 熔断
+// 3. 通过 Message.parentMessageId 链可计算实际 DAG 深度</pre>
 </section>
 
 <div class="section-divider mb-14"></div>
@@ -540,8 +623,12 @@ export class GatewayController {
 
   // 同步消息发送
   @Post('sendMessage')
-  async sendMessage(@Body() dto: SendMessageDto, @Headers('x-trace-id') traceId?: string) {
-    return this.gatewayService.sendMessage(dto, traceId);
+  async sendMessage(
+    @Body() dto: SendMessageDto,
+    @Headers('x-trace-id') traceId?: string,
+    @Headers('x-parent-message-id') parentMessageId?: string,
+  ) {
+    return this.gatewayService.sendMessage(dto, traceId, parentMessageId);
   }
 
   // SSE 流式消息发送
@@ -566,17 +653,31 @@ export class GatewayService {
     private traceService: TraceService,
   ) {}
 
-  async sendMessage(dto: SendMessageDto, incomingTraceId?: string): Promise&lt;any&gt; {
+  async sendMessage(
+    dto: SendMessageDto,
+    incomingTraceId?: string,
+    parentMessageId?: string,
+  ): Promise&lt;any&gt; {
     const traceId = incomingTraceId || this.traceService.generateTraceId();
     const spanId = this.traceService.generateSpanId();
 
-    // 1. 获取目标 Agent
+    // 1. 计算 DAG 深度
+    let depth = 0;
+    if (parentMessageId) {
+      const parent = await this.prisma.message.findUnique({
+        where: { id: parentMessageId },
+        select: { depth: true },
+      });
+      depth = (parent?.depth || 0) + 1;
+    }
+
+    // 2. 获取目标 Agent
     const targetAgent = await this.registryService.findById(dto.toAgentId);
     if (!targetAgent || targetAgent.status !== AgentStatus.ACTIVE) {
       throw new BadRequestException('Target agent not found or offline');
     }
 
-    // 2. Session Context 注入
+    // 3. Session Context 注入
     const sessionContext = dto.taskId
       ? await this.sessionService.getContext(dto.taskId)
       : null;
@@ -584,37 +685,55 @@ export class GatewayService {
     const payload = {
       ...dto.payload,
       _session_context: sessionContext,
-      _trace: { traceId, spanId, platformTimestamp: new Date().toISOString() },
+      _trace: { traceId, spanId, depth, platformTimestamp: new Date().toISOString() },
     };
 
     const startTime = Date.now();
 
-    // 3. 转发到目标 Agent
+    // 4. 先持久化消息（建立 DAG 节点）
+    const messageRecord = await this.prisma.message.create({
+      data: {
+        taskId: dto.taskId,
+        parentMessageId,
+        depth,
+        fromAgentId: dto.fromAgentId,
+        toAgentId: dto.toAgentId,
+        messageType: dto.messageType,
+        payload: payload as any,
+        metadata: { traceId, spanId, latency: 0, statusCode: 0 } as any,
+      },
+    });
+
+    // 5. 增加 Task 消息计数
+    if (dto.taskId) {
+      await this.prisma.task.update({
+        where: { id: dto.taskId },
+        data: { messageCount: { increment: 1 } },
+      });
+    }
+
+    // 6. 转发到目标 Agent
     const response$ = this.httpService.post(
       `${targetAgent.endpointUrl}/sendMessage`,
       payload,
-      { headers: { 'x-trace-id': traceId, 'x-span-id': spanId } },
+      { headers: { 'x-trace-id': traceId, 'x-span-id': spanId, 'x-parent-message-id': messageRecord.id } },
     );
     const response = await lastValueFrom(response$);
 
     const latency = Date.now() - startTime;
 
-    // 4. 持久化消息
-    await this.prisma.message.create({
+    // 7. 更新消息记录（补全 latency 和 status）
+    await this.prisma.message.update({
+      where: { id: messageRecord.id },
       data: {
-        taskId: dto.taskId,
-        fromAgentId: dto.fromAgentId,
-        toAgentId: dto.toAgentId,
-        messageType: dto.messageType,
-        payload: payload as any,
         metadata: { traceId, spanId, latency, statusCode: response.status } as any,
       },
     });
 
-    // 5. 上报 Trace
+    // 8. 上报 Trace
     this.traceService.recordSpan({ traceId, spanId, agentFrom: dto.fromAgentId, agentTo: dto.toAgentId, latency });
 
-    // 6. 如果目标 Agent 返回了产出，合并回 Session Context
+    // 9. 如果目标 Agent 返回了产出，合并回 Session Context（乐观锁保证并发安全）
     if (dto.taskId && response.data?.artifact) {
       await this.sessionService.mergeContext(dto.taskId, response.data.artifact);
     }
@@ -699,7 +818,7 @@ export class TaskService {
         goal: dto.goal,
         ownerAgentId: dto.ownerAgentId,
         status: TaskStatus.CREATED,
-        maxRounds: dto.maxRounds || 20,
+        maxMessages: dto.maxMessages || 100,     // ← DAG 场景下总消息数上限
         timeoutAt: new Date(Date.now() + (dto.timeoutMinutes || 5) * 60_000),
       },
     });
@@ -709,6 +828,7 @@ export class TaskService {
         taskId: task.id,
         sharedContext: { goal: dto.goal, userInput: dto.userInput } as any,
         history: [] as any,
+        version: 0,
       },
     });
     return task;
@@ -721,15 +841,41 @@ export class TaskService {
     });
   }
 
-  async incrementRound(taskId: string): Promise&lt;Task&gt; {
-    const task = await this.prisma.task.update({
-      where: { id: taskId },
-      data: { currentRound: { increment: 1 } },
-    });
-    if (task.currentRound >= task.maxRounds) {
+  // ← 死循环检测：基于消息内容相似度 + 同一深度重复调用，而非简单 Round 计数
+  async checkMessageLoop(taskId: string): Promise&lt;boolean&gt; {
+    const task = await this.prisma.task.findUnique({ where: { id: taskId } });
+    if (!task) return false;
+
+    // 1. 消息总数超限
+    if (task.messageCount >= task.maxMessages) {
       await this.transitionStatus(taskId, TaskStatus.TIMEOUT);
+      return true;
     }
-    return task;
+
+    // 2. 同一对 Agent 在同一深度重复发送相同内容（简单相似度检测）
+    const recentMessages = await this.prisma.message.findMany({
+      where: { taskId },
+      orderBy: { createdAt: 'desc' },
+      take: 6,
+      select: { fromAgentId: true, toAgentId: true, depth: true, payload: true },
+    });
+
+    for (let i = 0; i < recentMessages.length - 1; i++) {
+      for (let j = i + 1; j < recentMessages.length; j++) {
+        const a = recentMessages[i];
+        const b = recentMessages[j];
+        if (
+          a.fromAgentId === b.fromAgentId &&
+          a.toAgentId === b.toAgentId &&
+          a.depth === b.depth &&
+          JSON.stringify(a.payload) === JSON.stringify(b.payload)
+        ) {
+          await this.transitionStatus(taskId, TaskStatus.FAILED);
+          return true;
+        }
+      }
+    }
+    return false;
   }
 }
 
@@ -780,24 +926,40 @@ export class SessionService {
   }
 
   async mergeContext(taskId: string, artifact: any): Promise&lt;void&gt; {
-    const ctx = await this.prisma.sessionContext.findUnique({ where: { taskId } });
-    if (!ctx) return;
+    for (let retry = 0; retry < 3; retry++) {
+      const ctx = await this.prisma.sessionContext.findUnique({ where: { taskId } });
+      if (!ctx) return;
 
-    const sharedContext = ctx.sharedContext as any;
-    const history = ctx.history as any[];
+      const sharedContext = ctx.sharedContext as any;
+      const history = ctx.history as any[];
 
-    // 合并 artifact 到上下文
-    if (!sharedContext.artifacts) sharedContext.artifacts = [];
-    sharedContext.artifacts.push(artifact);
-    history.push({ type: 'artifact', data: artifact, timestamp: new Date().toISOString() });
+      // 合并 artifact 到上下文
+      if (!sharedContext.artifacts) sharedContext.artifacts = [];
+      sharedContext.artifacts.push(artifact);
+      history.push({ type: 'artifact', data: artifact, timestamp: new Date().toISOString() });
 
-    const updated = await this.prisma.sessionContext.update({
-      where: { taskId },
-      data: { sharedContext: sharedContext as any, history: history as any },
-    });
+      try {
+        const updated = await this.prisma.sessionContext.update({
+          where: { taskId, version: ctx.version },  // ← 乐观锁条件
+          data: {
+            sharedContext: sharedContext as any,
+            history: history as any,
+            version: { increment: 1 },
+          },
+        });
 
-    // 更新 Redis
-    await this.redis.setex(`session:${taskId}`, 60, JSON.stringify(updated.sharedContext));
+        // 更新 Redis
+        await this.redis.setex(`session:${taskId}`, 60, JSON.stringify(updated.sharedContext));
+        return;
+      } catch (e: any) {
+        if (e.code === 'P2025') {
+          // 乐观锁冲突（Record to update not found），重试
+          continue;
+        }
+        throw e;
+      }
+    }
+    throw new Error('Session context merge failed after 3 retries (concurrent conflict)');
   }
 }</pre>
 
@@ -1143,43 +1305,55 @@ app.listen(8000, () => console.log('Agent running on :8000'));</pre>
 <h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3"><span class="flex items-center justify-center w-9 h-9 rounded-lg bg-amber-100 text-amber-700 font-bold text-base">9</span>实现方案中仍待你确认的事项</h2>
 
 <table>
-<thead><tr><th style="width:30%">问题</th><th style="width:35%">当前假设</th><th>需要你确认</th></tr></thead>
+<thead><tr><th style="width:28%">问题</th><th style="width:32%">当前假设</th><th style="width:28%">状态</th><th>需要你确认</th></tr></thead>
 <tbody>
 <tr>
-<td><strong>消息 Payload 结构</strong></td>
-<td>我假设沿用 A2A JSON-RPC 规范：<code>{ jsonrpc, method, params, id }</code></td>
-<td>你是否要严格对齐 A2A 规范，还是自定义简化格式？</td>
+<td><strong>DAG 并发执行流</strong></td>
+<td>已支持：parentMessageId 建立调用树 + depth 记录 DAG 层级 + SessionContext 乐观锁保证并发安全</td>
+<td><span class="tag bg-emerald-100 text-emerald-700">已解决</span></td>
+<td>确认订票场景中的并发/条件分支/串行追问是否覆盖全了？</td>
 </tr>
 <tr>
-<td><strong>Artifact 存储</strong></td>
-<td>目前只在 DB 存 URL，实际文件存本地磁盘或 S3</td>
-<td>文件存储用本地 Volume 还是 MinIO/S3？文件大小上限？</td>
+<td><strong>消息 Payload 结构</strong></td>
+<td>假设沿用 A2A JSON-RPC 规范：<code>{ jsonrpc, method, params, id }</code></td>
+<td><span class="tag bg-amber-100 text-amber-700">待确认</span></td>
+<td>是否严格对齐 A2A 规范，还是自定义简化格式？</td>
+</tr>
+<tr>
+<td><strong>Artifact 文件存储</strong></td>
+<td>DB 存 URL，实际文件存本地磁盘或 S3</td>
+<td><span class="tag bg-amber-100 text-amber-700">待确认</span></td>
+<td>本地 Volume 还是 MinIO/S3？文件大小上限？</td>
 </tr>
 <tr>
 <td><strong>Agent 现有框架</strong></td>
-<td>假设你们的 Agent 用 OpenAI SDK / LangChain / ADK 等，SDK 提供 HTTP endpoint</td>
+<td>假设 Agent 用 OpenAI SDK / LangChain / ADK，SDK 提供 HTTP endpoint</td>
+<td><span class="tag bg-amber-100 text-amber-700">待确认</span></td>
 <td>你们现有 Agent 是什么框架？是否已有 HTTP server？</td>
 </tr>
 <tr>
 <td><strong>WebSocket 升级触发条件</strong></td>
-<td>HTTP 为主，WS 可选。我设计为 Agent 注册时协商 <code>preferredTransport</code></td>
+<td>HTTP 为主，WS 可选。Agent 注册时协商 <code>preferredTransport</code></td>
+<td><span class="tag bg-amber-100 text-amber-700">待确认</span></td>
 <td>这个设计 OK 吗？还是固定先用 HTTP，后期再考虑 WS？</td>
 </tr>
 <tr>
 <td><strong>Namespace 隔离</strong></td>
 <td>当前只有 <code>default</code> namespace，所有 Agent 互相可见</td>
-<td>你们团队内部是否已经有"不同项目 Agent 不应该互相看到"的需求？</td>
+<td><span class="tag bg-amber-100 text-amber-700">待确认</span></td>
+<td>团队内部是否已有"不同项目 Agent 不应互见"的需求？</td>
 </tr>
 <tr>
 <td><strong>死循环检测算法</strong></td>
-<td>我计划用简单方案：监控同一 Task 内相邻 3 轮消息内容相似度 &gt; 80% 触发熔断</td>
-<td>这个阈值和策略是否合理？还是你有更好的想法？</td>
+<td>已改为：消息总数上限 + 同一对 Agent 同 depth 发送相同 payload → 熔断</td>
+<td><span class="tag bg-emerald-100 text-emerald-700">已更新</span></td>
+<td>阈值和策略是否合理？是否需要更智能的语义相似度检测？</td>
 </tr>
 </tbody>
 </table>
 
 <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mt-6">
-<p class="text-emerald-900 text-sm"><strong>下一步：</strong>你确认上述事项后，我可以开始写具体的代码文件（NestJS module 源码 + Prisma schema + Docker Compose），直接可运行。</p>
+<p class="text-emerald-900 text-sm"><strong>下一步：</strong>你确认上述待确认项后，我可以开始写具体的代码文件（NestJS module 源码 + Prisma schema + Docker Compose），直接可运行。</p>
 </div>
 </section>
 
