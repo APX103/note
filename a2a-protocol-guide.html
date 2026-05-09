@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A2A 协议系统性认知指南</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        body {
+            font-family: 'Noto Sans SC', system-ui, -apple-system, sans-serif;
+        }
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .gradient-text {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+        .card-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.15);
+        }
+        .toc-link.active {
+            color: #667eea;
+            border-left-color: #667eea;
+            background: linear-gradient(90deg, rgba(102, 126, 234, 0.08) 0%, transparent 100%);
+        }
+        .scroll-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            z-index: 1000;
+            transition: width 0.1s;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #c7c7c7;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #a0a0a0;
+        }
+        .section-divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent 0%, #e5e7eb 20%, #e5e7eb 80%, transparent 100%);
+        }
+        .tag {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            letter-spacing: 0.025em;
+        }
+        .mermaid {
+            background: transparent !important;
+        }
+        .mermaid svg {
+            max-width: 100%;
+            height: auto;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 leading-relaxed">
+    <div class="scroll-indicator" id="scrollIndicator"></div>
+
+    <!-- Hero Section -->
+    <header class="relative bg-white border-b border-gray-200">
+        <div class="absolute inset-0 bg-gradient-to-br from-indigo-50/50 via-white to-purple-50/30 pointer-events-none"></div>
+        <div class="relative max-w-6xl mx-auto px-6 py-16 md:py-24">
+            <div class="flex items-center gap-3 mb-6">
+                <span class="tag bg-indigo-100 text-indigo-700">开放标准</span>
+                <span class="tag bg-purple-100 text-purple-700">Agent2Agent</span>
+                <span class="tag bg-emerald-100 text-emerald-700">互操作性</span>
+            </div>
+            <h1 class="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight mb-6">
+                <span class="gradient-text">A2A 协议</span>
+                <span class="text-gray-900">系统性认知指南</span>
+            </h1>
+            <p class="text-lg md:text-xl text-gray-600 max-w-3xl leading-relaxed">
+                A2A（Agent2Agent）是 AI Agent 之间的通信开放标准。本指南从定位、设计哲学、技术栈、生命周期等维度，帮你建立完整的 A2A 知识框架。
+            </p>
+            <div class="mt-8 flex flex-wrap gap-4 text-sm text-gray-500">
+                <span class="flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    阅读时间：约 15 分钟
+                </span>
+                <span class="flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                    8 个核心章节
+                </span>
+            </div>
+        </div>
+    </header>
+
+    <div class="max-w-6xl mx-auto px-6 py-12 flex gap-12">
+        <!-- Sidebar TOC -->
+        <aside class="hidden lg:block w-64 flex-shrink-0">
+            <div class="sticky top-8">
+                <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">目录导航</h3>
+                <nav class="space-y-1" id="toc">
+                    <a href="#what" class="toc-link block py-2 px-3 text-sm text-gray-600 hover:text-gray-900 rounded-md border-l-2 border-transparent transition-all">一、A2A 是什么</a>
+                    <a href="#why" class="toc-link block py-2 px-3 text-sm text-gray-600 hover:text-gray-900 rounded-md border-l-2 border-transparent transition-all">二、为什么需要 A2A</a>
+                    <a href="#benefits" class="toc-link block py-2 px-3 text-sm text-gray-600 hover:text-gray-900 rounded-md border-l-2 border-transparent transition-all">三、核心优势</a>
+                    <a href="#principles" class="toc-link block py-2 px-3 text-sm text-gray-600 hover:text-gray-900 rounded-md border-l-2 border-transparent transition-all">四、五大设计原则</a>
+                    <a href="#stack" class="toc-link block py-2 px-3 text-sm text-gray-600 hover:text-gray-900 rounded-md border-l-2 border-transparent transition-all">五、Agent 技术栈定位</a>
+                    <a href="#lifecycle" class="toc-link block py-2 px-3 text-sm text-gray-600 hover:text-gray-900 rounded-md border-l-2 border-transparent transition-all">六、请求生命周期</a>
+                    <a href="#terms" class="toc-link block py-2 px-3 text-sm text-gray-600 hover:text-gray-900 rounded-md border-l-2 border-transparent transition-all">七、关键术语表</a>
+                    <a href="#path" class="toc-link block py-2 px-3 text-sm text-gray-600 hover:text-gray-900 rounded-md border-l-2 border-transparent transition-all">八、学习路径建议</a>
+                </nav>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 min-w-0">
+            
+            <!-- Section 1: What is A2A -->
+            <section id="what" class="mb-16 scroll-mt-24">
+                <div class="flex items-center gap-4 mb-6">
+                    <span class="flex items-center justify-center w-10 h-10 rounded-xl bg-indigo-100 text-indigo-700 font-bold text-lg">1</span>
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-900">A2A 是什么？</h2>
+                </div>
+                <div class="prose prose-gray max-w-none">
+                    <p class="text-lg text-gray-600 leading-relaxed mb-6">
+                        <strong class="text-gray-900">A2A（Agent2Agent）协议是一个开放标准</strong>，核心目标是让<strong class="text-gray-900">不同开发者、不同框架、不同组织</strong>构建的 AI Agent 能够<strong class="text-gray-900">无缝通信与协作</strong>。它提供了一种"通用语言"，打破 Agent 生态的孤岛。
+                    </p>
+                    
+                    <div class="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl p-6 md:p-8 border border-indigo-100">
+                        <div class="flex items-start gap-4">
+                            <div class="flex-shrink-0 w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-2xl">💡</div>
+                            <div>
+                                <h4 class="font-semibold text-gray-900 mb-2">一句话理解</h4>
+                                <p class="text-gray-700">A2A 是 <strong>Agent 之间的"通信协议"</strong>，而非构建 Agent 的工具。类似于 HTTP 对于 Web 的意义，A2A 想做的是 Agent 互联网的基础设施协议。</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <div class="section-divider mb-16"></div>
+
+            <!-- Section 2: Why A2A -->
+            <section id="why" class="mb-16 scroll-mt-24">
+                <div class="flex items-center gap-4 mb-6">
+                    <span class="flex items-center justify-center w-10 h-10 rounded-xl bg-rose-100 text-rose-700 font-bold text-lg">2</span>
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-900">为什么需要 A2A？</h2>
+                </div>
+                <p class="text-gray-600 mb-6">A2A 解决的是 AI Agent 协作中的关键工程挑战。以下通过一个典型场景来说明：</p>
+
+                <!-- Scenario Card -->
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 md:p-8 mb-8">
+                    <div class="flex items-center gap-3 mb-4">
+                        <span class="tag bg-amber-100 text-amber-800">场景示例</span>
+                        <span class="text-sm text-gray-500">规划一次国际旅行</span>
+                    </div>
+                    <p class="text-gray-700 mb-6">用户对 AI 助手说：<strong>"帮我规划一次国际旅行"</strong>。这个复杂请求需要多个专业 Agent 协作完成：</p>
+                    
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                        <div class="bg-sky-50 rounded-xl p-4 text-center border border-sky-100">
+                            <div class="text-3xl mb-2">✈️</div>
+                            <div class="font-medium text-gray-900 text-sm">航班预订 Agent</div>
+                        </div>
+                        <div class="bg-pink-50 rounded-xl p-4 text-center border border-pink-100">
+                            <div class="text-3xl mb-2">🏨</div>
+                            <div class="font-medium text-gray-900 text-sm">酒店预订 Agent</div>
+                        </div>
+                        <div class="bg-emerald-50 rounded-xl p-4 text-center border border-emerald-100">
+                            <div class="text-3xl mb-2">💱</div>
+                            <div class="font-medium text-gray-900 text-sm">货币转换 Agent</div>
+                        </div>
+                        <div class="bg-violet-50 rounded-xl p-4 text-center border border-violet-100">
+                            <div class="text-3xl mb-2">🚌</div>
+                            <div class="font-medium text-gray-900 text-sm">本地旅游 Agent</div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-3 p-4 bg-red-50 rounded-xl border border-red-100">
+                        <span class="text-red-600 text-xl">⚠️</span>
+                        <p class="text-red-800 text-sm">如果没有统一协议，这些 Agent 因为各自独立开发部署，<strong>无法互相发现、无法通信、更无法协作</strong>。</p>
+                    </div>
+                </div>
+
+                <!-- Pain Points Table -->
+                <div class="grid gap-4">
+                    <div class="card-hover bg-white rounded-xl p-5 border border-gray-200 flex gap-4">
+                        <div class="flex-shrink-0 w-10 h-10 bg-rose-100 rounded-lg flex items-center justify-center text-rose-700 font-bold text-sm">01</div>
+                        <div>
+                            <h4 class="font-semibold text-gray-900 mb-1">Agent 被矮化为工具</h4>
+                            <p class="text-sm text-gray-600">传统方式把 Agent 包装成"工具"暴露给其他 Agent，但 Agent 本应自主协商，包装会严重限制其完整能力。</p>
+                        </div>
+                    </div>
+                    <div class="card-hover bg-white rounded-xl p-5 border border-gray-200 flex gap-4">
+                        <div class="flex-shrink-0 w-10 h-10 bg-rose-100 rounded-lg flex items-center justify-center text-rose-700 font-bold text-sm">02</div>
+                        <div>
+                            <h4 class="font-semibold text-gray-900 mb-1">点对点集成成本极高</h4>
+                            <p class="text-sm text-gray-600">每对接两个 Agent 都要写定制代码，随着 Agent 数量增长，集成复杂度呈指数级上升。</p>
+                        </div>
+                    </div>
+                    <div class="card-hover bg-white rounded-xl p-5 border border-gray-200 flex gap-4">
+                        <div class="flex-shrink-0 w-10 h-10 bg-rose-100 rounded-lg flex items-center justify-center text-rose-700 font-bold text-sm">03</div>
+                        <div>
+                            <h4 class="font-semibold text-gray-900 mb-1">创新速度被拖累</h4>
+                            <p class="text-sm text-gray-600">为每个新集成做定制开发，大量工程资源消耗在重复的基础设施工作上，而非业务创新。</p>
+                        </div>
+                    </div>
+                    <div class="card-hover bg-white rounded-xl p-5 border border-gray-200 flex gap-4">
+                        <div class="flex-shrink-0 w-10 h-10 bg-rose-100 rounded-lg flex items-center justify-center text-rose-700 font-bold text-sm">04</div>
+                        <div>
+                            <h4 class="font-semibold text-gray-900 mb-1">安全缺乏统一保障</h4>
+                            <p class="text-sm text-gray-600">临时拼凑的通信方式缺乏一致的认证、授权和加密机制，存在严重安全隐患。</p>
+                        </div>
+                    </div>
+                    <div class="card-hover bg-white rounded-xl p-5 border border-gray-200 flex gap-4">
+                        <div class="flex-shrink-0 w-10 h-10 bg-rose-100 rounded-lg flex items-center justify-center text-rose-700 font-bold text-sm">05</div>
+                        <div>
+                            <h4 class="font-semibold text-gray-900 mb-1">生态割裂，无法形成网络效应</h4>
+                            <p class="text-sm text-gray-600">各厂商各自为战，Agent 生态呈碎片化，无法像 Web 一样形成有机的、可扩展的生态系统。</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <div class="section-divider mb-16"></div>
+
+            <!-- Section 3: Benefits -->
+            <section id="benefits" class="mb-16 scroll-mt-24">
+                <div class="flex items-center gap-4 mb-6">
+                    <span class="flex items-center justify-center w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 font-bold text-lg">3</span>
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-900">核心优势</h2>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-5">
+                    <div class="card-hover bg-white rounded-2xl p-6 border border-gray-200">
+                        <div class="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center text-2xl mb-4">🔒</div>
+                        <h4 class="font-semibold text-gray-900 mb-2">安全协作</h4>
+                        <p class="text-sm text-gray-600 leading-relaxed">基于 HTTPS 加密通信，且保持<strong>不透明执行</strong>——Agent 在协作过程中看不到其他 Agent 的内部逻辑和记忆。</p>
+                    </div>
+                    <div class="card-hover bg-white rounded-2xl p-6 border border-gray-200">
+                        <div class="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center text-2xl mb-4">🌐</div>
+                        <h4 class="font-semibold text-gray-900 mb-2">互操作性</h4>
+                        <p class="text-sm text-gray-600 leading-relaxed">打破框架与厂商壁垒，让 LangGraph 构建的 Agent 能与 CrewAI 构建的 Agent 无缝协作。</p>
+                    </div>
+                    <div class="card-hover bg-white rounded-2xl p-6 border border-gray-200">
+                        <div class="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center text-2xl mb-4">🤖</div>
+                        <h4 class="font-semibold text-gray-900 mb-2">Agent 自主性</h4>
+                        <p class="text-sm text-gray-600 leading-relaxed">Agent 保持独立身份和完整能力，<strong>不作为工具被调用</strong>，而是作为对等协作伙伴参与任务。</p>
+                    </div>
+                    <div class="card-hover bg-white rounded-2xl p-6 border border-gray-200">
+                        <div class="w-12 h-12 bg-rose-100 rounded-xl flex items-center justify-center text-2xl mb-4">🧩</div>
+                        <h4 class="font-semibold text-gray-900 mb-2">降低集成复杂度</h4>
+                        <p class="text-sm text-gray-600 leading-relaxed">标准化通信格式和接口，团队只需关注 Agent 的核心业务价值，无需重复造通信轮子。</p>
+                    </div>
+                    <div class="card-hover bg-white rounded-2xl p-6 border border-gray-200 md:col-span-2">
+                        <div class="w-12 h-12 bg-sky-100 rounded-xl flex items-center justify-center text-2xl mb-4">⚡</div>
+                        <h4 class="font-semibold text-gray-900 mb-2">支持长时间运行任务（LRO）</h4>
+                        <p class="text-sm text-gray-600 leading-relaxed">原生支持 SSE（Server-Sent Events）流式传输和异步执行，适合需要数分钟甚至数小时才能完成的任务，期间可实时推送状态更新和中间产物。</p>
+                    </div>
+                </div>
+            </section>
+
+            <div class="section-divider mb-16"></div>
+
+            <!-- Section 4: Design Principles -->
+            <section id="principles" class="mb-16 scroll-mt-24">
+                <div class="flex items-center gap-4 mb-6">
+                    <span class="flex items-center justify-center w-10 h-10 rounded-xl bg-sky-100 text-sky-700 font-bold text-lg">4</span>
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-900">五大设计原则</h2>
+                </div>
+                <p class="text-gray-600 mb-6">A2A 的开发遵循一系列工程哲学，体现了对<strong>广泛采纳、企业级能力和未来兼容性</strong>的追求。</p>
+
+                <div class="space-y-5">
+                    <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+                        <div class="flex items-start gap-5 p-6">
+                            <div class="flex-shrink-0 w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-200">
+                                <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                            </div>
+                            <div class="flex-1">
+                                <h4 class="text-lg font-bold text-gray-900 mb-2">简单性 Simplicity</h4>
+                                <p class="text-gray-600 leading-relaxed">复用现有成熟标准——<strong>HTTP</strong> 传输、<strong>JSON-RPC</strong> 消息格式、<strong>SSE</strong> 流式推送。不重新发明核心轮子，大幅降低开发者学习和接入成本。</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+                        <div class="flex items-start gap-5 p-6">
+                            <div class="flex-shrink-0 w-14 h-14 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-emerald-200">
+                                <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                            </div>
+                            <div class="flex-1">
+                                <h4 class="text-lg font-bold text-gray-900 mb-2">企业级就绪 Enterprise Ready</h4>
+                                <p class="text-gray-600 leading-relaxed">对齐标准 Web 安全实践，原生支持<strong>认证、授权、审计、隐私保护、链路追踪和可观测性</strong>。不是实验室玩具，而是可直接投入生产环境的协议。</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+                        <div class="flex items-start gap-5 p-6">
+                            <div class="flex-shrink-0 w-14 h-14 bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-amber-200">
+                                <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            </div>
+                            <div class="flex-1">
+                                <h4 class="text-lg font-bold text-gray-900 mb-2">异步性 Asynchronous</h4>
+                                <p class="text-gray-600 leading-relaxed">原生支持长时间运行任务。Agent 或用户在任务执行过程中<strong>无需保持持续连接</strong>，通过 SSE 流式和推送通知机制获取进度更新。</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+                        <div class="flex items-start gap-5 p-6">
+                            <div class="flex-shrink-0 w-14 h-14 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-purple-200">
+                                <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"></path></svg>
+                            </div>
+                            <div class="flex-1">
+                                <h4 class="text-lg font-bold text-gray-900 mb-2">模态独立 Modality Independent</h4>
+                                <p class="text-gray-600 leading-relaxed">协议允许 Agent 使用<strong>多种内容类型</strong>通信——文本、图片、音频、视频、结构化数据等。超越纯文本限制，支持丰富灵活的交互方式。</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+                        <div class="flex items-start gap-5 p-6">
+                            <div class="flex-shrink-0 w-14 h-14 bg-gradient-to-br from-rose-500 to-rose-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-rose-200">
+                                <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"></path></svg>
+                            </div>
+                            <div class="flex-1">
+                                <h4 class="text-lg font-bold text-gray-900 mb-2">不透明执行 Opaque Execution</h4>
+                                <p class="text-gray-600 leading-relaxed">Agent 协作时<strong>不暴露内部逻辑、记忆、推理过程或专有工具</strong>。交互仅依赖声明的能力（Agent Card）和交换的上下文。既保护知识产权，又增强安全性。</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <div class="section-divider mb-16"></div>
+
+            <!-- Section 5: Stack Position -->
+            <section id="stack" class="mb-16 scroll-mt-24">
+                <div class="flex items-center gap-4 mb-6">
+                    <span class="flex items-center justify-center w-10 h-10 rounded-xl bg-violet-100 text-violet-700 font-bold text-lg">5</span>
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-900">Agent 技术栈定位</h2>
+                </div>
+                <p class="text-gray-600 mb-6">理解 A2A 在整个生态中的位置，是避免混淆的关键。</p>
+
+                <!-- Stack Diagram -->
+                <div class="bg-white rounded-2xl border border-gray-200 p-6 md:p-8 mb-8">
+                    <div class="space-y-3">
+                        <div class="relative bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl p-5 text-white shadow-lg">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <div class="text-xs font-medium opacity-80 mb-1">通信标准</div>
+                                    <div class="font-bold text-lg">A2A 协议</div>
+                                </div>
+                                <div class="text-right text-sm opacity-90">Agent ↔ Agent<br>跨框架 / 跨组织</div>
+                            </div>
+                        </div>
+                        <div class="flex justify-center text-gray-400">↓</div>
+                        <div class="relative bg-gradient-to-r from-emerald-500 to-teal-600 rounded-xl p-5 text-white shadow-lg">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <div class="text-xs font-medium opacity-80 mb-1">资源连接</div>
+                                    <div class="font-bold text-lg">MCP（Model Context Protocol）</div>
+                                </div>
+                                <div class="text-right text-sm opacity-90">Agent ↔ 工具 / 数据<br>状态化资源访问</div>
+                            </div>
+                        </div>
+                        <div class="flex justify-center text-gray-400">↓</div>
+                        <div class="relative bg-gradient-to-r from-amber-500 to-orange-600 rounded-xl p-5 text-white shadow-lg">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <div class="text-xs font-medium opacity-80 mb-1">开发框架</div>
+                                    <div class="font-bold text-lg">Frameworks（ADK / LangGraph / CrewAI）</div>
+                                </div>
+                                <div class="text-right text-sm opacity-90">构建 Agent 的工具包</div>
+                            </div>
+                        </div>
+                        <div class="flex justify-center text-gray-400">↓</div>
+                        <div class="relative bg-gradient-to-r from-slate-600 to-slate-700 rounded-xl p-5 text-white shadow-lg">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <div class="text-xs font-medium opacity-80 mb-1">推理引擎</div>
+                                    <div class="font-bold text-lg">Models（LLM）</div>
+                                </div>
+                                <div class="text-right text-sm opacity-90">GPT-4 / Claude / Gemini...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- A2A vs MCP -->
+                <div class="bg-gradient-to-br from-gray-50 to-indigo-50 rounded-2xl border border-indigo-100 p-6 md:p-8">
+                    <h4 class="font-bold text-gray-900 text-lg mb-4 flex items-center gap-2">
+                        <span class="text-2xl">🎯</span>
+                        A2A vs MCP：最关键的区别
+                    </h4>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b-2 border-gray-200">
+                                    <th class="text-left py-3 px-4 font-semibold text-gray-700">维度</th>
+                                    <th class="text-left py-3 px-4 font-semibold text-emerald-700">MCP</th>
+                                    <th class="text-left py-3 px-4 font-semibold text-indigo-700">A2A</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200">
+                                <tr>
+                                    <td class="py-3 px-4 font-medium text-gray-900">定位</td>
+                                    <td class="py-3 px-4 text-gray-700">连接 Agent 与<strong>工具/数据</strong></td>
+                                    <td class="py-3 px-4 text-gray-700">连接<strong>Agent 与 Agent</strong></td>
+                                </tr>
+                                <tr>
+                                    <td class="py-3 px-4 font-medium text-gray-900">交互对象</td>
+                                    <td class="py-3 px-4 text-gray-700">工具（无状态、预定义功能）</td>
+                                    <td class="py-3 px-4 text-gray-700">Agent（有状态、自主推理/规划/协商）</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-3 px-4 font-medium text-gray-900">交互模式</td>
+                                    <td class="py-3 px-4 text-gray-700">单次调用，返回结果</td>
+                                    <td class="py-3 px-4 text-gray-700">多轮对话、协商、任务委派</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-3 px-4 font-medium text-gray-900">类比</td>
+                                    <td class="py-3 px-4 text-gray-700">Agent 的<strong>手和眼</strong></td>
+                                    <td class="py-3 px-4 text-gray-700">Agent 的<strong>社交语言</strong></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="mt-5 p-4 bg-white rounded-xl border border-indigo-200">
+                        <p class="text-gray-700 text-sm">
+                            <strong class="text-indigo-700">核心观点：</strong>把 Agent 包装成简单工具是"降维打击"，无法发挥 Agent 的完整能力。Agent 应该作为 Agent 被调用——能自主协商、能追问澄清、能处理长时间任务。
+                        </p>
+                    </div>
+                </div>
+
+                <!-- A2A vs ADK -->
+                <div class="mt-6 bg-white rounded-2xl border border-gray-200 p-6">
+                    <h4 class="font-bold text-gray-900 mb-3 flex items-center gap-2">
+                        <span class="text-xl">🔧</span>
+                        A2A vs ADK
+                    </h4>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div class="p-4 bg-sky-50 rounded-xl border border-sky-100">
+                            <div class="font-semibold text-sky-900 mb-1">ADK（Agent Development Kit）</div>
+                            <p class="text-sm text-sky-800">Google 开源的 <strong>Agent 开发框架</strong>，提供构建 Agent 的工具包和运行时。类似 LangGraph、CrewAI。</p>
+                        </div>
+                        <div class="p-4 bg-indigo-50 rounded-xl border border-indigo-100">
+                            <div class="font-semibold text-indigo-900 mb-1">A2A</div>
+                            <p class="text-sm text-indigo-800">与构建框架 <strong>无关的通信协议</strong>。ADK 构建的 Agent、LangGraph 构建的 Agent 都可以通过 A2A 互相通信。</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <div class="section-divider mb-16"></div>
+
+            <!-- Section 6: Request Lifecycle -->
+            <section id="lifecycle" class="mb-16 scroll-mt-24">
+                <div class="flex items-center gap-4 mb-6">
+                    <span class="flex items-center justify-center w-10 h-10 rounded-xl bg-amber-100 text-amber-700 font-bold text-lg">6</span>
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-900">请求生命周期</h2>
+                </div>
+                <p class="text-gray-600 mb-6">一个 A2A 请求从发起到完成的完整流程分为四个阶段：</p>
+
+                <div class="space-y-6">
+                    <!-- Step 1 -->
+                    <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+                        <div class="flex items-center gap-4 p-5 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+                            <div class="flex-shrink-0 w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-bold shadow-lg shadow-indigo-200">1</div>
+                            <div>
+                                <h4 class="font-bold text-gray-900 text-lg">Agent Discovery（Agent 发现）</h4>
+                                <p class="text-sm text-gray-500">获取目标 Agent 的"身份证"</p>
+                            </div>
+                        </div>
+                        <div class="p-5">
+                            <div class="font-mono text-sm bg-gray-900 rounded-lg p-4 text-gray-300 mb-4 overflow-x-auto">
+                                <span class="text-purple-400">GET</span> <span class="text-green-400">/.well-known/agent-card</span>
+                            </div>
+                            <p class="text-gray-700 text-sm leading-relaxed mb-3">Client 向 A2A Server 请求 <strong>Agent Card</strong>——这是 Agent 的元数据文档，包含：</p>
+                            <ul class="text-sm text-gray-600 space-y-1.5 ml-4">
+                                <li class="flex items-start gap-2"><span class="text-indigo-500 mt-0.5">•</span>Agent 的能力描述（skills）</li>
+                                <li class="flex items-start gap-2"><span class="text-indigo-500 mt-0.5">•</span>API 端点 URL</li>
+                                <li class="flex items-start gap-2"><span class="text-indigo-500 mt-0.5">•</span>安全策略（securitySchemes）</li>
+                                <li class="flex items-start gap-2"><span class="text-indigo-500 mt-0.5">•</span>支持的交互模态</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Step 2 -->
+                    <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+                        <div class="flex items-center gap-4 p-5 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+                            <div class="flex-shrink-0 w-12 h-12 bg-emerald-600 rounded-xl flex items-center justify-center text-white font-bold shadow-lg shadow-emerald-200">2</div>
+                            <div>
+                                <h4 class="font-bold text-gray-900 text-lg">Authentication（认证）</h4>
+                                <p class="text-sm text-gray-500">基于标准 Web 安全实践的身份验证</p>
+                            </div>
+                        </div>
+                        <div class="p-5">
+                            <p class="text-gray-700 text-sm leading-relaxed mb-4">Client 解析 Agent Card 中的 <code class="bg-gray-100 px-1.5 py-0.5 rounded text-gray-800 font-mono text-xs">securitySchemes</code>，根据声明的安全方案获取访问令牌：</p>
+                            <div class="grid md:grid-cols-2 gap-3">
+                                <div class="bg-emerald-50 rounded-lg p-4 border border-emerald-100">
+                                    <div class="font-semibold text-emerald-900 text-sm mb-1">OpenID Connect</div>
+                                    <p class="text-xs text-emerald-800">向 authorizationUrl / tokenUrl 请求 JWT Token</p>
+                                </div>
+                                <div class="bg-gray-50 rounded-lg p-4 border border-gray-100">
+                                    <div class="font-semibold text-gray-700 text-sm mb-1">其他标准方案</div>
+                                    <p class="text-xs text-gray-600">支持扩展，对齐企业现有 IAM 体系</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 3 -->
+                    <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+                        <div class="flex items-center gap-4 p-5 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+                            <div class="flex-shrink-0 w-12 h-12 bg-amber-600 rounded-xl flex items-center justify-center text-white font-bold shadow-lg shadow-amber-200">3</div>
+                            <div>
+                                <h4 class="font-bold text-gray-900 text-lg">sendMessage API</h4>
+                                <p class="text-sm text-gray-500">同步模式，适合短任务</p>
+                            </div>
+                        </div>
+                        <div class="p-5">
+                            <div class="font-mono text-sm bg-gray-900 rounded-lg p-4 text-gray-300 mb-4 overflow-x-auto">
+                                <span class="text-purple-400">POST</span> <span class="text-green-400">/sendMessage</span> <span class="text-gray-500">Authorization: Bearer &lt;JWT&gt;</span>
+                            </div>
+                            <p class="text-gray-700 text-sm leading-relaxed">Client 携带 JWT 发送消息，A2A Server 处理消息并创建 Task，然后返回完整的 <strong>Task Response</strong>。适合能在短时间内完成的简单任务。</p>
+                        </div>
+                    </div>
+
+                    <!-- Step 4 -->
+                    <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+                        <div class="flex items-center gap-4 p-5 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+                            <div class="flex-shrink-0 w-12 h-12 bg-rose-600 rounded-xl flex items-center justify-center text-white font-bold shadow-lg shadow-rose-200">4</div>
+                            <div>
+                                <h4 class="font-bold text-gray-900 text-lg">sendMessageStream API</h4>
+                                <p class="text-sm text-gray-500">流式模式，适合长任务（SSE）</p>
+                            </div>
+                        </div>
+                        <div class="p-5">
+                            <div class="font-mono text-sm bg-gray-900 rounded-lg p-4 text-gray-300 mb-4 overflow-x-auto">
+                                <span class="text-purple-400">POST</span> <span class="text-green-400">/sendMessageStream</span> <span class="text-gray-500">Authorization: Bearer &lt;JWT&gt;</span>
+                            </div>
+                            <p class="text-gray-700 text-sm leading-relaxed mb-4">通过 <strong>Server-Sent Events (SSE)</strong> 流式推送任务进度，实时获取状态更新和中间产物：</p>
+                            <div class="space-y-2">
+                                <div class="flex items-center gap-3 text-sm">
+                                    <span class="tag bg-gray-100 text-gray-700 text-xs">Event</span>
+                                    <code class="font-mono text-rose-700 bg-rose-50 px-2 py-0.5 rounded">TaskStatusUpdateEvent</code>
+                                    <span class="text-gray-600">→ 任务状态变更（Submitted → Working → Completed）</span>
+                                </div>
+                                <div class="flex items-center gap-3 text-sm">
+                                    <span class="tag bg-gray-100 text-gray-700 text-xs">Event</span>
+                                    <code class="font-mono text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded">TaskArtifactUpdateEvent</code>
+                                    <span class="text-gray-600">→ 中间产物推送（部分结果、文件等）</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sequence Diagram -->
+                <div class="mt-8 bg-white rounded-2xl border border-gray-200 p-6">
+                    <h4 class="font-semibold text-gray-900 mb-4">时序图概览</h4>
+                    <div class="mermaid">
+sequenceDiagram
+    participant C as Client
+    participant A as A2A Server
+    participant U as Auth Server
+    
+    rect rgb(240,248,255)
+        Note over C,A: ① Agent Discovery
+        C->>A: GET /.well-known/agent-card
+        A-->>C: Agent Card (skills, url, security)
+    end
+    
+    rect rgb(240,255,240)
+        Note over C,U: ② Authentication
+        C->>U: Request token (OpenID Connect)
+        U-->>C: JWT Token
+    end
+    
+    rect rgb(255,250,240)
+        Note over C,A: ③ sendMessage (Sync)
+        C->>A: POST /sendMessage + JWT
+        A-->>C: Task Response
+    end
+    
+    rect rgb(255,240,245)
+        Note over C,A: ④ sendMessageStream (SSE)
+        C->>A: POST /sendMessageStream + JWT
+        A-->>C: SSE: TaskStatusUpdateEvent
+        A-->>C: SSE: TaskArtifactUpdateEvent
+        A-->>C: SSE: TaskStatusUpdateEvent (Completed)
+    end
+                    </div>
+                </div>
+            </section>
+
+            <div class="section-divider mb-16"></div>
+
+            <!-- Section 7: Glossary -->
+            <section id="terms" class="mb-16 scroll-mt-24">
+                <div class="flex items-center gap-4 mb-6">
+                    <span class="flex items-center justify-center w-10 h-10 rounded-xl bg-pink-100 text-pink-700 font-bold text-lg">7</span>
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-900">关键术语表</h2>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div class="bg-white rounded-xl p-5 border border-gray-200">
+                        <div class="flex items-center gap-3 mb-2">
+                            <span class="font-mono text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded">核心</span>
+                            <h4 class="font-bold text-gray-900">Agent Card</h4>
+                        </div>
+                        <p class="text-sm text-gray-600">Agent 的"身份证"，描述 Agent 的能力、API 端点 URL、安全策略等元数据。通常通过 <code class="text-xs bg-gray-100 px-1 rounded">/.well-known/agent-card</code> 暴露。</p>
+                    </div>
+                    <div class="bg-white rounded-xl p-5 border border-gray-200">
+                        <div class="flex items-center gap-3 mb-2">
+                            <span class="font-mono text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded">核心</span>
+                            <h4 class="font-bold text-gray-900">Task</h4>
+                        </div>
+                        <p class="text-sm text-gray-600">A2A 中的基本工作单元。一次用户请求对应一个 Task，包含任务 ID、状态、消息历史、产物列表等。</p>
+                    </div>
+                    <div class="bg-white rounded-xl p-5 border border-gray-200">
+                        <div class="flex items-center gap-3 mb-2">
+                            <span class="font-mono text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded">产物</span>
+                            <h4 class="font-bold text-gray-900">Artifact</h4>
+                        </div>
+                        <p class="text-sm text-gray-600">Agent 产出的结果/产物，如生成的报告、图片、文件、结构化数据等。通过 <code class="text-xs bg-gray-100 px-1 rounded">TaskArtifactUpdateEvent</code> 流式推送。</p>
+                    </div>
+                    <div class="bg-white rounded-xl p-5 border border-gray-200">
+                        <div class="flex items-center gap-3 mb-2">
+                            <span class="font-mono text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded">传输</span>
+                            <h4 class="font-bold text-gray-900">SSE</h4>
+                        </div>
+                        <p class="text-sm text-gray-600">Server-Sent Events，服务器向客户端单向推送流数据的技术。A2A 用 SSE 实现任务状态的实时流式更新。</p>
+                    </div>
+                    <div class="bg-white rounded-xl p-5 border border-gray-200">
+                        <div class="flex items-center gap-3 mb-2">
+                            <span class="font-mono text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded">传输</span>
+                            <h4 class="font-bold text-gray-900">JSON-RPC</h4>
+                        </div>
+                        <p class="text-sm text-gray-600">A2A 使用的远程过程调用消息格式标准。轻量级、语言无关，适合 Agent 之间的结构化消息交换。</p>
+                    </div>
+                    <div class="bg-white rounded-xl p-5 border border-gray-200">
+                        <div class="flex items-center gap-3 mb-2">
+                            <span class="font-mono text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">特性</span>
+                            <h4 class="font-bold text-gray-900">LRO</h4>
+                        </div>
+                        <p class="text-sm text-gray-600">Long-Running Operation，长时间运行操作。A2A 原生支持需要数分钟甚至数小时才能完成的任务，不要求客户端保持长连接。</p>
+                    </div>
+                    <div class="bg-white rounded-xl p-5 border border-gray-200 md:col-span-2">
+                        <div class="flex items-center gap-3 mb-2">
+                            <span class="font-mono text-xs bg-rose-100 text-rose-700 px-2 py-1 rounded">安全</span>
+                            <h4 class="font-bold text-gray-900">Opaque Execution（不透明执行）</h4>
+                        </div>
+                        <p class="text-sm text-gray-600">A2A 的核心安全原则——Agent 在协作时<strong>不暴露内部逻辑、记忆、推理过程或专有工具</strong>。仅通过声明的能力（Agent Card）和交换的上下文进行交互。既保护知识产权，又增强系统安全性。</p>
+                    </div>
+                </div>
+            </section>
+
+            <div class="section-divider mb-16"></div>
+
+            <!-- Section 8: Learning Path -->
+            <section id="path" class="mb-16 scroll-mt-24">
+                <div class="flex items-center gap-4 mb-6">
+                    <span class="flex items-center justify-center w-10 h-10 rounded-xl bg-teal-100 text-teal-700 font-bold text-lg">8</span>
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-900">学习路径建议</h2>
+                </div>
+
+                <div class="relative">
+                    <div class="absolute left-6 top-8 bottom-8 w-0.5 bg-gradient-to-b from-indigo-300 via-purple-300 to-teal-300"></div>
+                    
+                    <div class="space-y-6">
+                        <div class="relative flex gap-5">
+                            <div class="flex-shrink-0 w-12 h-12 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold shadow-lg z-10">1</div>
+                            <div class="flex-1 bg-white rounded-xl p-5 border border-gray-200 card-hover">
+                                <h4 class="font-bold text-gray-900 mb-1">先理解 A2A 的定位</h4>
+                                <p class="text-sm text-gray-600">A2A 是"Agent 的 HTTP"，解决的是<strong>通信</strong>问题，不是构建 Agent 的问题。明确它和 MCP、开发框架、LLM 的分工边界。</p>
+                            </div>
+                        </div>
+                        
+                        <div class="relative flex gap-5">
+                            <div class="flex-shrink-0 w-12 h-12 bg-purple-600 rounded-full flex items-center justify-center text-white font-bold shadow-lg z-10">2</div>
+                            <div class="flex-1 bg-white rounded-xl p-5 border border-gray-200 card-hover">
+                                <h4 class="font-bold text-gray-900 mb-1">对比 MCP 加深理解</h4>
+                                <p class="text-sm text-gray-600">MCP = Agent 调工具，A2A = Agent 调 Agent。这是最容易混淆的点，也是面试/讨论中最常被问到的。</p>
+                            </div>
+                        </div>
+                        
+                        <div class="relative flex gap-5">
+                            <div class="flex-shrink-0 w-12 h-12 bg-pink-600 rounded-full flex items-center justify-center text-white font-bold shadow-lg z-10">3</div>
+                            <div class="flex-1 bg-white rounded-xl p-5 border border-gray-200 card-hover">
+                                <h4 class="font-bold text-gray-900 mb-1">掌握四个核心概念</h4>
+                                <p class="text-sm text-gray-600">Agent Card、Task、Artifact、Stream。这四个概念是后续理解所有 API 设计和源码的基础。</p>
+                            </div>
+                        </div>
+                        
+                        <div class="relative flex gap-5">
+                            <div class="flex-shrink-0 w-12 h-12 bg-amber-600 rounded-full flex items-center justify-center text-white font-bold shadow-lg z-10">4</div>
+                            <div class="flex-1 bg-white rounded-xl p-5 border border-gray-200 card-hover">
+                                <h4 class="font-bold text-gray-900 mb-1">关注企业级特性</h4>
+                                <p class="text-sm text-gray-600">认证/授权/安全/追踪/不透明执行——这是 A2A 区别于玩具级 Agent 方案的核心竞争力，也是生产落地的关键。</p>
+                            </div>
+                        </div>
+                        
+                        <div class="relative flex gap-5">
+                            <div class="flex-shrink-0 w-12 h-12 bg-teal-600 rounded-full flex items-center justify-center text-white font-bold shadow-lg z-10">5</div>
+                            <div class="flex-1 bg-white rounded-xl p-5 border border-gray-200 card-hover">
+                                <h4 class="font-bold text-gray-900 mb-1">动手实践：阅读官方示例代码</h4>
+                                <p class="text-sm text-gray-600">在理解协议设计的基础上，阅读 A2A 官方提供的示例实现，理解 Agent Card 的 JSON 结构、JSON-RPC 消息格式、SSE 流的处理逻辑。</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Footer -->
+            <div class="section-divider mb-8"></div>
+            <footer class="text-center py-8">
+                <p class="text-sm text-gray-500">
+                    基于 <a href="https://a2a-protocol.org/latest/topics/what-is-a2a" target="_blank" class="text-indigo-600 hover:text-indigo-700 underline">a2a-protocol.org</a> 官方文档整理
+                </p>
+                <p class="text-xs text-gray-400 mt-2">系统性认知总结 · 持续更新中</p>
+            </footer>
+        </main>
+    </div>
+
+    <script>
+        // Initialize Mermaid
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'default',
+            sequence: {
+                diagramMarginX: 20,
+                diagramMarginY: 20,
+                actorMargin: 60,
+                width: 120,
+                height: 50,
+                boxMargin: 10,
+                boxTextMargin: 5,
+                noteMargin: 10,
+                messageMargin: 35,
+                mirrorActors: false,
+                bottomMarginAdj: 1,
+                useMaxWidth: true,
+                rightAngles: false,
+                showSequenceNumbers: false
+            },
+            themeCSS: `
+                .actor { fill: #f8fafc; stroke: #e2e8f0; }
+                .actor-line { stroke: #cbd5e1; }
+                .messageLine0, .messageLine1 { stroke: #64748b; }
+                .messageText { fill: #334155; font-size: 13px; }
+                .labelBox { fill: #f1f5f9; stroke: #e2e8f0; }
+                .note { fill: #fef3c7; stroke: #f59e0b; }
+                .noteText { fill: #92400e; font-size: 12px; }
+            `
+        });
+
+        // Scroll progress indicator
+        window.addEventListener('scroll', () => {
+            const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+            const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            const scrolled = (winScroll / height) * 100;
+            document.getElementById('scrollIndicator').style.width = scrolled + '%';
+        });
+
+        // TOC active state
+        const sections = document.querySelectorAll('section[id]');
+        const tocLinks = document.querySelectorAll('.toc-link');
+
+        function updateActiveToc() {
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                if (scrollY >= sectionTop - 120) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            tocLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === '#' + current) {
+                    link.classList.add('active');
+                }
+            });
+        }
+
+        window.addEventListener('scroll', updateActiveToc);
+        updateActiveToc();
+
+        // Smooth scroll for TOC links
+        tocLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const targetId = link.getAttribute('href').slice(1);
+                const target = document.getElementById(targetId);
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+    </script>
+</body>
+</html>

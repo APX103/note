@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A2A 智能协作平台 — PRD & 架构设计</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Noto Sans SC', system-ui, -apple-system, sans-serif; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        .mermaid { background: transparent !important; }
+        .mermaid svg { max-width: 100%; height: auto; }
+        .gradient-text {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        .scroll-indicator { position: fixed; top: 0; left: 0; height: 3px; background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); z-index: 1000; transition: width 0.1s; }
+        .toc-link.active { color: #667eea; border-left-color: #667eea; background: linear-gradient(90deg, rgba(102,126,234,0.08) 0%, transparent 100%); }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #c7c7c7; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #a0a0a0; }
+        .section-divider { height: 1px; background: linear-gradient(90deg, transparent 0%, #e5e7eb 20%, #e5e7eb 80%, transparent 100%); }
+        pre { background: #1e293b; color: #e2e8f0; padding: 1rem; border-radius: 0.75rem; overflow-x: auto; font-size: 0.8125rem; line-height: 1.6; }
+        code { font-family: 'JetBrains Mono', monospace; font-size: 0.8125rem; }
+        :not(pre) > code { background: #f1f5f9; color: #334155; padding: 0.125rem 0.375rem; border-radius: 0.25rem; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+        th, td { border: 1px solid #e2e8f0; padding: 0.625rem 0.875rem; text-align: left; }
+        th { background: #f8fafc; font-weight: 600; color: #334155; }
+        tr:nth-child(even) { background: #fafafa; }
+        blockquote { border-left: 4px solid #667eea; background: #f8fafc; padding: 1rem 1.25rem; margin: 1rem 0; border-radius: 0 0.5rem 0.5rem 0; color: #475569; }
+        blockquote p { margin: 0; }
+        .tag { display: inline-flex; align-items: center; padding: 0.2rem 0.6rem; border-radius: 9999px; font-size: 0.7rem; font-weight: 500; letter-spacing: 0.02em; }
+        h2 { scroll-margin-top: 6rem; }
+        h3 { scroll-margin-top: 6rem; }
+        h4 { scroll-margin-top: 6rem; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 leading-relaxed">
+    <div class="scroll-indicator" id="scrollIndicator"></div>
+
+    <!-- Hero -->
+    <header class="relative bg-white border-b border-gray-200">
+        <div class="absolute inset-0 bg-gradient-to-br from-indigo-50/50 via-white to-purple-50/30 pointer-events-none"></div>
+        <div class="relative max-w-6xl mx-auto px-6 py-14 md:py-20">
+            <div class="flex items-center gap-3 mb-5">
+                <span class="tag bg-indigo-100 text-indigo-700">PRD</span>
+                <span class="tag bg-purple-100 text-purple-700">架构设计</span>
+                <span class="tag bg-emerald-100 text-emerald-700">v0.1</span>
+            </div>
+            <h1 class="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight mb-5">
+                <span class="gradient-text">A2A 智能协作平台</span>
+                <span class="text-gray-900">产品需求与架构设计</span>
+            </h1>
+            <p class="text-base md:text-lg text-gray-600 max-w-3xl leading-relaxed">
+                基于 A2A 协议的多 Agent 去中心化协作基础设施平台。让团队内各领域 Agent 自主发现、自主协商、协同完成复杂任务，平台提供发现、代理、追踪、分析四大能力。
+            </p>
+        </div>
+    </header>
+
+    <div class="max-w-6xl mx-auto px-6 py-12 flex gap-12">
+        <!-- Sidebar TOC -->
+        <aside class="hidden lg:block w-60 flex-shrink-0">
+            <div class="sticky top-8">
+                <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">目录</h3>
+                <nav class="space-y-0.5 text-sm" id="toc">
+                    <a href="#s1" class="toc-link block py-1.5 px-3 text-gray-600 hover:text-gray-900 rounded-md border-l-2 border-transparent transition-all">一、系统概述</a>
+                    <a href="#s2" class="toc-link block py-1.5 px-3 text-gray-600 hover:text-gray-900 rounded-md border-l-2 border-transparent transition-all">二、功能需求</a>
+                    <div class="pl-4 space-y-0.5">
+                        <a href="#s2-1" class="toc-link block py-1 px-3 text-gray-500 hover:text-gray-900 rounded-md border-l-2 border-transparent transition-all text-xs">2.1 服务发现与注册</a>
+                        <a href="#s2-2" class="toc-link block py-1 px-3 text-gray-500 hover:text-gray-900 rounded-md border-l-2 border-transparent transition-all text-xs">2.2 通信代理</a>
+                        <a href="#s2-3" class="toc-link block py-1 px-3 text-gray-500 hover:text-gray-900 rounded-md border-l-2 border-transparent transition-all text-xs">2.3 Task 与链路追踪</a>
+                        <a href="#s2-4" class="toc-link block py-1 px-3 text-gray-500 hover:text-gray-900 rounded-md border-l-2 border-transparent transition-all text-xs">2.4 数据分析</a>
+                        <a href="#s2-5" class="toc-link block py-1 px-3 text-gray-500 hover:text-gray-900 rounded-md border-l-2 border-transparent transition-all text-xs">2.5 去中心化编排</a>
+                    </div>
+                    <a href="#s3" class="toc-link block py-1.5 px-3 text-gray-600 hover:text-gray-900 rounded-md border-l-2 border-transparent transition-all">三、架构设计</a>
+                    <a href="#s4" class="toc-link block py-1.5 px-3 text-gray-600 hover:text-gray-900 rounded-md border-l-2 border-transparent transition-all">四、关键交互流程</a>
+                    <a href="#s5" class="toc-link block py-1.5 px-3 text-gray-600 hover:text-gray-900 rounded-md border-l-2 border-transparent transition-all">五、安全与权限</a>
+                    <a href="#s6" class="toc-link block py-1.5 px-3 text-gray-600 hover:text-gray-900 rounded-md border-l-2 border-transparent transition-all">六、待决策事项</a>
+                    <a href="#s7" class="toc-link block py-1.5 px-3 text-gray-600 hover:text-gray-900 rounded-md border-l-2 border-transparent transition-all">七、里程碑</a>
+                    <a href="#s8" class="toc-link block py-1.5 px-3 text-gray-600 hover:text-gray-900 rounded-md border-l-2 border-transparent transition-all">八、总结</a>
+                </nav>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 min-w-0 text-gray-700">
+
+<!-- 一、系统概述 -->
+<section id="s1" class="mb-14">
+<h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3"><span class="flex items-center justify-center w-9 h-9 rounded-lg bg-indigo-100 text-indigo-700 font-bold text-base">1</span>系统概述</h2>
+
+<h3 class="text-lg font-semibold text-gray-900 mt-6 mb-3">1.1 背景与问题</h3>
+<p class="mb-3">当前 A2A 生态存在以下生产级缺口：</p>
+<ul class="list-disc pl-5 space-y-1.5 mb-4">
+<li><strong>无标准服务发现</strong>：A2A 协议仅定义 Agent Card 格式，未规定注册与发现机制</li>
+<li><strong>无通信代理层</strong>：Agent 间直连无法实现集中审计、流量管控、链路追踪</li>
+<li><strong>无任务追踪能力</strong>：跨 Agent 的 Task 生命周期不可见，无法排查故障</li>
+<li><strong>无数据沉淀</strong>：Agent 间协作数据散落，无法用于后续优化与分析</li>
+</ul>
+<p class="mb-4">本平台旨在填补上述缺口，在<strong>不破坏 A2A 协议兼容性</strong>的前提下，构建一层基础设施，使 Agent 协作从"点对点野路子"升级为"可观测、可治理、可优化"的企业级网络。</p>
+
+<h3 class="text-lg font-semibold text-gray-900 mt-6 mb-3">1.2 核心设计哲学</h3>
+<table class="mb-4">
+<thead><tr><th style="width:22%">原则</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td><strong>去中心化编排</strong></td><td>不设置中心 Orchestrator。由 Agent 自主决策"问谁、问什么、何时终止"。平台只做通信代理与发现服务。</td></tr>
+<tr><td><strong>协议兼容</strong></td><td>对外暴露标准 A2A 接口（Agent Card、JSON-RPC、SSE），第三方 A2A Agent 可零改造接入。</td></tr>
+<tr><td><strong>平台不介入推理</strong></td><td>平台不干预 Agent 的内部逻辑、Prompt 或工具选择，只管控"信封"（元数据、路由、权限）。</td></tr>
+<tr><td><strong>数据归集</strong></td><td>所有通信经过平台，天然形成全量数据湖，支撑追踪、分析、审计。</td></tr>
+<tr><td><strong>上下文一致性</strong></td><td>同一 Task 下，所有参与 Agent 共享统一的 Session 上下文，确保多轮对话记忆一致。</td></tr>
+</tbody>
+</table>
+</section>
+
+<div class="section-divider mb-14"></div>
+
+<!-- 二、功能需求 -->
+<section id="s2" class="mb-14">
+<h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3"><span class="flex items-center justify-center w-9 h-9 rounded-lg bg-emerald-100 text-emerald-700 font-bold text-base">2</span>功能需求</h2>
+
+<!-- 2.1 -->
+<h3 id="s2-1" class="text-lg font-semibold text-gray-900 mt-8 mb-3 flex items-center gap-2"><span class="text-emerald-600">§</span> 2.1 服务发现与注册（Discovery & Registry）</h3>
+
+<h4 class="font-semibold text-gray-900 mt-4 mb-2">2.1.1 Agent 注册</h4>
+<ul class="list-disc pl-5 space-y-1 mb-3">
+<li>Agent 启动时向平台 Registry 注册，提交 Agent Card（名称、描述、Skills、端点、能力声明）</li>
+<li>支持 <strong>主动注册</strong>（Agent 启动调用 API）和 <strong>代理注册</strong>（DevOps 配置 CI/CD 时批量注册）</li>
+<li>注册信息支持版本管理（Agent 升级时保留历史版本）</li>
+</ul>
+
+<h4 class="font-semibold text-gray-900 mt-4 mb-2">2.1.2 心跳与健康检查</h4>
+<ul class="list-disc pl-5 space-y-1 mb-3">
+<li>已注册 Agent 周期性向平台发送心跳（默认 30s，可配置）</li>
+<li>平台自动清理超时未心跳的 Agent（默认 90s 无心跳标记为 Offline）</li>
+<li>提供健康检查端点供外部监控集成</li>
+</ul>
+
+<h4 class="font-semibold text-gray-900 mt-4 mb-2">2.1.3 Agent 发现查询</h4>
+<ul class="list-disc pl-5 space-y-1 mb-3">
+<li><strong>技能搜索</strong>：按 skill 名称/描述/标签搜索 Agent（如查找具有 "code-review" 能力的 Agent）</li>
+<li><strong>语义搜索</strong>（可选 V2）：用自然语言描述需求，返回最匹配的 Agent（基于 Embedding）</li>
+<li><strong>权限过滤</strong>：查询结果自动按调用方 Agent 的权限范围过滤，不可见的 Agent 不出现在结果中</li>
+<li><strong>列表缓存</strong>：Registry 数据缓存于 Redis，保证亚秒级查询响应</li>
+</ul>
+
+<h4 class="font-semibold text-gray-900 mt-4 mb-2">2.1.4 Agent 元数据更新与注销</h4>
+<ul class="list-disc pl-5 space-y-1 mb-3">
+<li>Agent 支持热更新 Agent Card（能力变更、版本升级）</li>
+<li>支持优雅注销（通知平台下线，平台转发完存量消息后关闭路由）</li>
+</ul>
+
+<!-- 2.2 -->
+<h3 id="s2-2" class="text-lg font-semibold text-gray-900 mt-8 mb-3 flex items-center gap-2"><span class="text-emerald-600">§</span> 2.2 通信代理（Message Proxy）</h3>
+
+<h4 class="font-semibold text-gray-900 mt-4 mb-2">2.2.1 统一消息网关</h4>
+<ul class="list-disc pl-5 space-y-1 mb-3">
+<li>所有 Agent 间通信<strong>必须经过平台转发</strong>，禁止 Agent 间直连（通过网络安全策略 + SDK 约束）</li>
+<li>平台对外暴露标准 A2A 端点（<code>/.well-known/agent-card</code>、<code>/sendMessage</code>、<code>/sendMessageStream</code>）</li>
+<li>Agent 实际向平台发送消息，平台根据目标 Agent ID 路由到真实目的地</li>
+</ul>
+
+<h4 class="font-semibold text-gray-900 mt-4 mb-2">2.2.2 消息路由</h4>
+<ul class="list-disc pl-5 space-y-1 mb-3">
+<li><strong>直接路由</strong>：Agent A → 平台 → Agent B（点对点）</li>
+<li><strong>广播路由</strong>（可选 V2）：Agent A → 平台 → Agent B/C/D（一对多，用于投票/征集场景）</li>
+<li><strong>负载均衡</strong>：同一 Skill 有多个 Agent 实例时，按 Round Robin / 最少连接 / 响应时间加权分发</li>
+</ul>
+
+<h4 class="font-semibold text-gray-900 mt-4 mb-2">2.2.3 消息持久化</h4>
+<ul class="list-disc pl-5 space-y-1 mb-3">
+<li>所有经过平台的消息（Task 创建、状态更新、Artifact、心跳）写入时序数据库或消息日志</li>
+<li>持久化字段：消息 ID、Task ID、Session ID、发送方、接收方、时间戳、消息类型、Payload（可选脱敏）、路由耗时</li>
+<li>保留策略：默认 90 天，支持按项目/团队配置</li>
+</ul>
+
+<h4 class="font-semibold text-gray-900 mt-4 mb-2">2.2.4 异步与流式支持</h4>
+<ul class="list-disc pl-5 space-y-1 mb-3">
+<li>支持同步请求/响应（<code>/sendMessage</code>）</li>
+<li>支持 SSE 流式传输（<code>/sendMessageStream</code>），平台透传 Agent 的进度推送，同时记录流事件</li>
+<li>支持长任务（LRO）的挂起与恢复</li>
+</ul>
+
+<!-- 2.3 -->
+<h3 id="s2-3" class="text-lg font-semibold text-gray-900 mt-8 mb-3 flex items-center gap-2"><span class="text-emerald-600">§</span> 2.3 Task 与链路追踪（Task Management & Tracing）</h3>
+
+<h4 class="font-semibold text-gray-900 mt-4 mb-2">2.3.1 Task 生命周期管理</h4>
+<p class="mb-2">平台维护每个 Task 的完整状态机：</p>
+<pre>CREATED → SUBMITTED → WORKING → [COMPLETED / FAILED / CANCELLED / TIMEOUT]
+   ↑         ↑          ↓
+   └─────────┴── 支持状态回退与重试</pre>
+<ul class="list-disc pl-5 space-y-1 mb-3 mt-2">
+<li><strong>Task 创建</strong>：任意 Agent（通常是入口 Agent）创建 Task，平台分配全局 Task ID</li>
+<li><strong>Task 分配</strong>：平台记录 Task 与参与 Agent 的关联关系</li>
+<li><strong>状态变更</strong>：Agent 通过 A2A 消息上报状态，平台更新状态机</li>
+<li><strong>Task 查询</strong>：提供 API 查询 Task 当前状态、参与 Agent、耗时、结果摘要</li>
+</ul>
+
+<h4 class="font-semibold text-gray-900 mt-4 mb-2">2.3.2 分布式链路追踪</h4>
+<ul class="list-disc pl-5 space-y-1 mb-3">
+<li>每个 Task 生成全局 Trace ID，贯穿所有参与 Agent 的交互</li>
+<li>每个消息包含 Span ID + Parent Span ID，形成调用树</li>
+<li>追踪维度：Agent 间调用链、每轮交互延迟、消息大小与模态分布、错误与重试次数</li>
+</ul>
+
+<h4 class="font-semibold text-gray-900 mt-4 mb-2">2.3.3 Session 上下文一致性</h4>
+<ul class="list-disc pl-5 space-y-1 mb-3">
+<li>平台为每个 Task 维护一个<strong>共享 Session 上下文</strong>（Shared Context）</li>
+<li>当 Agent A 邀请 Agent B 加入 Task 时，平台自动将当前 Session Context 注入给 Agent B</li>
+<li>Session Context 包含：Task 原始目标与用户输入、历史对话摘要（或完整消息引用）、已产生的 Artifact 索引、共享变量/状态</li>
+<li>Agent B 回复后，其产出自动合并回 Shared Context，供下一轮 Agent 使用</li>
+</ul>
+<blockquote>
+<p><strong>关键设计</strong>：A2A 协议原生没有"跨 Agent Session"概念，平台通过 Adapter 层实现——对外是标准 A2A，对内维护 Task 级 Context Map。</p>
+</blockquote>
+
+<!-- 2.4 -->
+<h3 id="s2-4" class="text-lg font-semibold text-gray-900 mt-8 mb-3 flex items-center gap-2"><span class="text-emerald-600">§</span> 2.4 数据分析（Analytics）</h3>
+
+<h4 class="font-semibold text-gray-900 mt-4 mb-2">2.4.1 实时看板</h4>
+<ul class="list-disc pl-5 space-y-1 mb-3">
+<li>Agent 在线状态总览（谁在/离线、心跳健康度）</li>
+<li>Task 实时大盘（进行中/已完成/失败数量、平均耗时）</li>
+<li>热点 Skill 排行（哪些 Agent 被调用最频繁）</li>
+<li>消息流量图（Agent 间通信拓扑可视化）</li>
+</ul>
+
+<h4 class="font-semibold text-gray-900 mt-4 mb-2">2.4.2 离线分析</h4>
+<ul class="list-disc pl-5 space-y-1 mb-3">
+<li>Agent 协作效率分析（哪些 Agent 组合完成任务最快）</li>
+<li>瓶颈定位（哪些 Agent 平均响应慢、错误率高）</li>
+<li>对话轮次分布（Task 平均需要几轮交互完成）</li>
+<li>成本分析（Token 消耗估算、API 调用成本分摊）</li>
+</ul>
+
+<h4 class="font-semibold text-gray-900 mt-4 mb-2">2.4.3 数据导出</h4>
+<ul class="list-disc pl-5 space-y-1 mb-3">
+<li>支持按 Task / Agent / 时间范围导出消息日志</li>
+<li>支持 OpenTelemetry 格式导出，对接外部 APM（Jaeger / Grafana Tempo）</li>
+</ul>
+
+<!-- 2.5 -->
+<h3 id="s2-5" class="text-lg font-semibold text-gray-900 mt-8 mb-3 flex items-center gap-2"><span class="text-emerald-600">§</span> 2.5 去中心化编排（Agent Autonomous Orchestration）</h3>
+
+<h4 class="font-semibold text-gray-900 mt-4 mb-2">2.5.1 设计定位</h4>
+<p class="mb-3">平台<strong>不提供中心编排器</strong>，编排逻辑由 Agent 自主完成。平台只提供"编排所需的工具与信息"。</p>
+
+<h4 class="font-semibold text-gray-900 mt-4 mb-2">2.5.2 Agent 获取可协作 Agent 列表</h4>
+<ul class="list-disc pl-5 space-y-1 mb-3">
+<li>平台将"Registry 查询能力"封装为一个标准工具/函数（可类比 MCP Tool），注入到每个接入 Agent 的可用工具集中</li>
+<li>Agent 在执行 Task 时，可主动调用该工具：<code>query_agents(skill="code-review")</code> → 返回具备代码审查能力的 Agent 列表；<code>query_agents_by_description("...")</code> → 语义匹配</li>
+<li>返回结果已按权限过滤，Agent 只能看到自己有权限调用的 Agent</li>
+</ul>
+
+<h4 class="font-semibold text-gray-900 mt-4 mb-2">2.5.3 Agent 自主决策循环</h4>
+<p class="mb-2">单个 Agent 作为 Task Owner 时的标准推理循环：</p>
+<pre>1. 接收用户/上游 Task 目标
+2. 【自检】评估自身能力是否足以独立完成
+3. 【发现】若不能，调用 query_agents() 发现具备相关能力的 Agent(s)
+4. 【选择】根据 Agent Card 的描述、历史评分、当前负载，选择 1~N 个候选 Agent
+5. 【委派】通过平台向候选 Agent 发送子 Task（携带 Shared Session Context）
+6. 【等待】接收候选 Agent 的回复（Artifact / 状态更新）
+7. 【整合】将回复整合到 Shared Context，评估当前进展
+8. 【判断】
+   - 若目标已达成 → 标记 Task COMPLETED，返回最终产物
+   - 若需补充信息 → 回到步骤 4，继续询问其他 Agent
+   - 若陷入僵局 → 标记 FAILED 或请求人工介入（Human-in-the-loop）</pre>
+
+<h4 class="font-semibold text-gray-900 mt-4 mb-2">2.5.4 终止条件与边界</h4>
+<ul class="list-disc pl-5 space-y-1 mb-3">
+<li><strong>成功终止</strong>：Task Owner Agent 判定目标达成，向平台发送 Task COMPLETED 状态</li>
+<li><strong>失败终止</strong>：达到最大交互轮次（默认 20 轮）、超时（默认 5 分钟）、Agent 明确声明无法完成</li>
+<li><strong>死循环检测</strong>：平台监控同一 Task 内 Agent 间重复询问相同内容，触发熔断</li>
+<li><strong>人工介入</strong>：Agent 主动请求 <code>HUMAN_ESCALATION</code>，平台将 Task 挂起并通知人类操作员</li>
+</ul>
+</section>
+
+<div class="section-divider mb-14"></div>
+
+<!-- 三、架构设计 -->
+<section id="s3" class="mb-14">
+<h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3"><span class="flex items-center justify-center w-9 h-9 rounded-lg bg-sky-100 text-sky-700 font-bold text-base">3</span>架构设计</h2>
+
+<h3 class="text-lg font-semibold text-gray-900 mt-6 mb-3">3.1 总体架构</h3>
+
+<!-- 架构图 CSS 版 -->
+<div class="bg-white rounded-2xl border border-gray-200 p-6 md:p-8 space-y-5">
+    <!-- 接入层 -->
+    <div>
+        <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">接入层 Access Layer</div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div class="bg-sky-50 rounded-xl p-4 border border-sky-100 text-center">
+                <div class="text-2xl mb-1">🤖</div>
+                <div class="font-semibold text-gray-900 text-sm">Agent A</div>
+                <div class="text-xs text-gray-500 mt-0.5">需求分析</div>
+            </div>
+            <div class="bg-pink-50 rounded-xl p-4 border border-pink-100 text-center">
+                <div class="text-2xl mb-1">🤖</div>
+                <div class="font-semibold text-gray-900 text-sm">Agent B</div>
+                <div class="text-xs text-gray-500 mt-0.5">代码生成</div>
+            </div>
+            <div class="bg-emerald-50 rounded-xl p-4 border border-emerald-100 text-center">
+                <div class="text-2xl mb-1">🤖</div>
+                <div class="font-semibold text-gray-900 text-sm">Agent C</div>
+                <div class="text-xs text-gray-500 mt-0.5">测试验证</div>
+            </div>
+            <div class="bg-amber-50 rounded-xl p-4 border border-amber-100 text-center">
+                <div class="text-2xl mb-1">👤</div>
+                <div class="font-semibold text-gray-900 text-sm">Human UI</div>
+                <div class="text-xs text-gray-500 mt-0.5">监控 / 介入</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 连接箭头 -->
+    <div class="flex justify-center"><div class="text-gray-300 text-lg">↓</div></div>
+    <div class="text-center text-xs text-gray-400 font-mono">A2A over HTTPS (JSON-RPC / SSE)</div>
+    <div class="flex justify-center"><div class="text-gray-300 text-lg">↓</div></div>
+
+    <!-- 平台层 -->
+    <div>
+        <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">平台层 Platform Layer</div>
+
+        <!-- Gateway -->
+        <div class="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl p-5 text-white shadow-lg mb-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <div class="font-bold text-lg">A2A Gateway</div>
+                    <div class="text-xs opacity-80 mt-1">通信代理 · 协议解析 · 消息路由 · 负载均衡 · 流式透传</div>
+                </div>
+                <div class="text-right text-xs opacity-70">速率限制 / 熔断 / 重试</div>
+            </div>
+        </div>
+
+        <!-- 三个核心服务 -->
+        <div class="grid md:grid-cols-3 gap-3 mb-4">
+            <div class="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
+                <div class="font-semibold text-gray-900 text-sm mb-2">Registry Service</div>
+                <div class="text-xs text-gray-500 space-y-1">
+                    <div>• 服务发现 + 心跳</div>
+                    <div>• PostgreSQL + Redis</div>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
+                <div class="font-semibold text-gray-900 text-sm mb-2">Task Manager</div>
+                <div class="text-xs text-gray-500 space-y-1">
+                    <div>• Task 生命周期</div>
+                    <div>• Redis + PostgreSQL</div>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
+                <div class="font-semibold text-gray-900 text-sm mb-2">Trace Collector</div>
+                <div class="text-xs text-gray-500 space-y-1">
+                    <div>• 链路追踪</div>
+                    <div>• OpenTelemetry</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Session Manager -->
+        <div class="bg-violet-50 rounded-xl p-4 border border-violet-100 mb-3">
+            <div class="font-semibold text-violet-900 text-sm mb-1">Session Context Manager</div>
+            <div class="text-xs text-violet-700">Task 级 Shared Context 存储与同步 · Agent 加入/退出时的上下文注入与合并</div>
+        </div>
+
+        <!-- Analytics -->
+        <div class="bg-teal-50 rounded-xl p-4 border border-teal-100">
+            <div class="font-semibold text-teal-900 text-sm mb-1">Analytics Engine</div>
+            <div class="text-xs text-teal-700">实时聚合 · 离线分析 · 可视化看板</div>
+        </div>
+    </div>
+
+    <!-- 连接箭头 -->
+    <div class="flex justify-center"><div class="text-gray-300 text-lg">↓</div></div>
+
+    <!-- 数据层 -->
+    <div>
+        <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">数据层 Data Layer</div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div class="bg-slate-50 rounded-xl p-4 border border-slate-200 text-center">
+                <div class="text-lg mb-1">🐘</div>
+                <div class="font-semibold text-gray-900 text-sm">PostgreSQL</div>
+                <div class="text-xs text-gray-500 mt-0.5">Registry + Metadata</div>
+            </div>
+            <div class="bg-slate-50 rounded-xl p-4 border border-slate-200 text-center">
+                <div class="text-lg mb-1">⚡</div>
+                <div class="font-semibold text-gray-900 text-sm">Redis</div>
+                <div class="text-xs text-gray-500 mt-0.5">Cache / Session</div>
+            </div>
+            <div class="bg-slate-50 rounded-xl p-4 border border-slate-200 text-center">
+                <div class="text-lg mb-1">📊</div>
+                <div class="font-semibold text-gray-900 text-sm">ClickHouse</div>
+                <div class="text-xs text-gray-500 mt-0.5">Message Log / Metrics</div>
+            </div>
+            <div class="bg-slate-50 rounded-xl p-4 border border-slate-200 text-center">
+                <div class="text-lg mb-1">📦</div>
+                <div class="font-semibold text-gray-900 text-sm">Object Store</div>
+                <div class="text-xs text-gray-500 mt-0.5">Artifact Storage</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<h3 class="text-lg font-semibold text-gray-900 mt-6 mb-3">3.2 核心组件说明</h3>
+<table>
+<thead><tr><th style="width:22%">组件</th><th style="width:40%">职责</th><th>技术选型建议</th></tr></thead>
+<tbody>
+<tr><td><strong>A2A Gateway</strong></td><td>接收所有 Agent 消息，解析 JSON-RPC，路由到目标，透传 SSE</td><td>Python/FastAPI 或 Go/Gin</td></tr>
+<tr><td><strong>Registry Service</strong></td><td>Agent 注册、心跳、发现查询、元数据管理</td><td>PostgreSQL + Redis</td></tr>
+<tr><td><strong>Task Manager</strong></td><td>Task 状态机、超时调度、参与 Agent 关系维护</td><td>Redis（状态）+ PostgreSQL（持久化）</td></tr>
+<tr><td><strong>Session Context Manager</strong></td><td>Task 级共享上下文的 CRUD 与版本控制</td><td>Redis（热数据）+ PostgreSQL JSONB（归档）</td></tr>
+<tr><td><strong>Trace Collector</strong></td><td>接收 OpenTelemetry Span，构建调用链</td><td>OTel Collector + ClickHouse/Jaeger</td></tr>
+<tr><td><strong>Analytics Engine</strong></td><td>实时/离线数据处理与可视化</td><td>ClickHouse + Grafana / 自研前端</td></tr>
+</tbody>
+</table>
+</section>
+
+<div class="section-divider mb-14"></div>
+
+<!-- 四、关键交互流程 -->
+<section id="s4" class="mb-14">
+<h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3"><span class="flex items-center justify-center w-9 h-9 rounded-lg bg-amber-100 text-amber-700 font-bold text-base">4</span>关键交互流程</h2>
+
+<h3 class="text-lg font-semibold text-gray-900 mt-6 mb-3">4.1 Agent 注册与发现</h3>
+<div class="bg-white rounded-2xl border border-gray-200 p-5">
+<div class="mermaid">
+sequenceDiagram
+    participant A as Agent A
+    participant R as Registry Service
+    participant DB as PostgreSQL
+
+    rect rgb(240,248,255)
+        Note over A,DB: Agent 启动注册
+        A->>R: POST /registry/register {Agent Card}
+        R->>DB: 写入 Agent Card
+        DB-->>R: 确认
+        R-->>A: 返回注册确认 + Agent ID
+    end
+
+    rect rgb(255,250,240)
+        Note over A,R: 心跳保活
+        loop 每 30s
+            A->>R: POST /registry/heartbeat
+            R-->>A: 确认
+        end
+    end
+
+    rect rgb(240,255,240)
+        Note over A,R: 发现协作 Agent
+        A->>A: 调用 query_agents(skill="data-analysis")
+        A->>R: GET /registry/agents?skill=data-analysis
+        R->>DB: 查询 + 权限过滤
+        DB-->>R: Agent 列表
+        R-->>A: [{name:"Agent-B", url:"...", skills:[...]}, ...]
+    end
+</div>
+</div>
+
+<h3 class="text-lg font-semibold text-gray-900 mt-6 mb-3">4.2 Task 创建与多 Agent 协作（含 Session 同步）</h3>
+<div class="bg-white rounded-2xl border border-gray-200 p-5">
+<div class="mermaid">
+sequenceDiagram
+    participant A as Agent A (Task Owner)
+    participant G as A2A Gateway
+    participant T as Task Manager
+    participant S as Session Context Manager
+    participant B as Agent B
+
+    rect rgb(240,248,255)
+        Note over A,S: Task 创建
+        A->>G: POST /tasks/create {goal, session_context}
+        G->>T: 创建 Task T-001
+        T->>S: 分配 Session Context S-001
+        S-->>T: S-001 创建完成
+        T-->>A: 返回 Task T-001
+    end
+
+    rect rgb(255,250,240)
+        Note over A,B: 第一轮：Agent A → Agent B
+        A->>G: POST /sendMessage {task:T-001, to:Agent-B, body}
+        G->>G: 记录消息日志（Trace ID）
+        G->>S: 获取 S-001
+        S-->>G: 返回 Shared Context
+        G->>G: 将 S-001 注入 Payload._session_context
+        G->>B: 转发消息（携带 S-001）
+        B-->>G: 处理完成，返回结果 + artifact
+        G->>S: 将 Agent B 产出合并到 S-001
+        G->>G: 记录消息日志
+        G-->>A: 转发回复
+    end
+
+    rect rgb(240,255,240)
+        Note over A,A: Agent A 评估结果
+        alt 目标达成
+            A->>G: POST /tasks/T-001/complete
+            G->>T: 标记 COMPLETED
+        else 需继续协作
+            A->>G: POST /sendMessage {task:T-001, to:Agent-C}
+            Note right of G: S-001 自动携带，重复上述流程
+        else 无法推进
+            A->>G: POST /tasks/T-001/escalate
+            G->>T: 挂起 Task，通知人工
+        end
+    end
+</div>
+</div>
+
+<h3 class="text-lg font-semibold text-gray-900 mt-6 mb-3">4.3 链路追踪数据流</h3>
+<div class="bg-white rounded-2xl border border-gray-200 p-5">
+<div class="mermaid">
+sequenceDiagram
+    participant A as Agent A
+    participant G as A2A Gateway
+    participant B as Agent B
+    participant O as OTel Collector
+    participant CH as ClickHouse / Jaeger
+
+    A->>G: sendMessage (with Trace ID)
+    activate G
+    G->>G: 创建 Span<br/>{trace_id, span_id, parent_id,<br/>agent_from, agent_to, task_id,<br/>latency_ms, msg_size}
+    G->>B: 转发消息
+    activate B
+    B-->>G: 返回结果
+    deactivate B
+    G->>G: 结束 Span
+    G->>O: 上报 Span
+    deactivate G
+    O->>CH: 存储调用链数据
+    CH-->>Dashboard: 可视化展示完整调用树
+</div>
+</div>
+</section>
+
+<div class="section-divider mb-14"></div>
+
+<!-- 五、安全与权限 -->
+<section id="s5" class="mb-14">
+<h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3"><span class="flex items-center justify-center w-9 h-9 rounded-lg bg-rose-100 text-rose-700 font-bold text-base">5</span>安全与权限模型（待补充设计）</h2>
+
+<h3 class="text-lg font-semibold text-gray-900 mt-4 mb-2">5.1 认证</h3>
+<ul class="list-disc pl-5 space-y-1 mb-3">
+<li>Agent 接入平台需携带 JWT Token（平台签发，含 Agent ID、所属团队、权限范围）</li>
+<li>支持 mTLS（机器对机器高安全场景）</li>
+</ul>
+
+<h3 class="text-lg font-semibold text-gray-900 mt-4 mb-2">5.2 授权（RBAC）</h3>
+<ul class="list-disc pl-5 space-y-1 mb-3">
+<li><strong>Namespace/Project 隔离</strong>：Agent 只能发现同 Namespace 内的 Agent（除非显式授权跨 Namespace）</li>
+<li><strong>Skill 级 ACL</strong>：Agent A 可以被允许/禁止调用具有特定 Skill 的 Agent</li>
+<li><strong>Rate Limiting</strong>：按 Agent、按 Skill、按 Namespace 限制调用频次</li>
+</ul>
+
+<h3 class="text-lg font-semibold text-gray-900 mt-4 mb-2">5.3 审计</h3>
+<ul class="list-disc pl-5 space-y-1 mb-3">
+<li>所有消息、注册、发现查询均记录审计日志</li>
+<li>审计日志不可篡改，独立存储，保留 1 年+</li>
+</ul>
+</section>
+
+<div class="section-divider mb-14"></div>
+
+<!-- 六、待决策事项 -->
+<section id="s6" class="mb-14">
+<h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3"><span class="flex items-center justify-center w-9 h-9 rounded-lg bg-violet-100 text-violet-700 font-bold text-base">6</span>需要补充与待决策的事项</h2>
+
+<h3 class="text-lg font-semibold text-gray-900 mt-4 mb-3">6.1 概念澄清：MCP vs Registry 查询</h3>
+<blockquote>
+<p>原文需求："agent 知道了调用什么 mcp 能获取到它可以 access 到的 agents"</p>
+</blockquote>
+<p class="mb-2"><strong>建议调整</strong>：Agent 发现其他 Agent 的能力应通过<strong>平台的 Registry 查询工具</strong>提供，而非 MCP。</p>
+<ul class="list-disc pl-5 space-y-1 mb-3">
+<li>MCP 是 Agent ↔ Tool/数据的连接标准</li>
+<li>Registry 查询是 Agent ↔ Agent 发现能力</li>
+</ul>
+<p class="mb-4"><strong>实现方式</strong>：平台为每个接入 Agent 注入一个名为 <code>discover_agents</code> 的 Tool（内部实现为调用 Registry Service API），Agent 通过调用这个 Tool 获取可协作 Agent 列表。</p>
+
+<h3 class="text-lg font-semibold text-gray-900 mt-6 mb-3">6.2 待补充的关键需求</h3>
+<table>
+<thead><tr><th style="width:16%">领域</th><th style="width:55%">缺失项</th><th style="width:18%">重要性</th></tr></thead>
+<tbody>
+<tr><td><strong>人机协同</strong></td><td>Agent 无法解决时如何请求人工介入？人工操作界面长什么样？</td><td>⭐⭐⭐⭐⭐</td></tr>
+<tr><td><strong>容错</strong></td><td>Agent 挂掉、消息丢失、平台重启时的恢复机制</td><td>⭐⭐⭐⭐⭐</td></tr>
+<tr><td><strong>成本管控</strong></td><td>是否限制单 Task 的最大 Token 消耗/最大调用次数？</td><td>⭐⭐⭐⭐</td></tr>
+<tr><td><strong>隐私/合规</strong></td><td>消息持久化是否涉及敏感数据脱敏？GDPR 删除权？</td><td>⭐⭐⭐⭐</td></tr>
+<tr><td><strong>多模态</strong></td><td>Agent 交换图片/文件时，平台是否做存储/转码/病毒扫描？</td><td>⭐⭐⭐</td></tr>
+<tr><td><strong>灰度/AB</strong></td><td>Agent 新版本上线时，是否支持按流量比例灰度路由？</td><td>⭐⭐⭐</td></tr>
+</tbody>
+</table>
+
+<h3 class="text-lg font-semibold text-gray-900 mt-6 mb-3">6.3 技术待决策</h3>
+<table>
+<thead><tr><th style="width:28%">问题</th><th style="width:32%">选项</th><th>影响</th></tr></thead>
+<tbody>
+<tr><td>Agent 与平台的连接方式</td><td>HTTP 短连接 vs WebSocket 长连接 vs gRPC</td><td>实时性、资源消耗、SDK 复杂度</td></tr>
+<tr><td>Session Context 存储</td><td>Redis（快但容量有限）vs PostgreSQL JSONB（大但慢）</td><td>大 Task 上下文承载能力</td></tr>
+<tr><td>消息持久化格式</td><td>原始 JSON vs 压缩存储 vs 对象存储引用</td><td>存储成本、查询灵活性</td></tr>
+<tr><td>部署模式</td><td>单体服务 vs 微服务拆分</td><td>初期迭代速度 vs 长期可扩展性</td></tr>
+</tbody>
+</table>
+</section>
+
+<div class="section-divider mb-14"></div>
+
+<!-- 七、里程碑 -->
+<section id="s7" class="mb-14">
+<h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3"><span class="flex items-center justify-center w-9 h-9 rounded-lg bg-teal-100 text-teal-700 font-bold text-base">7</span>里程碑规划建议</h2>
+<table>
+<thead><tr><th style="width:14%">阶段</th><th style="width:18%">周期</th><th>目标</th></tr></thead>
+<tbody>
+<tr><td><strong>MVP</strong></td><td>2~3 周</td><td>Registry（注册/心跳/查询）+ Gateway（消息代理+记录）+ 简单状态看板</td></tr>
+<tr><td><strong>V1.0</strong></td><td>1.5~2 月</td><td>+ Task 生命周期管理 + Session Context 同步 + 链路追踪 + 权限模型</td></tr>
+<tr><td><strong>V1.5</strong></td><td>3~4 月</td><td>+ 语义搜索 + 数据分析看板 + 人机介入界面 + 容错恢复</td></tr>
+<tr><td><strong>V2.0</strong></td><td>6 月+</td><td>+ 多 Namespace 隔离 + 成本管控 + 灰度发布 + 外部 A2A Agent 接入</td></tr>
+</tbody>
+</table>
+</section>
+
+<div class="section-divider mb-14"></div>
+
+<!-- 八、总结 -->
+<section id="s8" class="mb-14">
+<h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3"><span class="flex items-center justify-center w-9 h-9 rounded-lg bg-slate-100 text-slate-700 font-bold text-base">8</span>总结</h2>
+
+<p class="mb-3">本平台的核心创新点在于：</p>
+<ol class="list-decimal pl-5 space-y-2 mb-4">
+<li><strong>在 A2A 协议之上构建了生产级基础设施层</strong>（发现、代理、追踪、分析），而非替代 A2A</li>
+<li><strong>坚持去中心化编排哲学</strong>，Agent 自主决策、自主协商，平台只做"赋能"不做"指挥"</li>
+<li><strong>Task 级 Session 一致性设计</strong>，解决了多 Agent 协作中的上下文割裂问题</li>
+<li><strong>数据天然归集</strong>，为后续优化 Agent 协作策略、评估 Agent 质量提供了数据基础</li>
+</ol>
+
+<div class="bg-amber-50 border border-amber-200 rounded-xl p-4">
+<p class="text-amber-900 text-sm"><strong>最大风险点：</strong>去中心化编排的"终止条件"和"死循环检测"需要精细设计，否则 Agent 间可能陷入无意义的反复询问。</p>
+</div>
+</section>
+
+<!-- Footer -->
+<div class="section-divider mb-6"></div>
+<footer class="text-center py-6 text-sm text-gray-500">
+    A2A 智能协作平台 — PRD & 架构设计文档 v0.1
+</footer>
+
+        </main>
+    </div>
+
+    <script>
+        // Scroll progress
+        window.addEventListener('scroll', () => {
+            const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+            const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            document.getElementById('scrollIndicator').style.width = (winScroll / height * 100) + '%';
+        });
+
+        // TOC active state
+        const sections = document.querySelectorAll('section[id], h3[id]');
+        const tocLinks = document.querySelectorAll('.toc-link');
+
+        function updateActiveToc() {
+            let current = '';
+            sections.forEach(section => {
+                if (scrollY >= section.offsetTop - 120) {
+                    current = section.getAttribute('id');
+                }
+            });
+            tocLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === '#' + current) {
+                    link.classList.add('active');
+                }
+            });
+        }
+        window.addEventListener('scroll', updateActiveToc);
+        updateActiveToc();
+
+        // Smooth scroll
+        tocLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const target = document.getElementById(link.getAttribute('href').slice(1));
+                if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+        });
+    </script>
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'default',
+            sequence: {
+                diagramMarginX: 20, diagramMarginY: 20, actorMargin: 60,
+                width: 120, height: 50, boxMargin: 10, boxTextMargin: 5,
+                noteMargin: 10, messageMargin: 35, mirrorActors: false,
+                bottomMarginAdj: 1, useMaxWidth: true, rightAngles: false,
+                showSequenceNumbers: false
+            },
+            themeCSS: `
+                .actor { fill: #f8fafc; stroke: #e2e8f0; }
+                .actor-line { stroke: #cbd5e1; }
+                .messageLine0, .messageLine1 { stroke: #64748b; }
+                .messageText { fill: #334155; font-size: 13px; }
+                .labelBox { fill: #f1f5f9; stroke: #e2e8f0; }
+                .note { fill: #fef3c7; stroke: #f59e0b; }
+                .noteText { fill: #92400e; font-size: 12px; }
+            `
+        });
+    </script>
+</body>
+</html>

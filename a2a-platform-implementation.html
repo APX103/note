@@ -1,0 +1,1219 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A2A 智能协作平台 — 详细实现方案</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Noto Sans SC', system-ui, -apple-system, sans-serif; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        .gradient-text { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .scroll-indicator { position: fixed; top: 0; left: 0; height: 3px; background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); z-index: 1000; transition: width 0.1s; }
+        .toc-link.active { color: #667eea; border-left-color: #667eea; background: linear-gradient(90deg, rgba(102,126,234,0.08) 0%, transparent 100%); }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #c7c7c7; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #a0a0a0; }
+        .section-divider { height: 1px; background: linear-gradient(90deg, transparent 0%, #e5e7eb 20%, #e5e7eb 80%, transparent 100%); }
+        pre { background: #1e293b; color: #e2e8f0; padding: 1rem; border-radius: 0.75rem; overflow-x: auto; font-size: 0.8125rem; line-height: 1.6; }
+        code { font-family: 'JetBrains Mono', monospace; font-size: 0.8125rem; }
+        :not(pre) > code { background: #f1f5f9; color: #334155; padding: 0.125rem 0.375rem; border-radius: 0.25rem; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+        th, td { border: 1px solid #e2e8f0; padding: 0.625rem 0.875rem; text-align: left; }
+        th { background: #f8fafc; font-weight: 600; color: #334155; }
+        tr:nth-child(even) { background: #fafafa; }
+        blockquote { border-left: 4px solid #f59e0b; background: #fffbeb; padding: 1rem 1.25rem; margin: 1rem 0; border-radius: 0 0.5rem 0.5rem 0; color: #78350f; }
+        .mermaid { background: transparent !important; }
+        .mermaid svg { max-width: 100%; height: auto; }
+        .tag { display: inline-flex; align-items: center; padding: 0.2rem 0.6rem; border-radius: 9999px; font-size: 0.7rem; font-weight: 500; letter-spacing: 0.02em; }
+        h2 { scroll-margin-top: 6rem; }
+        h3 { scroll-margin-top: 6rem; }
+        h4 { scroll-margin-top: 6rem; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 leading-relaxed">
+    <div class="scroll-indicator" id="scrollIndicator"></div>
+
+    <header class="relative bg-white border-b border-gray-200">
+        <div class="absolute inset-0 bg-gradient-to-br from-indigo-50/50 via-white to-purple-50/30 pointer-events-none"></div>
+        <div class="relative max-w-6xl mx-auto px-6 py-14 md:py-20">
+            <div class="flex items-center gap-3 mb-5">
+                <span class="tag bg-indigo-100 text-indigo-700">Implementation</span>
+                <span class="tag bg-amber-100 text-amber-700">NestJS</span>
+                <span class="tag bg-emerald-100 text-emerald-700">Docker Compose</span>
+            </div>
+            <h1 class="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight mb-5">
+                <span class="gradient-text">A2A 智能协作平台</span>
+                <span class="text-gray-900">详细实现方案</span>
+            </h1>
+            <p class="text-base md:text-lg text-gray-600 max-w-3xl leading-relaxed">
+                基于用户决策：NestJS 单体架构 · Docker Compose 部署 · HTTP 为主 WebSocket 可选升级 · 内部验证优先，预留对外扩展点。
+            </p>
+        </div>
+    </header>
+
+    <div class="max-w-6xl mx-auto px-6 py-12 flex gap-12">
+        <aside class="hidden lg:block w-60 flex-shrink-0">
+            <div class="sticky top-8">
+                <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">目录</h3>
+                <nav class="space-y-0.5 text-sm" id="toc">
+                    <a href="#s1" class="toc-link block py-1.5 px-3 text-gray-600 hover:text-gray-900 rounded-md border-l-2 border-transparent transition-all">一、技术选型确认</a>
+                    <a href="#s2" class="toc-link block py-1.5 px-3 text-gray-600 hover:text-gray-900 rounded-md border-l-2 border-transparent transition-all">二、项目结构</a>
+                    <a href="#s3" class="toc-link block py-1.5 px-3 text-gray-600 hover:text-gray-900 rounded-md border-l-2 border-transparent transition-all">三、数据库设计</a>
+                    <a href="#s4" class="toc-link block py-1.5 px-3 text-gray-600 hover:text-gray-900 rounded-md border-l-2 border-transparent transition-all">四、核心模块实现</a>
+                    <div class="pl-4 space-y-0.5">
+                        <a href="#s4-1" class="toc-link block py-1 px-3 text-gray-500 hover:text-gray-900 rounded-md border-l-2 border-transparent transition-all text-xs">4.1 Registry</a>
+                        <a href="#s4-2" class="toc-link block py-1 px-3 text-gray-500 hover:text-gray-900 rounded-md border-l-2 border-transparent transition-all text-xs">4.2 Gateway</a>
+                        <a href="#s4-3" class="toc-link block py-1 px-3 text-gray-500 hover:text-gray-900 rounded-md border-l-2 border-transparent transition-all text-xs">4.3 Task Manager</a>
+                        <a href="#s4-4" class="toc-link block py-1 px-3 text-gray-500 hover:text-gray-900 rounded-md border-l-2 border-transparent transition-all text-xs">4.4 Session Context</a>
+                        <a href="#s4-5" class="toc-link block py-1 px-3 text-gray-500 hover:text-gray-900 rounded-md border-l-2 border-transparent transition-all text-xs">4.5 Trace</a>
+                        <a href="#s4-6" class="toc-link block py-1 px-3 text-gray-500 hover:text-gray-900 rounded-md border-l-2 border-transparent transition-all text-xs">4.6 Auth</a>
+                    </div>
+                    <a href="#s5" class="toc-link block py-1.5 px-3 text-gray-600 hover:text-gray-900 rounded-md border-l-2 border-transparent transition-all">五、API 设计</a>
+                    <a href="#s6" class="toc-link block py-1.5 px-3 text-gray-600 hover:text-gray-900 rounded-md border-l-2 border-transparent transition-all">六、Agent SDK</a>
+                    <a href="#s7" class="toc-link block py-1.5 px-3 text-gray-600 hover:text-gray-900 rounded-md border-l-2 border-transparent transition-all">七、部署配置</a>
+                    <a href="#s8" class="toc-link block py-1.5 px-3 text-gray-600 hover:text-gray-900 rounded-md border-l-2 border-transparent transition-all">八、关键代码示例</a>
+                    <a href="#s9" class="toc-link block py-1.5 px-3 text-gray-600 hover:text-gray-900 rounded-md border-l-2 border-transparent transition-all">九、待确认事项</a>
+                </nav>
+            </div>
+        </aside>
+
+        <main class="flex-1 min-w-0 text-gray-700">
+
+<!-- 一、技术选型确认 -->
+<section id="s1" class="mb-14">
+<h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3"><span class="flex items-center justify-center w-9 h-9 rounded-lg bg-indigo-100 text-indigo-700 font-bold text-base">1</span>技术选型确认</h2>
+
+<table class="mb-4">
+<thead><tr><th style="width:22%">维度</th><th style="width:35%">选择</th><th>理由</th></tr></thead>
+<tbody>
+<tr><td><strong>后端框架</strong></td><td>NestJS (Node.js/TypeScript)</td><td>模块化架构天然适合平台多模块设计；WebSocket/Gateway/Event-Driven 生态成熟；前后端可复用类型定义。</td></tr>
+<tr><td><strong>数据库</strong></td><td>PostgreSQL 16 + Redis 7</td><td>PG 存结构化数据（AgentCard/Task/Message），JSONB 支持灵活 Schema；Redis 做缓存、Session、状态机。</td></tr>
+<tr><td><strong>ORM</strong></td><td>Prisma</td><td>TypeScript 类型安全；Migration 管理；支持 JSONB 和全文搜索。</td></tr>
+<tr><td><strong>消息持久化</strong></td><td>PostgreSQL (大表分区) + 可选 ClickHouse</td><td>初期 PG 足够，日均百万消息后迁 ClickHouse。预留接口。</td></tr>
+<tr><td><strong>链路追踪</strong></td><td>OpenTelemetry + Jaeger (Docker)</td><td>社区标准，NestJS 有成熟 OTel 集成。</td></tr>
+<tr><td><strong>通信层</strong></td><td>HTTP + SSE 为主，WebSocket 可选升级</td><td>Agent 优先用标准 A2A HTTP/SSE；WebSocket 用于 Gateway→Agent 的 Server Push（心跳/通知）。</td></tr>
+<tr><td><strong>部署</strong></td><td>Docker Compose (单体)</td><td>一个 NestJS 进程跑所有模块，Docker Compose 一键启动。代码分层清晰，日后可拆。</td></tr>
+<tr><td><strong>API 文档</strong></td><td>Swagger (NestJS 内置)</td><td>自动生成，Agent 开发者可直接调试。</td></tr>
+</tbody>
+</table>
+</section>
+
+<div class="section-divider mb-14"></div>
+
+<!-- 二、项目结构 -->
+<section id="s2" class="mb-14">
+<h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3"><span class="flex items-center justify-center w-9 h-9 rounded-lg bg-emerald-100 text-emerald-700 font-bold text-base">2</span>项目结构</h2>
+
+<pre>a2a-platform/
+├── docker-compose.yml
+├── Dockerfile
+├── package.json
+├── tsconfig.json
+├── nest-cli.json
+├── prisma/
+│   ├── schema.prisma          # 统一数据库 Schema
+│   └── migrations/            # Prisma Migration 文件
+├── src/
+│   ├── main.ts                # 入口
+│   ├── app.module.ts          # 根模块，聚合所有子模块
+│   ├── config/
+│   │   └── configuration.ts   # 环境变量配置（@nestjs/config）
+│   ├── common/
+│   │   ├── filters/           # 全局异常过滤器
+│   │   ├── interceptors/      # 全局拦截器（日志、Trace、响应格式）
+│   │   ├── guards/            # JWT Auth Guard
+│   │   ├── decorators/        # 自定义装饰器
+│   │   └── dto/               # 共享 DTO（Pagination、BaseResponse）
+│   ├── modules/
+│   │   ├── registry/          # 服务发现与注册
+│   │   ├── gateway/           # A2A 通信代理（HTTP + SSE + WS）
+│   │   ├── task/              # Task 生命周期管理 + 调度器
+│   │   ├── session/           # Session Context 管理
+│   │   ├── trace/             # OpenTelemetry 链路追踪
+│   │   ├── analytics/         # 数据分析（聚合查询）
+│   │   └── auth/              # JWT 认证 + 权限中间件
+│   └── shared/
+│       ├── prisma/            # PrismaService 封装
+│       └── redis/             # RedisService 封装（ioredis）
+└── agent-sdk/                 # Agent 接入 SDK（独立 npm 包）
+    ├── typescript/            # TS SDK
+    └── python/                # Python SDK（后期）</pre>
+
+<blockquote>
+<p><strong>设计原则</strong>：每个 module 内部自包含（controller + service + dto + entity），module 间通过 Service 接口调用，禁止跨模块直接访问数据库。</p>
+</blockquote>
+</section>
+
+<div class="section-divider mb-14"></div>
+
+<!-- 三、数据库设计 -->
+<section id="s3" class="mb-14">
+<h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3"><span class="flex items-center justify-center w-9 h-9 rounded-lg bg-sky-100 text-sky-700 font-bold text-base">3</span>数据库设计（Prisma Schema）</h2>
+
+<h3 class="text-lg font-semibold text-gray-900 mt-4 mb-3">3.1 核心模型关系图</h3>
+<div class="bg-white rounded-2xl border border-gray-200 p-5 mb-6">
+<div class="mermaid">
+erDiagram
+    AGENT_CARD ||--o{ AGENT_HEARTBEAT : has
+    AGENT_CARD ||--o{ TASK_PARTICIPANT : participates
+    TASK ||--o{ TASK_PARTICIPANT : involves
+    TASK ||--o{ MESSAGE : contains
+    TASK ||--|| SESSION_CONTEXT : has
+    MESSAGE ||--o{ ARTIFACT : carries
+
+    AGENT_CARD {
+        string id PK
+        string name
+        string description
+        string endpointUrl
+        string version
+        json capabilities
+        json skills
+        json securitySchemes
+        string status
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    AGENT_HEARTBEAT {
+        string id PK
+        string agentId FK
+        datetime lastSeen
+        string ipAddress
+    }
+
+    TASK {
+        string id PK
+        string status
+        string goal
+        string ownerAgentId FK
+        datetime createdAt
+        datetime completedAt
+        datetime timeoutAt
+        int maxRounds
+        int currentRound
+    }
+
+    TASK_PARTICIPANT {
+        string id PK
+        string taskId FK
+        string agentId FK
+        string role
+        datetime joinedAt
+    }
+
+    MESSAGE {
+        string id PK
+        string taskId FK
+        string fromAgentId
+        string toAgentId
+        string messageType
+        json payload
+        json metadata
+        datetime createdAt
+    }
+
+    ARTIFACT {
+        string id PK
+        string messageId FK
+        string artifactType
+        string storageUrl
+        json metadata
+    }
+
+    SESSION_CONTEXT {
+        string taskId PK
+        json sharedContext
+        json history
+        datetime updatedAt
+    }
+</div>
+</div>
+
+<h3 class="text-lg font-semibold text-gray-900 mt-6 mb-3">3.2 Prisma Schema 源码</h3>
+<pre>// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model AgentCard {
+  id               String   @id @default(cuid())
+  name             String
+  description      String?
+  endpointUrl      String   @unique
+  version          String   @default("1.0.0")
+  capabilities     Json     @default("{}")
+  skills           Json     @default("[]")
+  securitySchemes  Json     @default("{}")
+  status           AgentStatus @default(ACTIVE)
+  namespace        String   @default("default")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  heartbeats       AgentHeartbeat[]
+  ownedTasks       Task[]        @relation("TaskOwner")
+  participations   TaskParticipant[]
+
+  @@index([status])
+  @@index([namespace])
+  @@index([skills], type: Gin)  // PG GIN index for JSONB skill search
+}
+
+model AgentHeartbeat {
+  id         String   @id @default(cuid())
+  agentId    String   @unique
+  agent      AgentCard @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  lastSeen   DateTime @default(now())
+  ipAddress  String?
+}
+
+model Task {
+  id            String     @id @default(cuid())
+  status        TaskStatus @default(CREATED)
+  goal          String
+  ownerAgentId  String
+  owner         AgentCard  @relation("TaskOwner", fields: [ownerAgentId], references: [id])
+  createdAt     DateTime   @default(now())
+  completedAt   DateTime?
+  timeoutAt     DateTime?
+  maxRounds     Int        @default(20)
+  currentRound  Int        @default(0)
+
+  participants  TaskParticipant[]
+  messages      Message[]
+  sessionContext SessionContext?
+
+  @@index([status])
+  @@index([ownerAgentId])
+}
+
+model TaskParticipant {
+  id       String   @id @default(cuid())
+  taskId   String
+  task     Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  agentId  String
+  agent    AgentCard @relation(fields: [agentId], references: [id])
+  role     String   @default("collaborator")  // owner / collaborator
+  joinedAt DateTime @default(now())
+
+  @@unique([taskId, agentId])
+}
+
+model Message {
+  id           String   @id @default(cuid())
+  taskId       String
+  task         Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  fromAgentId  String
+  toAgentId    String
+  messageType  MessageType @default(TEXT)
+  payload      Json     @default("{}")
+  metadata     Json     @default("{}")  // traceId, spanId, latency, etc.
+  createdAt    DateTime @default(now())
+
+  artifacts    Artifact[]
+
+  @@index([taskId])
+  @@index([fromAgentId, toAgentId])
+  @@index([createdAt])
+}
+
+model Artifact {
+  id           String   @id @default(cuid())
+  messageId    String
+  message      Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  artifactType String
+  storageUrl   String?
+  metadata     Json     @default("{}")
+  createdAt    DateTime @default(now())
+}
+
+model SessionContext {
+  taskId         String   @id
+  task           Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  sharedContext  Json     @default("{}")
+  history        Json     @default("[]")
+  updatedAt      DateTime @updatedAt
+}
+
+enum AgentStatus {
+  ACTIVE
+  OFFLINE
+  SUSPENDED
+}
+
+enum TaskStatus {
+  CREATED
+  SUBMITTED
+  WORKING
+  COMPLETED
+  FAILED
+  CANCELLED
+  TIMEOUT
+  ESCALATED
+}
+
+enum MessageType {
+  TEXT
+  TASK_REQUEST
+  TASK_RESPONSE
+  STATUS_UPDATE
+  ARTIFACT
+  HEARTBEAT
+  SYSTEM
+}</pre>
+</section>
+
+<div class="section-divider mb-14"></div>
+
+<!-- 四、核心模块实现 -->
+<section id="s4" class="mb-14">
+<h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3"><span class="flex items-center justify-center w-9 h-9 rounded-lg bg-amber-100 text-amber-700 font-bold text-base">4</span>核心模块实现</h2>
+
+<!-- 4.1 Registry -->
+<h3 id="s4-1" class="text-lg font-semibold text-gray-900 mt-8 mb-3 flex items-center gap-2"><span class="text-amber-600">§</span> 4.1 Registry Module（服务发现与注册）</h3>
+
+<h4 class="font-semibold text-gray-900 mt-4 mb-2">模块职责</h4>
+<ul class="list-disc pl-5 space-y-1 mb-3">
+<li>Agent Card CRUD（注册、查询、更新、注销）</li>
+<li>心跳接收与健康状态维护</li>
+<li>基于 Skill 的 Agent 发现（JSONB GIN 索引加速）</li>
+<li>Redis 缓存热点 Registry 数据</li>
+</ul>
+
+<h4 class="font-semibold text-gray-900 mt-4 mb-2">核心代码结构</h4>
+<pre>// src/modules/registry/registry.controller.ts
+@Controller('registry')
+export class RegistryController {
+  constructor(private readonly registryService: RegistryService) {}
+
+  @Post('register')
+  async register(@Body() dto: RegisterAgentDto): Promise&lt;AgentCardResponse&gt; {
+    return this.registryService.register(dto);
+  }
+
+  @Post('heartbeat')
+  async heartbeat(@Body() dto: HeartbeatDto): Promise&lt;{ success: boolean }&gt; {
+    return this.registryService.heartbeat(dto);
+  }
+
+  @Get('agents')
+  async discover(
+    @Query('skill') skill?: string,
+    @Query('namespace') namespace?: string,
+    @Query('q') query?: string,        // 全文搜索关键词
+  ): Promise&lt;AgentCardResponse[]&gt; {
+    return this.registryService.discover({ skill, namespace, query });
+  }
+
+  @Get('agents/:id')
+  async getAgent(@Param('id') id: string): Promise&lt;AgentCardResponse&gt; {
+    return this.registryService.findById(id);
+  }
+
+  @Delete('agents/:id')
+  async unregister(@Param('id') id: string): Promise&lt;void&gt; {
+    return this.registryService.unregister(id);
+  }
+}</pre>
+
+<pre>// src/modules/registry/registry.service.ts
+@Injectable()
+export class RegistryService {
+  constructor(
+    private prisma: PrismaService,
+    private redis: RedisService,
+  ) {}
+
+  async register(dto: RegisterAgentDto): Promise&lt;AgentCard&gt; {
+    const agent = await this.prisma.agentCard.upsert({
+      where: { endpointUrl: dto.endpointUrl },
+      update: { ...dto, status: AgentStatus.ACTIVE, updatedAt: new Date() },
+      create: { ...dto, status: AgentStatus.ACTIVE },
+    });
+    // 写入 Redis 缓存
+    await this.redis.setex(`agent:${agent.id}`, 300, JSON.stringify(agent));
+    return agent;
+  }
+
+  async heartbeat(dto: HeartbeatDto): Promise&lt;{ success: boolean }&gt; {
+    await this.prisma.agentHeartbeat.upsert({
+      where: { agentId: dto.agentId },
+      update: { lastSeen: new Date(), ipAddress: dto.ipAddress },
+      create: { agentId: dto.agentId, lastSeen: new Date(), ipAddress: dto.ipAddress },
+    });
+    return { success: true };
+  }
+
+  async discover(filters: DiscoverFilters): Promise&lt;AgentCard[]&gt; {
+    // 优先查 Redis 缓存
+    const cacheKey = `discover:${filters.skill || 'all'}:${filters.namespace || 'default'}`;
+    const cached = await this.redis.get(cacheKey);
+    if (cached) return JSON.parse(cached);
+
+    // PG 查询，利用 GIN 索引搜索 JSONB skills
+    const where: Prisma.AgentCardWhereInput = {
+      status: AgentStatus.ACTIVE,
+      namespace: filters.namespace || 'default',
+    };
+    if (filters.skill) {
+      where.skills = {
+        path: ['$'],
+        array_contains: [{ id: filters.skill }],
+      };
+    }
+    if (filters.query) {
+      where.OR = [
+        { name: { contains: filters.query, mode: 'insensitive' } },
+        { description: { contains: filters.query, mode: 'insensitive' } },
+      ];
+    }
+
+    const agents = await this.prisma.agentCard.findMany({ where });
+    await this.redis.setex(cacheKey, 10, JSON.stringify(agents)); // 10s 短缓存
+    return agents;
+  }
+}</pre>
+
+<h4 class="font-semibold text-gray-900 mt-4 mb-2">心跳清理定时任务</h4>
+<pre>// src/modules/registry/registry.cleanup.service.ts
+@Injectable()
+export class RegistryCleanupService {
+  constructor(private prisma: PrismaService) {}
+
+  @Cron(CronExpression.EVERY_30_SECONDS)
+  async cleanupOfflineAgents() {
+    const timeout = new Date(Date.now() - 90_000); // 90s 无心跳
+    const offlineAgents = await this.prisma.agentCard.findMany({
+      where: {
+        status: AgentStatus.ACTIVE,
+        heartbeats: { every: { lastSeen: { lt: timeout } } },
+      },
+    });
+    for (const agent of offlineAgents) {
+      await this.prisma.agentCard.update({
+        where: { id: agent.id },
+        data: { status: AgentStatus.OFFLINE },
+      });
+    }
+  }
+}</pre>
+
+<!-- 4.2 Gateway -->
+<h3 id="s4-2" class="text-lg font-semibold text-gray-900 mt-10 mb-3 flex items-center gap-2"><span class="text-amber-600">§</span> 4.2 Gateway Module（通信代理）</h3>
+
+<h4 class="font-semibold text-gray-900 mt-4 mb-2">模块职责</h4>
+<ul class="list-disc pl-5 space-y-1 mb-3">
+<li>对外暴露标准 A2A 端点（<code>/.well-known/agent-card</code>, <code>/sendMessage</code>, <code>/sendMessageStream</code>）</li>
+<li>消息路由：解析目标 Agent，从 Registry 获取 endpoint，转发请求</li>
+<li>SSE 流式透传：订阅 Agent 的 SSE 流，同时记录事件</li>
+<li>消息持久化：所有经过的消息写入 Message 表</li>
+<li>Trace 注入：为每条消息生成/透传 Trace ID</li>
+<li>WebSocket Gateway（可选升级）：用于平台→Agent 的主动推送</li>
+</ul>
+
+<h4 class="font-semibold text-gray-900 mt-4 mb-2">HTTP Gateway 核心实现</h4>
+<pre>// src/modules/gateway/gateway.controller.ts
+@Controller()
+export class GatewayController {
+  constructor(
+    private gatewayService: GatewayService,
+    private registryService: RegistryService,
+  ) {}
+
+  // Agent Card 代理：返回目标 Agent 的 Agent Card
+  @Get('.well-known/agent-card')
+  async getAgentCard(@Query('agentId') agentId: string) {
+    return this.registryService.findById(agentId);
+  }
+
+  // 同步消息发送
+  @Post('sendMessage')
+  async sendMessage(@Body() dto: SendMessageDto, @Headers('x-trace-id') traceId?: string) {
+    return this.gatewayService.sendMessage(dto, traceId);
+  }
+
+  // SSE 流式消息发送
+  @Post('sendMessageStream')
+  @Sse()
+  async sendMessageStream(
+    @Body() dto: SendMessageDto,
+    @Headers('x-trace-id') traceId?: string,
+  ): Promise&lt;Observable&lt;MessageEvent&gt;&gt; {
+    return this.gatewayService.sendMessageStream(dto, traceId);
+  }
+}</pre>
+
+<pre>// src/modules/gateway/gateway.service.ts
+@Injectable()
+export class GatewayService {
+  constructor(
+    private httpService: HttpService,
+    private prisma: PrismaService,
+    private registryService: RegistryService,
+    private sessionService: SessionService,
+    private traceService: TraceService,
+  ) {}
+
+  async sendMessage(dto: SendMessageDto, incomingTraceId?: string): Promise&lt;any&gt; {
+    const traceId = incomingTraceId || this.traceService.generateTraceId();
+    const spanId = this.traceService.generateSpanId();
+
+    // 1. 获取目标 Agent
+    const targetAgent = await this.registryService.findById(dto.toAgentId);
+    if (!targetAgent || targetAgent.status !== AgentStatus.ACTIVE) {
+      throw new BadRequestException('Target agent not found or offline');
+    }
+
+    // 2. Session Context 注入
+    const sessionContext = dto.taskId
+      ? await this.sessionService.getContext(dto.taskId)
+      : null;
+
+    const payload = {
+      ...dto.payload,
+      _session_context: sessionContext,
+      _trace: { traceId, spanId, platformTimestamp: new Date().toISOString() },
+    };
+
+    const startTime = Date.now();
+
+    // 3. 转发到目标 Agent
+    const response$ = this.httpService.post(
+      `${targetAgent.endpointUrl}/sendMessage`,
+      payload,
+      { headers: { 'x-trace-id': traceId, 'x-span-id': spanId } },
+    );
+    const response = await lastValueFrom(response$);
+
+    const latency = Date.now() - startTime;
+
+    // 4. 持久化消息
+    await this.prisma.message.create({
+      data: {
+        taskId: dto.taskId,
+        fromAgentId: dto.fromAgentId,
+        toAgentId: dto.toAgentId,
+        messageType: dto.messageType,
+        payload: payload as any,
+        metadata: { traceId, spanId, latency, statusCode: response.status } as any,
+      },
+    });
+
+    // 5. 上报 Trace
+    this.traceService.recordSpan({ traceId, spanId, agentFrom: dto.fromAgentId, agentTo: dto.toAgentId, latency });
+
+    // 6. 如果目标 Agent 返回了产出，合并回 Session Context
+    if (dto.taskId && response.data?.artifact) {
+      await this.sessionService.mergeContext(dto.taskId, response.data.artifact);
+    }
+
+    return response.data;
+  }
+
+  async sendMessageStream(dto: SendMessageDto, incomingTraceId?: string): Promise&lt;Observable&lt;MessageEvent&gt;&gt; {
+    const traceId = incomingTraceId || this.traceService.generateTraceId();
+    const targetAgent = await this.registryService.findById(dto.toAgentId);
+
+    return new Observable((subscriber) => {
+      const eventSource = new EventSource(`${targetAgent.endpointUrl}/sendMessageStream`);
+
+      eventSource.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        // 记录流事件
+        this.prisma.message.create({
+          data: {
+            taskId: dto.taskId,
+            fromAgentId: dto.toAgentId,  // 流式事件的"发送方"是目标 Agent
+            toAgentId: dto.fromAgentId,
+            messageType: MessageType.STATUS_UPDATE,
+            payload: data as any,
+            metadata: { traceId, isStream: true } as any,
+          },
+        }).catch(() => {});
+        subscriber.next({ data } as MessageEvent);
+      };
+
+      eventSource.onerror = () => {
+        subscriber.complete();
+        eventSource.close();
+      };
+    });
+  }
+}</pre>
+
+<h4 class="font-semibold text-gray-900 mt-4 mb-2">WebSocket Gateway（可选升级）</h4>
+<pre>// src/modules/gateway/gateway.ws.gateway.ts
+@WebSocketGateway({ namespace: 'a2a', cors: true })
+export class GatewayWsGateway implements OnGatewayConnection, OnGatewayDisconnect {
+  @WebSocketServer() server: Server;
+
+  constructor(private registryService: RegistryService) {}
+
+  async handleConnection(client: Socket) {
+    const agentId = client.handshake.query.agentId as string;
+    const token = client.handshake.auth.token as string;
+    // JWT 验证...
+    client.join(`agent:${agentId}`);
+  }
+
+  handleDisconnect(client: Socket) {
+    // 清理...
+  }
+
+  // 平台主动推送消息给 Agent
+  async pushToAgent(agentId: string, message: any) {
+    this.server.to(`agent:${agentId}`).emit('message', message);
+  }
+}</pre>
+
+<!-- 4.3 Task Manager -->
+<h3 id="s4-3" class="text-lg font-semibold text-gray-900 mt-10 mb-3 flex items-center gap-2"><span class="text-amber-600">§</span> 4.3 Task Manager Module</h3>
+
+<h4 class="font-semibold text-gray-900 mt-4 mb-2">模块职责</h4>
+<ul class="list-disc pl-5 space-y-1 mb-3">
+<li>Task CRUD + 状态机管理</li>
+<li>超时检测与熔断（死循环检测）</li>
+<li>轮次计数</li>
+</ul>
+
+<pre>// src/modules/task/task.service.ts
+@Injectable()
+export class TaskService {
+  constructor(private prisma: PrismaService) {}
+
+  async create(dto: CreateTaskDto): Promise&lt;Task&gt; {
+    const task = await this.prisma.task.create({
+      data: {
+        goal: dto.goal,
+        ownerAgentId: dto.ownerAgentId,
+        status: TaskStatus.CREATED,
+        maxRounds: dto.maxRounds || 20,
+        timeoutAt: new Date(Date.now() + (dto.timeoutMinutes || 5) * 60_000),
+      },
+    });
+    // 创建 Session Context
+    await this.prisma.sessionContext.create({
+      data: {
+        taskId: task.id,
+        sharedContext: { goal: dto.goal, userInput: dto.userInput } as any,
+        history: [] as any,
+      },
+    });
+    return task;
+  }
+
+  async transitionStatus(taskId: string, newStatus: TaskStatus): Promise&lt;Task&gt; {
+    return this.prisma.task.update({
+      where: { id: taskId },
+      data: { status: newStatus, completedAt: newStatus === TaskStatus.COMPLETED ? new Date() : undefined },
+    });
+  }
+
+  async incrementRound(taskId: string): Promise&lt;Task&gt; {
+    const task = await this.prisma.task.update({
+      where: { id: taskId },
+      data: { currentRound: { increment: 1 } },
+    });
+    if (task.currentRound >= task.maxRounds) {
+      await this.transitionStatus(taskId, TaskStatus.TIMEOUT);
+    }
+    return task;
+  }
+}
+
+// src/modules/task/task.scheduler.ts
+@Injectable()
+export class TaskScheduler {
+  constructor(private prisma: PrismaService) {}
+
+  @Cron(CronExpression.EVERY_MINUTE)
+  async checkTimeouts() {
+    const expiredTasks = await this.prisma.task.findMany({
+      where: {
+        status: { in: [TaskStatus.CREATED, TaskStatus.SUBMITTED, TaskStatus.WORKING] },
+        timeoutAt: { lt: new Date() },
+      },
+    });
+    for (const task of expiredTasks) {
+      await this.prisma.task.update({
+        where: { id: task.id },
+        data: { status: TaskStatus.TIMEOUT },
+      });
+    }
+  }
+}</pre>
+
+<!-- 4.4 Session -->
+<h3 id="s4-4" class="text-lg font-semibold text-gray-900 mt-10 mb-3 flex items-center gap-2"><span class="text-amber-600">§</span> 4.4 Session Context Module</h3>
+
+<pre>// src/modules/session/session.service.ts
+@Injectable()
+export class SessionService {
+  constructor(
+    private prisma: PrismaService,
+    private redis: RedisService,
+  ) {}
+
+  async getContext(taskId: string): Promise&lt;any&gt; {
+    // 优先 Redis
+    const cached = await this.redis.get(`session:${taskId}`);
+    if (cached) return JSON.parse(cached);
+    //  fallback PG
+    const ctx = await this.prisma.sessionContext.findUnique({ where: { taskId } });
+    if (ctx) {
+      await this.redis.setex(`session:${taskId}`, 60, JSON.stringify(ctx.sharedContext));
+      return ctx.sharedContext;
+    }
+    return null;
+  }
+
+  async mergeContext(taskId: string, artifact: any): Promise&lt;void&gt; {
+    const ctx = await this.prisma.sessionContext.findUnique({ where: { taskId } });
+    if (!ctx) return;
+
+    const sharedContext = ctx.sharedContext as any;
+    const history = ctx.history as any[];
+
+    // 合并 artifact 到上下文
+    if (!sharedContext.artifacts) sharedContext.artifacts = [];
+    sharedContext.artifacts.push(artifact);
+    history.push({ type: 'artifact', data: artifact, timestamp: new Date().toISOString() });
+
+    const updated = await this.prisma.sessionContext.update({
+      where: { taskId },
+      data: { sharedContext: sharedContext as any, history: history as any },
+    });
+
+    // 更新 Redis
+    await this.redis.setex(`session:${taskId}`, 60, JSON.stringify(updated.sharedContext));
+  }
+}</pre>
+
+<!-- 4.5 Trace -->
+<h3 id="s4-5" class="text-lg font-semibold text-gray-900 mt-10 mb-3 flex items-center gap-2"><span class="text-amber-600">§</span> 4.5 Trace Module（OpenTelemetry）</h3>
+
+<pre>// src/modules/trace/trace.service.ts
+@Injectable()
+export class TraceService {
+  private tracer: Tracer;
+
+  constructor() {
+    const provider = new NodeTracerProvider({ resource: new Resource({ [SemanticResourceAttributes.SERVICE_NAME]: 'a2a-platform' }) });
+    provider.addSpanProcessor(new SimpleSpanProcessor(new JaegerExporter({ endpoint: 'http://jaeger:14268/api/traces' })));
+    provider.register();
+    this.tracer = provider.getTracer('a2a-platform');
+  }
+
+  generateTraceId(): string { return randomUUID(); }
+  generateSpanId(): string { return randomBytes(8).toString('hex'); }
+
+  recordSpan(attrs: { traceId: string; spanId: string; agentFrom: string; agentTo: string; latency: number }) {
+    const span = this.tracer.startSpan('a2a.message', {
+      attributes: {
+        'a2a.trace_id': attrs.traceId,
+        'a2a.span_id': attrs.spanId,
+        'a2a.agent_from': attrs.agentFrom,
+        'a2a.agent_to': attrs.agentTo,
+        'a2a.latency_ms': attrs.latency,
+      },
+    });
+    span.end();
+  }
+}</pre>
+
+<!-- 4.6 Auth -->
+<h3 id="s4-6" class="text-lg font-semibold text-gray-900 mt-10 mb-3 flex items-center gap-2"><span class="text-amber-600">§</span> 4.6 Auth Module（JWT + 预留 RBAC）</h3>
+
+<pre>// src/modules/auth/auth.service.ts
+@Injectable()
+export class AuthService {
+  constructor(private jwtService: JwtService) {}
+
+  async generateAgentToken(agentId: string, namespace: string = 'default'): Promise&lt;string&gt; {
+    return this.jwtService.sign({ sub: agentId, namespace, type: 'agent' });
+  }
+}
+
+// src/common/guards/jwt-auth.guard.ts
+@Injectable()
+export class JwtAuthGuard extends AuthGuard('jwt') {}
+
+// src/common/decorators/current-agent.decorator.ts
+export const CurrentAgent = createParamDecorator((data: unknown, ctx: ExecutionContext) => {
+  const request = ctx.switchToHttp().getRequest();
+  return request.user;  // { sub: agentId, namespace, type }
+});</pre>
+
+<blockquote>
+<p><strong>预留扩展点</strong>：当前 Auth 只实现 JWT + Namespace 隔离。后续对外产品化时，在此模块叠加 Role、Permission、Policy 检查。</p>
+</blockquote>
+</section>
+
+<div class="section-divider mb-14"></div>
+
+<!-- 五、API 设计 -->
+<section id="s5" class="mb-14">
+<h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3"><span class="flex items-center justify-center w-9 h-9 rounded-lg bg-teal-100 text-teal-700 font-bold text-base">5</span>API 设计（OpenAPI）</h2>
+
+<table>
+<thead><tr><th style="width:18%">Endpoint</th><th style="width:10%">Method</th><th style="width:28%">Request</th><th>Response</th></tr></thead>
+<tbody>
+<tr><td><code>/registry/register</code></td><td>POST</td><td><code>{ name, endpointUrl, skills[], capabilities{}, ... }</code></td><td><code>AgentCard</code></td></tr>
+<tr><td><code>/registry/heartbeat</code></td><td>POST</td><td><code>{ agentId, ipAddress? }</code></td><td><code>{ success: boolean }</code></td></tr>
+<tr><td><code>/registry/agents</code></td><td>GET</td><td><code>?skill=&namespace=&q=</code></td><td><code>AgentCard[]</code></td></tr>
+<tr><td><code>/registry/agents/:id</code></td><td>DELETE</td><td>-</td><td>204</td></tr>
+<tr><td><code>/.well-known/agent-card</code></td><td>GET</td><td><code>?agentId=</code></td><td><code>AgentCard</code></td></tr>
+<tr><td><code>/sendMessage</code></td><td>POST</td><td><code>{ fromAgentId, toAgentId, taskId?, messageType, payload{} }</code></td><td><code>any</code> (目标 Agent 返回)</td></tr>
+<tr><td><code>/sendMessageStream</code></td><td>POST</td><td>同上</td><td><code>SSE Stream</code></td></tr>
+<tr><td><code>/tasks</code></td><td>POST</td><td><code>{ goal, ownerAgentId, userInput?, maxRounds?, timeoutMinutes? }</code></td><td><code>Task</code></td></tr>
+<tr><td><code>/tasks/:id</code></td><td>GET</td><td>-</td><td><code>Task + participants + messages</code></td></tr>
+<tr><td><code>/tasks/:id/complete</code></td><td>POST</td><td>-</td><td><code>Task</code></td></tr>
+<tr><td><code>/tasks/:id/escalate</code></td><td>POST</td><td><code>{ reason }</code></td><td><code>Task</code></td></tr>
+<tr><td><code>/session/:taskId</code></td><td>GET</td><td>-</td><td><code>SessionContext</code></td></tr>
+</tbody>
+</table>
+</section>
+
+<div class="section-divider mb-14"></div>
+
+<!-- 六、Agent SDK -->
+<section id="s6" class="mb-14">
+<h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3"><span class="flex items-center justify-center w-9 h-9 rounded-lg bg-violet-100 text-violet-700 font-bold text-base">6</span>Agent SDK 设计</h2>
+
+<p class="mb-3">每个 Agent 接入平台时，需要安装 SDK 完成：自动注册、心跳发送、A2A 消息收发、<code>discover_agents</code> 工具注入。</p>
+
+<pre>// agent-sdk/typescript/src/index.ts
+export class A2AAgentSDK {
+  private platformUrl: string;
+  private agentId: string;
+  private heartbeatInterval: NodeJS.Timer;
+
+  constructor(config: { platformUrl: string; agentCard: AgentCard; token: string }) {
+    this.platformUrl = config.platformUrl;
+    // 启动时注册
+    this.register(config.agentCard, config.token);
+    // 启动心跳
+    this.heartbeatInterval = setInterval(() => this.heartbeat(), 30_000);
+  }
+
+  private async register(agentCard: AgentCard, token: string) {
+    const res = await fetch(`${this.platformUrl}/registry/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify(agentCard),
+    });
+    const data = await res.json();
+    this.agentId = data.id;
+  }
+
+  private async heartbeat() {
+    await fetch(`${this.platformUrl}/registry/heartbeat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ agentId: this.agentId }),
+    });
+  }
+
+  // 注入给 LLM 的 Tool 定义
+  getDiscoverTool() {
+    return {
+      name: 'discover_agents',
+      description: '发现平台中具备特定能力的 Agent',
+      parameters: {
+        type: 'object',
+        properties: {
+          skill: { type: 'string', description: '要搜索的技能名称' },
+        },
+        required: ['skill'],
+      },
+      execute: async (params: { skill: string }) => {
+        const res = await fetch(`${this.platformUrl}/registry/agents?skill=${params.skill}`);
+        return res.json();
+      },
+    };
+  }
+
+  // 发送消息（通过平台代理）
+  async sendMessage(toAgentId: string, payload: any, taskId?: string) {
+    const res = await fetch(`${this.platformUrl}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fromAgentId: this.agentId, toAgentId, taskId, payload }),
+    });
+    return res.json();
+  }
+
+  // 接收消息：暴露 HTTP endpoint 供平台回调
+  onMessage(handler: (message: any) => Promise&lt;any&gt;) {
+    // 实际由 Agent 自己的 HTTP server 调用 handler
+    this.messageHandler = handler;
+  }
+
+  private messageHandler: ((message: any) => Promise&lt;any&gt;) | null = null;
+}</pre>
+
+<p class="mt-3 text-sm text-gray-600">SDK 使用方式：Agent 启动时 <code>new A2AAgentSDK({...})</code>，将 <code>getDiscoverTool()</code> 注入 LLM 可用工具集，LLM 需要协作时自动调用 discover → 选择 Agent → 调用 <code>sendMessage()</code>。</p>
+</section>
+
+<div class="section-divider mb-14"></div>
+
+<!-- 七、部署配置 -->
+<section id="s7" class="mb-14">
+<h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3"><span class="flex items-center justify-center w-9 h-9 rounded-lg bg-rose-100 text-rose-700 font-bold text-base">7</span>部署配置（Docker Compose）</h2>
+
+<pre>// docker-compose.yml
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=postgresql://a2a:a2a@postgres:5432/a2a_platform
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=${JWT_SECRET}
+      - NODE_ENV=production
+    depends_on:
+      - postgres
+      - redis
+      - jaeger
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: a2a
+      POSTGRES_PASSWORD: a2a
+      POSTGRES_DB: a2a_platform
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    ports:
+      - "16686:16686"  # UI
+      - "14268:14268"  # Collector HTTP
+
+volumes:
+  pgdata:
+  redisdata:</pre>
+
+<pre>// Dockerfile
+FROM node:20-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production
+COPY . .
+RUN npx prisma generate
+RUN npm run build
+EXPOSE 3000
+CMD ["node", "dist/main.js"]</pre>
+
+<pre>// package.json (核心依赖)
+{
+  "dependencies": {
+    "@nestjs/common": "^10.0.0",
+    "@nestjs/core": "^10.0.0",
+    "@nestjs/platform-express": "^10.0.0",
+    "@nestjs/platform-socket.io": "^10.0.0",
+    "@nestjs/websockets": "^10.0.0",
+    "@nestjs/schedule": "^4.0.0",
+    "@nestjs/config": "^3.0.0",
+    "@nestjs/jwt": "^10.0.0",
+    "@nestjs/passport": "^10.0.0",
+    "@nestjs/swagger": "^7.0.0",
+    "@prisma/client": "^5.0.0",
+    "@opentelemetry/api": "^1.7.0",
+    "@opentelemetry/sdk-node": "^0.45.0",
+    "@opentelemetry/exporter-jaeger": "^1.19.0",
+    "ioredis": "^5.3.0",
+    "axios": "^1.6.0",
+    "passport-jwt": "^4.0.0",
+    "class-validator": "^0.14.0",
+    "class-transformer": "^0.5.0",
+    "rxjs": "^7.8.0"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^10.0.0",
+    "prisma": "^5.0.0",
+    "typescript": "^5.0.0"
+  }
+}</pre>
+</section>
+
+<div class="section-divider mb-14"></div>
+
+<!-- 八、关键代码示例 -->
+<section id="s8" class="mb-14">
+<h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3"><span class="flex items-center justify-center w-9 h-9 rounded-lg bg-slate-100 text-slate-700 font-bold text-base">8</span>关键代码示例：完整的 Task 协作闭环</h2>
+
+<p class="mb-3">以下是一个 Agent 使用 SDK 完成"发现问题 → 选择 Agent → 发送 Task → 接收回复 → 标记完成"的完整代码：</p>
+
+<pre>// example-agent.ts
+import { A2AAgentSDK } from '@your-org/a2a-sdk';
+import { OpenAI } from 'openai';
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+// 1. 初始化 SDK，自动注册到平台
+const sdk = new A2AAgentSDK({
+  platformUrl: 'http://localhost:3000',
+  token: process.env.A2A_PLATFORM_TOKEN!,
+  agentCard: {
+    name: 'data-analyst-agent',
+    description: '数据分析 Agent，擅长销售数据洞察',
+    endpointUrl: 'http://data-analyst.local:8000',
+    skills: [{ id: 'sales-analysis', name: '销售数据分析' }],
+    capabilities: { streaming: true },
+  },
+});
+
+// 2. 设置消息接收处理器
+sdk.onMessage(async (msg) => {
+  // msg 包含 { taskId, fromAgentId, payload, _session_context }
+  const session = msg._session_context;
+
+  // 让 LLM 处理请求
+  const completion = await openai.chat.completions.create({
+    model: 'gpt-4',
+    messages: [
+      { role: 'system', content: '你是一个数据分析助手。' },
+      { role: 'user', content: `任务目标：${session.goal}\n用户输入：${session.userInput}\n当前请求：${msg.payload.body}` },
+    ],
+    tools: [sdk.getDiscoverTool()],  // 注入 discover_agents 工具
+  });
+
+  // 如果 LLM 决定调用 discover_agents
+  if (completion.choices[0].message.tool_calls) {
+    const toolCall = completion.choices[0].message.tool_calls[0];
+    const agents = await sdk.getDiscoverTool().execute(JSON.parse(toolCall.function.arguments));
+
+    // LLM 选择最合适的 Agent，发送子 Task
+    const targetAgent = agents[0];  // 简化示例
+    const result = await sdk.sendMessage(targetAgent.id, {
+      body: `请协助分析：${session.goal}`,
+    }, msg.taskId);
+
+    // 返回整合后的结果给上游
+    return {
+      body: `已委托 ${targetAgent.name} 处理，结果：${JSON.stringify(result)}`,
+      artifact: result,
+    };
+  }
+
+  return { body: completion.choices[0].message.content };
+});
+
+// 3. 启动 Agent HTTP 服务（供平台回调）
+import express from 'express';
+const app = express();
+app.use(express.json());
+app.post('/sendMessage', async (req, res) => {
+  const result = await sdk.handleIncomingMessage(req.body);
+  res.json(result);
+});
+app.listen(8000, () => console.log('Agent running on :8000'));</pre>
+</section>
+
+<div class="section-divider mb-14"></div>
+
+<!-- 九、待确认事项 -->
+<section id="s9" class="mb-14">
+<h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3"><span class="flex items-center justify-center w-9 h-9 rounded-lg bg-amber-100 text-amber-700 font-bold text-base">9</span>实现方案中仍待你确认的事项</h2>
+
+<table>
+<thead><tr><th style="width:30%">问题</th><th style="width:35%">当前假设</th><th>需要你确认</th></tr></thead>
+<tbody>
+<tr>
+<td><strong>消息 Payload 结构</strong></td>
+<td>我假设沿用 A2A JSON-RPC 规范：<code>{ jsonrpc, method, params, id }</code></td>
+<td>你是否要严格对齐 A2A 规范，还是自定义简化格式？</td>
+</tr>
+<tr>
+<td><strong>Artifact 存储</strong></td>
+<td>目前只在 DB 存 URL，实际文件存本地磁盘或 S3</td>
+<td>文件存储用本地 Volume 还是 MinIO/S3？文件大小上限？</td>
+</tr>
+<tr>
+<td><strong>Agent 现有框架</strong></td>
+<td>假设你们的 Agent 用 OpenAI SDK / LangChain / ADK 等，SDK 提供 HTTP endpoint</td>
+<td>你们现有 Agent 是什么框架？是否已有 HTTP server？</td>
+</tr>
+<tr>
+<td><strong>WebSocket 升级触发条件</strong></td>
+<td>HTTP 为主，WS 可选。我设计为 Agent 注册时协商 <code>preferredTransport</code></td>
+<td>这个设计 OK 吗？还是固定先用 HTTP，后期再考虑 WS？</td>
+</tr>
+<tr>
+<td><strong>Namespace 隔离</strong></td>
+<td>当前只有 <code>default</code> namespace，所有 Agent 互相可见</td>
+<td>你们团队内部是否已经有"不同项目 Agent 不应该互相看到"的需求？</td>
+</tr>
+<tr>
+<td><strong>死循环检测算法</strong></td>
+<td>我计划用简单方案：监控同一 Task 内相邻 3 轮消息内容相似度 &gt; 80% 触发熔断</td>
+<td>这个阈值和策略是否合理？还是你有更好的想法？</td>
+</tr>
+</tbody>
+</table>
+
+<div class="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mt-6">
+<p class="text-emerald-900 text-sm"><strong>下一步：</strong>你确认上述事项后，我可以开始写具体的代码文件（NestJS module 源码 + Prisma schema + Docker Compose），直接可运行。</p>
+</div>
+</section>
+
+<div class="section-divider mb-6"></div>
+<footer class="text-center py-6 text-sm text-gray-500">
+    A2A 智能协作平台 — 详细实现方案
+</footer>
+
+        </main>
+    </div>
+
+    <script>
+        window.addEventListener('scroll', () => {
+            const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+            const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            document.getElementById('scrollIndicator').style.width = (winScroll / height * 100) + '%';
+        });
+        const sections = document.querySelectorAll('section[id], h3[id]');
+        const tocLinks = document.querySelectorAll('.toc-link');
+        function updateActiveToc() {
+            let current = '';
+            sections.forEach(section => { if (scrollY >= section.offsetTop - 120) current = section.getAttribute('id'); });
+            tocLinks.forEach(link => { link.classList.remove('active'); if (link.getAttribute('href') === '#' + current) link.classList.add('active'); });
+        }
+        window.addEventListener('scroll', updateActiveToc); updateActiveToc();
+        tocLinks.forEach(link => { link.addEventListener('click', (e) => { e.preventDefault(); const t = document.getElementById(link.getAttribute('href').slice(1)); if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' }); }); });
+    </script>
+    <script>
+        mermaid.initialize({
+            startOnLoad: true, theme: 'default',
+            sequence: { diagramMarginX: 20, diagramMarginY: 20, actorMargin: 60, width: 120, height: 50, boxMargin: 10, boxTextMargin: 5, noteMargin: 10, messageMargin: 35, mirrorActors: false, bottomMarginAdj: 1, useMaxWidth: true, rightAngles: false, showSequenceNumbers: false },
+            er: { diagramPadding: 20, layoutDirection: 'TB', minEntityWidth: 100, minEntityHeight: 75, entityPadding: 15, stroke: '#94a3b8', fill: '#f8fafc' },
+            themeCSS: '.actor { fill: #f8fafc; stroke: #e2e8f0; } .actor-line { stroke: #cbd5e1; } .messageLine0, .messageLine1 { stroke: #64748b; } .messageText { fill: #334155; font-size: 13px; } .labelBox { fill: #f1f5f9; stroke: #e2e8f0; } .note { fill: #fef3c7; stroke: #f59e0b; } .noteText { fill: #92400e; font-size: 12px; } .entityBox { fill: #f8fafc; stroke: #cbd5e1; } .entityLabel { fill: #334155; font-size: 13px; } .attributeBoxEven { fill: #ffffff; } .attributeBoxOdd { fill: #f8fafc; } .relationshipLabelBox { fill: #f1f5f9; stroke: #e2e8f0; }'
+        });
+    </script>
+</body>
+</html>
