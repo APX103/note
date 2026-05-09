@@ -463,20 +463,26 @@ export interface SessionContext {
 import { AgentCard, SendMessageRequest, SendMessageResponse, TaskCreateRequest, TaskResponse, SessionContext } from './types';
 
 export interface SDKConfig {
-  platformUrl: string;       // 平台地址，如 http://localhost:3000
-  agentCard: AgentCard;      // Agent 自我介绍
-  token: string;             // JWT Token（从平台获取或预分配）
-  heartbeatInterval?: number; // 心跳间隔（默认 30000ms）
+  platformUrl: string;        // 平台地址，如 http://localhost:3000
+  agentCard: AgentCard;       // Agent 自我介绍
+  token: string;              // JWT Token（从平台获取或预分配）
+  heartbeatInterval?: number;  // 心跳间隔（默认 30000ms）
+  pollInterval?: number;       // 轮询间隔（默认 5000ms）
+  deliveryStrategy?: 'polling' | 'websocket' | 'callback'; // 消息投递策略（默认 polling）
 }
 
 export class A2AAgentSDK {
   private config: SDKConfig;
   private agentId: string | null = null;
   private heartbeatTimer: NodeJS.Timer | null = null;
+  private pollTimer: NodeJS.Timer | null = null;
+  private messageHandler: ((message: any) => Promise&lt;any&gt;) | null = null;
 
   constructor(config: SDKConfig) {
     this.config = {
       heartbeatInterval: 30000,
+      pollInterval: 5000,
+      deliveryStrategy: 'polling',
       ...config,
     };
   }
@@ -486,24 +492,101 @@ export class A2AAgentSDK {
   // ═══════════════════════════════════════════════════════════════
 
   /**
-   * 启动 Agent：注册到平台 + 启动心跳
+   * 启动 Agent：注册到平台 + 启动心跳 + 启动轮询（默认策略）
    */
   async start(): Promise&lt;void&gt; {
     const registered = await this.register();
     this.agentId = registered.id;
     this.startHeartbeat();
-    console.log(`[A2A SDK] Agent registered: ${this.agentId}, endpoint: ${this.config.agentCard.endpointUrl}`);
+
+    if (this.config.deliveryStrategy === 'polling') {
+      this.startPolling();
+    }
+
+    console.log(`[A2A SDK] Agent started: ${this.agentId}, strategy: ${this.config.deliveryStrategy}`);
   }
 
   /**
-   * 停止 Agent：注销 + 停止心跳
+   * 停止 Agent：注销 + 停止心跳 + 停止轮询
    */
   async stop(): Promise&lt;void&gt; {
+    this.stopPolling();
     this.stopHeartbeat();
     if (this.agentId) {
       await this.unregister();
-      console.log(`[A2A SDK] Agent unregistered: ${this.agentId}`);
+      console.log(`[A2A SDK] Agent stopped: ${this.agentId}`);
     }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // 轮询逻辑（默认策略）
+  // ═══════════════════════════════════════════════════════════════
+
+  private startPolling(): void {
+    this.pollTimer = setInterval(() => {
+      this.pollInbox().catch(console.error);
+    }, this.config.pollInterval);
+  }
+
+  private stopPolling(): void {
+    if (this.pollTimer) {
+      clearInterval(this.pollTimer);
+      this.pollTimer = null;
+    }
+  }
+
+  private async pollInbox(): Promise&lt;void&gt; {
+    if (!this.agentId) return;
+
+    const res = await fetch(
+      `${this.config.platformUrl}/inbox/poll?agentId=${this.agentId}&limit=10`,
+      { headers: { 'Authorization': `Bearer ${this.config.token}` } }
+    );
+    if (!res.ok) return;
+
+    const messages = await res.json();
+    for (const msg of messages) {
+      console.log(`[A2A SDK] Poll received from ${msg.fromAgentId}: ${msg.body}`);
+
+      if (this.messageHandler) {
+        const result = await this.messageHandler(msg);
+        // 发送回复
+        if (msg.fromAgentId && result) {
+          await this.sendReply(msg.fromAgentId, result, msg.taskId, msg.messageId);
+        }
+      }
+    }
+  }
+
+  private async sendReply(
+    toAgentId: string,
+    result: any,
+    taskId?: string,
+    parentMessageId?: string,
+  ): Promise&lt;void&gt; {
+    await fetch(`${this.config.platformUrl}/sendMessage`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.config.token}`,
+      },
+      body: JSON.stringify({
+        fromAgentId: this.agentId,
+        toAgentId,
+        taskId,
+        parentMessageId,
+        messageType: 'TASK_RESPONSE',
+        payload: result,
+      }),
+    });
+  }
+
+  /**
+   * 注册消息处理器（Agent 开发者调用）
+   * 在 polling 策略下，SDK 轮询到消息后会调用此 handler
+   */
+  onMessage(handler: (message: any) => Promise&lt;any&gt;): void {
+    this.messageHandler = handler;
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -634,13 +717,51 @@ export class A2AAgentSDK {
       headers['x-parent-message-id'] = parentMessageId;
     }
 
+    // 发送消息到平台（存入对方 Inbox）
     const res = await fetch(`${this.config.platformUrl}/sendMessage`, {
       method: 'POST',
       headers,
       body: JSON.stringify(body),
     });
     if (!res.ok) throw new Error(`Send message failed: ${res.status} ${await res.text()}`);
-    return res.json();
+
+    const sent = await res.json();  // { messageId, status: 'queued' }
+
+    // 轮询模式下：封装轮询等待，对开发者保持同步语义
+    if (this.config.deliveryStrategy === 'polling') {
+      return this.pollForReply(sent.messageId, { timeout: 30000, interval: 2000 });
+    }
+
+    return sent;
+  }
+
+  /**
+   * 轮询等待指定消息的回复（polling 策略下使用）
+   */
+  private async pollForReply(
+    sentMessageId: string,
+    options: { timeout: number; interval: number },
+  ): Promise&lt;SendMessageResponse&gt; {
+    const deadline = Date.now() + options.timeout;
+
+    while (Date.now() &lt; deadline) {
+      const res = await fetch(
+        `${this.config.platformUrl}/inbox/poll?agentId=${this.agentId}&limit=10`,
+        { headers: { 'Authorization': `Bearer ${this.config.token}` } }
+      );
+      if (!res.ok) { await sleep(options.interval); continue; }
+
+      const messages = await res.json();
+      for (const msg of messages) {
+        if (msg.parentMessageId === sentMessageId) {
+          return { body: msg.body, artifact: msg.artifact };
+        }
+      }
+
+      await sleep(options.interval);
+    }
+
+    throw new Error(`Reply timeout for message ${sentMessageId}`);
   }
 
   /**
@@ -841,6 +962,10 @@ export class A2AAgentSDK {
   getAgentId(): string | null {
     return this.agentId;
   }
+}
+
+function sleep(ms: number): Promise&lt;void&gt; {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }</pre>
 </section>
 
