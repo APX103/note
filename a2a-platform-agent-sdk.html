@@ -1,0 +1,1297 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A2A Agent 端开发指南 — SDK & A2A Server 实现</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Noto Sans SC', system-ui, -apple-system, sans-serif; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        .gradient-text { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .scroll-indicator { position: fixed; top: 0; left: 0; height: 3px; background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); z-index: 1000; transition: width 0.1s; }
+        .toc-link.active { color: #667eea; border-left-color: #667eea; background: linear-gradient(90deg, rgba(102,126,234,0.08) 0%, transparent 100%); }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #c7c7c7; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #a0a0a0; }
+        .section-divider { height: 1px; background: linear-gradient(90deg, transparent 0%, #e5e7eb 20%, #e5e7eb 80%, transparent 100%); }
+        pre { background: #1e293b; color: #e2e8f0; padding: 1rem; border-radius: 0.75rem; overflow-x: auto; font-size: 0.8125rem; line-height: 1.6; }
+        code { font-family: 'JetBrains Mono', monospace; font-size: 0.8125rem; }
+        :not(pre) > code { background: #f1f5f9; color: #334155; padding: 0.125rem 0.375rem; border-radius: 0.25rem; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+        th, td { border: 1px solid #e2e8f0; padding: 0.625rem 0.875rem; text-align: left; }
+        th { background: #f8fafc; font-weight: 600; color: #334155; }
+        tr:nth-child(even) { background: #fafafa; }
+        blockquote { border-left: 4px solid #667eea; background: #f8fafc; padding: 1rem 1.25rem; margin: 1rem 0; border-radius: 0 0.5rem 0.5rem 0; color: #475569; }
+        .mermaid { background: transparent !important; }
+        .mermaid svg { max-width: 100%; height: auto; }
+        .tag { display: inline-flex; align-items: center; padding: 0.2rem 0.6rem; border-radius: 9999px; font-size: 0.7rem; font-weight: 500; letter-spacing: 0.02em; }
+        .http-method { display: inline-block; font-size: 0.7rem; font-weight: 700; padding: 0.125rem 0.375rem; border-radius: 0.25rem; font-family: 'JetBrains Mono', monospace; }
+        .http-get { background: #dbeafe; color: #1e40af; }
+        .http-post { background: #dcfce7; color: #166534; }
+        .http-delete { background: #fee2e2; color: #991b1b; }
+        h2 { scroll-margin-top: 6rem; }
+        h3 { scroll-margin-top: 6rem; }
+        h4 { scroll-margin-top: 6rem; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 leading-relaxed">
+    <div class="scroll-indicator" id="scrollIndicator"></div>
+
+    <header class="relative bg-white border-b border-gray-200">
+        <div class="absolute inset-0 bg-gradient-to-br from-indigo-50/50 via-white to-purple-50/30 pointer-events-none"></div>
+        <div class="relative max-w-6xl mx-auto px-6 py-14 md:py-20">
+            <div class="flex items-center gap-3 mb-5">
+                <span class="tag bg-indigo-100 text-indigo-700">Agent SDK</span>
+                <span class="tag bg-emerald-100 text-emerald-700">A2A Server</span>
+                <span class="tag bg-amber-100 text-amber-700">API 规范</span>
+            </div>
+            <h1 class="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight mb-5">
+                <span class="gradient-text">A2A Agent 端开发指南</span>
+            </h1>
+            <p class="text-base md:text-lg text-gray-600 max-w-3xl leading-relaxed">
+                Agent 如何接入 A2A 平台：完整的平台 API 规范、Agent SDK 实现、A2A Server 搭建、以及一个可运行的 Agent 示例。
+            </p>
+        </div>
+    </header>
+
+    <div class="max-w-6xl mx-auto px-6 py-12 flex gap-12">
+        <aside class="hidden lg:block w-60 flex-shrink-0">
+            <div class="sticky top-8">
+                <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">目录</h3>
+                <nav class="space-y-0.5 text-sm" id="toc">
+                    <a href="#s1" class="toc-link block py-1.5 px-3 text-gray-600 hover:text-gray-900 rounded-md border-l-2 border-transparent transition-all">一、架构总览</a>
+                    <a href="#s2" class="toc-link block py-1.5 px-3 text-gray-600 hover:text-gray-900 rounded-md border-l-2 border-transparent transition-all">二、平台 API 完整规范</a>
+                    <a href="#s3" class="toc-link block py-1.5 px-3 text-gray-600 hover:text-gray-900 rounded-md border-l-2 border-transparent transition-all">三、Agent SDK 完整实现</a>
+                    <a href="#s4" class="toc-link block py-1.5 px-3 text-gray-600 hover:text-gray-900 rounded-md border-l-2 border-transparent transition-all">四、Agent A2A Server</a>
+                    <a href="#s5" class="toc-link block py-1.5 px-3 text-gray-600 hover:text-gray-900 rounded-md border-l-2 border-transparent transition-all">五、完整 Agent 示例</a>
+                    <a href="#s6" class="toc-link block py-1.5 px-3 text-gray-600 hover:text-gray-900 rounded-md border-l-2 border-transparent transition-all">六、接入 checklist</a>
+                </nav>
+            </div>
+        </aside>
+
+        <main class="flex-1 min-w-0 text-gray-700">
+
+<!-- 一、架构总览 -->
+<section id="s1" class="mb-14">
+<h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3"><span class="flex items-center justify-center w-9 h-9 rounded-lg bg-indigo-100 text-indigo-700 font-bold text-base">1</span>架构总览</h2>
+
+<h3 class="text-lg font-semibold text-gray-900 mt-4 mb-3">Agent 与平台的双向关系</h3>
+<div class="bg-white rounded-2xl border border-gray-200 p-6 mb-5">
+<div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant Agent as Agent 进程<br/>(你的代码)
+    participant SDK as Agent SDK<br/>(内置 HTTP Client)
+    participant Platform as A2A 平台<br/>(NestJS)
+    participant LLM as LLM API<br/>(OpenAI/Claude)
+
+    Note over Agent,Platform: 启动阶段
+    Agent->>SDK: new A2AAgentSDK(config)
+    SDK->>Platform: POST /registry/register {AgentCard}
+    Platform-->>SDK: { id, token }
+    SDK->>SDK: 启动心跳定时器 (30s)
+
+    Note over Agent,Platform: 运行阶段
+    loop 每 30s
+        SDK->>Platform: POST /registry/heartbeat
+    end
+
+    Note over Agent,Platform: 被调用时（平台 → Agent）
+    Platform->>Agent: POST /sendMessage {task, payload, session}
+    Agent->>Agent: 解析请求
+    Agent->>LLM: 发送 prompt + session context
+    LLM-->>Agent: 返回结果
+    Agent-->>Platform: { body, artifact?, status }
+
+    Note over Agent,Platform: 主动调用时（Agent → 平台 → 其他 Agent）
+    Agent->>SDK: sdk.sendMessage(toAgentId, payload, taskId)
+    SDK->>Platform: POST /sendMessage + x-parent-message-id
+    Platform->>Platform: 路由到目标 Agent
+    Platform-->>SDK: 目标 Agent 的回复
+    SDK-->>Agent: 返回结果
+</div>
+</div>
+
+<p class="mb-3">Agent 端需要实现 <strong>两个角色</strong>：</p>
+<table class="mb-4">
+<thead><tr><th style="width:20%">角色</th><th style="width:35%">职责</th><th>对应代码</th></tr></thead>
+<tbody>
+<tr><td><strong>A2A Server</strong></td><td>对外暴露 HTTP 端点，接收平台（或其他 Agent）发来的消息</td><td>Express / Fastify / NestJS HTTP Server</td></tr>
+<tr><td><strong>A2A Client</strong></td><td>通过 SDK 调用平台接口，发现其他 Agent、发送消息、创建 Task</td><td>A2AAgentSDK 类</td></tr>
+</tbody>
+</table>
+
+<blockquote>
+<p><strong>核心原则</strong>：Agent 不直接与其他 Agent 通信，所有消息都经过平台转发。Agent 的 HTTP Server 只接收来自平台的请求，Agent 的 SDK 只向平台发送请求。</p>
+</blockquote>
+</section>
+
+<div class="section-divider mb-14"></div>
+
+<!-- 二、平台 API 完整规范 -->
+<section id="s2" class="mb-14">
+<h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3"><span class="flex items-center justify-center w-9 h-9 rounded-lg bg-emerald-100 text-emerald-700 font-bold text-base">2</span>平台 API 完整规范</h2>
+
+<p class="mb-4 text-sm text-gray-600">所有 API 的 Base URL：<code>http://&lt;platform-host&gt;:3000</code>，请求头需携带 <code>Authorization: Bearer &lt;agent-jwt-token&gt;</code></p>
+
+<!-- Registry -->
+<h3 class="text-lg font-semibold text-gray-900 mt-6 mb-3 flex items-center gap-2"><span class="text-emerald-600">§</span> Registry API（服务发现）</h3>
+
+<h4 class="font-semibold text-gray-900 mt-3 mb-2"><span class="http-method http-post">POST</span> <code>/registry/register</code></h4>
+<p class="text-sm text-gray-600 mb-2">Agent 启动时调用，注册自己到平台。如果已存在相同 endpointUrl，则更新。</p>
+<pre>// Request
+{
+  "name": "weather-agent",
+  "description": "提供全球城市天气查询",
+  "endpointUrl": "http://weather.local:8001",   // Agent 自己的 HTTP 地址
+  "version": "1.0.0",
+  "capabilities": { "streaming": true, "pushNotifications": false },
+  "skills": [
+    { "id": "get_current_weather", "name": "当前天气", "description": "查询指定城市当前天气" },
+    { "id": "get_forecast", "name": "天气预报", "description": "查询未来7天天气预报" }
+  ],
+  "securitySchemes": { "type": "bearer" }
+}
+
+// Response 200
+{
+  "id": "agent_weather_001",
+  "name": "weather-agent",
+  "endpointUrl": "http://weather.local:8001",
+  "status": "ACTIVE",
+  "createdAt": "2025-05-09T10:00:00Z"
+}</pre>
+
+<h4 class="font-semibold text-gray-900 mt-4 mb-2"><span class="http-method http-post">POST</span> <code>/registry/heartbeat</code></h4>
+<p class="text-sm text-gray-600 mb-2">每 30 秒调用一次，证明 Agent 还活着。</p>
+<pre>// Request
+{
+  "agentId": "agent_weather_001"
+}
+
+// Response 200
+{ "success": true }</pre>
+
+<h4 class="font-semibold text-gray-900 mt-4 mb-2"><span class="http-method http-get">GET</span> <code>/registry/agents</code></h4>
+<p class="text-sm text-gray-600 mb-2">发现其他 Agent。支持按 skill、namespace、关键词搜索。</p>
+<pre>// Query Params
+?skill=get_current_weather        // 按技能 ID 过滤
+&namespace=default                // 按命名空间过滤
+&q=天气                           // 全文搜索（名称/描述）
+
+// Response 200
+[
+  {
+    "id": "agent_flight_001",
+    "name": "flight-agent",
+    "description": "机票查询与预订",
+    "endpointUrl": "http://flight.local:8002",
+    "skills": [
+      { "id": "search_flights", "name": "机票查询" },
+      { "id": "book_flight", "name": "机票预订" }
+    ]
+  }
+]</pre>
+
+<h4 class="font-semibold text-gray-900 mt-4 mb-2"><span class="http-method http-get">GET</span> <code>/registry/agents/:id</code></h4>
+<p class="text-sm text-gray-600 mb-2">获取指定 Agent 的完整 Agent Card。</p>
+
+<h4 class="font-semibold text-gray-900 mt-4 mb-2"><span class="http-method http-delete">DELETE</span> <code>/registry/agents/:id</code></h4>
+<p class="text-sm text-gray-600 mb-2">注销 Agent（优雅下线）。</p>
+
+<!-- Gateway -->
+<h3 class="text-lg font-semibold text-gray-900 mt-8 mb-3 flex items-center gap-2"><span class="text-emerald-600">§</span> Gateway API（消息通信）</h3>
+
+<h4 class="font-semibold text-gray-900 mt-3 mb-2"><span class="http-method http-get">GET</span> <code>/.well-known/agent-card?agentId=&lt;id&gt;</code></h4>
+<p class="text-sm text-gray-600 mb-2">获取指定 Agent 的公开 Agent Card（A2A 标准端点）。</p>
+
+<h4 class="font-semibold text-gray-900 mt-4 mb-2"><span class="http-method http-post">POST</span> <code>/sendMessage</code></h4>
+<p class="text-sm text-gray-600 mb-2">同步发送消息。Agent 通过此接口调用其他 Agent（经过平台转发）。</p>
+<pre>// Request Headers
+Content-Type: application/json
+Authorization: Bearer &lt;agent-jwt-token&gt;
+x-trace-id: &lt;optional&gt;                    // 透传 Trace ID
+x-parent-message-id: &lt;optional&gt;           // 父消息 ID，建立 DAG 调用树
+
+// Request Body
+{
+  "fromAgentId": "agent_001",              // 发送方 Agent ID
+  "toAgentId": "agent_002",                // 目标 Agent ID
+  "taskId": "task_abc_123",                // 所属 Task ID（可选）
+  "messageType": "TASK_REQUEST",           // TEXT / TASK_REQUEST / TASK_RESPONSE / STATUS_UPDATE
+  "payload": {
+    "body": "请查询北京明天天气",
+    "input": { "city": "北京", "date": "2025-05-10" }
+  }
+}
+
+// Response 200 — 目标 Agent 的回复（平台透传）
+{
+  "body": "北京明天晴，25°C，适合出行",
+  "artifact": {
+    "type": "weather_data",
+    "data": { "city": "北京", "date": "2025-05-10", "temp": 25, "condition": "晴" }
+  }
+}</pre>
+
+<h4 class="font-semibold text-gray-900 mt-4 mb-2"><span class="http-method http-post">POST</span> <code>/sendMessageStream</code></h4>
+<p class="text-sm text-gray-600 mb-2">SSE 流式发送消息。用于长任务实时推送进度。</p>
+<pre>// Request Body（同 /sendMessage）
+
+// Response — text/event-stream
+id: 1
+event: task_status
+data: {"status": "WORKING", "progress": 30}
+
+id: 2
+event: artifact
+data: {"type": "partial_result", "content": "..."}
+
+id: 3
+event: task_status
+data: {"status": "COMPLETED", "result": "..."}</pre>
+
+<!-- Task -->
+<h3 class="text-lg font-semibold text-gray-900 mt-8 mb-3 flex items-center gap-2"><span class="text-emerald-600">§</span> Task API（任务管理）</h3>
+
+<h4 class="font-semibold text-gray-900 mt-3 mb-2"><span class="http-method http-post">POST</span> <code>/tasks</code></h4>
+<p class="text-sm text-gray-600 mb-2">创建新 Task。通常由入口 Agent（Task Owner）调用。</p>
+<pre>// Request
+{
+  "goal": "帮我订一张去成都的机票",
+  "ownerAgentId": "agent_001",
+  "userInput": "下周三去成都出差",
+  "maxMessages": 100,
+  "timeoutMinutes": 10
+}
+
+// Response 200
+{
+  "id": "task_xyz_789",
+  "status": "CREATED",
+  "goal": "帮我订一张去成都的机票",
+  "ownerAgentId": "agent_001",
+  "messageCount": 0,
+  "maxMessages": 100,
+  "createdAt": "2025-05-09T10:00:00Z"
+}</pre>
+
+<h4 class="font-semibold text-gray-900 mt-4 mb-2"><span class="http-method http-get">GET</span> <code>/tasks/:id</code></h4>
+<p class="text-sm text-gray-600 mb-2">获取 Task 详情，包含参与者列表、消息历史、当前状态。</p>
+<pre>// Response 200
+{
+  "id": "task_xyz_789",
+  "status": "WORKING",
+  "goal": "帮我订一张去成都的机票",
+  "ownerAgentId": "agent_001",
+  "messageCount": 8,
+  "participants": [
+    { "agentId": "agent_001", "role": "owner" },
+    { "agentId": "agent_002", "role": "collaborator" }
+  ],
+  "createdAt": "2025-05-09T10:00:00Z"
+}</pre>
+
+<h4 class="font-semibold text-gray-900 mt-4 mb-2"><span class="http-method http-post">POST</span> <code>/tasks/:id/complete</code></h4>
+<p class="text-sm text-gray-600 mb-2">Task Owner 标记 Task 完成。</p>
+<pre>// Response 200
+{ "id": "task_xyz_789", "status": "COMPLETED", "completedAt": "..." }</pre>
+
+<h4 class="font-semibold text-gray-900 mt-4 mb-2"><span class="http-method http-post">POST</span> <code>/tasks/:id/escalate</code></h4>
+<p class="text-sm text-gray-600 mb-2">Agent 无法解决，请求人工介入。平台挂起 Task 并通知人类操作员。</p>
+<pre>// Request
+{ "reason": "火车票和机票都售空了，需要人工决策" }
+
+// Response 200
+{ "id": "task_xyz_789", "status": "ESCALATED" }</pre>
+
+<h4 class="font-semibold text-gray-900 mt-4 mb-2"><span class="http-method http-post">POST</span> <code>/tasks/:id/cancel</code></h4>
+<p class="text-sm text-gray-600 mb-2">取消 Task。</p>
+
+<!-- Session -->
+<h3 class="text-lg font-semibold text-gray-900 mt-8 mb-3 flex items-center gap-2"><span class="text-emerald-600">§</span> Session API（上下文）</h3>
+
+<h4 class="font-semibold text-gray-900 mt-3 mb-2"><span class="http-method http-get">GET</span> <code>/session/:taskId</code></h4>
+<p class="text-sm text-gray-600 mb-2">获取指定 Task 的共享 Session Context（包含历史、Artifacts、共享变量）。</p>
+<pre>// Response 200
+{
+  "taskId": "task_xyz_789",
+  "sharedContext": {
+    "goal": "帮我订一张去成都的机票",
+    "userInput": "下周三去成都出差",
+    "artifacts": [
+      { "from": "agent_002", "type": "weather", "data": {...} },
+      { "from": "agent_003", "type": "flight_options", "data": {...} }
+    ]
+  },
+  "history": [...],
+  "version": 5,
+  "updatedAt": "2025-05-09T10:05:00Z"
+}</pre>
+
+<!-- Auth -->
+<h3 class="text-lg font-semibold text-gray-900 mt-8 mb-3 flex items-center gap-2"><span class="text-emerald-600">§</span> Auth API（认证）</h3>
+
+<h4 class="font-semibold text-gray-900 mt-3 mb-2"><span class="http-method http-post">POST</span> <code>/auth/agent-token</code></h4>
+<p class="text-sm text-gray-600 mb-2">获取 Agent JWT Token。开发/测试时使用。</p>
+<pre>// Request
+{
+  "agentId": "agent_001",
+  "secret": "your-platform-secret"
+}
+
+// Response 200
+{
+  "token": "eyJhbGciOiJIUzI1NiIs...",
+  "expiresIn": 86400
+}</pre>
+
+<h3 class="text-lg font-semibold text-gray-900 mt-8 mb-3">API 汇总速查表</h3>
+<table>
+<thead><tr><th style="width:22%">Endpoint</th><th style="width:8%">Method</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td><code>/registry/register</code></td><td><span class="http-method http-post">POST</span></td><td>Agent 注册</td></tr>
+<tr><td><code>/registry/heartbeat</code></td><td><span class="http-method http-post">POST</span></td><td>心跳保活</td></tr>
+<tr><td><code>/registry/agents</code></td><td><span class="http-method http-get">GET</span></td><td>发现 Agent（按 skill/namespace/关键词）</td></tr>
+<tr><td><code>/registry/agents/:id</code></td><td><span class="http-method http-get">GET</span></td><td>获取单个 Agent Card</td></tr>
+<tr><td><code>/registry/agents/:id</code></td><td><span class="http-method http-delete">DELETE</span></td><td>注销 Agent</td></tr>
+<tr><td><code>/.well-known/agent-card</code></td><td><span class="http-method http-get">GET</span></td><td>A2A 标准：获取 Agent Card</td></tr>
+<tr><td><code>/sendMessage</code></td><td><span class="http-method http-post">POST</span></td><td>同步发送消息（核心）</td></tr>
+<tr><td><code>/sendMessageStream</code></td><td><span class="http-method http-post">POST</span></td><td>SSE 流式发送消息</td></tr>
+<tr><td><code>/tasks</code></td><td><span class="http-method http-post">POST</span></td><td>创建 Task</td></tr>
+<tr><td><code>/tasks/:id</code></td><td><span class="http-method http-get">GET</span></td><td>获取 Task 详情</td></tr>
+<tr><td><code>/tasks/:id/complete</code></td><td><span class="http-method http-post">POST</span></td><td>标记 Task 完成</td></tr>
+<tr><td><code>/tasks/:id/escalate</code></td><td><span class="http-method http-post">POST</span></td><td>请求人工介入</td></tr>
+<tr><td><code>/tasks/:id/cancel</code></td><td><span class="http-method http-post">POST</span></td><td>取消 Task</td></tr>
+<tr><td><code>/session/:taskId</code></td><td><span class="http-method http-get">GET</span></td><td>获取 Session Context</td></tr>
+<tr><td><code>/auth/agent-token</code></td><td><span class="http-method http-post">POST</span></td><td>获取 JWT Token</td></tr>
+</tbody>
+</table>
+</section>
+
+<div class="section-divider mb-14"></div>
+
+<!-- 三、Agent SDK 完整实现 -->
+<section id="s3" class="mb-14">
+<h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3"><span class="flex items-center justify-center w-9 h-9 rounded-lg bg-sky-100 text-sky-700 font-bold text-base">3</span>Agent SDK 完整实现</h2>
+
+<p class="mb-4">Agent SDK 是一个 TypeScript 类，封装了所有平台 API 调用。Agent 开发者只需实例化 SDK，即可自动完成注册、心跳、消息收发。</p>
+
+<pre>// agent-sdk/src/types.ts
+// ───────────────────────────────────────────────────────────────
+
+export interface AgentCard {
+  name: string;
+  description: string;
+  endpointUrl: string;
+  version?: string;
+  capabilities?: {
+    streaming?: boolean;
+    pushNotifications?: boolean;
+  };
+  skills: AgentSkill[];
+  securitySchemes?: Record&lt;string, any&gt;;
+}
+
+export interface AgentSkill {
+  id: string;
+  name: string;
+  description?: string;
+  tags?: string[];
+}
+
+export interface SendMessagePayload {
+  body: string;
+  input?: Record&lt;string, any&gt;;
+}
+
+export interface SendMessageRequest {
+  fromAgentId: string;
+  toAgentId: string;
+  taskId?: string;
+  messageType?: 'TEXT' | 'TASK_REQUEST' | 'TASK_RESPONSE' | 'STATUS_UPDATE';
+  payload: SendMessagePayload;
+}
+
+export interface SendMessageResponse {
+  body: string;
+  artifact?: any;
+  status?: string;
+}
+
+export interface TaskCreateRequest {
+  goal: string;
+  ownerAgentId: string;
+  userInput?: string;
+  maxMessages?: number;
+  timeoutMinutes?: number;
+}
+
+export interface TaskResponse {
+  id: string;
+  status: string;
+  goal: string;
+  ownerAgentId: string;
+  messageCount: number;
+  maxMessages: number;
+  createdAt: string;
+  completedAt?: string;
+}
+
+export interface SessionContext {
+  taskId: string;
+  sharedContext: {
+    goal: string;
+    userInput?: string;
+    artifacts?: any[];
+    [key: string]: any;
+  };
+  history: any[];
+  version: number;
+  updatedAt: string;
+}</pre>
+
+<pre>// agent-sdk/src/a2a-agent-sdk.ts
+// ───────────────────────────────────────────────────────────────
+
+import { AgentCard, SendMessageRequest, SendMessageResponse, TaskCreateRequest, TaskResponse, SessionContext } from './types';
+
+export interface SDKConfig {
+  platformUrl: string;       // 平台地址，如 http://localhost:3000
+  agentCard: AgentCard;      // Agent 自我介绍
+  token: string;             // JWT Token（从平台获取或预分配）
+  heartbeatInterval?: number; // 心跳间隔（默认 30000ms）
+}
+
+export class A2AAgentSDK {
+  private config: SDKConfig;
+  private agentId: string | null = null;
+  private heartbeatTimer: NodeJS.Timer | null = null;
+
+  constructor(config: SDKConfig) {
+    this.config = {
+      heartbeatInterval: 30000,
+      ...config,
+    };
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // 生命周期管理
+  // ═══════════════════════════════════════════════════════════════
+
+  /**
+   * 启动 Agent：注册到平台 + 启动心跳
+   */
+  async start(): Promise&lt;void&gt; {
+    const registered = await this.register();
+    this.agentId = registered.id;
+    this.startHeartbeat();
+    console.log(`[A2A SDK] Agent registered: ${this.agentId}, endpoint: ${this.config.agentCard.endpointUrl}`);
+  }
+
+  /**
+   * 停止 Agent：注销 + 停止心跳
+   */
+  async stop(): Promise&lt;void&gt; {
+    this.stopHeartbeat();
+    if (this.agentId) {
+      await this.unregister();
+      console.log(`[A2A SDK] Agent unregistered: ${this.agentId}`);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // Registry API 封装
+  // ═══════════════════════════════════════════════════════════════
+
+  /** 注册 Agent */
+  private async register(): Promise&lt;{ id: string }&gt; {
+    const res = await fetch(`${this.config.platformUrl}/registry/register`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.config.token}`,
+      },
+      body: JSON.stringify(this.config.agentCard),
+    });
+    if (!res.ok) throw new Error(`Register failed: ${res.status} ${await res.text()}`);
+    return res.json();
+  }
+
+  /** 注销 Agent */
+  private async unregister(): Promise&lt;void&gt; {
+    const res = await fetch(`${this.config.platformUrl}/registry/agents/${this.agentId}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${this.config.token}` },
+    });
+    if (!res.ok) console.warn(`Unregister warning: ${res.status}`);
+  }
+
+  /** 发送心跳 */
+  private async sendHeartbeat(): Promise&lt;void&gt; {
+    if (!this.agentId) return;
+    const res = await fetch(`${this.config.platformUrl}/registry/heartbeat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.config.token}`,
+      },
+      body: JSON.stringify({ agentId: this.agentId }),
+    });
+    if (!res.ok) console.warn(`Heartbeat failed: ${res.status}`);
+  }
+
+  private startHeartbeat(): void {
+    this.heartbeatTimer = setInterval(() => {
+      this.sendHeartbeat().catch(console.error);
+    }, this.config.heartbeatInterval);
+  }
+
+  private stopHeartbeat(): void {
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // Discovery API 封装
+  // ═══════════════════════════════════════════════════════════════
+
+  /**
+   * 发现具备指定技能的 Agent
+   */
+  async discoverAgents(skill: string): Promise&lt;AgentCard[]&gt; {
+    const url = new URL(`${this.config.platformUrl}/registry/agents`);
+    url.searchParams.set('skill', skill);
+    const res = await fetch(url.toString(), {
+      headers: { 'Authorization': `Bearer ${this.config.token}` },
+    });
+    if (!res.ok) throw new Error(`Discover failed: ${res.status}`);
+    return res.json();
+  }
+
+  /**
+   * 关键词搜索 Agent
+   */
+  async searchAgents(query: string): Promise&lt;AgentCard[]&gt; {
+    const url = new URL(`${this.config.platformUrl}/registry/agents`);
+    url.searchParams.set('q', query);
+    const res = await fetch(url.toString(), {
+      headers: { 'Authorization': `Bearer ${this.config.token}` },
+    });
+    if (!res.ok) throw new Error(`Search failed: ${res.status}`);
+    return res.json();
+  }
+
+  /**
+   * 获取指定 Agent 的 Agent Card
+   */
+  async getAgentCard(agentId: string): Promise&lt;AgentCard&gt; {
+    const res = await fetch(`${this.config.platformUrl}/registry/agents/${agentId}`, {
+      headers: { 'Authorization': `Bearer ${this.config.token}` },
+    });
+    if (!res.ok) throw new Error(`Get agent card failed: ${res.status}`);
+    return res.json();
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // Gateway API 封装（发送消息）
+  // ═══════════════════════════════════════════════════════════════
+
+  /**
+   * 发送同步消息（通过平台转发到目标 Agent）
+   * @param toAgentId 目标 Agent ID
+   * @param payload 消息内容
+   * @param taskId 所属 Task（可选）
+   * @param parentMessageId 父消息 ID（建立 DAG 调用树，可选）
+   */
+  async sendMessage(
+    toAgentId: string,
+    payload: SendMessagePayload,
+    taskId?: string,
+    parentMessageId?: string,
+  ): Promise&lt;SendMessageResponse&gt; {
+    const body: SendMessageRequest = {
+      fromAgentId: this.agentId!,
+      toAgentId,
+      taskId,
+      messageType: taskId ? 'TASK_REQUEST' : 'TEXT',
+      payload,
+    };
+
+    const headers: Record&lt;string, string&gt; = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${this.config.token}`,
+    };
+    if (parentMessageId) {
+      headers['x-parent-message-id'] = parentMessageId;
+    }
+
+    const res = await fetch(`${this.config.platformUrl}/sendMessage`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(`Send message failed: ${res.status} ${await res.text()}`);
+    return res.json();
+  }
+
+  /**
+   * 发送 SSE 流式消息
+   */
+  async sendMessageStream(
+    toAgentId: string,
+    payload: SendMessagePayload,
+    taskId?: string,
+    onEvent?: (event: any) => void,
+  ): Promise&lt;void&gt; {
+    const body: SendMessageRequest = {
+      fromAgentId: this.agentId!,
+      toAgentId,
+      taskId,
+      messageType: 'TASK_REQUEST',
+      payload,
+    };
+
+    const res = await fetch(`${this.config.platformUrl}/sendMessageStream`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.config.token}`,
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) throw new Error(`Stream failed: ${res.status}`);
+    if (!res.body) return;
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          try {
+            onEvent?.(JSON.parse(data));
+          } catch {
+            onEvent?.(data);
+          }
+        }
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // Task API 封装
+  // ═══════════════════════════════════════════════════════════════
+
+  /**
+   * 创建 Task
+   */
+  async createTask(request: TaskCreateRequest): Promise&lt;TaskResponse&gt; {
+    const res = await fetch(`${this.config.platformUrl}/tasks`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.config.token}`,
+      },
+      body: JSON.stringify(request),
+    });
+    if (!res.ok) throw new Error(`Create task failed: ${res.status}`);
+    return res.json();
+  }
+
+  /** 获取 Task 详情 */
+  async getTask(taskId: string): Promise&lt;TaskResponse&gt; {
+    const res = await fetch(`${this.config.platformUrl}/tasks/${taskId}`, {
+      headers: { 'Authorization': `Bearer ${this.config.token}` },
+    });
+    if (!res.ok) throw new Error(`Get task failed: ${res.status}`);
+    return res.json();
+  }
+
+  /** 标记 Task 完成 */
+  async completeTask(taskId: string): Promise&lt;TaskResponse&gt; {
+    const res = await fetch(`${this.config.platformUrl}/tasks/${taskId}/complete`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${this.config.token}` },
+    });
+    if (!res.ok) throw new Error(`Complete task failed: ${res.status}`);
+    return res.json();
+  }
+
+  /** 请求人工介入 */
+  async escalateTask(taskId: string, reason: string): Promise&lt;TaskResponse&gt; {
+    const res = await fetch(`${this.config.platformUrl}/tasks/${taskId}/escalate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.config.token}`,
+      },
+      body: JSON.stringify({ reason }),
+    });
+    if (!res.ok) throw new Error(`Escalate task failed: ${res.status}`);
+    return res.json();
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // Session API 封装
+  // ═══════════════════════════════════════════════════════════════
+
+  /** 获取 Session Context */
+  async getSession(taskId: string): Promise&lt;SessionContext&gt; {
+    const res = await fetch(`${this.config.platformUrl}/session/${taskId}`, {
+      headers: { 'Authorization': `Bearer ${this.config.token}` },
+    });
+    if (!res.ok) throw new Error(`Get session failed: ${res.status}`);
+    return res.json();
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // 工具注入（供 LLM 调用）
+  // ═══════════════════════════════════════════════════════════════
+
+  /**
+   * 生成 discover_agents Tool，注入到 LLM 可用工具集中
+   */
+  getDiscoverTool() {
+    const sdk = this;
+    return {
+      name: 'discover_agents',
+      description: '发现平台中具备特定技能的 Agent。当你需要其他 Agent 协助完成任务时调用此工具。',
+      parameters: {
+        type: 'object',
+        properties: {
+          skill: {
+            type: 'string',
+            description: '要搜索的技能 ID，如 "get_current_weather"、"search_flights"',
+          },
+          query: {
+            type: 'string',
+            description: '自然语言描述需求，用于模糊搜索',
+          },
+        },
+        required: ['skill'],
+      },
+      execute: async (params: { skill: string; query?: string }) => {
+        if (params.query) {
+          return sdk.searchAgents(params.query);
+        }
+        return sdk.discoverAgents(params.skill);
+      },
+    };
+  }
+
+  /**
+   * 生成 send_message Tool，注入到 LLM 可用工具集中
+   */
+  getSendMessageTool() {
+    const sdk = this;
+    return {
+      name: 'send_message_to_agent',
+      description: '向指定 Agent 发送消息请求协作。调用前应先使用 discover_agents 找到目标 Agent。',
+      parameters: {
+        type: 'object',
+        properties: {
+          toAgentId: {
+            type: 'string',
+            description: '目标 Agent ID',
+          },
+          body: {
+            type: 'string',
+            description: '消息内容',
+          },
+          taskId: {
+            type: 'string',
+            description: '所属 Task ID（如果在一个已有 Task 中协作）',
+          },
+          input: {
+            type: 'object',
+            description: '结构化输入参数',
+          },
+        },
+        required: ['toAgentId', 'body'],
+      },
+      execute: async (params: { toAgentId: string; body: string; taskId?: string; input?: any }) => {
+        return sdk.sendMessage(params.toAgentId, { body: params.body, input: params.input }, params.taskId);
+      },
+    };
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // Getter
+  // ═══════════════════════════════════════════════════════════════
+
+  getAgentId(): string | null {
+    return this.agentId;
+  }
+}</pre>
+</section>
+
+<div class="section-divider mb-14"></div>
+
+<!-- 四、Agent A2A Server -->
+<section id="s4" class="mb-14">
+<h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3"><span class="flex items-center justify-center w-9 h-9 rounded-lg bg-amber-100 text-amber-700 font-bold text-base">4</span>Agent A2A Server 实现</h2>
+
+<p class="mb-4">Agent 需要暴露一个 HTTP Server，接收平台转发来的消息。以下是 Express 实现（最轻量）：</p>
+
+<pre>// agent-server/src/index.ts
+// ───────────────────────────────────────────────────────────────
+
+import express, { Request, Response } from 'express';
+import { A2AAgentSDK } from '@your-org/a2a-sdk';
+import { OpenAI } from 'openai';
+
+const app = express();
+app.use(express.json());
+
+// ═══════════════════════════════════════════════════════════════
+// 配置
+// ═══════════════════════════════════════════════════════════════
+
+const PLATFORM_URL = process.env.PLATFORM_URL || 'http://localhost:3000';
+const AGENT_TOKEN = process.env.AGENT_TOKEN!;
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY!;
+const PORT = parseInt(process.env.PORT || '8001');
+
+const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
+
+// ═══════════════════════════════════════════════════════════════
+// 初始化 SDK
+// ═══════════════════════════════════════════════════════════════
+
+const sdk = new A2AAgentSDK({
+  platformUrl: PLATFORM_URL,
+  token: AGENT_TOKEN,
+  agentCard: {
+    name: 'weather-agent',
+    description: '全球城市天气查询 Agent',
+    endpointUrl: `http://localhost:${PORT}`,
+    version: '1.0.0',
+    capabilities: { streaming: false },
+    skills: [
+      { id: 'get_current_weather', name: '当前天气', description: '查询指定城市当前天气状况' },
+      { id: 'get_forecast', name: '天气预报', description: '查询未来7天天气预报' },
+    ],
+  },
+});
+
+// 启动时注册到平台
+sdk.start().catch(console.error);
+
+// 进程退出时注销
+process.on('SIGINT', () => sdk.stop().then(() => process.exit(0)));
+process.on('SIGTERM', () => sdk.stop().then(() => process.exit(0)));
+
+// ═══════════════════════════════════════════════════════════════
+// A2A 标准端点：接收平台转发来的消息
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * POST /sendMessage
+ * 平台调用此端点，将其他 Agent 发来的消息送达
+ */
+app.post('/sendMessage', async (req: Request, res: Response) => {
+  try {
+    const message = req.body;
+    // message 结构：
+    // {
+    //   fromAgentId: 'agent_001',
+    //   toAgentId: 'agent_weather_001',
+    //   taskId: 'task_xyz_789',
+    //   messageType: 'TASK_REQUEST',
+    //   payload: { body: '北京明天天气？', input: { city: '北京', date: '2025-05-10' } },
+    //   _session_context: { goal: '...', userInput: '...', artifacts: [...] },
+    //   _trace: { traceId: '...', spanId: '...', depth: 2 }
+    // }
+
+    console.log(`[Agent] Received message from ${message.fromAgentId}: ${message.payload.body}`);
+
+    // 调用 LLM 处理请求
+    const result = await handleMessage(message);
+
+    // 返回结果（平台会转发回发送方）
+    res.json(result);
+  } catch (error) {
+    console.error('[Agent] Error handling message:', error);
+    res.status(500).json({ error: 'Internal agent error', message: (error as Error).message });
+  }
+});
+
+/**
+ * 消息处理核心逻辑
+ */
+async function handleMessage(message: any): Promise&lt;{ body: string; artifact?: any }&gt; {
+  const { payload, _session_context, taskId } = message;
+
+  // 构建给 LLM 的上下文
+  const messages: any[] = [
+    {
+      role: 'system',
+      content: `你是一个天气查询助手。当前任务：${_session_context?.goal || '协助用户查询天气'}。`,
+    },
+    {
+      role: 'user',
+      content: payload.body,
+    },
+  ];
+
+  // 如果有历史 artifacts，注入上下文
+  if (_session_context?.artifacts?.length > 0) {
+    messages.push({
+      role: 'system',
+      content: `历史上下文：${JSON.stringify(_session_context.artifacts)}`,
+    });
+  }
+
+  // 调用 LLM
+  const completion = await openai.chat.completions.create({
+    model: 'gpt-4',
+    messages,
+    tools: [sdk.getDiscoverTool(), sdk.getSendMessageTool()],  // 注入平台工具
+  });
+
+  const choice = completion.choices[0];
+
+  // 如果 LLM 决定调用工具（如 discover_agents 或 send_message_to_agent）
+  if (choice.message.tool_calls) {
+    const toolCall = choice.message.tool_calls[0];
+    const toolName = toolCall.function.name;
+    const toolArgs = JSON.parse(toolCall.function.arguments);
+
+    console.log(`[Agent] LLM decided to call tool: ${toolName}`, toolArgs);
+
+    if (toolName === 'discover_agents') {
+      const agents = await sdk.getDiscoverTool().execute(toolArgs);
+      return {
+        body: `我发现以下 Agent 可以协助：${JSON.stringify(agents.map((a: any) => a.name))}`,
+        artifact: { toolResult: agents },
+      };
+    }
+
+    if (toolName === 'send_message_to_agent') {
+      const result = await sdk.getSendMessageTool().execute(toolArgs);
+      return {
+        body: `已委托其他 Agent 处理，结果：${JSON.stringify(result)}`,
+        artifact: { toolResult: result },
+      };
+    }
+  }
+
+  // 正常文本回复
+  return {
+    body: choice.message.content || '处理完成',
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 健康检查（供平台 / 负载均衡器调用）
+// ═══════════════════════════════════════════════════════════════
+
+app.get('/health', (_req: Request, res: Response) => {
+  res.json({ status: 'ok', agentId: sdk.getAgentId(), timestamp: new Date().toISOString() });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// 启动
+// ═══════════════════════════════════════════════════════════════
+
+app.listen(PORT, () => {
+  console.log(`[Agent] A2A Server listening on port ${PORT}`);
+});</pre>
+
+<h3 class="text-lg font-semibold text-gray-900 mt-6 mb-3">Agent Server 必须实现的端点</h3>
+<table class="mb-4">
+<thead><tr><th style="width:22%">Endpoint</th><th style="width:10%">Method</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td><code>/sendMessage</code></td><td><span class="http-method http-post">POST</span></td><td><strong>必须</strong>：接收平台转发的同步消息，返回处理结果</td></tr>
+<tr><td><code>/sendMessageStream</code></td><td><span class="http-method http-post">POST</span></td><td><strong>可选</strong>：接收流式消息，返回 SSE 流（如果 Agent 支持 streaming）</td></tr>
+<tr><td><code>/health</code></td><td><span class="http-method http-get">GET</span></td><td><strong>推荐</strong>：健康检查，返回 Agent 状态</td></tr>
+</tbody>
+</table>
+
+<blockquote>
+<p><strong>重要</strong>：Agent 的 <code>/sendMessage</code> 只能被平台调用，不应该暴露给公网。生产环境中应配置防火墙或 mTLS，确保只有平台 IP 能访问。</p>
+</blockquote>
+</section>
+
+<div class="section-divider mb-14"></div>
+
+<!-- 五、完整 Agent 示例 -->
+<section id="s5" class="mb-14">
+<h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3"><span class="flex items-center justify-center w-9 h-9 rounded-lg bg-violet-100 text-violet-700 font-bold text-base">5</span>完整 Agent 示例：订票场景中的 Agent 5（机票查询）</h2>
+
+<p class="mb-4">以你订票 DAG 场景中的 <strong>Agent 5（机票查询）</strong>为例，展示一个完整的可运行 Agent。</p>
+
+<pre>// examples/flight-agent.ts
+// ───────────────────────────────────────────────────────────────
+
+import express, { Request, Response } from 'express';
+import { A2AAgentSDK } from '@your-org/a2a-sdk';
+import { OpenAI } from 'openai';
+
+const app = express();
+app.use(express.json());
+
+const PLATFORM_URL = process.env.PLATFORM_URL || 'http://localhost:3000';
+const AGENT_TOKEN = process.env.AGENT_TOKEN!;
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY!;
+const PORT = 8005;
+
+const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
+
+// ═══════════════════════════════════════════════════════════════
+// 初始化 SDK
+// ═══════════════════════════════════════════════════════════════
+
+const sdk = new A2AAgentSDK({
+  platformUrl: PLATFORM_URL,
+  token: AGENT_TOKEN,
+  agentCard: {
+    name: 'flight-booking-agent',
+    description: '机票查询与预订 Agent，支持搜索、比价、预订',
+    endpointUrl: `http://localhost:${PORT}`,
+    version: '1.0.0',
+    capabilities: { streaming: false },
+    skills: [
+      { id: 'search_flights', name: '机票搜索', description: '根据出发地、目的地、日期搜索航班' },
+      { id: 'compare_prices', name: '机票比价', description: '比较不同航班的价格和舱位' },
+      { id: 'book_flight', name: '机票预订', description: '预订指定航班的机票' },
+    ],
+  },
+});
+
+sdk.start().catch(console.error);
+process.on('SIGINT', () => sdk.stop().then(() => process.exit(0)));
+
+// ═══════════════════════════════════════════════════════════════
+// Mock 数据库（实际应接航司 API）
+// ═══════════════════════════════════════════════════════════════
+
+const MOCK_FLIGHTS: Record&lt;string, any[]&gt; = {
+  '北京-成都-2025-05-14': [
+    { flightNo: 'CA4102', airline: '国航', dep: '08:00', arr: '11:30', prices: { economy: 800, business: 1500, first: 3000 } },
+    { flightNo: 'MU5401', airline: '东航', dep: '14:00', arr: '17:20', prices: { economy: 720, business: 1400, first: 2800 } },
+    { flightNo: 'CZ3903', airline: '南航', dep: '19:00', arr: '22:10', prices: { economy: 650, business: 1300, first: 2600 } },
+  ],
+};
+
+// ═══════════════════════════════════════════════════════════════
+// 消息处理器
+// ═══════════════════════════════════════════════════════════════
+
+app.post('/sendMessage', async (req: Request, res: Response) => {
+  try {
+    const { payload, _session_context, taskId, fromAgentId } = req.body;
+    console.log(`[FlightAgent] From ${fromAgentId}: ${payload.body}`);
+
+    // 解析用户意图
+    const intent = await parseIntent(payload.body, _session_context);
+
+    let result: { body: string; artifact?: any };
+
+    switch (intent.action) {
+      case 'search':
+        result = await searchFlights(intent.params);
+        break;
+      case 'compare':
+        result = await compareFlights(intent.params);
+        break;
+      case 'book':
+        result = await bookFlight(intent.params);
+        break;
+      default:
+        result = { body: '我可以帮您搜索航班、比价或预订机票。请告诉我出发地、目的地和日期。' };
+    }
+
+    res.json(result);
+  } catch (error) {
+    console.error('[FlightAgent] Error:', error);
+    res.status(500).json({ error: '机票查询失败', message: (error as Error).message });
+  }
+});
+
+/**
+ * 用 LLM 解析用户意图
+ */
+async function parseIntent(body: string, context: any): Promise&lt;{ action: string; params: any }&gt; {
+  const completion = await openai.chat.completions.create({
+    model: 'gpt-4',
+    messages: [
+      {
+        role: 'system',
+        content: `你是一个机票查询助手。解析用户意图，返回 JSON：
+{ "action": "search|compare|book", "params": {...} }
+
+当前上下文：${JSON.stringify(context?.sharedContext || {})}`,
+      },
+      { role: 'user', content: body },
+    ],
+    response_format: { type: 'json_object' },
+  });
+
+  return JSON.parse(completion.choices[0].message.content || '{}');
+}
+
+/**
+ * 搜索航班
+ */
+async function searchFlights(params: any): Promise&lt;{ body: string; artifact: any }&gt; {
+  const key = `${params.from}-${params.to}-${params.date}`;
+  const flights = MOCK_FLIGHTS[key] || [];
+
+  if (flights.length === 0) {
+    return { body: `抱歉，${params.from}到${params.to}在${params.date}没有航班。`, artifact: { flights: [] } };
+  }
+
+  const options = flights.map((f: any) =>
+    `${f.flightNo}(${f.airline}) ${f.dep}-${f.arr} 经济舱¥${f.prices.economy}/商务舱¥${f.prices.business}/头等舱¥${f.prices.first}`
+  ).join('\n');
+
+  return {
+    body: `找到 ${flights.length} 个航班：\n${options}\n\n请告诉我您要选择哪个航班和舱位。`,
+    artifact: { flights, query: params },
+  };
+}
+
+/**
+ * 比价（返回最便宜选项）
+ */
+async function compareFlights(params: any): Promise&lt;{ body: string; artifact: any }&gt; {
+  const key = `${params.from}-${params.to}-${params.date}`;
+  const flights = MOCK_FLIGHTS[key] || [];
+
+  const cheapest = flights.reduce((min: any, f: any) =>
+    f.prices.economy &lt; min.prices.economy ? f : min
+  , flights[0]);
+
+  return {
+    body: `最便宜的航班是 ${cheapest.flightNo}(${cheapest.airline})，经济舱 ¥${cheapest.prices.economy}。`,
+    artifact: { cheapest, allOptions: flights },
+  };
+}
+
+/**
+ * 预订
+ */
+async function bookFlight(params: any): Promise&lt;{ body: string; artifact: any }&gt; {
+  const { flightNo, cabin = 'economy' } = params;
+
+  return {
+    body: `已为您预订 ${flightNo} 的${cabin === 'economy' ? '经济舱' : cabin === 'business' ? '商务舱' : '头等舱'}机票。预订号：BK${Date.now()}。`,
+    artifact: { bookingId: `BK${Date.now()}`, flightNo, cabin, status: 'confirmed' },
+  };
+}
+
+// 健康检查
+app.get('/health', (_req: Request, res: Response) => {
+  res.json({ status: 'ok', agent: 'flight-booking-agent', agentId: sdk.getAgentId() });
+});
+
+app.listen(PORT, () => {
+  console.log(`[FlightAgent] Running on port ${PORT}`);
+});</pre>
+
+<h3 class="text-lg font-semibold text-gray-900 mt-6 mb-3">运行方式</h3>
+<pre># 1. 安装依赖
+npm install @your-org/a2a-sdk express openai
+
+# 2. 设置环境变量
+export PLATFORM_URL=http://localhost:3000
+export AGENT_TOKEN=your-jwt-token
+export OPENAI_API_KEY=sk-...
+
+# 3. 启动 Agent
+npx ts-node examples/flight-agent.ts
+
+# 4. Agent 自动注册到平台，开始接收消息</pre>
+</section>
+
+<div class="section-divider mb-14"></div>
+
+<!-- 六、接入 Checklist -->
+<section id="s6" class="mb-14">
+<h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3"><span class="flex items-center justify-center w-9 h-9 rounded-lg bg-teal-100 text-teal-700 font-bold text-base">6</span>Agent 接入 Checklist</h2>
+
+<div class="grid md:grid-cols-2 gap-4">
+    <div class="bg-white rounded-xl p-5 border border-gray-200">
+        <h4 class="font-semibold text-gray-900 mb-3">✅ 必须实现</h4>
+        <ul class="space-y-2 text-sm text-gray-600">
+            <li class="flex items-start gap-2"><span class="text-emerald-500">☑</span> HTTP Server 暴露 <code>/sendMessage</code> 端点</li>
+            <li class="flex items-start gap-2"><span class="text-emerald-500">☑</span> 集成 SDK 完成自动注册和心跳</li>
+            <li class="flex items-start gap-2"><span class="text-emerald-500">☑</span> 消息处理器解析 payload 并调用业务逻辑</li>
+            <li class="flex items-start gap-2"><span class="text-emerald-500">☑</span> 返回结果包含 <code>{ body, artifact? }</code></li>
+            <li class="flex items-start gap-2"><span class="text-emerald-500">☑</span> 进程退出时调用 <code>sdk.stop()</code> 注销</li>
+        </ul>
+    </div>
+    <div class="bg-white rounded-xl p-5 border border-gray-200">
+        <h4 class="font-semibold text-gray-900 mb-3">⚙️ 推荐实现</h4>
+        <ul class="space-y-2 text-sm text-gray-600">
+            <li class="flex items-start gap-2"><span class="text-sky-500">☐</span> <code>/health</code> 健康检查端点</li>
+            <li class="flex items-start gap-2"><span class="text-sky-500">☐</span> 消息日志记录（便于调试）</li>
+            <li class="flex items-start gap-2"><span class="text-sky-500">☐</span> 错误处理和超时控制</li>
+            <li class="flex items-start gap-2"><span class="text-sky-500">☐</span> 为 LLM 注入 <code>discover_agents</code> 和 <code>send_message</code> 工具</li>
+            <li class="flex items-start gap-2"><span class="text-sky-500">☐</span> 防火墙限制（仅平台 IP 可访问）</li>
+        </ul>
+    </div>
+    <div class="bg-white rounded-xl p-5 border border-gray-200 md:col-span-2">
+        <h4 class="font-semibold text-gray-900 mb-3">🔒 安全注意</h4>
+        <ul class="space-y-2 text-sm text-gray-600">
+            <li class="flex items-start gap-2"><span class="text-rose-500">!</span> <strong>不要</strong>让 Agent 的 <code>/sendMessage</code> 暴露到公网——只应被平台访问</li>
+            <li class="flex items-start gap-2"><span class="text-rose-500">!</span> <strong>不要</strong>在 Agent 端存储平台 Token——使用环境变量或 Secret Manager</li>
+            <li class="flex items-start gap-2"><span class="text-rose-500">!</span> <strong>不要</strong>在响应中泄露内部 Prompt 或系统提示词</li>
+        </ul>
+    </div>
+</div>
+</section>
+
+<div class="section-divider mb-6"></div>
+<footer class="text-center py-6 text-sm text-gray-500">
+    A2A Agent 端开发指南 — SDK & A2A Server 实现
+</footer>
+
+        </main>
+    </div>
+
+    <script>
+        window.addEventListener('scroll', () => {
+            const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+            const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            document.getElementById('scrollIndicator').style.width = (winScroll / height * 100) + '%';
+        });
+        const sections = document.querySelectorAll('section[id], h3[id]');
+        const tocLinks = document.querySelectorAll('.toc-link');
+        function updateActiveToc() {
+            let current = '';
+            sections.forEach(section => { if (scrollY >= section.offsetTop - 120) current = section.getAttribute('id'); });
+            tocLinks.forEach(link => { link.classList.remove('active'); if (link.getAttribute('href') === '#' + current) link.classList.add('active'); });
+        }
+        window.addEventListener('scroll', updateActiveToc); updateActiveToc();
+        tocLinks.forEach(link => { link.addEventListener('click', (e) => { e.preventDefault(); const t = document.getElementById(link.getAttribute('href').slice(1)); if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' }); }); });
+    </script>
+    <script>
+        mermaid.initialize({
+            startOnLoad: true, theme: 'default',
+            sequence: { diagramMarginX: 20, diagramMarginY: 20, actorMargin: 60, width: 120, height: 50, boxMargin: 10, boxTextMargin: 5, noteMargin: 10, messageMargin: 35, mirrorActors: false, bottomMarginAdj: 1, useMaxWidth: true, rightAngles: false, showSequenceNumbers: false },
+            themeCSS: '.actor { fill: #f8fafc; stroke: #e2e8f0; } .actor-line { stroke: #cbd5e1; } .messageLine0, .messageLine1 { stroke: #64748b; } .messageText { fill: #334155; font-size: 13px; } .labelBox { fill: #f1f5f9; stroke: #e2e8f0; } .note { fill: #fef3c7; stroke: #f59e0b; } .noteText { fill: #92400e; font-size: 12px; }'
+        });
+    </script>
+</body>
+</html>
