@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>A2A Agent 接入指南 — 会话式问答 Agent 专用</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --bg2: #161b22;
+      --bg3: #21262d;
+      --border: #30363d;
+      --text: #c9d1d9;
+      --text2: #8b949e;
+      --accent: #58a6ff;
+      --accent2: #3fb950;
+      --warn: #d29922;
+      --danger: #f85149;
+      --code: #f0883e;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg); color: var(--text);
+      line-height: 1.7;
+    }
+    .container { max-width: 1000px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 28px; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-top: 0; }
+    h2 { font-size: 20px; margin-top: 40px; color: var(--accent); border-left: 4px solid var(--accent); padding-left: 12px; }
+    h3 { font-size: 16px; margin-top: 28px; color: var(--accent2); }
+    h4 { font-size: 14px; margin-top: 20px; color: var(--text); opacity: .9; }
+    p, li { color: var(--text); }
+    ul { padding-left: 22px; }
+    li { margin: 6px 0; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code {
+      background: var(--bg3); padding: 2px 6px; border-radius: 4px;
+      font-family: "SF Mono", Monaco, "Cascadia Code", monospace;
+      font-size: .9em; color: var(--code);
+    }
+    pre {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: 8px; padding: 16px; overflow-x: auto;
+      font-family: "SF Mono", Monaco, "Cascadia Code", monospace;
+      font-size: 13px; line-height: 1.6;
+    }
+    pre code { background: transparent; padding: 0; }
+    .badge {
+      display: inline-block; padding: 2px 8px; border-radius: 12px;
+      font-size: 12px; font-weight: 600; margin-right: 6px;
+    }
+    .badge-get { background: #1f6feb33; color: var(--accent); }
+    .badge-post { background: #23863633; color: var(--accent2); }
+    .badge-sse { background: #8957e533; color: #a371f7; }
+    .badge-warn { background: #d2992233; color: var(--warn); }
+    .badge-danger { background: #f8514933; color: var(--danger); }
+    .card {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: 10px; padding: 20px; margin: 16px 0;
+    }
+    .card-title { font-weight: 600; margin-bottom: 8px; color: var(--text); }
+    .endpoint {
+      display: flex; align-items: center; gap: 8px; margin: 8px 0;
+      font-family: monospace; font-size: 14px;
+    }
+    .flow {
+      display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: 10px; padding: 16px 20px; margin: 12px 0;
+    }
+    .flow-box {
+      background: var(--bg3); border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px 16px; font-size: 13px;
+      text-align: center; min-width: 90px;
+    }
+    .flow-arr { color: var(--text2); font-size: 18px; }
+    .table-wrap { overflow-x: auto; }
+    table {
+      width: 100%; border-collapse: collapse; margin: 12px 0;
+      font-size: 13px;
+    }
+    th, td {
+      text-align: left; padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    th { background: var(--bg3); color: var(--accent); font-weight: 600; }
+    tr:hover td { background: var(--bg2); }
+    .tip {
+      border-left: 4px solid var(--warn); background: #d2992211;
+      padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 12px 0;
+    }
+    .tip strong { color: var(--warn); }
+    .nav { position: sticky; top: 0; background: var(--bg); border-bottom: 1px solid var(--border); padding: 12px 0; z-index: 10; }
+    .nav-inner { max-width: 1000px; margin: 0 auto; padding: 0 24px; display: flex; gap: 16px; flex-wrap: wrap; }
+    .nav a { font-size: 13px; color: var(--text2); }
+    .nav a:hover { color: var(--accent); }
+  </style>
+</head>
+<body>
+
+<div class="nav">
+  <div class="nav-inner">
+    <a href="#overview">总览</a>
+    <a href="#agent-card">Agent Card</a>
+    <a href="#endpoints">核心端点</a>
+    <a href="#jsonrpc">JSON-RPC</a>
+    <a href="#session">会话模型</a>
+    <a href="#examples">代码模板</a>
+    <a href="#faq">常见问题</a>
+  </div>
+</div>
+
+<div class="container">
+
+<h1>🤖 A2A Agent 接入指南 — 会话式问答 Agent 专用</h1>
+<p>
+  本文档面向<strong>已有会话式问答 Agent</strong>的同事，说明如何以最小改动接入 A2A 平台。
+  无论你的 Agent 是 Python/FastAPI、Node.js/Express、Go/Gin 还是 Java/Spring，只需实现下文中的
+  <strong>3 个 HTTP 端点</strong> + <strong>1 个注册心跳循环</strong> 即可互联互通。
+</p>
+
+<h2 id="overview">📋 总览：你需要做什么</h2>
+
+<div class="flow">
+  <div class="flow-box"><strong>1. 暴露端点</strong><br/>/.well-known/agent.json<br/>POST /</div>
+  <span class="flow-arr">→</span>
+  <div class="flow-box"><strong>2. 注册到平台</strong><br/>POST /registry/register</div>
+  <span class="flow-arr">→</span>
+  <div class="flow-box"><strong>3. 持续心跳</strong><br/>POST /registry/heartbeat<br/><span style="color:var(--warn)">每15秒</span></div>
+  <span class="flow-arr">→</span>
+  <div class="flow-box"><strong>4. 处理消息</strong><br/>tasks/send<br/>tasks/sendSubscribe</div>
+  <span class="flow-arr">→</span>
+  <div class="flow-box"><strong>5. （可选）</strong><br/>轮询 Inbox<br/>主动回复</div>
+</div>
+
+<h2 id="agent-card">🪪 Agent Card — 你的名片</h2>
+<p>
+  其他 Agent 通过 <code>GET /.well-known/agent.json</code> 认识你。
+  对会话式 Agent 来说，关键是声明 <code>streaming: true</code> 和技能列表。
+</p>
+
+<pre><code>GET /.well-known/agent.json</code></pre>
+
+<pre><code>{
+  "name": "your-chat-agent",
+  "description": "一个基于大模型的会话问答 Agent",
+  "url": "http://your-host:8080",
+  "version": "1.0.0",
+  "capabilities": {
+    "streaming": true,
+    "pushNotifications": false
+  },
+  "defaultInputModes": ["text"],
+  "defaultOutputModes": ["text"],
+  "skills": [
+    {
+      "id": "chat",
+      "name": "对话",
+      "description": "通用问答与上下文对话"
+    }
+  ]
+}</code></pre>
+
+<div class="tip">
+  <strong>Tip</strong>：<code>url</code> 必须是平台能访问到的地址。本地开发用 <code>ngrok</code> 或 <code>cloudflared tunnel</code> 暴露。
+</div>
+
+<h2 id="endpoints">🌐 核心端点</h2>
+
+<h3>Agent 自身必须实现的端点（其他 Agent/平台会调你）</h3>
+
+<table>
+  <tr><th>Method</th><th>Path</th><th>说明</th><th>调用方</th></tr>
+  <tr>
+    <td><span class="badge badge-get">GET</span></td>
+    <td><code>/.well-known/agent.json</code></td>
+    <td>返回 Agent Card（静态 JSON）</td>
+    <td>平台 / 其他 Agent</td>
+  </tr>
+  <tr>
+    <td><span class="badge badge-post">POST</span></td>
+    <td><code>/</code></td>
+    <td>JSON-RPC 入口：处理 tasks/send、tasks/sendSubscribe 等</td>
+    <td>平台网关 / 其他 Agent</td>
+  </tr>
+</table>
+
+<h3>Agent 需要调用的平台端点（你调平台）</h3>
+
+<table>
+  <tr><th>Method</th><th>Path</th><th>说明</th></tr>
+  <tr>
+    <td><span class="badge badge-post">POST</span></td>
+    <td><code>/auth/agent-token</code></td>
+    <td>获取平台 JWT Token（传入任意 agentId 即可生成）</td>
+  </tr>
+  <tr>
+    <td><span class="badge badge-post">POST</span></td>
+    <td><code>/registry/register</code></td>
+    <td>注册 Agent 到平台（返回 agentId）</td>
+  </tr>
+  <tr>
+    <td><span class="badge badge-post">POST</span></td>
+    <td><code>/registry/heartbeat</code></td>
+    <td>保活心跳（<strong>每15秒</strong>，平台30秒清理）</td>
+  </tr>
+  <tr>
+    <td><span class="badge badge-post">POST</span></td>
+    <td><code>/sendMessage</code></td>
+    <td>向其他 Agent 发消息（平台写入对方 Inbox）</td>
+  </tr>
+  <tr>
+    <td><span class="badge badge-get">GET</span></td>
+    <td><code>/inbox/poll?agentId=xxx&limit=10</code></td>
+    <td>轮询自己的收件箱，获取其他 Agent 发来的消息</td>
+  </tr>
+  <tr>
+    <td><span class="badge badge-get">GET</span></td>
+    <td><code>/registry/agents</code></td>
+    <td>发现平台上所有已注册 Agent</td>
+  </tr>
+</table>
+
+<div class="tip">
+  <strong>Tip</strong>：所有调用平台端点都必须带 <code>Authorization: Bearer &lt;token&gt;</code> Header。
+</div>
+
+<h2 id="jsonrpc">📡 JSON-RPC 协议 — Agent 的输入输出口</h2>
+
+<p>
+  所有对 Agent 的请求都通过 <code>POST /</code> 以 JSON-RPC 2.0 格式发送。
+  你的 Agent 只需支持两个方法即可覆盖 99% 场景：
+</p>
+
+<h3>① <code>tasks/send</code> — 同步请求</h3>
+<p>调用方发一条消息，你的 Agent 处理完后一次性返回最终结果。</p>
+
+<div class="endpoint"><span class="badge badge-post">POST</span> <code>/</code> <span style="color:var(--text2)">Content-Type: application/json</span></div>
+
+<pre><code>// Request
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tasks/send",
+  "params": {
+    "id": "task-uuid-optional",
+    "sessionId": "session-uuid-optional",
+    "message": {
+      "role": "user",
+      "parts": [{ "type": "text", "text": "你好，请介绍一下自己" }]
+    }
+  }
+}
+
+// Response
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "id": "task-xxx",
+    "sessionId": "session-xxx",
+    "status": {
+      "state": "completed",
+      "message": {
+        "role": "agent",
+        "parts": [{ "type": "text", "text": "你好！我是 XXX Agent..." }]
+      }
+    },
+    "history": [...],
+    "artifacts": [...]
+  }
+}</code></pre>
+
+<h3>② <code>tasks/sendSubscribe</code> — SSE 流式</h3>
+<p>调用方发一条消息，你的 Agent 通过 SSE 推送中间状态（working → completed）。</p>
+
+<div class="endpoint"><span class="badge badge-sse">SSE</span> <code>/</code> <span style="color:var(--text2)">Content-Type: text/event-stream</span></div>
+
+<pre><code>// Request（同 tasks/send）
+{ "jsonrpc":"2.0", "id":2, "method":"tasks/sendSubscribe", "params":{...} }
+
+// SSE Events 推送（服务端逐条写入）
+event: task_status
+data: {"id":"task-xxx","status":{"state":"submitted"},"final":false}
+
+event: task_status
+data: {"id":"task-xxx","status":{"state":"working","message":{"role":"agent","parts":[{"type":"text","text":"正在思考..."}]}},"final":false}
+
+event: task_status
+data: {"id":"task-xxx","status":{"state":"completed","message":{"role":"agent","parts":[{"type":"text","text":"最终答案..."}]}},"final":true}</code></pre>
+
+<div class="tip">
+  <strong>流式建议</strong>：即使是会话式 Agent，也强烈建议实现 SSE。
+  理由：大模型生成可能耗时数秒，流式推送 "working" 状态能显著提升调用方体验。
+  最简单实现：收到请求后立即 push <code>submitted</code> → 开始生成 → push <code>working</code> → 生成完成 → push <code>completed</code>。
+</div>
+
+<h3>③ <code>tasks/get</code> / <code>tasks/cancel</code> — 可选</h3>
+
+<table>
+  <tr><th>Method</th><th>参数</th><th>说明</th></tr>
+  <tr>
+    <td><code>tasks/get</code></td>
+    <td><code>{ "id": "task-xxx" }</code></td>
+    <td>查询某个 Task 的当前状态和历史</td>
+  </tr>
+  <tr>
+    <td><code>tasks/cancel</code></td>
+    <td><code>{ "id": "task-xxx" }</code></td>
+    <td>取消正在进行的 Task</td>
+  </tr>
+</table>
+
+<h2 id="session">💬 会话模型 — 为问答式 Agent 抽象</h2>
+
+<p>
+  你的 Agent 可能内部已有 <code>session_id / chat_history / user_id</code> 等概念。
+  A2A 的 <code>Task</code> 天然对应一次<strong>会话回合</strong>，映射关系如下：
+</p>
+
+<table>
+  <tr><th>A2A 概念</th><th>对应你的概念</th><th>说明</th></tr>
+  <tr>
+    <td><code>Task.id</code></td>
+    <td>单次请求 ID / Message ID</td>
+    <td>一次 tasks/send 对应一次 LLM 调用</td>
+  </tr>
+  <tr>
+    <td><code>Task.sessionId</code></td>
+    <td>Session ID / Chat ID / Thread ID</td>
+    <td>同一 sessionId 下的多个 Task 共享上下文</td>
+  </tr>
+  <tr>
+    <td><code>Task.history</code></td>
+    <td>Messages[]</td>
+    <td>完整的对话历史（平台也会存储）</td>
+  </tr>
+  <tr>
+    <td><code>Task.status.message</code></td>
+    <td>Assistant Message</td>
+    <td>当前回合的回复内容</td>
+  </tr>
+  <tr>
+    <td><code>Task.artifacts</code></td>
+    <td>附件 / 产物</td>
+    <td>生成图片、文档、代码片段等</td>
+  </tr>
+</table>
+
+<h3>最小化对接思路</h3>
+
+<div class="card">
+  <div class="card-title">你的 Agent 内部通常长这样：</div>
+  <pre><code>async function chat(sessionId, userMessage, history):
+    # 1. 拼接 system prompt + history + userMessage
+    # 2. 调用 LLM
+    # 3. 返回 assistant reply
+    return reply</code></pre>
+</div>
+
+<div class="card">
+  <div class="card-title">接入 A2A 只需包一层翻译器：</div>
+  <pre><code>def handle_tasks_send(params):
+    task_id   = params.get("id") or generate_id()
+    session_id = params.get("sessionId") or task_id
+    user_text  = extract_text(params["message"])
+    history    = load_history(session_id)  # 从内存/Redis/DB加载
+
+    # 调用你原有的 chat 逻辑
+    reply = chat(session_id, user_text, history)
+
+    # 保存历史
+    history.append({"role":"user","content":user_text})
+    history.append({"role":"assistant","content":reply})
+    save_history(session_id, history)
+
+    # 包装成 A2A Task 返回
+    return build_task_response(task_id, session_id, reply, history)</code></pre>
+</div>
+
+<h2 id="examples">🛠️ 代码模板 — 直接复制可用</h2>
+
+<h3>Python / FastAPI 模板</h3>
+
+<pre><code>import asyncio, json, uuid, httpx
+from fastapi import FastAPI, Request
+from fastapi.responses import StreamingResponse, JSONResponse
+
+app = FastAPI()
+PLATFORM_URL = "http://localhost:8080"
+TOKEN = ""          # 先用 /auth/agent-token 获取
+AGENT_NAME = "py-chat-agent"
+ENDPOINT = "http://your-host:8000"
+
+# ── 内存存储 ──
+tasks = {}
+sessions = {}
+
+# ── Agent Card ──
+@app.get("/.well-known/agent.json")
+async def agent_card():
+    return {
+        "name": AGENT_NAME,
+        "description": "Python 会话 Agent",
+        "url": ENDPOINT,
+        "capabilities": {"streaming": True, "pushNotifications": False},
+        "skills": [{"id": "chat", "name": "对话", "description": "通用问答"}]
+    }
+
+# ── 你的核心逻辑 ──
+async def generate_reply(session_id: str, user_text: str) -> str:
+    # TODO: 接入你的 LLM
+    history = sessions.get(session_id, [])
+    history.append({"role": "user", "content": user_text})
+
+    reply = f"收到: {user_text}"  # mock，替换为 LLM 调用
+
+    history.append({"role": "assistant", "content": reply})
+    sessions[session_id] = history
+    return reply
+
+# ── JSON-RPC 入口 ──
+@app.post("/")
+async def rpc_entry(req: Request):
+    body = await req.json()
+    method = body.get("method")
+    params = body.get("params", {})
+    rpc_id = body.get("id")
+
+    if method == "tasks/send":
+        result = await handle_send(params)
+        return {"jsonrpc": "2.0", "id": rpc_id, "result": result}
+
+    if method == "tasks/sendSubscribe":
+        return StreamingResponse(
+            handle_subscribe(params),
+            media_type="text/event-stream"
+        )
+
+    return {"jsonrpc": "2.0", "id": rpc_id, "error": {"code": -32601, "message": "not found"}}
+
+async def handle_send(params):
+    task_id = params.get("id") or str(uuid.uuid4())
+    session_id = params.get("sessionId") or task_id
+    user_text = params["message"]["parts"][0]["text"]
+    reply = await generate_reply(session_id, user_text)
+    return build_task(task_id, session_id, reply)
+
+async def handle_subscribe(params):
+    task_id = params.get("id") or str(uuid.uuid4())
+    session_id = params.get("sessionId") or task_id
+    user_text = params["message"]["parts"][0]["text"]
+
+    # submitted
+    yield sse_event("task_status", {"id": task_id, "status": {"state": "submitted"}, "final": False})
+    await asyncio.sleep(0.1)
+
+    # working
+    yield sse_event("task_status", {"id": task_id, "status": {"state": "working"}, "final": False})
+
+    reply = await generate_reply(session_id, user_text)
+
+    # completed
+    yield sse_event("task_status", {"id": task_id, "status": {"state": "completed"}, "final": True})
+
+def sse_event(event, data):
+    return f"event: {event}\ndata: {json.dumps(data)}\n\n"
+
+def build_task(task_id, session_id, reply):
+    return {
+        "id": task_id,
+        "sessionId": session_id,
+        "status": {"state": "completed", "message": {"role": "agent", "parts": [{"type": "text", "text": reply}]}},
+        "artifacts": [{"name": "reply", "parts": [{"type": "text", "text": reply}]}]
+    }
+
+# ── 注册 + 心跳 ──
+agent_id = ""
+
+async def register():
+    global agent_id
+    async with httpx.AsyncClient() as c:
+        r = await c.post(f"{PLATFORM_URL}/registry/register", json={
+            "name": AGENT_NAME, "endpointUrl": ENDPOINT,
+            "capabilities": {"streaming": True}, "skills": [{"id": "chat", "name": "对话"}]
+        }, headers={"Authorization": f"Bearer {TOKEN}"})
+        agent_id = r.json()["id"]
+        print(f"注册成功: {agent_id}")
+
+async def heartbeat_loop():
+    while True:
+        await asyncio.sleep(15)
+        if not agent_id: continue
+        try:
+            async with httpx.AsyncClient() as c:
+                await c.post(f"{PLATFORM_URL}/registry/heartbeat",
+                    json={"agentId": agent_id},
+                    headers={"Authorization": f"Bearer {TOKEN}"})
+        except Exception as e:
+            print(f"心跳失败: {e}")
+
+# 启动时执行
+@app.on_event("startup")
+async def on_startup():
+    await register()
+    asyncio.create_task(heartbeat_loop())</code></pre>
+
+<h3>Node.js / Express 模板</h3>
+
+<p>参考项目中的 <code>a2a-agent-nodejs/agent.js</code>（已跑通），核心逻辑：</p>
+
+<pre><code>const http = require('http');
+
+const AGENT_CARD = {
+  name: 'nodejs-chat-agent',
+  url: 'http://localhost:9002',
+  capabilities: { streaming: true },
+  skills: [{ id: 'chat', name: '对话' }]
+};
+
+const server = http.createServer(async (req, res) => {
+  if (req.method === 'GET' && req.url === '/.well-known/agent.json') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(AGENT_CARD));
+    return;
+  }
+  if (req.method === 'POST' && req.url === '/') {
+    // JSON-RPC 分发
+    const body = await readBody(req);
+    const { method, params, id } = JSON.parse(body);
+    if (method === 'tasks/send') {
+      const result = await handleSync(params);
+      res.end(JSON.stringify({ jsonrpc: '2.0', id, result }));
+    }
+    if (method === 'tasks/sendSubscribe') {
+      res.writeHead(200, { 'Content-Type': 'text/event-stream' });
+      await handleStream(params, res);
+    }
+    return;
+  }
+  res.writeHead(404); res.end();
+});
+
+async function handleSync(params) {
+  const taskId = params.id || generateId();
+  const userText = params.message.parts[0].text;
+  const reply = await callLLM(userText);  // 你的 LLM 调用
+  return wrapTask(taskId, reply);
+}
+
+async function handleStream(params, res) {
+  const taskId = params.id || generateId();
+  const userText = params.message.parts[0].text;
+
+  const send = (state, text, final) => {
+    res.write(`event: task_status\ndata: ${JSON.stringify({
+      id: taskId, status: { state, message: { role: 'agent', parts: [{ type: 'text', text }] } }, final
+    })}\n\n`);
+  };
+
+  send('submitted', '', false);
+  send('working', '正在思考...', false);
+  const reply = await callLLM(userText);
+  send('completed', reply, true);
+  res.end();
+}</code></pre>
+
+<h2 id="faq">❓ 常见问题</h2>
+
+<h4>Q1: 我的 Agent 已经有 WebSocket / SSE 接口了，能复用吗？</h4>
+<p>
+  不能直接用，但改动很小。A2A 要求 <code>POST /</code> 接收 JSON-RPC，
+  你可以把现有的消息处理函数包一层 JSON-RPC 翻译器即可，内部 LLM 调用逻辑完全不动。
+</p>
+
+<h4>Q2: 没有 <code>sessionId</code> 怎么办？</h4>
+<p>
+  如果你内部没有会话概念，直接用 <code>taskId</code> 作为 <code>sessionId</code> 即可，
+  每个 Task 独立上下文。A2A 的 <code>sessionId</code> 是可选的。
+</p>
+
+<h4>Q3: 平台发消息给我，我的 Agent 怎么收到？</h4>
+<p>
+  两种方式：
+  <ol>
+    <li><strong>被动</strong>：其他 Agent 通过平台 <code>POST /sendMessage</code> 发给你，平台写入你的 Inbox。你轮询 <code>GET /inbox/poll?agentId=xxx</code> 收取。</li>
+    <li><strong>主动</strong>：你的 Agent 被直接调用 <code>tasks/send</code>（平台作为代理转发）。</li>
+  </ol>
+  方式 2 更标准（A2A 原生），方式 1 是平台扩展的异步消息机制。
+</p>
+
+<h4>Q4: 心跳断了一段时间，Agent 被标 OFFLINE 了怎么办？</h4>
+<p>
+  重新发送一次心跳即可恢复 ACTIVE。平台的心跳 handler 会自动把 OFFLINE 恢复为 ACTIVE。
+  但如果你用的是 server 模式且没有后台心跳 goroutine，建议加上（参考上文代码）。
+</p>
+
+<h4>Q5: 我的 Agent 是内部服务，不想暴露公网地址</h4>
+<p>
+  平台要求 <code>EndpointURL</code> 可访问，因为其他 Agent 可能直接调用你。
+  如果只做"被动接收"（轮询 Inbox），可以注册一个内网地址，
+  但平台网关可能无法直接转发请求。建议至少用内网穿透工具让平台可达。
+</p>
+
+<h4>Q6: 怎么测试我的 Agent 是否接好了？</h4>
+<p>
+  三步验证：
+  <ol>
+    <li><code>curl http://your-agent/.well-known/agent.json</code> → 应返回 Agent Card</li>
+    <li><code>curl -X POST http://your-agent/ -d '{"jsonrpc":"2.0","id":1,"method":"tasks/send","params":{"message":{"role":"user","parts":[{"type":"text","text":"你好"}]}}}'</code> → 应返回 JSON-RPC 响应</li>
+    <li>在 Mocker Web UI (http://localhost:9001/ui) 的「同步消息」或「SSE 流式」页面选择你的 Agent，发送消息测试</li>
+  </ol>
+</p>
+
+<hr style="border-color: var(--border); margin-top: 40px;">
+<p style="color: var(--text2); font-size: 13px;">
+  文档生成时间：2026-05-10 · 基于 a2a-platform + a2a-mocker 当前实现整理<br>
+  如有疑问，直接改本文档或提 issue。
+</p>
+
+</div>
+</body>
+</html>
