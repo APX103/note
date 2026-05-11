@@ -492,7 +492,7 @@
                         </div>
                         <div class="p-5">
                             <div class="font-mono text-sm bg-gray-900 rounded-lg p-4 text-gray-300 mb-4 overflow-x-auto">
-                                <span class="text-purple-400">GET</span> <span class="text-green-400">/.well-known/agent-card</span>
+                                <span class="text-purple-400">GET</span> <span class="text-green-400">/.well-known/agent-card.json</span>
                             </div>
                             <p class="text-gray-700 text-sm leading-relaxed mb-3">Client 向 A2A Server 请求 <strong>Agent Card</strong>——这是 Agent 的元数据文档，包含：</p>
                             <ul class="text-sm text-gray-600 space-y-1.5 ml-4">
@@ -533,15 +533,15 @@
                         <div class="flex items-center gap-4 p-5 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
                             <div class="flex-shrink-0 w-12 h-12 bg-amber-600 rounded-xl flex items-center justify-center text-white font-bold shadow-lg shadow-amber-200">3</div>
                             <div>
-                                <h4 class="font-bold text-gray-900 text-lg">sendMessage API</h4>
-                                <p class="text-sm text-gray-500">同步模式，适合短任务</p>
+                                <h4 class="font-bold text-gray-900 text-lg">sendMessage API（平台特定代理 API）</h4>
+                                <p class="text-sm text-gray-500">A2A 标准为 JSON-RPC POST / + SendMessage</p>
                             </div>
                         </div>
                         <div class="p-5">
                             <div class="font-mono text-sm bg-gray-900 rounded-lg p-4 text-gray-300 mb-4 overflow-x-auto">
                                 <span class="text-purple-400">POST</span> <span class="text-green-400">/sendMessage</span> <span class="text-gray-500">Authorization: Bearer &lt;JWT&gt;</span>
                             </div>
-                            <p class="text-gray-700 text-sm leading-relaxed">Client 携带 JWT 发送消息，A2A Server 处理消息并创建 Task，然后返回完整的 <strong>Task Response</strong>。适合能在短时间内完成的简单任务。</p>
+                            <p class="text-gray-700 text-sm leading-relaxed"><strong>注意：此为平台特定 API。</strong>A2A 官方标准使用 JSON-RPC <code>POST /</code> 调用 <code>SendMessage</code> 方法。Client 携带 JWT 发送消息，A2A Server 处理消息并创建 Task，然后返回完整的 <strong>Task Response</strong>。适合能在短时间内完成的简单任务。</p>
                         </div>
                     </div>
 
@@ -550,15 +550,15 @@
                         <div class="flex items-center gap-4 p-5 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
                             <div class="flex-shrink-0 w-12 h-12 bg-rose-600 rounded-xl flex items-center justify-center text-white font-bold shadow-lg shadow-rose-200">4</div>
                             <div>
-                                <h4 class="font-bold text-gray-900 text-lg">sendMessageStream API</h4>
-                                <p class="text-sm text-gray-500">流式模式，适合长任务（SSE）</p>
+                                <h4 class="font-bold text-gray-900 text-lg">sendMessageStream API（平台特定代理 API）</h4>
+                                <p class="text-sm text-gray-500">A2A 标准流式为 SendStreamingMessage via JSON-RPC POST /</p>
                             </div>
                         </div>
                         <div class="p-5">
                             <div class="font-mono text-sm bg-gray-900 rounded-lg p-4 text-gray-300 mb-4 overflow-x-auto">
                                 <span class="text-purple-400">POST</span> <span class="text-green-400">/sendMessageStream</span> <span class="text-gray-500">Authorization: Bearer &lt;JWT&gt;</span>
                             </div>
-                            <p class="text-gray-700 text-sm leading-relaxed mb-4">通过 <strong>Server-Sent Events (SSE)</strong> 流式推送任务进度，实时获取状态更新和中间产物：</p>
+                            <p class="text-gray-700 text-sm leading-relaxed mb-4"><strong>注意：此为平台特定 API。</strong>A2A 官方标准使用 JSON-RPC <code>POST /</code> 调用 <code>SendStreamingMessage</code> 方法。通过 <strong>Server-Sent Events (SSE)</strong> 流式推送任务进度，实时获取状态更新和中间产物：</p>
                             <div class="space-y-2">
                                 <div class="flex items-center gap-3 text-sm">
                                     <span class="tag bg-gray-100 text-gray-700 text-xs">Event</span>
@@ -586,7 +586,7 @@ sequenceDiagram
     
     rect rgb(240,248,255)
         Note over C,A: ① Agent Discovery
-        C->>A: GET /.well-known/agent-card
+        C->>A: GET /.well-known/agent-card.json
         A-->>C: Agent Card (skills, url, security)
     end
     
@@ -597,13 +597,13 @@ sequenceDiagram
     end
     
     rect rgb(255,250,240)
-        Note over C,A: ③ sendMessage (Sync)
+        Note over C,A: ③ sendMessage (Sync, 平台特定)
         C->>A: POST /sendMessage + JWT
         A-->>C: Task Response
     end
     
     rect rgb(255,240,245)
-        Note over C,A: ④ sendMessageStream (SSE)
+        Note over C,A: ④ sendMessageStream (SSE, 平台特定)
         C->>A: POST /sendMessageStream + JWT
         A-->>C: SSE: TaskStatusUpdateEvent
         A-->>C: SSE: TaskArtifactUpdateEvent
@@ -628,7 +628,7 @@ sequenceDiagram
                             <span class="font-mono text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded">核心</span>
                             <h4 class="font-bold text-gray-900">Agent Card</h4>
                         </div>
-                        <p class="text-sm text-gray-600">Agent 的"身份证"，描述 Agent 的能力、API 端点 URL、安全策略等元数据。通常通过 <code class="text-xs bg-gray-100 px-1 rounded">/.well-known/agent-card</code> 暴露。</p>
+                        <p class="text-sm text-gray-600">Agent 的"身份证"，描述 Agent 的能力、API 端点 URL、安全策略等元数据。通常通过 <code class="text-xs bg-gray-100 px-1 rounded">/.well-known/agent-card.json</code> 暴露。</p>
                     </div>
                     <div class="bg-white rounded-xl p-5 border border-gray-200">
                         <div class="flex items-center gap-3 mb-2">

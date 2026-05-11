@@ -135,8 +135,8 @@
 
 <h4 class="font-semibold text-gray-900 mt-4 mb-2">2.1.2 心跳与健康检查</h4>
 <ul class="list-disc pl-5 space-y-1 mb-3">
-<li>已注册 Agent 周期性向平台发送心跳（默认 30s，可配置）</li>
-<li>平台自动清理超时未心跳的 Agent（默认 90s 无心跳标记为 Offline）</li>
+<li>已注册 Agent 周期性向平台发送心跳（默认 15s，可配置）</li>
+<li>平台自动清理超时未心跳的 Agent（默认 45s 无心跳标记为 Offline）</li>
 <li>提供健康检查端点供外部监控集成</li>
 </ul>
 
@@ -160,7 +160,7 @@
 <h4 class="font-semibold text-gray-900 mt-4 mb-2">2.2.1 统一消息网关</h4>
 <ul class="list-disc pl-5 space-y-1 mb-3">
 <li>所有 Agent 间通信<strong>必须经过平台转发</strong>，禁止 Agent 间直连（通过网络安全策略 + SDK 约束）</li>
-<li>平台对外暴露标准 A2A 端点（<code>/.well-known/agent-card</code>、<code>/sendMessage</code>、<code>/sendMessageStream</code>）</li>
+<li>平台对外暴露代理端点（<code>/.well-known/agent-card.json</code>、<code>POST /sendMessage</code>、<code>POST /sendMessageStream</code>）——注：后两者为平台代理 API，非 A2A 标准；A2A 标准为 JSON-RPC <code>POST /</code>（同步 <code>SendMessage</code>，流式 <code>SendStreamingMessage</code>）</li>
 <li>Agent 实际向平台发送消息，平台根据目标 Agent ID 路由到真实目的地</li>
 </ul>
 
@@ -180,8 +180,8 @@
 
 <h4 class="font-semibold text-gray-900 mt-4 mb-2">2.2.4 异步与流式支持</h4>
 <ul class="list-disc pl-5 space-y-1 mb-3">
-<li>支持同步请求/响应（<code>/sendMessage</code>）</li>
-<li>支持 SSE 流式传输（<code>/sendMessageStream</code>），平台透传 Agent 的进度推送，同时记录流事件</li>
+<li>支持同步请求/响应（平台代理 <code>POST /sendMessage</code>；A2A 标准为 JSON-RPC <code>POST /</code> + <code>SendMessage</code>）</li>
+<li>支持 SSE 流式传输（平台代理 <code>POST /sendMessageStream</code>；A2A 标准流式为 <code>SendStreamingMessage</code> via JSON-RPC <code>POST /</code>），平台透传 Agent 的进度推送，同时记录流事件</li>
 <li>支持长任务（LRO）的挂起与恢复</li>
 </ul>
 
@@ -190,7 +190,7 @@
 
 <h4 class="font-semibold text-gray-900 mt-4 mb-2">2.3.1 Task 生命周期管理</h4>
 <p class="mb-2">平台维护每个 Task 的完整状态机：</p>
-<pre>CREATED → SUBMITTED → WORKING → [COMPLETED / FAILED / CANCELLED / TIMEOUT]
+<pre>CREATED → SUBMITTED → WORKING → [COMPLETED / FAILED / CANCELED / INPUT_REQUIRED / REJECTED / TIMEOUT]
    ↑         ↑          ↓
    └─────────┴── 支持状态回退与重试</pre>
 <ul class="list-disc pl-5 space-y-1 mb-3 mt-2">
@@ -443,7 +443,7 @@ sequenceDiagram
 
     rect rgb(255,250,240)
         Note over A,R: 心跳保活
-        loop 每 30s
+        loop 每 15s
             A->>R: POST /registry/heartbeat
             R-->>A: 确认
         end
@@ -481,7 +481,7 @@ sequenceDiagram
 
     rect rgb(255,250,240)
         Note over A,B: 第一轮：Agent A → Agent B
-        A->>G: POST /sendMessage {task:T-001, to:Agent-B, body}
+        A->>G: POST /sendMessage (平台代理) {task:T-001, to:Agent-B, body}
         G->>G: 记录消息日志（Trace ID）
         G->>S: 获取 S-001
         S-->>G: 返回 Shared Context
@@ -499,7 +499,7 @@ sequenceDiagram
             A->>G: POST /tasks/T-001/complete
             G->>T: 标记 COMPLETED
         else 需继续协作
-            A->>G: POST /sendMessage {task:T-001, to:Agent-C}
+            A->>G: POST /sendMessage (平台代理) {task:T-001, to:Agent-C}
             Note right of G: S-001 自动携带，重复上述流程
         else 无法推进
             A->>G: POST /tasks/T-001/escalate

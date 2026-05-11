@@ -124,24 +124,24 @@
 <h2 id="overview">📋 总览：你需要做什么</h2>
 
 <div class="flow">
-  <div class="flow-box"><strong>1. 暴露端点</strong><br/>/.well-known/agent.json<br/>POST /</div>
+  <div class="flow-box"><strong>1. 暴露端点</strong><br/>/.well-known/agent-card.json<br/>POST /</div>
   <span class="flow-arr">→</span>
   <div class="flow-box"><strong>2. 注册到平台</strong><br/>POST /registry/register</div>
   <span class="flow-arr">→</span>
   <div class="flow-box"><strong>3. 持续心跳</strong><br/>POST /registry/heartbeat<br/><span style="color:var(--warn)">每15秒</span></div>
   <span class="flow-arr">→</span>
-  <div class="flow-box"><strong>4. 处理消息</strong><br/>tasks/send<br/>tasks/sendSubscribe</div>
+  <div class="flow-box"><strong>4. 处理消息</strong><br/>SendMessage<br/>SendStreamingMessage</div>
   <span class="flow-arr">→</span>
   <div class="flow-box"><strong>5. （可选）</strong><br/>轮询 Inbox<br/>主动回复</div>
 </div>
 
 <h2 id="agent-card">🪪 Agent Card — 你的名片</h2>
 <p>
-  其他 Agent 通过 <code>GET /.well-known/agent.json</code> 认识你。
+  其他 Agent 通过 <code>GET /.well-known/agent-card.json</code> 认识你。
   对会话式 Agent 来说，关键是声明 <code>streaming: true</code> 和技能列表。
 </p>
 
-<pre><code>GET /.well-known/agent.json</code></pre>
+<pre><code>GET /.well-known/agent-card.json</code></pre>
 
 <pre><code>{
   "name": "your-chat-agent",
@@ -175,14 +175,14 @@
   <tr><th>Method</th><th>Path</th><th>说明</th><th>调用方</th></tr>
   <tr>
     <td><span class="badge badge-get">GET</span></td>
-    <td><code>/.well-known/agent.json</code></td>
+    <td><code>/.well-known/agent-card.json</code></td>
     <td>返回 Agent Card（静态 JSON）</td>
     <td>平台 / 其他 Agent</td>
   </tr>
   <tr>
     <td><span class="badge badge-post">POST</span></td>
     <td><code>/</code></td>
-    <td>JSON-RPC 入口：处理 tasks/send、tasks/sendSubscribe 等</td>
+    <td>JSON-RPC 入口：处理 SendMessage、SendStreamingMessage 等</td>
     <td>平台网关 / 其他 Agent</td>
   </tr>
 </table>
@@ -204,7 +204,7 @@
   <tr>
     <td><span class="badge badge-post">POST</span></td>
     <td><code>/registry/heartbeat</code></td>
-    <td>保活心跳（<strong>每15秒</strong>，平台30秒清理）</td>
+    <td>保活心跳（<strong>每15秒</strong>，平台45秒清理）</td>
   </tr>
   <tr>
     <td><span class="badge badge-post">POST</span></td>
@@ -234,7 +234,7 @@
   你的 Agent 只需支持两个方法即可覆盖 99% 场景：
 </p>
 
-<h3>① <code>tasks/send</code> — 同步请求</h3>
+<h3>① <code>SendMessage</code> — 同步请求</h3>
 <p>调用方发一条消息，你的 Agent 处理完后一次性返回最终结果。</p>
 
 <div class="endpoint"><span class="badge badge-post">POST</span> <code>/</code> <span style="color:var(--text2)">Content-Type: application/json</span></div>
@@ -243,7 +243,7 @@
 {
   "jsonrpc": "2.0",
   "id": 1,
-  "method": "tasks/send",
+  "method": "SendMessage",
   "params": {
     "id": "task-uuid-optional",
     "sessionId": "session-uuid-optional",
@@ -273,13 +273,13 @@
   }
 }</code></pre>
 
-<h3>② <code>tasks/sendSubscribe</code> — SSE 流式</h3>
+<h3>② <code>SendStreamingMessage</code> — SSE 流式</h3>
 <p>调用方发一条消息，你的 Agent 通过 SSE 推送中间状态（working → completed）。</p>
 
 <div class="endpoint"><span class="badge badge-sse">SSE</span> <code>/</code> <span style="color:var(--text2)">Content-Type: text/event-stream</span></div>
 
-<pre><code>// Request（同 tasks/send）
-{ "jsonrpc":"2.0", "id":2, "method":"tasks/sendSubscribe", "params":{...} }
+<pre><code>// Request（同 SendMessage）
+{ "jsonrpc":"2.0", "id":2, "method":"SendStreamingMessage", "params":{...} }
 
 // SSE Events 推送（服务端逐条写入）
 event: task_status
@@ -297,12 +297,12 @@ data: {"id":"task-xxx","status":{"state":"completed","message":{"role":"agent","
   最简单实现：收到请求后立即 push <code>submitted</code> → 开始生成 → push <code>working</code> → 生成完成 → push <code>completed</code>。
 </div>
 
-<h3>③ <code>tasks/get</code> / <code>tasks/cancel</code> — 可选</h3>
+<h3>③ <code>GetTask</code> / <code>tasks/cancel</code> — 可选</h3>
 
 <table>
   <tr><th>Method</th><th>参数</th><th>说明</th></tr>
   <tr>
-    <td><code>tasks/get</code></td>
+    <td><code>GetTask</code></td>
     <td><code>{ "id": "task-xxx" }</code></td>
     <td>查询某个 Task 的当前状态和历史</td>
   </tr>
@@ -325,7 +325,7 @@ data: {"id":"task-xxx","status":{"state":"completed","message":{"role":"agent","
   <tr>
     <td><code>Task.id</code></td>
     <td>单次请求 ID / Message ID</td>
-    <td>一次 tasks/send 对应一次 LLM 调用</td>
+    <td>一次 SendMessage 对应一次 LLM 调用</td>
   </tr>
   <tr>
     <td><code>Task.sessionId</code></td>
@@ -399,7 +399,7 @@ tasks = {}
 sessions = {}
 
 # ── Agent Card ──
-@app.get("/.well-known/agent.json")
+@app.get("/.well-known/agent-card.json")
 async def agent_card():
     return {
         "name": AGENT_NAME,
@@ -429,11 +429,11 @@ async def rpc_entry(req: Request):
     params = body.get("params", {})
     rpc_id = body.get("id")
 
-    if method == "tasks/send":
+    if method == "SendMessage":
         result = await handle_send(params)
         return {"jsonrpc": "2.0", "id": rpc_id, "result": result}
 
-    if method == "tasks/sendSubscribe":
+    if method == "SendStreamingMessage":
         return StreamingResponse(
             handle_subscribe(params),
             media_type="text/event-stream"
@@ -521,7 +521,7 @@ const AGENT_CARD = {
 };
 
 const server = http.createServer(async (req, res) => {
-  if (req.method === 'GET' && req.url === '/.well-known/agent.json') {
+  if (req.method === 'GET' && req.url === '/.well-known/agent-card.json') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(AGENT_CARD));
     return;
@@ -530,11 +530,11 @@ const server = http.createServer(async (req, res) => {
     // JSON-RPC 分发
     const body = await readBody(req);
     const { method, params, id } = JSON.parse(body);
-    if (method === 'tasks/send') {
+    if (method === 'SendMessage') {
       const result = await handleSync(params);
       res.end(JSON.stringify({ jsonrpc: '2.0', id, result }));
     }
-    if (method === 'tasks/sendSubscribe') {
+    if (method === 'SendStreamingMessage') {
       res.writeHead(200, { 'Content-Type': 'text/event-stream' });
       await handleStream(params, res);
     }
@@ -586,7 +586,7 @@ async function handleStream(params, res) {
   两种方式：
   <ol>
     <li><strong>被动</strong>：其他 Agent 通过平台 <code>POST /sendMessage</code> 发给你，平台写入你的 Inbox。你轮询 <code>GET /inbox/poll?agentId=xxx</code> 收取。</li>
-    <li><strong>主动</strong>：你的 Agent 被直接调用 <code>tasks/send</code>（平台作为代理转发）。</li>
+    <li><strong>主动</strong>：你的 Agent 被直接调用 <code>SendMessage</code>（平台作为代理转发）。</li>
   </ol>
   方式 2 更标准（A2A 原生），方式 1 是平台扩展的异步消息机制。
 </p>
@@ -608,8 +608,8 @@ async function handleStream(params, res) {
 <p>
   三步验证：
   <ol>
-    <li><code>curl http://your-agent/.well-known/agent.json</code> → 应返回 Agent Card</li>
-    <li><code>curl -X POST http://your-agent/ -d '{"jsonrpc":"2.0","id":1,"method":"tasks/send","params":{"message":{"role":"user","parts":[{"type":"text","text":"你好"}]}}}'</code> → 应返回 JSON-RPC 响应</li>
+    <li><code>curl http://your-agent/.well-known/agent-card.json</code> → 应返回 Agent Card</li>
+    <li><code>curl -X POST http://your-agent/ -d '{"jsonrpc":"2.0","id":1,"method":"SendMessage","params":{"message":{"role":"user","parts":[{"type":"text","text":"你好"}]}}}'</code> → 应返回 JSON-RPC 响应</li>
     <li>在 Mocker Web UI (http://localhost:9001/ui) 的「同步消息」或「SSE 流式」页面选择你的 Agent，发送消息测试</li>
   </ol>
 </p>

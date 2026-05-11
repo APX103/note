@@ -95,11 +95,11 @@
 <table class="mb-4">
 <thead><tr><th style="width:20%">维度</th><th style="width:30%">平台实现方案（旧）</th><th style="width:30%">Agent 接入指南（旧）</th><th style="width:20%">统一标准</th></tr></thead>
 <tbody>
-<tr><td><strong>Agent Card 路径</strong></td><td><code>/.well-known/agent-card</code></td><td><code>/.well-known/agent.json</code></td><td><code>/.well-known/agent.json</code> ✅</td></tr>
+<tr><td><strong>Agent Card 路径</strong></td><td><code>/.well-known/agent-card</code></td><td><code>/.well-known/agent.json</code></td><td><code>/.well-known/agent-card.json</code> ✅</td></tr>
 <tr><td><strong>Agent 入口端点</strong></td><td><code>POST /sendMessage</code></td><td><code>POST /</code>（JSON-RPC）</td><td><code>POST /</code>（JSON-RPC）✅</td></tr>
 <tr><td><strong>消息协议</strong></td><td>自定义 JSON</td><td>JSON-RPC 2.0</td><td>JSON-RPC 2.0 ✅</td></tr>
-<tr><td><strong>同步方法</strong></td><td><code>/sendMessage</code></td><td><code>tasks/send</code></td><td><code>tasks/send</code> ✅</td></tr>
-<tr><td><strong>流式方法</strong></td><td><code>/sendMessageStream</code>（SSE）</td><td><code>tasks/sendSubscribe</code>（SSE）</td><td><code>tasks/sendSubscribe</code> ✅</td></tr>
+<tr><td><strong>同步方法</strong></td><td><code>/sendMessage</code></td><td><code>tasks/send</code></td><td><code>SendMessage</code> ✅</td></tr>
+<tr><td><strong>流式方法</strong></td><td><code>/sendMessageStream</code>（SSE）</td><td><code>tasks/sendSubscribe</code>（SSE）</td><td><code>SendStreamingMessage</code> ✅</td></tr>
 <tr><td><strong>心跳间隔</strong></td><td>30 秒</td><td>15 秒</td><td><strong>15 秒</strong> ✅</td></tr>
 <tr><td><strong>平台清理超时</strong></td><td>90 秒无心跳标记 Offline</td><td>30 秒无心跳标记 Offline</td><td><strong>45 秒</strong>（取中间值）✅</td></tr>
 <tr><td><strong>消息投递</strong></td><td>轮询默认（Inbox）</td><td>HTTP Callback（直接调用 Agent）</td><td><strong>轮询默认</strong>，HTTP Callback 可选 ✅</td></tr>
@@ -109,7 +109,7 @@
 </table>
 
 <blockquote>
-<p><strong>决策原则</strong>：以 Google A2A 官方规范为基线（JSON-RPC 2.0 + <code>agent.json</code> + <code>tasks/send</code>），融入平台实现中的扩展能力（Registry、Inbox、Session Context、DAG），确保与官方兼容的同时支持平台特有功能。</p>
+<p><strong>决策原则</strong>：以 Google A2A 官方规范为基线（JSON-RPC 2.0 + <code>agent-card.json</code> + <code>SendMessage</code>），融入平台实现中的扩展能力（Registry、Inbox、Session Context、DAG），确保与官方兼容的同时支持平台特有功能。</p>
 </blockquote>
 </section>
 
@@ -120,19 +120,32 @@
 <h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3"><span class="flex items-center justify-center w-9 h-9 rounded-lg bg-indigo-100 text-indigo-700 font-bold text-base">2</span>Agent Card 规范</h2>
 
 <h3 class="text-lg font-semibold text-gray-900 mt-4 mb-3">2.1 端点路径</h3>
-<p class="mb-3">Agent 必须在自身域名根路径暴露 <code>GET /.well-known/agent.json</code>，返回静态 JSON 文件。</p>
-<pre>GET http://your-agent:8080/.well-known/agent.json
+<p class="mb-3">Agent 必须在自身域名根路径暴露 <code>GET /.well-known/agent-card.json</code>，返回静态 JSON 文件。</p>
+<pre>GET http://your-agent:8080/.well-known/agent-card.json
 Content-Type: application/json</pre>
 
 <h3 class="text-lg font-semibold text-gray-900 mt-6 mb-3">2.2 Schema</h3>
 <pre>{
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
-  "required": ["name", "url", "capabilities", "skills"],
+  "required": ["name", "supportedInterfaces", "capabilities", "skills"],
   "properties": {
     "name":        { "type": "string", "description": "Agent 唯一标识名，全小写+连字符" },
     "description": { "type": "string", "description": "一句话描述 Agent 能力" },
-    "url":         { "type": "string", "format": "uri", "description": "Agent JSON-RPC 入口地址" },
+    "supportedInterfaces": {
+      "type": "array",
+      "description": "支持的传输协议接口列表（官方标准）",
+      "items": {
+        "type": "object",
+        "required": ["url", "protocolBinding"],
+        "properties": {
+          "url": { "type": "string", "format": "uri" },
+          "protocolBinding": { "type": "string", "enum": ["JSONRPC", "GRPC", "HTTP+JSON"] },
+          "protocolVersion": { "type": "string", "default": "1.0" }
+        }
+      }
+    },
+    "url":         { "type": "string", "format": "uri", "description": "Agent JSON-RPC 入口地址（向后兼容，建议用 supportedInterfaces[0].url）" },
     "version":     { "type": "string", "default": "1.0.0" },
     "capabilities": {
       "type": "object",
@@ -199,13 +212,13 @@ Content-Type: application/json</pre>
 <table class="mb-4">
 <thead><tr><th style="width:22%">方法</th><th style="width:15%">类型</th><th>说明</th></tr></thead>
 <tbody>
-<tr><td><code>tasks/send</code></td><td>同步</td><td>发送消息，Agent 处理完后一次性返回最终结果</td></tr>
-<tr><td><code>tasks/sendSubscribe</code></td><td>流式（SSE）</td><td>发送消息，Agent 通过 SSE 推送中间状态（submitted → working → completed）</td></tr>
-<tr><td><code>tasks/get</code></td><td>查询</td><td>查询指定 Task 的当前状态和历史（可选实现）</td></tr>
+<tr><td><code>SendMessage</code></td><td>同步</td><td>发送消息，Agent 处理完后一次性返回最终结果</td></tr>
+<tr><td><code>SendStreamingMessage</code></td><td>流式（SSE）</td><td>发送消息，Agent 通过 SSE 推送中间状态（submitted → working → completed）</td></tr>
+<tr><td><code>GetTask</code></td><td>查询</td><td>查询指定 Task 的当前状态和历史（可选实现）</td></tr>
 </tbody>
 </table>
 
-<h3 class="text-lg font-semibold text-gray-900 mt-6 mb-3">3.1 tasks/send — 同步请求</h3>
+<h3 class="text-lg font-semibold text-gray-900 mt-6 mb-3">3.1 SendMessage — 同步请求</h3>
 <pre>// Request
 POST /
 Content-Type: application/json
@@ -213,9 +226,10 @@ Content-Type: application/json
 {
   "jsonrpc": "2.0",
   "id": 1,
-  "method": "tasks/send",
+  "method": "SendMessage",
   "params": {
     "id": "task-uuid-optional",
+    "contextId": "context-uuid-optional",
     "sessionId": "session-uuid-optional",
     "message": {
       "role": "user",
@@ -232,6 +246,7 @@ Content-Type: application/json
   "id": 1,
   "result": {
     "id": "task-xxx",
+    "contextId": "context-xxx",
     "sessionId": "session-xxx",
     "status": {
       "state": "completed",
@@ -250,8 +265,8 @@ Content-Type: application/json
   }
 }</pre>
 
-<h3 class="text-lg font-semibold text-gray-900 mt-6 mb-3">3.2 tasks/sendSubscribe — SSE 流式</h3>
-<pre>// Request（同 tasks/send，method 不同）
+<h3 class="text-lg font-semibold text-gray-900 mt-6 mb-3">3.2 SendStreamingMessage — SSE 流式</h3>
+<pre>// Request（同 SendMessage，method 不同）
 POST /
 Content-Type: application/json
 Accept: text/event-stream
@@ -259,8 +274,8 @@ Accept: text/event-stream
 {
   "jsonrpc": "2.0",
   "id": 2,
-  "method": "tasks/sendSubscribe",
-  "params": { /* 同 tasks/send */ }
+  "method": "SendStreamingMessage",
+  "params": { /* 同 SendMessage */ }
 }
 
 // Response — text/event-stream
@@ -277,15 +292,17 @@ data: {"id":"task-xxx","status":{"state":"completed","message":{"role":"agent","
 <div class="bg-white rounded-2xl border border-gray-200 p-5 mb-4">
 <div class="mermaid">
 stateDiagram-v2
-    [*] --> submitted: tasks/sendSubscribe 开始
+    [*] --> submitted: SendStreamingMessage 开始
     submitted --> working: Agent 开始处理
     working --> working: 推送中间状态
     working --> completed: 处理完成
     working --> failed: 处理失败
-    working --> cancelled: 调用方取消
+    working --> canceled: 调用方取消
+    working --> input_required: 需要用户输入
     completed --> [*]
     failed --> [*]
-    cancelled --> [*]
+    canceled --> [*]
+    input_required --> working: 收到后续消息
 </div>
 </div>
 
@@ -296,7 +313,7 @@ stateDiagram-v2
 <tr><td><code>params.id</code></td><td>string</td><td>Task 唯一 ID。调用方可指定，Agent 端如未收到则自动生成</td></tr>
 <tr><td><code>params.sessionId</code></td><td>string</td><td>会话 ID。同一 sessionId 的多个 Task 共享上下文。如未收到，使用 taskId 作为 sessionId</td></tr>
 <tr><td><code>params.message</code></td><td>object</td><td>用户消息。包含 <code>role</code>（"user"/"agent"）和 <code>parts</code>（内容片段数组）</td></tr>
-<tr><td><code>result.status.state</code></td><td>string</td><td>Task 状态：submitted / working / input-required / completed / failed / cancelled</td></tr>
+<tr><td><code>result.status.state</code></td><td>string</td><td>Task 状态：submitted / working / input-required / completed / failed / canceled / input_required / rejected</td></tr>
 <tr><td><code>result.history</code></td><td>array</td><td>当前会话的完整对话历史</td></tr>
 <tr><td><code>result.artifacts</code></td><td>array</td><td>Agent 产出的结构化数据（如航班列表、图片 URL 等）</td></tr>
 </tbody>
@@ -314,14 +331,14 @@ stateDiagram-v2
 <tbody>
 <tr>
 <td><span class="http-get">GET</span></td>
-<td><code>/.well-known/agent.json</code></td>
+<td><code>/.well-known/agent-card.json</code></td>
 <td>返回 Agent Card 静态 JSON</td>
 <td>平台 / 其他 Agent</td>
 </tr>
 <tr>
 <td><span class="http-post">POST</span></td>
 <td><code>/</code></td>
-<td>JSON-RPC 入口：分发 tasks/send、tasks/sendSubscribe、tasks/get</td>
+<td>JSON-RPC 入口：分发 SendMessage、SendStreamingMessage、GetTask</td>
 <td>平台网关 / 其他 Agent</td>
 </tr>
 <tr>
@@ -336,8 +353,8 @@ stateDiagram-v2
 <blockquote>
 <p><strong>重要</strong>：<code>POST /</code> 必须能同时处理同步 JSON 响应和 SSE 流式响应。调用方通过 <code>Accept</code> Header 或 method 名区分：</p>
 <ul class="list-disc pl-5 space-y-1 mt-2">
-<li><code>tasks/send</code> → 返回 JSON</li>
-<li><code>tasks/sendSubscribe</code> → 返回 <code>text/event-stream</code></li>
+<li><code>SendMessage</code> → 返回 JSON</li>
+<li><code>SendStreamingMessage</code> → 返回 <code>text/event-stream</code></li>
 </ul>
 </blockquote>
 </section>
@@ -516,6 +533,7 @@ model AgentHeartbeat {
 
 model Task {
   id            String     @id @default(cuid())
+  contextId     String?
   status        TaskStatus @default(CREATED)
   goal          String
   ownerAgentId  String
@@ -613,7 +631,9 @@ enum TaskStatus {
   WORKING
   COMPLETED
   FAILED
-  CANCELLED
+  CANCELED
+  INPUT_REQUIRED
+  REJECTED
   TIMEOUT
   ESCALATED
 }
@@ -655,7 +675,7 @@ ENDPOINT = "http://your-host:8000"
 sessions = {}
 
 # ── Agent Card ──
-@app.get("/.well-known/agent.json")
+@app.get("/.well-known/agent-card.json")
 async def agent_card():
     return {
         "name": AGENT_NAME,
@@ -673,11 +693,11 @@ async def rpc_entry(req: Request):
     params = body.get("params", {})
     rpc_id = body.get("id")
 
-    if method == "tasks/send":
+    if method == "SendMessage":
         result = await handle_send(params)
         return {"jsonrpc": "2.0", "id": rpc_id, "result": result}
 
-    if method == "tasks/sendSubscribe":
+    if method == "SendStreamingMessage":
         return StreamingResponse(handle_subscribe(params), media_type="text/event-stream")
 
     return {"jsonrpc": "2.0", "id": rpc_id, "error": {"code": -32601, "message": "Method not found"}}
@@ -771,7 +791,7 @@ const AGENT_NAME = 'nodejs-chat-agent';
 const ENDPOINT = 'http://localhost:9002';
 
 // Agent Card
-app.get('/.well-known/agent.json', (req, res) => {
+app.get('/.well-known/agent-card.json', (req, res) => {
     res.json({
         name: AGENT_NAME,
         description: 'Node.js 会话 Agent',
@@ -785,13 +805,13 @@ app.get('/.well-known/agent.json', (req, res) => {
 app.post('/', async (req, res) => {
     const { method, params, id } = req.body;
 
-    if (method === 'tasks/send') {
+    if (method === 'SendMessage') {
         const result = await handleSend(params);
         res.json({ jsonrpc: '2.0', id, result });
         return;
     }
 
-    if (method === 'tasks/sendSubscribe') {
+    if (method === 'SendStreamingMessage') {
         res.writeHead(200, { 'Content-Type': 'text/event-stream' });
         await handleStream(params, res);
         return;
@@ -1005,10 +1025,10 @@ app.listen(9002, () => console.log('Agent running on :9002'));</pre>
 <table class="mb-4">
 <thead><tr><th style="width:20%">维度</th><th style="width:25%">旧平台实现方案</th><th style="width:25%">旧 Agent 接入指南</th><th style="width:30%">统一标准（本文档）</th></tr></thead>
 <tbody>
-<tr><td><strong>Agent Card</strong></td><td><code>/.well-known/agent-card</code></td><td><code>/.well-known/agent.json</code></td><td><code>/.well-known/agent.json</code>（官方标准）</td></tr>
+<tr><td><strong>Agent Card</strong></td><td><code>/.well-known/agent-card</code></td><td><code>/.well-known/agent.json</code></td><td><code>/.well-known/agent-card.json</code>（官方标准）</td></tr>
 <tr><td><strong>Agent 入口</strong></td><td><code>POST /sendMessage</code></td><td><code>POST /</code>（JSON-RPC）</td><td><code>POST /</code>（JSON-RPC）</td></tr>
-<tr><td><strong>同步方法</strong></td><td><code>/sendMessage</code></td><td><code>tasks/send</code></td><td><code>tasks/send</code></td></tr>
-<tr><td><strong>流式方法</strong></td><td><code>/sendMessageStream</code></td><td><code>tasks/sendSubscribe</code></td><td><code>tasks/sendSubscribe</code></td></tr>
+<tr><td><strong>同步方法</strong></td><td><code>/sendMessage</code></td><td><code>SendMessage</code></td><td><code>SendMessage</code></td></tr>
+<tr><td><strong>流式方法</strong></td><td><code>/sendMessageStream</code></td><td><code>SendStreamingMessage</code></td><td><code>SendStreamingMessage</code></td></tr>
 <tr><td><strong>心跳间隔</strong></td><td>30 秒</td><td>15 秒</td><td>15 秒</td></tr>
 <tr><td><strong>清理超时</strong></td><td>90 秒</td><td>30 秒</td><td>45 秒（折中）</td></tr>
 <tr><td><strong>消息投递</strong></td><td>轮询（Inbox）</td><td>HTTP Callback</td><td>轮询默认，HTTP Callback 可选</td></tr>
@@ -1020,9 +1040,9 @@ app.listen(9002, () => console.log('Agent running on :9002'));</pre>
 <blockquote>
 <p><strong>迁移建议</strong>：</p>
 <ul class="list-disc pl-5 space-y-1 mt-2">
-<li>已按旧平台方案开发的 Agent：只需修改 <code>/.well-known/agent-card</code> → <code>/.well-known/agent.json</code>，<code>POST /sendMessage</code> → <code>POST /</code>（JSON-RPC），其他逻辑不变</li>
+<li>已按旧平台方案开发的 Agent：只需修改 <code>/.well-known/agent-card</code> → <code>/.well-known/agent-card.json</code>，<code>POST /sendMessage</code> → <code>POST /</code>（JSON-RPC），其他逻辑不变</li>
 <li>已按旧接入指南开发的 Agent：无需修改，已兼容</li>
-<li>平台后端：需要升级 Gateway，支持 JSON-RPC 解析和 <code>tasks/send</code> / <code>tasks/sendSubscribe</code> 分发</li>
+<li>平台后端：需要升级 Gateway，支持 JSON-RPC 解析和 <code>SendMessage</code> / <code>SendStreamingMessage</code> 分发</li>
 </ul>
 </blockquote>
 </section>

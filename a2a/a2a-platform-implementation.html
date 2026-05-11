@@ -196,7 +196,7 @@ erDiagram
         datetime createdAt
         datetime completedAt
         datetime timeoutAt
-        int maxRounds
+        int maxMessages
         int currentRound
     }
 
@@ -256,6 +256,7 @@ model AgentCard {
   version          String   @default("1.0.0")
   capabilities     Json     @default("{}")
   skills           Json     @default("[]")
+  supportedInterfaces Json @default("[]")
   securitySchemes  Json     @default("{}")
   status           AgentStatus @default(ACTIVE)
   namespace        String   @default("default")
@@ -281,6 +282,7 @@ model AgentHeartbeat {
 
 model Task {
   id            String     @id @default(cuid())
+  contextId     String?
   status        TaskStatus @default(CREATED)
   goal          String
   ownerAgentId  String
@@ -288,7 +290,7 @@ model Task {
   createdAt     DateTime   @default(now())
   completedAt   DateTime?
   timeoutAt     DateTime?
-  maxMessages   Int        @default(100)     // ← 替代 maxRounds：DAG 中消息数上限
+  maxMessages   Int        @default(100)     // ← 原 maxRounds 改为 maxMessages：DAG 中消息数上限
   messageCount  Int        @default(0)        // ← 替代 currentRound：总消息计数
 
   participants  TaskParticipant[]
@@ -364,9 +366,11 @@ enum TaskStatus {
   CREATED
   SUBMITTED
   WORKING
+  INPUT_REQUIRED
   COMPLETED
   FAILED
-  CANCELLED
+  CANCELED
+  REJECTED
   TIMEOUT
   ESCALATED
 }
@@ -446,7 +450,7 @@ sequenceDiagram
 <tbody>
 <tr><td><code>Message.parentMessageId</code></td><td>无法重建"谁因为什么调用了谁"的调用树</td><td>自引用关系，建立 DAG 节点树</td></tr>
 <tr><td><code>Message.depth</code></td><td><code>currentRound</code> 语义错误（并发调用不应+3）</td><td>DAG 深度 = 从 Task Owner 出发的最长路径</td></tr>
-<tr><td><code>Task.messageCount / maxMessages</code></td><td><code>currentRound / maxRounds</code> 不适合 DAG</td><td>总消息数上限，超限熔断</td></tr>
+<tr><td><code>Task.messageCount / maxMessages</code></td><td><code>currentRound / maxMessages</code> 不适合 DAG</td><td>总消息数上限，超限熔断</td></tr>
 <tr><td><code>SessionContext.version</code></td><td>并发返回时 race condition 覆盖数据</td><td>乐观锁：PG 的 version 字段 + 重试机制</td></tr>
 </tbody>
 </table>
@@ -575,9 +579,9 @@ export class RegistryService {
 export class RegistryCleanupService {
   constructor(private prisma: PrismaService) {}
 
-  @Cron(CronExpression.EVERY_30_SECONDS)
+  @Cron('*/15 * * * * *')
   async cleanupOfflineAgents() {
-    const timeout = new Date(Date.now() - 90_000); // 90s 无心跳
+    const timeout = new Date(Date.now() - 45_000); // 45s 无心跳
     const offlineAgents = await this.prisma.agentCard.findMany({
       where: {
         status: AgentStatus.ACTIVE,
@@ -598,7 +602,7 @@ export class RegistryCleanupService {
 
 <h4 class="font-semibold text-gray-900 mt-4 mb-2">模块职责</h4>
 <ul class="list-disc pl-5 space-y-1 mb-3">
-<li>对外暴露标准 A2A 端点（<code>/.well-known/agent-card</code>, <code>/sendMessage</code>, <code>/sendMessageStream</code>）</li>
+<li>对外暴露端点：A2A 标准发现 <code>/.well-known/agent-card.json</code>；平台代理 API <code>/sendMessage</code>、<code>/sendMessageStream</code>（非 A2A 标准 JSON-RPC 端点，A2A 标准 Agent 端点为 <code>POST /</code>）</li>
 <li>消息路由：解析目标 Agent，从 Registry 获取 endpoint，转发请求</li>
 <li>SSE 流式透传：订阅 Agent 的 SSE 流，同时记录事件</li>
 <li>消息持久化：所有经过的消息写入 Message 表</li>
@@ -616,7 +620,7 @@ export class GatewayController {
   ) {}
 
   // Agent Card 代理：返回目标 Agent 的 Agent Card
-  @Get('.well-known/agent-card')
+  @Get('.well-known/agent-card.json')
   async getAgentCard(@Query('agentId') agentId: string) {
     return this.registryService.findById(agentId);
   }
@@ -836,6 +840,7 @@ export class GatewayWsGateway implements OnGatewayConnection, OnGatewayDisconnec
 </ul>
 
 <h4 class="font-semibold text-gray-900 mt-4 mb-2">方案 2：HTTP Callback（A2A 标准方式）</h4>
+<p class="text-sm text-gray-600 mb-2">注：<code>/sendMessage</code> 为平台代理 API，非 A2A 标准 JSON-RPC 端点（A2A 标准 Agent 端点为 <code>POST /</code>）。</p>
 <pre>Agent A                Platform              Agent B
   │                      │                      │
   │── POST /sendMessage ►│                      │
@@ -843,7 +848,7 @@ export class GatewayWsGateway implements OnGatewayConnection, OnGatewayDisconnec
   │                      │◄── response ─────────┤
   │◄── result ───────────│                      │</pre>
 <ul class="list-disc pl-5 space-y-1 mb-3 text-sm">
-<li><strong>Agent 端</strong>：暴露 HTTP Server（<code>/sendMessage</code>），接收平台直接投递的消息</li>
+<li><strong>Agent 端</strong>：暴露 HTTP Server（<code>/sendMessage</code>），接收平台直接投递的消息（平台代理 API，非 A2A 标准 JSON-RPC 端点）</li>
 <li><strong>平台端</strong>：收到 sendMessage 请求后，HTTP POST 到目标 Agent 的 <code>endpointUrl</code>，等待响应后返回给调用方</li>
 <li><strong>缺点</strong>：Agent 必须能被平台访问，需要公网 IP 或内网穿透，防火墙配置复杂</li>
 </ul>
@@ -1375,10 +1380,10 @@ export const CurrentAgent = createParamDecorator((data: unknown, ctx: ExecutionC
 <tr><td><code>/registry/heartbeat</code></td><td>POST</td><td><code>{ agentId, ipAddress? }</code></td><td><code>{ success: boolean }</code></td></tr>
 <tr><td><code>/registry/agents</code></td><td>GET</td><td><code>?skill=&namespace=&q=</code></td><td><code>AgentCard[]</code></td></tr>
 <tr><td><code>/registry/agents/:id</code></td><td>DELETE</td><td>-</td><td>204</td></tr>
-<tr><td><code>/.well-known/agent-card</code></td><td>GET</td><td><code>?agentId=</code></td><td><code>AgentCard</code></td></tr>
+<tr><td><code>/.well-known/agent-card.json</code></td><td>GET</td><td><code>?agentId=</code></td><td><code>AgentCard</code></td></tr>
 <tr><td><code>/sendMessage</code></td><td>POST</td><td><code>{ fromAgentId, toAgentId, taskId?, messageType, payload{} }</code></td><td><code>any</code> (目标 Agent 返回)</td></tr>
 <tr><td><code>/sendMessageStream</code></td><td>POST</td><td>同上</td><td><code>SSE Stream</code></td></tr>
-<tr><td><code>/tasks</code></td><td>POST</td><td><code>{ goal, ownerAgentId, userInput?, maxRounds?, timeoutMinutes? }</code></td><td><code>Task</code></td></tr>
+<tr><td><code>/tasks</code></td><td>POST</td><td><code>{ goal, ownerAgentId, userInput?, maxMessages?, timeoutMinutes? }</code></td><td><code>Task</code></td></tr>
 <tr><td><code>/tasks/:id</code></td><td>GET</td><td>-</td><td><code>Task + participants + messages</code></td></tr>
 <tr><td><code>/tasks/:id/complete</code></td><td>POST</td><td>-</td><td><code>Task</code></td></tr>
 <tr><td><code>/tasks/:id/escalate</code></td><td>POST</td><td><code>{ reason }</code></td><td><code>Task</code></td></tr>
@@ -1406,7 +1411,7 @@ export class A2AAgentSDK {
     // 启动时注册
     this.register(config.agentCard, config.token);
     // 启动心跳
-    this.heartbeatInterval = setInterval(() => this.heartbeat(), 30_000);
+    this.heartbeatInterval = setInterval(() => this.heartbeat(), 15_000);
   }
 
   private async register(agentCard: AgentCard, token: string) {

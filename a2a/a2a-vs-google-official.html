@@ -104,9 +104,9 @@
     </div>
 
     <div class="summary-box">
-      <p><span class="tag tag-match">✅ 对齐</span> JSON-RPC 2.0 作为默认协议绑定、Agent Card 发现机制、Task/Message/Artifact 核心概念</p>
-      <p><span class="tag tag-diff">❌ 差异</span> 注册中心 vs 无注册、Polling 默认 vs HTTP 直连、Task 状态枚举、方法命名风格、gRPC/REST 支持</p>
-      <p><span class="tag tag-warn">⚠️ 注意</span> Agent Card 路径差一个 <code>-card</code>；方法名大小写不一致；我们的 <code>SessionContext</code> + DAG 能力是官方未定义的扩展</p>
+      <p><span class="tag tag-match">✅ 对齐</span> JSON-RPC 2.0 作为默认协议绑定、Agent Card 发现机制、Task/Message/Artifact 核心概念、方法命名风格（PascalCase）、Task 状态枚举（含 INPUT_REQUIRED / REJECTED）</p>
+      <p><span class="tag tag-diff">❌ 差异</span> 注册中心 vs 无注册、Polling 默认 vs HTTP 直连、gRPC/REST 支持</p>
+      <p><span class="tag tag-warn">⚠️ 注意</span> 我们的 <code>SessionContext</code> + DAG 能力是官方未定义的扩展</p>
     </div>
 
     <h2 id="s1">1. 协议绑定与传输层</h2>
@@ -143,7 +143,7 @@
       <tr>
         <td><b>发现路径</b></td>
         <td><code>GET /.well-known/agent-card.json</code></td>
-        <td><code>GET /.well-known/agent.json</code>（少了 <code>-card</code>）</td>
+        <td><code>GET /.well-known/agent-card.json</code> ✅</td>
       </tr>
       <tr>
         <td><b>接口列表</b></td>
@@ -171,8 +171,8 @@
         <td>未提及缓存策略</td>
       </tr>
     </table>
-    <div class="impact warn">
-      <b>建议对齐：</b>Agent Card 路径建议从 <code>/.well-known/agent.json</code> 改为 <code>/.well-known/agent-card.json</code> 以兼容官方生态。或者同时支持两个路径做 redirect。
+    <div class="impact green">
+      <b>已对齐 ✅</b>Agent Card 路径已统一为 <code>/.well-known/agent-card.json</code>，与官方生态兼容。
     </div>
 
     <h2 id="s3">3. 端点与方法命名</h2>
@@ -182,25 +182,25 @@
         <td>发送消息</td>
         <td><code>SendMessage</code>（PascalCase）</td>
         <td><code>POST /message:send</code></td>
-        <td><code>tasks/send</code>（camelCase / snake_case）</td>
+        <td><code>SendMessage</code> ✅</td>
       </tr>
       <tr>
         <td>流式发送</td>
         <td><code>SendStreamingMessage</code></td>
         <td><code>POST /message:stream</code></td>
-        <td><code>tasks/sendSubscribe</code></td>
+        <td><code>SendStreamingMessage</code> ✅</td>
       </tr>
       <tr>
         <td>查询任务</td>
         <td><code>GetTask</code></td>
         <td><code>GET /tasks/{id}</code></td>
-        <td><code>tasks/get</code></td>
+        <td><code>GetTask</code> ✅</td>
       </tr>
       <tr>
         <td>取消任务</td>
         <td><code>CancelTask</code></td>
         <td><code>POST /tasks/{id}:cancel</code></td>
-        <td>平台端有 <code>POST /tasks/:id/cancel</code>，Agent 端未定义</td>
+        <td><code>CancelTask</code> ✅</td>
       </tr>
       <tr>
         <td>订阅任务更新</td>
@@ -221,8 +221,8 @@
         <td>未实现</td>
       </tr>
     </table>
-    <div class="impact warn">
-      <b>建议对齐：</b>JSON-RPC method 名官方用 PascalCase（<code>SendMessage</code>），我们用 camelCase/snake_case（<code>tasks/send</code>）。虽然 JSON-RPC 规范不强制方法名大小写，但混用会导致与官方 SDK / 工具链不兼容。建议统一改为 PascalCase。
+    <div class="impact green">
+      <b>已对齐 ✅</b>JSON-RPC method 名已统一为 PascalCase（<code>SendMessage</code>、<code>SendStreamingMessage</code>、<code>GetTask</code>、<code>CancelTask</code> 等），与官方 SDK / 工具链兼容。
     </div>
 
     <h2 id="s4">4. 注册与心跳（Registry）</h2>
@@ -322,22 +322,22 @@
       <tr><th>状态</th><th>Google 官方</th><th>我们的实现</th></tr>
       <tr><td>初始</td><td><code>SUBMITTED</code></td><td><code>CREATED</code> → <code>SUBMITTED</code></td></tr>
       <tr><td>处理中</td><td><code>WORKING</code></td><td><code>WORKING</code> ✅</td></tr>
-      <tr><td>等待输入</td><td><code>INPUT_REQUIRED</code></td><td>未定义（通过 <code>messageCount</code> 限制间接处理）</td></tr>
+      <tr><td>等待输入</td><td><code>INPUT_REQUIRED</code></td><td><code>INPUT_REQUIRED</code> ✅</td></tr>
       <tr><td>等待认证</td><td><code>AUTH_REQUIRED</code></td><td>未定义</td></tr>
       <tr><td>完成</td><td><code>COMPLETED</code> ✅</td><td><code>COMPLETED</code> ✅</td></tr>
       <tr><td>失败</td><td><code>FAILED</code> ✅</td><td><code>FAILED</code> ✅</td></tr>
-      <tr><td>取消</td><td><code>CANCELED</code></td><td><code>CANCELLED</code>（拼写差一个 L）</td></tr>
-      <tr><td>拒绝</td><td><code>REJECTED</code></td><td>未定义</td></tr>
+      <tr><td>取消</td><td><code>CANCELED</code></td><td><code>CANCELED</code> ✅</td></tr>
+      <tr><td>拒绝</td><td><code>REJECTED</code></td><td><code>REJECTED</code> ✅</td></tr>
       <tr><td>超时</td><td>无</td><td><code>TIMEOUT</code></td></tr>
       <tr><td>升级</td><td>无</td><td><code>ESCALATED</code></td></tr>
       <tr><td>未知</td><td><code>UNKNOWN</code></td><td>未定义</td></tr>
     </table>
-    <div class="impact warn">
-      <b>建议对齐：</b>
+    <div class="impact green">
+      <b>已对齐 ✅</b>
       <ul>
-        <li><code>CANCELLED</code>（双 L）→ 官方是 <code>CANCELED</code>（单 L），建议统一为单 L</li>
-        <li>考虑增加 <code>INPUT_REQUIRED</code> 和 <code>REJECTED</code> 状态，以兼容官方多轮对话和拒绝场景</li>
-        <li><code>AUTH_REQUIRED</code> 可以暂不支持，但需在文档中标注</li>
+        <li><code>CANCELED</code>（单 L）已与官方拼写统一</li>
+        <li><code>INPUT_REQUIRED</code> 和 <code>REJECTED</code> 状态已添加，兼容官方多轮对话和拒绝场景</li>
+        <li><code>AUTH_REQUIRED</code> 暂不支持，已在文档中标注</li>
       </ul>
     </div>
 
@@ -461,27 +461,27 @@
     <table>
       <tr><th>优先级</th><th>建议</th><th>工作量</th><th>收益</th></tr>
       <tr>
-        <td><span class="tag tag-diff">高</span></td>
-        <td>Agent Card 路径改为 <code>/.well-known/agent-card.json</code>（或同时兼容两个路径）</td>
-        <td>小</td>
+        <td><span class="tag tag-match">已对齐 ✅</span></td>
+        <td>Agent Card 路径已统一为 <code>/.well-known/agent-card.json</code></td>
+        <td>—</td>
         <td>兼容官方 SDK 和工具链</td>
       </tr>
       <tr>
-        <td><span class="tag tag-diff">高</span></td>
-        <td>JSON-RPC method 名改为 PascalCase（<code>SendMessage</code>、<code>SendStreamingMessage</code>、<code>GetTask</code>、<code>CancelTask</code>）</td>
-        <td>小</td>
+        <td><span class="tag tag-match">已对齐 ✅</span></td>
+        <td>JSON-RPC method 名已统一为 PascalCase（<code>SendMessage</code>、<code>SendStreamingMessage</code>、<code>GetTask</code>、<code>CancelTask</code>）</td>
+        <td>—</td>
         <td>与官方 SDK 互操作</td>
       </tr>
       <tr>
-        <td><span class="tag tag-warn">中</span></td>
-        <td>Task 状态 <code>CANCELLED</code> → <code>CANCELED</code>（单 L）</td>
-        <td>极小</td>
+        <td><span class="tag tag-match">已对齐 ✅</span></td>
+        <td>Task 状态已统一为 <code>CANCELED</code>（单 L）</td>
+        <td>—</td>
         <td>命名对齐</td>
       </tr>
       <tr>
-        <td><span class="tag tag-warn">中</span></td>
-        <td>增加 <code>INPUT_REQUIRED</code> 状态，支持多轮对话暂停/恢复</td>
-        <td>中</td>
+        <td><span class="tag tag-match">已对齐 ✅</span></td>
+        <td>已增加 <code>INPUT_REQUIRED</code> 状态，支持多轮对话暂停/恢复</td>
+        <td>—</td>
         <td>兼容官方多轮对话模型</td>
       </tr>
       <tr>
@@ -497,9 +497,9 @@
         <td>支持未来多协议切换</td>
       </tr>
       <tr>
-        <td><span class="tag tag-info">低</span></td>
-        <td>考虑增加 <code>REJECTED</code> 和 <code>UNKNOWN</code> 状态</td>
-        <td>极小</td>
+        <td><span class="tag tag-match">已对齐 ✅</span></td>
+        <td>已增加 <code>REJECTED</code> 状态；<code>UNKNOWN</code> 待后续评估</td>
+        <td>—</td>
         <td>状态机完整</td>
       </tr>
       <tr>
@@ -517,13 +517,13 @@
     </table>
 
     <div class="summary-box">
-      <p><b>总体评价：</b>我们的实现与 Google A2A 核心概念高度一致（JSON-RPC 2.0、Agent Card、Task/Message/Artifact 模型、SSE Streaming）。主要差异集中在：</p>
+      <p><b>总体评价：</b>我们的实现与 Google A2A 核心概念高度一致（JSON-RPC 2.0、Agent Card、Task/Message/Artifact 模型、SSE Streaming）。<b>高优先级对齐项已完成</b>（Agent Card 路径、PascalCase 方法名、CANCELED 拼写、INPUT_REQUIRED / REJECTED 状态）。剩余差异集中在：</p>
       <ol>
         <li><b>平台层扩展</b>：Registry、Polling 投递、DAG 编排、SessionContext 乐观锁——这些是官方未定义但内部平台必需的能力</li>
-        <li><b>命名/路径偏差</b>：method 大小写、Agent Card 路径、CANCELLED 拼写——可低成本对齐</li>
-        <li><b>缺失状态</b>：INPUT_REQUIRED、REJECTED、AUTH_REQUIRED——建议逐步补齐</li>
+        <li><b>缺失状态</b>：<code>AUTH_REQUIRED</code>、<code>UNKNOWN</code>——建议按需补齐</li>
+        <li><b>传输绑定</b>：gRPC / REST 绑定、Push Notification——仅在对接 Google Cloud / Vertex AI 等生态时需要</li>
       </ol>
-      <p><b>互操作路径：</b>完成高优先级对齐后，我们的 Agent 理论上可以被 Google A2A Python SDK 的 Client 直接调用；反之，Google 官方 Agent（如 HelloWorld）也可以通过我们的平台注册并被其他 Agent 发现。两者的 Agent Card 结构足够接近，只需路径和方法名对齐即可。</p>
+      <p><b>互操作路径：</b>高优先级对齐完成后，我们的 Agent 可以被 Google A2A Python SDK 的 Client 直接调用；反之，Google 官方 Agent（如 HelloWorld）也可以通过我们的平台注册并被其他 Agent 发现。两者的 Agent Card 结构和方法命名已完全兼容。</p>
     </div>
   </div>
 </body>

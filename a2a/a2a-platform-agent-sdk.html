@@ -95,10 +95,10 @@ sequenceDiagram
     Agent->>SDK: new A2AAgentSDK(config)
     SDK->>Platform: POST /registry/register {AgentCard}
     Platform-->>SDK: { id, token }
-    SDK->>SDK: 启动心跳定时器 (30s)
+    SDK->>SDK: 启动心跳定时器 (15s)
 
     Note over Agent,Platform: 运行阶段
-    loop 每 30s
+    loop 每 15s
         SDK->>Platform: POST /registry/heartbeat
     end
 
@@ -169,7 +169,7 @@ sequenceDiagram
 }</pre>
 
 <h4 class="font-semibold text-gray-900 mt-4 mb-2"><span class="http-method http-post">POST</span> <code>/registry/heartbeat</code></h4>
-<p class="text-sm text-gray-600 mb-2">每 30 秒调用一次，证明 Agent 还活着。</p>
+<p class="text-sm text-gray-600 mb-2">每 15 秒调用一次，证明 Agent 还活着。</p>
 <pre>// Request
 {
   "agentId": "agent_weather_001"
@@ -208,11 +208,11 @@ sequenceDiagram
 <!-- Gateway -->
 <h3 class="text-lg font-semibold text-gray-900 mt-8 mb-3 flex items-center gap-2"><span class="text-emerald-600">§</span> Gateway API（消息通信）</h3>
 
-<h4 class="font-semibold text-gray-900 mt-3 mb-2"><span class="http-method http-get">GET</span> <code>/.well-known/agent-card?agentId=&lt;id&gt;</code></h4>
+<h4 class="font-semibold text-gray-900 mt-3 mb-2"><span class="http-method http-get">GET</span> <code>/.well-known/agent-card.json?agentId=&lt;id&gt;</code></h4>
 <p class="text-sm text-gray-600 mb-2">获取指定 Agent 的公开 Agent Card（A2A 标准端点）。</p>
 
 <h4 class="font-semibold text-gray-900 mt-4 mb-2"><span class="http-method http-post">POST</span> <code>/sendMessage</code></h4>
-<p class="text-sm text-gray-600 mb-2">同步发送消息。Agent 通过此接口调用其他 Agent（经过平台转发）。</p>
+<p class="text-sm text-gray-600 mb-2">平台代理 API：同步发送消息。Agent 通过此接口调用其他 Agent（经过平台转发）。注：A2A 官方标准为 JSON-RPC POST /，method 为 SendMessage。</p>
 <pre>// Request Headers
 Content-Type: application/json
 Authorization: Bearer &lt;agent-jwt-token&gt;
@@ -241,7 +241,7 @@ x-parent-message-id: &lt;optional&gt;           // 父消息 ID，建立 DAG 调
 }</pre>
 
 <h4 class="font-semibold text-gray-900 mt-4 mb-2"><span class="http-method http-post">POST</span> <code>/sendMessageStream</code></h4>
-<p class="text-sm text-gray-600 mb-2">SSE 流式发送消息。用于长任务实时推送进度。</p>
+<p class="text-sm text-gray-600 mb-2">平台代理 API：SSE 流式发送消息。用于长任务实时推送进度。注：A2A 官方标准为 SendStreamingMessage。</p>
 <pre>// Request Body（同 /sendMessage）
 
 // Response — text/event-stream
@@ -361,9 +361,9 @@ data: {"status": "COMPLETED", "result": "..."}</pre>
 <tr><td><code>/registry/agents</code></td><td><span class="http-method http-get">GET</span></td><td>发现 Agent（按 skill/namespace/关键词）</td></tr>
 <tr><td><code>/registry/agents/:id</code></td><td><span class="http-method http-get">GET</span></td><td>获取单个 Agent Card</td></tr>
 <tr><td><code>/registry/agents/:id</code></td><td><span class="http-method http-delete">DELETE</span></td><td>注销 Agent</td></tr>
-<tr><td><code>/.well-known/agent-card</code></td><td><span class="http-method http-get">GET</span></td><td>A2A 标准：获取 Agent Card</td></tr>
-<tr><td><code>/sendMessage</code></td><td><span class="http-method http-post">POST</span></td><td>同步发送消息（核心）</td></tr>
-<tr><td><code>/sendMessageStream</code></td><td><span class="http-method http-post">POST</span></td><td>SSE 流式发送消息</td></tr>
+<tr><td><code>/.well-known/agent-card.json</code></td><td><span class="http-method http-get">GET</span></td><td>A2A 标准：获取 Agent Card</td></tr>
+<tr><td><code>/sendMessage</code></td><td><span class="http-method http-post">POST</span></td><td>平台代理 API：同步发送消息（核心）。A2A 标准为 JSON-RPC POST / SendMessage</td></tr>
+<tr><td><code>/sendMessageStream</code></td><td><span class="http-method http-post">POST</span></td><td>平台代理 API：SSE 流式发送消息。A2A 标准为 SendStreamingMessage</td></tr>
 <tr><td><code>/tasks</code></td><td><span class="http-method http-post">POST</span></td><td>创建 Task</td></tr>
 <tr><td><code>/tasks/:id</code></td><td><span class="http-method http-get">GET</span></td><td>获取 Task 详情</td></tr>
 <tr><td><code>/tasks/:id/complete</code></td><td><span class="http-method http-post">POST</span></td><td>标记 Task 完成</td></tr>
@@ -466,7 +466,7 @@ export interface SDKConfig {
   platformUrl: string;        // 平台地址，如 http://localhost:3000
   agentCard: AgentCard;       // Agent 自我介绍
   token: string;              // JWT Token（从平台获取或预分配）
-  heartbeatInterval?: number;  // 心跳间隔（默认 30000ms）
+  heartbeatInterval?: number;  // 心跳间隔（默认 15000ms）
   pollInterval?: number;       // 轮询间隔（默认 5000ms）
   deliveryStrategy?: 'polling' | 'websocket' | 'callback'; // 消息投递策略（默认 polling）
 }
@@ -480,7 +480,7 @@ export class A2AAgentSDK {
 
   constructor(config: SDKConfig) {
     this.config = {
-      heartbeatInterval: 30000,
+      heartbeatInterval: 15000,
       pollInterval: 5000,
       deliveryStrategy: 'polling',
       ...config,
@@ -1026,7 +1026,7 @@ process.on('SIGINT', () => sdk.stop().then(() => process.exit(0)));
 process.on('SIGTERM', () => sdk.stop().then(() => process.exit(0)));
 
 // ═══════════════════════════════════════════════════════════════
-// A2A 标准端点：接收平台转发来的消息
+// 平台代理端点：接收平台转发来的消息（A2A 官方标准为 JSON-RPC POST / SendMessage）
 // ═══════════════════════════════════════════════════════════════
 
 /**
