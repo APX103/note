@@ -1,0 +1,1062 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A2A 统一开发规范 — 平台端 + Agent 端</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Noto Sans SC', system-ui, -apple-system, sans-serif; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        .gradient-text { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .scroll-indicator { position: fixed; top: 0; left: 0; height: 3px; background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); z-index: 1000; transition: width 0.1s; }
+        .toc-link.active { color: #667eea; border-left-color: #667eea; background: linear-gradient(90deg, rgba(102,126,234,0.08) 0%, transparent 100%); }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #c7c7c7; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #a0a0a0; }
+        .section-divider { height: 1px; background: linear-gradient(90deg, transparent 0%, #e5e7eb 20%, #e5e7eb 80%, transparent 100%); }
+        pre { background: #1e293b; color: #e2e8f0; padding: 1rem; border-radius: 0.75rem; overflow-x: auto; font-size: 0.8125rem; line-height: 1.6; }
+        code { font-family: 'JetBrains Mono', monospace; font-size: 0.8125rem; }
+        :not(pre) > code { background: #f1f5f9; color: #334155; padding: 0.125rem 0.375rem; border-radius: 0.25rem; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+        th, td { border: 1px solid #e2e8f0; padding: 0.625rem 0.875rem; text-align: left; }
+        th { background: #f8fafc; font-weight: 600; color: #334155; }
+        tr:nth-child(even) { background: #fafafa; }
+        blockquote { border-left: 4px solid #f59e0b; background: #fffbeb; padding: 1rem 1.25rem; margin: 1rem 0; border-radius: 0 0.5rem 0.5rem 0; color: #78350f; }
+        .mermaid { background: transparent !important; }
+        .mermaid svg { max-width: 100%; height: auto; }
+        .tag { display: inline-flex; align-items: center; padding: 0.2rem 0.6rem; border-radius: 9999px; font-size: 0.7rem; font-weight: 500; letter-spacing: 0.02em; }
+        .http-get { display: inline-block; font-size: 0.7rem; font-weight: 700; padding: 0.125rem 0.375rem; border-radius: 0.25rem; background: #dbeafe; color: #1e40af; font-family: 'JetBrains Mono', monospace; }
+        .http-post { display: inline-block; font-size: 0.7rem; font-weight: 700; padding: 0.125rem 0.375rem; border-radius: 0.25rem; background: #dcfce7; color: #166534; font-family: 'JetBrains Mono', monospace; }
+        .http-delete { display: inline-block; font-size: 0.7rem; font-weight: 700; padding: 0.125rem 0.375rem; border-radius: 0.25rem; background: #fee2e2; color: #991b1b; font-family: 'JetBrains Mono', monospace; }
+        h2 { scroll-margin-top: 6rem; }
+        h3 { scroll-margin-top: 6rem; }
+        h4 { scroll-margin-top: 6rem; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 leading-relaxed">
+    <div class="scroll-indicator" id="scrollIndicator"></div>
+
+    <header class="relative bg-white border-b border-gray-200">
+        <div class="absolute inset-0 bg-gradient-to-br from-indigo-50/50 via-white to-purple-50/30 pointer-events-none"></div>
+        <div class="relative max-w-6xl mx-auto px-6 py-14 md:py-20">
+            <div class="flex items-center gap-3 mb-5">
+                <span class="tag bg-rose-100 text-rose-700">统一规范</span>
+                <span class="tag bg-indigo-100 text-indigo-700">v1.0</span>
+                <span class="tag bg-amber-100 text-amber-700">必读</span>
+            </div>
+            <h1 class="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight mb-5">
+                <span class="gradient-text">A2A 统一开发规范</span>
+            </h1>
+            <p class="text-base md:text-lg text-gray-600 max-w-3xl leading-relaxed">
+                整合平台架构设计与 Agent 接入指南，统一为一套团队内部标准。平台端按此实现，Agent 端按此接入，确保互联互通。
+            </p>
+        </div>
+    </header>
+
+    <div class="max-w-6xl mx-auto px-6 py-12 flex gap-12">
+        <aside class="hidden lg:block w-60 flex-shrink-0">
+            <div class="sticky top-8">
+                <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">目录</h3>
+                <nav class="space-y-0.5 text-sm" id="toc">
+                    <a href="#s1" class="toc-link block py-1.5 px-3 text-gray-600 hover:text-gray-900 rounded-md border-l-2 border-transparent transition-all">一、规范概述</a>
+                    <a href="#s2" class="toc-link block py-1.5 px-3 text-gray-600 hover:text-gray-900 rounded-md border-l-2 border-transparent transition-all">二、Agent Card</a>
+                    <a href="#s3" class="toc-link block py-1.5 px-3 text-gray-600 hover:text-gray-900 rounded-md border-l-2 border-transparent transition-all">三、JSON-RPC 协议</a>
+                    <a href="#s4" class="toc-link block py-1.5 px-3 text-gray-600 hover:text-gray-900 rounded-md border-l-2 border-transparent transition-all">四、Agent 端端点</a>
+                    <a href="#s5" class="toc-link block py-1.5 px-3 text-gray-600 hover:text-gray-900 rounded-md border-l-2 border-transparent transition-all">五、平台端 API</a>
+                    <a href="#s6" class="toc-link block py-1.5 px-3 text-gray-600 hover:text-gray-900 rounded-md border-l-2 border-transparent transition-all">六、消息投递策略</a>
+                    <a href="#s7" class="toc-link block py-1.5 px-3 text-gray-600 hover:text-gray-900 rounded-md border-l-2 border-transparent transition-all">七、数据模型</a>
+                    <a href="#s8" class="toc-link block py-1.5 px-3 text-gray-600 hover:text-gray-900 rounded-md border-l-2 border-transparent transition-all">八、代码模板</a>
+                    <a href="#s9" class="toc-link block py-1.5 px-3 text-gray-600 hover:text-gray-900 rounded-md border-l-2 border-transparent transition-all">九、版本差异说明</a>
+                </nav>
+            </div>
+        </aside>
+
+        <main class="flex-1 min-w-0 text-gray-700">
+
+<!-- 一、规范概述 -->
+<section id="s1" class="mb-14">
+<h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3"><span class="flex items-center justify-center w-9 h-9 rounded-lg bg-rose-100 text-rose-700 font-bold text-base">1</span>规范概述</h2>
+
+<h3 class="text-lg font-semibold text-gray-900 mt-4 mb-3">为什么需要统一规范</h3>
+<p class="mb-3">团队内先后产出了两份 A2A 相关文档：</p>
+<ul class="list-disc pl-5 space-y-1.5 mb-4">
+<li><strong>平台实现方案</strong>：侧重 NestJS 后端架构、数据库设计、消息路由、Session 管理</li>
+<li><strong>Agent 接入指南</strong>：侧重 JSON-RPC 协议、Agent Card、SSE 流式、快速接入</li>
+</ul>
+<p class="mb-4">两份文档在<strong>关键接口定义</strong>上存在差异，如果不统一，不同同事按不同文档实现会导致 Agent 无法互联互通。本文档是整合后的<strong>唯一标准</strong>。</p>
+
+<h3 class="text-lg font-semibold text-gray-900 mt-6 mb-3">统一决策表</h3>
+<table class="mb-4">
+<thead><tr><th style="width:20%">维度</th><th style="width:30%">平台实现方案（旧）</th><th style="width:30%">Agent 接入指南（旧）</th><th style="width:20%">统一标准</th></tr></thead>
+<tbody>
+<tr><td><strong>Agent Card 路径</strong></td><td><code>/.well-known/agent-card</code></td><td><code>/.well-known/agent.json</code></td><td><code>/.well-known/agent.json</code> ✅</td></tr>
+<tr><td><strong>Agent 入口端点</strong></td><td><code>POST /sendMessage</code></td><td><code>POST /</code>（JSON-RPC）</td><td><code>POST /</code>（JSON-RPC）✅</td></tr>
+<tr><td><strong>消息协议</strong></td><td>自定义 JSON</td><td>JSON-RPC 2.0</td><td>JSON-RPC 2.0 ✅</td></tr>
+<tr><td><strong>同步方法</strong></td><td><code>/sendMessage</code></td><td><code>tasks/send</code></td><td><code>tasks/send</code> ✅</td></tr>
+<tr><td><strong>流式方法</strong></td><td><code>/sendMessageStream</code>（SSE）</td><td><code>tasks/sendSubscribe</code>（SSE）</td><td><code>tasks/sendSubscribe</code> ✅</td></tr>
+<tr><td><strong>心跳间隔</strong></td><td>30 秒</td><td>15 秒</td><td><strong>15 秒</strong> ✅</td></tr>
+<tr><td><strong>平台清理超时</strong></td><td>90 秒无心跳标记 Offline</td><td>30 秒无心跳标记 Offline</td><td><strong>45 秒</strong>（取中间值）✅</td></tr>
+<tr><td><strong>消息投递</strong></td><td>轮询默认（Inbox）</td><td>HTTP Callback（直接调用 Agent）</td><td><strong>轮询默认</strong>，HTTP Callback 可选 ✅</td></tr>
+<tr><td><strong>Session 模型</strong></td><td>Task 级 Shared Context</td><td>Task.sessionId 映射 Chat ID</td><td>Task 级 Shared Context + sessionId ✅</td></tr>
+<tr><td><strong>Backend</strong></td><td>NestJS + Prisma</td><td>不限</td><td>NestJS + Prisma（平台端）</td></tr>
+</tbody>
+</table>
+
+<blockquote>
+<p><strong>决策原则</strong>：以 Google A2A 官方规范为基线（JSON-RPC 2.0 + <code>agent.json</code> + <code>tasks/send</code>），融入平台实现中的扩展能力（Registry、Inbox、Session Context、DAG），确保与官方兼容的同时支持平台特有功能。</p>
+</blockquote>
+</section>
+
+<div class="section-divider mb-14"></div>
+
+<!-- 二、Agent Card -->
+<section id="s2" class="mb-14">
+<h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3"><span class="flex items-center justify-center w-9 h-9 rounded-lg bg-indigo-100 text-indigo-700 font-bold text-base">2</span>Agent Card 规范</h2>
+
+<h3 class="text-lg font-semibold text-gray-900 mt-4 mb-3">2.1 端点路径</h3>
+<p class="mb-3">Agent 必须在自身域名根路径暴露 <code>GET /.well-known/agent.json</code>，返回静态 JSON 文件。</p>
+<pre>GET http://your-agent:8080/.well-known/agent.json
+Content-Type: application/json</pre>
+
+<h3 class="text-lg font-semibold text-gray-900 mt-6 mb-3">2.2 Schema</h3>
+<pre>{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["name", "url", "capabilities", "skills"],
+  "properties": {
+    "name":        { "type": "string", "description": "Agent 唯一标识名，全小写+连字符" },
+    "description": { "type": "string", "description": "一句话描述 Agent 能力" },
+    "url":         { "type": "string", "format": "uri", "description": "Agent JSON-RPC 入口地址" },
+    "version":     { "type": "string", "default": "1.0.0" },
+    "capabilities": {
+      "type": "object",
+      "properties": {
+        "streaming":        { "type": "boolean", "description": "是否支持 SSE 流式" },
+        "pushNotifications":{ "type": "boolean", "description": "是否支持 WebSocket 推送（暂不实现，固定 false）" }
+      }
+    },
+    "defaultInputModes":  { "type": "array", "items": { "type": "string" }, "default": ["text"] },
+    "defaultOutputModes": { "type": "array", "items": { "type": "string" }, "default": ["text"] },
+    "skills": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name"],
+        "properties": {
+          "id":          { "type": "string", "description": "技能唯一标识" },
+          "name":        { "type": "string", "description": "技能显示名" },
+          "description": { "type": "string", "description": "技能详细描述" },
+          "tags":        { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    }
+  }
+}</pre>
+
+<h3 class="text-lg font-semibold text-gray-900 mt-6 mb-3">2.3 示例</h3>
+<pre>{
+  "name": "flight-booking-agent",
+  "description": "机票查询与预订 Agent，支持搜索、比价、预订",
+  "url": "http://flight.local:8005",
+  "version": "1.0.0",
+  "capabilities": {
+    "streaming": true,
+    "pushNotifications": false
+  },
+  "defaultInputModes": ["text"],
+  "defaultOutputModes": ["text"],
+  "skills": [
+    {
+      "id": "search_flights",
+      "name": "机票搜索",
+      "description": "根据出发地、目的地、日期搜索航班",
+      "tags": ["travel", "flight"]
+    },
+    {
+      "id": "compare_prices",
+      "name": "机票比价",
+      "description": "比较不同航班的价格和舱位",
+      "tags": ["travel", "price"]
+    }
+  ]
+}</pre>
+</section>
+
+<div class="section-divider mb-14"></div>
+
+<!-- 三、JSON-RPC 协议 -->
+<section id="s3" class="mb-14">
+<h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3"><span class="flex items-center justify-center w-9 h-9 rounded-lg bg-emerald-100 text-emerald-700 font-bold text-base">3</span>JSON-RPC 2.0 消息协议</h2>
+
+<p class="mb-4">所有 Agent 间通信通过 <code>POST /</code> 以 JSON-RPC 2.0 格式发送。Agent 只需支持以下 <strong>3 个方法</strong>即可接入：</p>
+
+<table class="mb-4">
+<thead><tr><th style="width:22%">方法</th><th style="width:15%">类型</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td><code>tasks/send</code></td><td>同步</td><td>发送消息，Agent 处理完后一次性返回最终结果</td></tr>
+<tr><td><code>tasks/sendSubscribe</code></td><td>流式（SSE）</td><td>发送消息，Agent 通过 SSE 推送中间状态（submitted → working → completed）</td></tr>
+<tr><td><code>tasks/get</code></td><td>查询</td><td>查询指定 Task 的当前状态和历史（可选实现）</td></tr>
+</tbody>
+</table>
+
+<h3 class="text-lg font-semibold text-gray-900 mt-6 mb-3">3.1 tasks/send — 同步请求</h3>
+<pre>// Request
+POST /
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tasks/send",
+  "params": {
+    "id": "task-uuid-optional",
+    "sessionId": "session-uuid-optional",
+    "message": {
+      "role": "user",
+      "parts": [
+        { "type": "text", "text": "你好，请介绍一下自己" }
+      ]
+    }
+  }
+}
+
+// Response
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "id": "task-xxx",
+    "sessionId": "session-xxx",
+    "status": {
+      "state": "completed",
+      "message": {
+        "role": "agent",
+        "parts": [
+          { "type": "text", "text": "你好！我是机票预订助手..." }
+        ]
+      }
+    },
+    "history": [
+      { "role": "user", "parts": [{ "type": "text", "text": "你好，请介绍一下自己" }] },
+      { "role": "agent", "parts": [{ "type": "text", "text": "你好！我是机票预订助手..." }] }
+    ],
+    "artifacts": []
+  }
+}</pre>
+
+<h3 class="text-lg font-semibold text-gray-900 mt-6 mb-3">3.2 tasks/sendSubscribe — SSE 流式</h3>
+<pre>// Request（同 tasks/send，method 不同）
+POST /
+Content-Type: application/json
+Accept: text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "method": "tasks/sendSubscribe",
+  "params": { /* 同 tasks/send */ }
+}
+
+// Response — text/event-stream
+event: task_status
+data: {"id":"task-xxx","status":{"state":"submitted"},"final":false}
+
+event: task_status
+data: {"id":"task-xxx","status":{"state":"working","message":{"role":"agent","parts":[{"type":"text","text":"正在查询航班..."}]}},"final":false}
+
+event: task_status
+data: {"id":"task-xxx","status":{"state":"completed","message":{"role":"agent","parts":[{"type":"text","text":"已找到3个航班..."}]}},"final":true}</pre>
+
+<h3 class="text-lg font-semibold text-gray-900 mt-6 mb-3">3.3 状态机</h3>
+<div class="bg-white rounded-2xl border border-gray-200 p-5 mb-4">
+<div class="mermaid">
+stateDiagram-v2
+    [*] --> submitted: tasks/sendSubscribe 开始
+    submitted --> working: Agent 开始处理
+    working --> working: 推送中间状态
+    working --> completed: 处理完成
+    working --> failed: 处理失败
+    working --> cancelled: 调用方取消
+    completed --> [*]
+    failed --> [*]
+    cancelled --> [*]
+</div>
+</div>
+
+<h3 class="text-lg font-semibold text-gray-900 mt-6 mb-3">3.4 核心字段说明</h3>
+<table class="mb-4">
+<thead><tr><th style="width:18%">字段</th><th style="width:20%">类型</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td><code>params.id</code></td><td>string</td><td>Task 唯一 ID。调用方可指定，Agent 端如未收到则自动生成</td></tr>
+<tr><td><code>params.sessionId</code></td><td>string</td><td>会话 ID。同一 sessionId 的多个 Task 共享上下文。如未收到，使用 taskId 作为 sessionId</td></tr>
+<tr><td><code>params.message</code></td><td>object</td><td>用户消息。包含 <code>role</code>（"user"/"agent"）和 <code>parts</code>（内容片段数组）</td></tr>
+<tr><td><code>result.status.state</code></td><td>string</td><td>Task 状态：submitted / working / input-required / completed / failed / cancelled</td></tr>
+<tr><td><code>result.history</code></td><td>array</td><td>当前会话的完整对话历史</td></tr>
+<tr><td><code>result.artifacts</code></td><td>array</td><td>Agent 产出的结构化数据（如航班列表、图片 URL 等）</td></tr>
+</tbody>
+</table>
+</section>
+
+<div class="section-divider mb-14"></div>
+
+<!-- 四、Agent 端端点 -->
+<section id="s4" class="mb-14">
+<h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3"><span class="flex items-center justify-center w-9 h-9 rounded-lg bg-sky-100 text-sky-700 font-bold text-base">4</span>Agent 端必须实现的端点</h2>
+
+<table class="mb-4">
+<thead><tr><th style="width:10%">Method</th><th style="width:28%">Path</th><th>说明</th><th style="width:15%">调用方</th></tr></thead>
+<tbody>
+<tr>
+<td><span class="http-get">GET</span></td>
+<td><code>/.well-known/agent.json</code></td>
+<td>返回 Agent Card 静态 JSON</td>
+<td>平台 / 其他 Agent</td>
+</tr>
+<tr>
+<td><span class="http-post">POST</span></td>
+<td><code>/</code></td>
+<td>JSON-RPC 入口：分发 tasks/send、tasks/sendSubscribe、tasks/get</td>
+<td>平台网关 / 其他 Agent</td>
+</tr>
+<tr>
+<td><span class="http-get">GET</span></td>
+<td><code>/health</code></td>
+<td>健康检查（推荐实现）</td>
+<td>平台 / 负载均衡器</td>
+</tr>
+</tbody>
+</table>
+
+<blockquote>
+<p><strong>重要</strong>：<code>POST /</code> 必须能同时处理同步 JSON 响应和 SSE 流式响应。调用方通过 <code>Accept</code> Header 或 method 名区分：</p>
+<ul class="list-disc pl-5 space-y-1 mt-2">
+<li><code>tasks/send</code> → 返回 JSON</li>
+<li><code>tasks/sendSubscribe</code> → 返回 <code>text/event-stream</code></li>
+</ul>
+</blockquote>
+</section>
+
+<div class="section-divider mb-14"></div>
+
+<!-- 五、平台端 API -->
+<section id="s5" class="mb-14">
+<h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3"><span class="flex items-center justify-center w-9 h-9 rounded-lg bg-amber-100 text-amber-700 font-bold text-base">5</span>平台端 API 规范</h2>
+
+<p class="mb-4 text-sm text-gray-600">Base URL: <code>http://&lt;platform&gt;:3000</code>。所有请求需携带 <code>Authorization: Bearer &lt;jwt-token&gt;</code></p>
+
+<h3 class="text-lg font-semibold text-gray-900 mt-6 mb-3">5.1 Registry（服务发现）</h3>
+<table class="mb-4">
+<thead><tr><th style="width:8%">Method</th><th style="width:28%">Endpoint</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td><span class="http-post">POST</span></td><td><code>/registry/register</code></td><td>Agent 注册。如 endpointUrl 已存在则更新</td></tr>
+<tr><td><span class="http-post">POST</span></td><td><code>/registry/heartbeat</code></td><td>心跳保活。<strong>每 15 秒</strong>调用一次</td></tr>
+<tr><td><span class="http-get">GET</span></td><td><code>/registry/agents?skill=&namespace=&q=</code></td><td>发现 Agent。支持按 skill、namespace、关键词搜索</td></tr>
+<tr><td><span class="http-get">GET</span></td><td><code>/registry/agents/:id</code></td><td>获取单个 Agent Card</td></tr>
+<tr><td><span class="http-delete">DELETE</span></td><td><code>/registry/agents/:id</code></td><td>注销 Agent</td></tr>
+</tbody>
+</table>
+
+<h3 class="text-lg font-semibold text-gray-900 mt-6 mb-3">5.2 Gateway（消息代理）</h3>
+<table class="mb-4">
+<thead><tr><th style="width:8%">Method</th><th style="width:28%">Endpoint</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td><span class="http-post">POST</span></td><td><code>/sendMessage</code></td><td>发送消息。平台将消息写入目标 Agent Inbox，返回 <code>{ messageId, status: 'queued' }</code></td></tr>
+<tr><td><span class="http-post">POST</span></td><td><code>/sendMessageStream</code></td><td>流式发送（SSE）。同 sendMessage，但返回 SSE 流</td></tr>
+</tbody>
+</table>
+
+<h3 class="text-lg font-semibold text-gray-900 mt-6 mb-3">5.3 Inbox（消息收件箱 — 轮询默认策略）</h3>
+<table class="mb-4">
+<thead><tr><th style="width:8%">Method</th><th style="width:28%">Endpoint</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td><span class="http-get">GET</span></td><td><code>/inbox/poll?agentId=&lt;id&gt;&since=&lt;timestamp&gt;&limit=10</code></td><td>轮询获取未读消息。返回消息列表，同时标记为 DELIVERED</td></tr>
+</tbody>
+</table>
+
+<h3 class="text-lg font-semibold text-gray-900 mt-6 mb-3">5.4 Task（任务管理）</h3>
+<table class="mb-4">
+<thead><tr><th style="width:8%">Method</th><th style="width:28%">Endpoint</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td><span class="http-post">POST</span></td><td><code>/tasks</code></td><td>创建 Task</td></tr>
+<tr><td><span class="http-get">GET</span></td><td><code>/tasks/:id</code></td><td>获取 Task 详情（含参与者、消息历史）</td></tr>
+<tr><td><span class="http-post">POST</span></td><td><code>/tasks/:id/complete</code></td><td>标记 Task 完成</td></tr>
+<tr><td><span class="http-post">POST</span></td><td><code>/tasks/:id/escalate</code></td><td>请求人工介入</td></tr>
+<tr><td><span class="http-post">POST</span></td><td><code>/tasks/:id/cancel</code></td><td>取消 Task</td></tr>
+</tbody>
+</table>
+
+<h3 class="text-lg font-semibold text-gray-900 mt-6 mb-3">5.5 Session（上下文）</h3>
+<table class="mb-4">
+<thead><tr><th style="width:8%">Method</th><th style="width:28%">Endpoint</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td><span class="http-get">GET</span></td><td><code>/session/:taskId</code></td><td>获取 Task 级共享 Session Context</td></tr>
+</tbody>
+</table>
+
+<h3 class="text-lg font-semibold text-gray-900 mt-6 mb-3">5.6 Auth</h3>
+<table class="mb-4">
+<thead><tr><th style="width:8%">Method</th><th style="width:28%">Endpoint</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td><span class="http-post">POST</span></td><td><code>/auth/agent-token</code></td><td>获取 Agent JWT Token（开发/测试用）</td></tr>
+</tbody>
+</table>
+</section>
+
+<div class="section-divider mb-14"></div>
+
+<!-- 六、消息投递策略 -->
+<section id="s6" class="mb-14">
+<h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3"><span class="flex items-center justify-center w-9 h-9 rounded-lg bg-violet-100 text-violet-700 font-bold text-base">6</span>消息投递策略</h2>
+
+<h3 class="text-lg font-semibold text-gray-900 mt-4 mb-3">6.1 统一决策</h3>
+<table class="mb-4">
+<thead><tr><th style="width:14%">维度</th><th style="width:28%">策略 A：长连接</th><th style="width:28%">策略 B：HTTP Callback</th><th style="width:28%">策略 C：轮询（默认）</th></tr></thead>
+<tbody>
+<tr><td><strong>连接方向</strong></td><td>Agent → 平台 WS</td><td>平台 → Agent HTTP</td><td>Agent → 平台 HTTP GET</td></tr>
+<tr><td><strong>实时性</strong></td><td>最好（毫秒级）</td><td>好（秒级）</td><td>一般（轮询间隔 / 2）</td></tr>
+<tr><td><strong>网络要求</strong></td><td>Agent 需出网+端口可连</td><td>Agent 需暴露公网/内网可达</td><td>Agent <strong>只需出网</strong></td></tr>
+<tr><td><strong>复杂度</strong></td><td>高</td><td>中</td><td><strong>低</strong></td></tr>
+<tr><td><strong>默认</strong></td><td>否</td><td>否</td><td><strong>是</strong></td></tr>
+<tr><td><strong>适用</strong></td><td>实时协作、高频</td><td>内网/可控环境</td><td>通用、NAT后、移动端</td></tr>
+</tbody>
+</table>
+
+<h3 class="text-lg font-semibold text-gray-900 mt-6 mb-3">6.2 默认轮询模式下的消息流转</h3>
+<div class="bg-white rounded-2xl border border-gray-200 p-5 mb-4">
+<div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant A as Agent A
+    participant P as Platform
+    participant B as Agent B
+
+    Note over A,P: Agent A 发送消息
+    A->>P: POST /sendMessage { to: B, payload }
+    P-->>A: { messageId, status: 'queued' }
+    P->>P: 写入 B 的 MessageInbox
+
+    Note over B,P: Agent B 轮询接收
+    B->>P: GET /inbox/poll?agentId=B
+    P-->>B: [{ messageId, from: A, payload, ... }]
+
+    Note over B,P: Agent B 处理并回复
+    B->>P: POST /sendMessage { to: A, payload: reply }
+    P-->>B: { messageId, status: 'queued' }
+    P->>P: 写入 A 的 MessageInbox
+
+    Note over A,P: Agent A 轮询获取回复
+    A->>P: GET /inbox/poll?agentId=A
+    P-->>A: [{ from: B, payload: reply }]
+</div>
+</div>
+
+<h3 class="text-lg font-semibold text-gray-900 mt-6 mb-3">6.3 SDK 封装：对开发者保持同步语义</h3>
+<p class="mb-3">轮询模式下，<code>sdk.sendMessage()</code> 内部自动轮询等待回复，Agent 开发者感知为同步调用：</p>
+<pre>// 开发者代码（感知为同步）
+const reply = await sdk.sendMessage('agent_b', { body: '查询北京天气' }, taskId);
+console.log(reply.body);  // "北京明天晴，25°C"
+
+// SDK 内部实际执行
+// 1. POST /sendMessage → 获取 messageId
+// 2. 轮询 GET /inbox/poll → 查找 parentMessageId === messageId 的回复
+// 3. 返回回复内容</pre>
+</section>
+
+<div class="section-divider mb-14"></div>
+
+<!-- 七、数据模型 -->
+<section id="s7" class="mb-14">
+<h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3"><span class="flex items-center justify-center w-9 h-9 rounded-lg bg-teal-100 text-teal-700 font-bold text-base">7</span>数据模型（Prisma Schema）</h2>
+
+<pre>// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model AgentCard {
+  id              String      @id @default(cuid())
+  name            String
+  description     String?
+  endpointUrl     String      @unique
+  version         String      @default("1.0.0")
+  capabilities    Json        @default("{}")
+  skills          Json        @default("[]")
+  status          AgentStatus @default(ACTIVE)
+  namespace       String      @default("default")
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  heartbeats      AgentHeartbeat[]
+  ownedTasks      Task[]        @relation("TaskOwner")
+  participations  TaskParticipant[]
+
+  @@index([status])
+  @@index([namespace])
+}
+
+model AgentHeartbeat {
+  id         String   @id @default(cuid())
+  agentId    String   @unique
+  agent      AgentCard @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  lastSeen   DateTime @default(now())
+  ipAddress  String?
+}
+
+model Task {
+  id            String     @id @default(cuid())
+  status        TaskStatus @default(CREATED)
+  goal          String
+  ownerAgentId  String
+  owner         AgentCard  @relation("TaskOwner", fields: [ownerAgentId], references: [id])
+  createdAt     DateTime   @default(now())
+  completedAt   DateTime?
+  timeoutAt     DateTime?
+  maxMessages   Int        @default(100)
+  messageCount  Int        @default(0)
+
+  participants  TaskParticipant[]
+  messages      Message[]
+  sessionContext SessionContext?
+
+  @@index([status])
+  @@index([ownerAgentId])
+}
+
+model TaskParticipant {
+  id       String   @id @default(cuid())
+  taskId   String
+  task     Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  agentId  String
+  agent    AgentCard @relation(fields: [agentId], references: [id])
+  role     String   @default("collaborator")
+  joinedAt DateTime @default(now())
+
+  @@unique([taskId, agentId])
+}
+
+model Message {
+  id              String   @id @default(cuid())
+  taskId          String
+  task            Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  parentMessageId String?
+  parent          Message? @relation("MessageTree", fields: [parentMessageId], references: [id])
+  children        Message[] @relation("MessageTree")
+  depth           Int      @default(0)
+  fromAgentId     String
+  toAgentId       String
+  messageType     MessageType @default(TEXT)
+  payload         Json     @default("{}")
+  metadata        Json     @default("{}")
+  createdAt       DateTime @default(now())
+
+  artifacts       Artifact[]
+
+  @@index([taskId])
+  @@index([parentMessageId])
+  @@index([depth])
+  @@index([fromAgentId, toAgentId])
+  @@index([createdAt])
+}
+
+model Artifact {
+  id           String   @id @default(cuid())
+  messageId    String
+  message      Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  artifactType String
+  storageUrl   String?
+  metadata     Json     @default("{}")
+  createdAt    DateTime @default(now())
+}
+
+model SessionContext {
+  taskId         String   @id
+  task           Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  sharedContext  Json     @default("{}")
+  history        Json     @default("[]")
+  version        Int      @default(0)
+  updatedAt      DateTime @updatedAt
+}
+
+model MessageInbox {
+  id          String      @id @default(cuid())
+  agentId     String
+  messageId   String
+  status      InboxStatus @default(PENDING)
+  createdAt   DateTime    @default(now())
+  deliveredAt DateTime?
+
+  @@index([agentId, status])
+  @@index([createdAt])
+}
+
+enum AgentStatus {
+  ACTIVE
+  OFFLINE
+  SUSPENDED
+}
+
+enum TaskStatus {
+  CREATED
+  SUBMITTED
+  WORKING
+  COMPLETED
+  FAILED
+  CANCELLED
+  TIMEOUT
+  ESCALATED
+}
+
+enum MessageType {
+  TEXT
+  TASK_REQUEST
+  TASK_RESPONSE
+  STATUS_UPDATE
+  ARTIFACT
+  HEARTBEAT
+  SYSTEM
+}
+
+enum InboxStatus {
+  PENDING
+  DELIVERED
+}</pre>
+</section>
+
+<div class="section-divider mb-14"></div>
+
+<!-- 八、代码模板 -->
+<section id="s8" class="mb-14">
+<h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3"><span class="flex items-center justify-center w-9 h-9 rounded-lg bg-pink-100 text-pink-700 font-bold text-base">8</span>代码模板</h2>
+
+<h3 class="text-lg font-semibold text-gray-900 mt-4 mb-3">8.1 Python / FastAPI — 会话式 Agent</h3>
+<pre>import asyncio, json, uuid, httpx
+from fastapi import FastAPI, Request
+from fastapi.responses import StreamingResponse, JSONResponse
+
+app = FastAPI()
+PLATFORM_URL = "http://localhost:3000"
+TOKEN = ""
+AGENT_NAME = "py-chat-agent"
+ENDPOINT = "http://your-host:8000"
+
+# ── 内存存储 ──
+sessions = {}
+
+# ── Agent Card ──
+@app.get("/.well-known/agent.json")
+async def agent_card():
+    return {
+        "name": AGENT_NAME,
+        "description": "Python 会话 Agent",
+        "url": ENDPOINT,
+        "capabilities": {"streaming": True, "pushNotifications": False},
+        "skills": [{"id": "chat", "name": "对话", "description": "通用问答"}]
+    }
+
+# ── JSON-RPC 入口 ──
+@app.post("/")
+async def rpc_entry(req: Request):
+    body = await req.json()
+    method = body.get("method")
+    params = body.get("params", {})
+    rpc_id = body.get("id")
+
+    if method == "tasks/send":
+        result = await handle_send(params)
+        return {"jsonrpc": "2.0", "id": rpc_id, "result": result}
+
+    if method == "tasks/sendSubscribe":
+        return StreamingResponse(handle_subscribe(params), media_type="text/event-stream")
+
+    return {"jsonrpc": "2.0", "id": rpc_id, "error": {"code": -32601, "message": "Method not found"}}
+
+async def handle_send(params):
+    task_id = params.get("id") or str(uuid.uuid4())
+    session_id = params.get("sessionId") or task_id
+    user_text = params["message"]["parts"][0]["text"]
+    reply = await generate_reply(session_id, user_text)
+    return build_task(task_id, session_id, reply)
+
+async def handle_subscribe(params):
+    task_id = params.get("id") or str(uuid.uuid4())
+    session_id = params.get("sessionId") or task_id
+    user_text = params["message"]["parts"][0]["text"]
+
+    yield sse_event("task_status", {"id": task_id, "status": {"state": "submitted"}, "final": False})
+    await asyncio.sleep(0.1)
+
+    yield sse_event("task_status", {"id": task_id, "status": {"state": "working"}, "final": False})
+    reply = await generate_reply(session_id, user_text)
+
+    yield sse_event("task_status", {
+        "id": task_id,
+        "status": {"state": "completed", "message": {"role": "agent", "parts": [{"type": "text", "text": reply}]}},
+        "final": True
+    })
+
+def sse_event(event, data):
+    return f"event: {event}\ndata: {json.dumps(data)}\n\n"
+
+def build_task(task_id, session_id, reply):
+    return {
+        "id": task_id,
+        "sessionId": session_id,
+        "status": {"state": "completed", "message": {"role": "agent", "parts": [{"type": "text", "text": reply}]}},
+        "history": [
+            {"role": "user", "parts": [{"type": "text", "text": ""}]},
+            {"role": "agent", "parts": [{"type": "text", "text": reply}]}
+        ],
+        "artifacts": []
+    }
+
+async def generate_reply(session_id, user_text):
+    history = sessions.get(session_id, [])
+    history.append({"role": "user", "content": user_text})
+    # TODO: 接入你的 LLM
+    reply = f"收到: {user_text}"
+    history.append({"role": "assistant", "content": reply})
+    sessions[session_id] = history
+    return reply
+
+# ── 注册 + 心跳 ──
+agent_id = ""
+
+async def register():
+    global agent_id
+    async with httpx.AsyncClient() as c:
+        r = await c.post(f"{PLATFORM_URL}/registry/register", json={
+            "name": AGENT_NAME, "endpointUrl": ENDPOINT,
+            "capabilities": {"streaming": True}, "skills": [{"id": "chat", "name": "对话"}]
+        }, headers={"Authorization": f"Bearer {TOKEN}"})
+        agent_id = r.json()["id"]
+        print(f"注册成功: {agent_id}")
+
+async def heartbeat_loop():
+    while True:
+        await asyncio.sleep(15)
+        if not agent_id: continue
+        try:
+            async with httpx.AsyncClient() as c:
+                await c.post(f"{PLATFORM_URL}/registry/heartbeat",
+                    json={"agentId": agent_id},
+                    headers={"Authorization": f"Bearer {TOKEN}"})
+        except Exception as e:
+            print(f"心跳失败: {e}")
+
+@app.on_event("startup")
+async def on_startup():
+    await register()
+    asyncio.create_task(heartbeat_loop())</pre>
+
+<h3 class="text-lg font-semibold text-gray-900 mt-8 mb-3">8.2 Node.js / Express — 会话式 Agent</h3>
+<pre>const express = require('express');
+const app = express();
+app.use(express.json());
+
+const PLATFORM_URL = 'http://localhost:3000';
+const TOKEN = '';
+const AGENT_NAME = 'nodejs-chat-agent';
+const ENDPOINT = 'http://localhost:9002';
+
+// Agent Card
+app.get('/.well-known/agent.json', (req, res) => {
+    res.json({
+        name: AGENT_NAME,
+        description: 'Node.js 会话 Agent',
+        url: ENDPOINT,
+        capabilities: { streaming: true, pushNotifications: false },
+        skills: [{ id: 'chat', name: '对话', description: '通用问答' }]
+    });
+});
+
+// JSON-RPC 入口
+app.post('/', async (req, res) => {
+    const { method, params, id } = req.body;
+
+    if (method === 'tasks/send') {
+        const result = await handleSend(params);
+        res.json({ jsonrpc: '2.0', id, result });
+        return;
+    }
+
+    if (method === 'tasks/sendSubscribe') {
+        res.writeHead(200, { 'Content-Type': 'text/event-stream' });
+        await handleStream(params, res);
+        return;
+    }
+
+    res.status(404).json({ jsonrpc: '2.0', id, error: { code: -32601, message: 'Method not found' } });
+});
+
+async function handleSend(params) {
+    const taskId = params.id || generateId();
+    const sessionId = params.sessionId || taskId;
+    const userText = params.message.parts[0].text;
+    const reply = await callLLM(userText);
+    return wrapTask(taskId, sessionId, reply);
+}
+
+async function handleStream(params, res) {
+    const taskId = params.id || generateId();
+    const sessionId = params.sessionId || taskId;
+    const userText = params.message.parts[0].text;
+
+    const send = (state, text, final) => {
+        res.write(`event: task_status\ndata: ${JSON.stringify({
+            id: taskId,
+            status: { state, message: { role: 'agent', parts: [{ type: 'text', text }] } },
+            final
+        })}\n\n`);
+    };
+
+    send('submitted', '', false);
+    send('working', '正在思考...', false);
+    const reply = await callLLM(userText);
+    send('completed', reply, true);
+    res.end();
+}
+
+function wrapTask(taskId, sessionId, reply) {
+    return {
+        id: taskId,
+        sessionId,
+        status: { state: 'completed', message: { role: 'agent', parts: [{ type: 'text', text: reply }] } },
+        history: [
+            { role: 'user', parts: [{ type: 'text', text: '' }] },
+            { role: 'agent', parts: [{ type: 'text', text: reply }] }
+        ],
+        artifacts: []
+    };
+}
+
+async function callLLM(text) {
+    // TODO: 接入你的 LLM
+    return `收到: ${text}`;
+}
+
+function generateId() {
+    return Math.random().toString(36).substring(2, 15);
+}
+
+// 注册 + 心跳
+let agentId = '';
+
+async function register() {
+    const r = await fetch(`${PLATFORM_URL}/registry/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` },
+        body: JSON.stringify({ name: AGENT_NAME, endpointUrl: ENDPOINT, capabilities: { streaming: true }, skills: [{ id: 'chat', name: '对话' }] })
+    });
+    const data = await r.json();
+    agentId = data.id;
+    console.log(`注册成功: ${agentId}`);
+}
+
+async function heartbeat() {
+    if (!agentId) return;
+    try {
+        await fetch(`${PLATFORM_URL}/registry/heartbeat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` },
+            body: JSON.stringify({ agentId })
+        });
+    } catch (e) {
+        console.error('心跳失败:', e);
+    }
+}
+
+setInterval(heartbeat, 15000);
+register();
+
+app.listen(9002, () => console.log('Agent running on :9002'));</pre>
+
+<h3 class="text-lg font-semibold text-gray-900 mt-8 mb-3">8.3 Agent SDK（TypeScript）— 轮询模式封装</h3>
+<pre>export class A2AAgentSDK {
+  private config: { platformUrl: string; token: string; pollInterval: number };
+  private agentId: string | null = null;
+  private heartbeatTimer: NodeJS.Timer | null = null;
+  private pollTimer: NodeJS.Timer | null = null;
+  private handler: ((msg: any) => Promise&lt;any&gt;) | null = null;
+
+  constructor(config: { platformUrl: string; token: string; pollInterval?: number }) {
+    this.config = { pollInterval: 5000, ...config };
+  }
+
+  async start(): Promise&lt;void&gt; {
+    const registered = await this.register();
+    this.agentId = registered.id;
+    this.startHeartbeat();
+    this.startPolling();
+  }
+
+  async stop(): Promise&lt;void&gt; {
+    this.stopPolling();
+    this.stopHeartbeat();
+    if (this.agentId) await this.unregister();
+  }
+
+  // 轮询逻辑
+  private startPolling(): void {
+    this.pollTimer = setInterval(() => this.pollInbox().catch(console.error), this.config.pollInterval);
+  }
+
+  private stopPolling(): void {
+    if (this.pollTimer) { clearInterval(this.pollTimer); this.pollTimer = null; }
+  }
+
+  private async pollInbox(): Promise&lt;void&gt; {
+    const res = await fetch(`${this.config.platformUrl}/inbox/poll?agentId=${this.agentId}&limit=10`, {
+      headers: { Authorization: `Bearer ${this.config.token}` }
+    });
+    if (!res.ok) return;
+    const messages = await res.json();
+    for (const msg of messages) {
+      if (this.handler) {
+        const result = await this.handler(msg);
+        if (msg.fromAgentId && result) {
+          await this.sendReply(msg.fromAgentId, result, msg.taskId, msg.messageId);
+        }
+      }
+    }
+  }
+
+  // 同步语义的发送（内部轮询等待回复）
+  async sendMessage(toAgentId: string, payload: any, taskId?: string): Promise&lt;any&gt; {
+    const sent = await fetch(`${this.config.platformUrl}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.config.token}` },
+      body: JSON.stringify({ fromAgentId: this.agentId, toAgentId, taskId, payload })
+    }).then(r => r.json());
+
+    // 轮询等待回复
+    const deadline = Date.now() + 30000;
+    while (Date.now() &lt; deadline) {
+      const inbox = await fetch(`${this.config.platformUrl}/inbox/poll?agentId=${this.agentId}&limit=10`, {
+        headers: { Authorization: `Bearer ${this.config.token}` }
+      }).then(r => r.json());
+      for (const msg of inbox) {
+        if (msg.parentMessageId === sent.messageId) return msg.payload;
+      }
+      await new Promise(r => setTimeout(r, 2000));
+    }
+    throw new Error('Reply timeout');
+  }
+
+  private async sendReply(to: string, result: any, taskId?: string, parentId?: string): Promise&lt;void&gt; {
+    await fetch(`${this.config.platformUrl}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.config.token}` },
+      body: JSON.stringify({ fromAgentId: this.agentId, toAgentId: to, taskId, parentMessageId: parentId, payload: result })
+    });
+  }
+
+  onMessage(handler: (msg: any) => Promise&lt;any&gt;): void { this.handler = handler; }
+
+  private async register(): Promise&lt;{ id: string }&gt; {
+    const res = await fetch(`${this.config.platformUrl}/registry/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.config.token}` },
+      body: JSON.stringify({ name: 'sdk-agent', endpointUrl: 'http://localhost:8000', capabilities: { streaming: false }, skills: [] })
+    });
+    return res.json();
+  }
+
+  private startHeartbeat(): void {
+    this.heartbeatTimer = setInterval(async () => {
+      await fetch(`${this.config.platformUrl}/registry/heartbeat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.config.token}` },
+        body: JSON.stringify({ agentId: this.agentId })
+      });
+    }, 15000);
+  }
+
+  private stopHeartbeat(): void {
+    if (this.heartbeatTimer) { clearInterval(this.heartbeatTimer); this.heartbeatTimer = null; }
+  }
+
+  private async unregister(): Promise&lt;void&gt; {
+    await fetch(`${this.config.platformUrl}/registry/agents/${this.agentId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${this.config.token}` }
+    });
+  }
+}</pre>
+</section>
+
+<div class="section-divider mb-14"></div>
+
+<!-- 九、版本差异说明 -->
+<section id="s9" class="mb-14">
+<h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3"><span class="flex items-center justify-center w-9 h-9 rounded-lg bg-slate-100 text-slate-700 font-bold text-base">9</span>版本差异说明（与旧文档对比）</h2>
+
+<table class="mb-4">
+<thead><tr><th style="width:20%">维度</th><th style="width:25%">旧平台实现方案</th><th style="width:25%">旧 Agent 接入指南</th><th style="width:30%">统一标准（本文档）</th></tr></thead>
+<tbody>
+<tr><td><strong>Agent Card</strong></td><td><code>/.well-known/agent-card</code></td><td><code>/.well-known/agent.json</code></td><td><code>/.well-known/agent.json</code>（官方标准）</td></tr>
+<tr><td><strong>Agent 入口</strong></td><td><code>POST /sendMessage</code></td><td><code>POST /</code>（JSON-RPC）</td><td><code>POST /</code>（JSON-RPC）</td></tr>
+<tr><td><strong>同步方法</strong></td><td><code>/sendMessage</code></td><td><code>tasks/send</code></td><td><code>tasks/send</code></td></tr>
+<tr><td><strong>流式方法</strong></td><td><code>/sendMessageStream</code></td><td><code>tasks/sendSubscribe</code></td><td><code>tasks/sendSubscribe</code></td></tr>
+<tr><td><strong>心跳间隔</strong></td><td>30 秒</td><td>15 秒</td><td>15 秒</td></tr>
+<tr><td><strong>清理超时</strong></td><td>90 秒</td><td>30 秒</td><td>45 秒（折中）</td></tr>
+<tr><td><strong>消息投递</strong></td><td>轮询（Inbox）</td><td>HTTP Callback</td><td>轮询默认，HTTP Callback 可选</td></tr>
+<tr><td><strong>消息协议</strong></td><td>自定义 JSON</td><td>JSON-RPC 2.0</td><td>JSON-RPC 2.0</td></tr>
+<tr><td><strong>Task 模型</strong></td><td>自定义状态机</td><td>官方状态机</td><td>官方状态机 + DAG 扩展</td></tr>
+</tbody>
+</table>
+
+<blockquote>
+<p><strong>迁移建议</strong>：</p>
+<ul class="list-disc pl-5 space-y-1 mt-2">
+<li>已按旧平台方案开发的 Agent：只需修改 <code>/.well-known/agent-card</code> → <code>/.well-known/agent.json</code>，<code>POST /sendMessage</code> → <code>POST /</code>（JSON-RPC），其他逻辑不变</li>
+<li>已按旧接入指南开发的 Agent：无需修改，已兼容</li>
+<li>平台后端：需要升级 Gateway，支持 JSON-RPC 解析和 <code>tasks/send</code> / <code>tasks/sendSubscribe</code> 分发</li>
+</ul>
+</blockquote>
+</section>
+
+<div class="section-divider mb-6"></div>
+<footer class="text-center py-6 text-sm text-gray-500">
+    A2A 统一开发规范 v1.0 · 整合平台架构 + Agent 接入指南
+</footer>
+
+        </main>
+    </div>
+
+    <script>
+        window.addEventListener('scroll', () => {
+            const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+            const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            document.getElementById('scrollIndicator').style.width = (winScroll / height * 100) + '%';
+        });
+        const sections = document.querySelectorAll('section[id], h3[id]');
+        const tocLinks = document.querySelectorAll('.toc-link');
+        function updateActiveToc() {
+            let current = '';
+            sections.forEach(section => { if (scrollY >= section.offsetTop - 120) current = section.getAttribute('id'); });
+            tocLinks.forEach(link => { link.classList.remove('active'); if (link.getAttribute('href') === '#' + current) link.classList.add('active'); });
+        }
+        window.addEventListener('scroll', updateActiveToc); updateActiveToc();
+        tocLinks.forEach(link => { link.addEventListener('click', (e) => { e.preventDefault(); const t = document.getElementById(link.getAttribute('href').slice(1)); if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' }); }); });
+    </script>
+    <script>
+        mermaid.initialize({
+            startOnLoad: true, theme: 'default',
+            sequence: { diagramMarginX: 20, diagramMarginY: 20, actorMargin: 60, width: 120, height: 50, boxMargin: 10, boxTextMargin: 5, noteMargin: 10, messageMargin: 35, mirrorActors: false, bottomMarginAdj: 1, useMaxWidth: true, rightAngles: false, showSequenceNumbers: false },
+            themeCSS: '.actor { fill: #f8fafc; stroke: #e2e8f0; } .actor-line { stroke: #cbd5e1; } .messageLine0, .messageLine1 { stroke: #64748b; } .messageText { fill: #334155; font-size: 13px; } .labelBox { fill: #f1f5f9; stroke: #e2e8f0; } .note { fill: #fef3c7; stroke: #f59e0b; } .noteText { fill: #92400e; font-size: 12px; }'
+        });
+    </script>
+</body>
+</html>
