@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>我们的 A2A 实现 vs Google 官方 A2A 协议 — 差异对比分析</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --fg: #c9d1d9;
+      --muted: #8b949e;
+      --accent: #58a6ff;
+      --accent2: #a371f7;
+      --border: #30363d;
+      --card: #161b22;
+      --green: #3fb950;
+      --orange: #d29922;
+      --red: #f85149;
+      --warn: #e3b341;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 0 0 80px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans SC", sans-serif;
+      background: var(--bg); color: var(--fg); line-height: 1.7;
+    }
+    .container { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
+    h1 { font-size: 28px; color: var(--accent); margin-bottom: 8px; border-bottom: 1px solid var(--border); padding-bottom: 12px; }
+    h2 { font-size: 20px; color: var(--accent2); margin-top: 40px; margin-bottom: 16px; border-left: 4px solid var(--accent2); padding-left: 12px; }
+    h3 { font-size: 16px; color: var(--fg); margin-top: 28px; margin-bottom: 10px; }
+    .subtitle { color: var(--muted); font-size: 14px; margin-bottom: 24px; }
+    .summary-box {
+      background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+      padding: 16px 20px; margin: 20px 0;
+    }
+    .summary-box p { margin: 6px 0; }
+    table {
+      width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px;
+    }
+    th, td { padding: 10px 12px; border: 1px solid var(--border); text-align: left; vertical-align: top; }
+    th { background: var(--card); color: var(--accent); font-weight: 600; }
+    tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+    code {
+      background: rgba(88,166,255,0.12); color: var(--accent);
+      padding: 2px 6px; border-radius: 4px; font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: 13px;
+    }
+    .tag {
+      display: inline-block; padding: 2px 8px; border-radius: 4px;
+      font-size: 12px; font-weight: 600; margin-right: 6px;
+    }
+    .tag-match { background: rgba(63,185,80,0.15); color: var(--green); }
+    .tag-diff { background: rgba(248,81,73,0.15); color: var(--red); }
+    .tag-warn { background: rgba(227,179,65,0.15); color: var(--warn); }
+    .tag-info { background: rgba(163,113,247,0.15); color: var(--accent2); }
+    .diff-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0;
+    }
+    @media (max-width: 800px) { .diff-grid { grid-template-columns: 1fr; } }
+    .diff-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 16px;
+    }
+    .diff-card h4 { margin: 0 0 10px; font-size: 15px; }
+    .diff-card.ours h4 { color: var(--accent); }
+    .diff-card.google h4 { color: var(--accent2); }
+    .diff-card ul { margin: 0; padding-left: 18px; }
+    .diff-card li { margin: 4px 0; font-size: 14px; }
+    .impact { background: rgba(248,81,73,0.08); border-left: 3px solid var(--red); padding: 10px 14px; margin: 12px 0; border-radius: 0 6px 6px 0; font-size: 14px; }
+    .impact.green { background: rgba(63,185,80,0.08); border-left-color: var(--green); }
+    .impact.warn { background: rgba(227,179,65,0.08); border-left-color: var(--warn); }
+    pre {
+      background: #0d1117; border: 1px solid var(--border); border-radius: 6px;
+      padding: 12px; overflow-x: auto; font-size: 13px; line-height: 1.5;
+    }
+    .toc {
+      background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+      padding: 16px 20px; margin-bottom: 32px;
+    }
+    .toc a { color: var(--accent); text-decoration: none; font-size: 14px; }
+    .toc a:hover { text-decoration: underline; }
+    .toc li { margin: 4px 0; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>我们的 A2A 实现 vs Google 官方 A2A 协议</h1>
+    <p class="subtitle">差异对比分析 | 基于 Google A2A Python SDK 样本 + 官方 specification 文档</p>
+
+    <div class="toc">
+      <strong>目录</strong>
+      <ul>
+        <li><a href="#s1">1. 协议绑定与传输层</a></li>
+        <li><a href="#s2">2. Agent Card 与发现机制</a></li>
+        <li><a href="#s3">3. 端点与方法命名</a></li>
+        <li><a href="#s4">4. 注册与心跳（Registry）</a></li>
+        <li><a href="#s5">5. 消息投递机制</a></li>
+        <li><a href="#s6">6. 数据模型对比</a></li>
+        <li><a href="#s7">7. Task 生命周期</a></li>
+        <li><a href="#s8">8. 多 Agent 编排模式</a></li>
+        <li><a href="#s9">9. 安全与认证</a></li>
+        <li><a href="#s10">10. SDK 架构差异</a></li>
+        <li><a href="#s11">11. 扩展性机制</a></li>
+        <li><a href="#s12">12. 总结：对齐建议</a></li>
+      </ul>
+    </div>
+
+    <div class="summary-box">
+      <p><span class="tag tag-match">✅ 对齐</span> JSON-RPC 2.0 作为默认协议绑定、Agent Card 发现机制、Task/Message/Artifact 核心概念</p>
+      <p><span class="tag tag-diff">❌ 差异</span> 注册中心 vs 无注册、Polling 默认 vs HTTP 直连、Task 状态枚举、方法命名风格、gRPC/REST 支持</p>
+      <p><span class="tag tag-warn">⚠️ 注意</span> Agent Card 路径差一个 <code>-card</code>；方法名大小写不一致；我们的 <code>SessionContext</code> + DAG 能力是官方未定义的扩展</p>
+    </div>
+
+    <h2 id="s1">1. 协议绑定与传输层</h2>
+    <table>
+      <tr><th>维度</th><th>Google 官方 A2A</th><th>我们的实现</th></tr>
+      <tr>
+        <td><b>支持的绑定</b></td>
+        <td>JSON-RPC over HTTP、<b>gRPC over HTTP/2</b>、HTTP+JSON/REST（三种）</td>
+        <td>仅 JSON-RPC over HTTP + SSE Streaming（一种）</td>
+      </tr>
+      <tr>
+        <td><b>Streaming</b></td>
+        <td>SSE（<code>text/event-stream</code>）用于 <code>SendStreamingMessage</code> / <code>SubscribeToTask</code></td>
+        <td>SSE 用于 <code>tasks/sendSubscribe</code></td>
+      </tr>
+      <tr>
+        <td><b>WebSocket</b></td>
+        <td>核心 spec <b>未定义</b>，由具体绑定决定</td>
+        <td>平台层实现了 WebSocket Gateway 作为可选传输</td>
+      </tr>
+      <tr>
+        <td><b>序列化</b></td>
+        <td>JSON 字段用 <b>camelCase</b>，Enum 用 <b>SCREAMING_SNAKE_CASE</b></td>
+        <td>JSON 字段用 camelCase / snake_case 混用（如 <code>parentMessageId</code> 驼峰，但 JSON-RPC 标准字段 camelCase）</td>
+      </tr>
+    </table>
+    <div class="impact">
+      <b>影响：</b>我们的实现缺少 gRPC 和 REST 绑定。如果未来需要与 Google ADK / Vertex AI 等官方生态直接对接，gRPC 绑定可能是硬性要求。目前 JSON-RPC + SSE 已覆盖绝大多数场景。
+    </div>
+
+    <h2 id="s2">2. Agent Card 与发现机制</h2>
+    <table>
+      <tr><th>维度</th><th>Google 官方 A2A</th><th>我们的实现</th></tr>
+      <tr>
+        <td><b>发现路径</b></td>
+        <td><code>GET /.well-known/agent-card.json</code></td>
+        <td><code>GET /.well-known/agent.json</code>（少了 <code>-card</code>）</td>
+      </tr>
+      <tr>
+        <td><b>接口列表</b></td>
+        <td><code>supportedInterfaces</code>：有序列表，可声明多种传输（JSONRPC、gRPC、HTTP+JSON）</td>
+        <td><code>url</code> 字段直接放入口地址，无接口列表概念</td>
+      </tr>
+      <tr>
+        <td><b>安全声明</b></td>
+        <td><code>securitySchemes</code> + <code>security</code>：支持 APIKey、HTTP、OAuth2、OIDC、mTLS</td>
+        <td>有 <code>securitySchemes</code> 字段但未详细定义，实际用 JWT Bearer Token</td>
+      </tr>
+      <tr>
+        <td><b>签名</b></td>
+        <td>支持 JWS（RFC 7515）签名 Agent Card，防篡改</td>
+        <td>未实现签名机制</td>
+      </tr>
+      <tr>
+        <td><b>扩展卡片</b></td>
+        <td><code>capabilities.extendedAgentCard</code> → <code>GET /extendedAgentCard</code>（需认证）</td>
+        <td>无扩展卡片概念</td>
+      </tr>
+      <tr>
+        <td><b>缓存控制</b></td>
+        <td>推荐 <code>Cache-Control</code> + <code>ETag</code> 头部</td>
+        <td>未提及缓存策略</td>
+      </tr>
+    </table>
+    <div class="impact warn">
+      <b>建议对齐：</b>Agent Card 路径建议从 <code>/.well-known/agent.json</code> 改为 <code>/.well-known/agent-card.json</code> 以兼容官方生态。或者同时支持两个路径做 redirect。
+    </div>
+
+    <h2 id="s3">3. 端点与方法命名</h2>
+    <table>
+      <tr><th>功能</th><th>官方 JSON-RPC Method</th><th>官方 REST</th><th>我们的 Method / Endpoint</th></tr>
+      <tr>
+        <td>发送消息</td>
+        <td><code>SendMessage</code>（PascalCase）</td>
+        <td><code>POST /message:send</code></td>
+        <td><code>tasks/send</code>（camelCase / snake_case）</td>
+      </tr>
+      <tr>
+        <td>流式发送</td>
+        <td><code>SendStreamingMessage</code></td>
+        <td><code>POST /message:stream</code></td>
+        <td><code>tasks/sendSubscribe</code></td>
+      </tr>
+      <tr>
+        <td>查询任务</td>
+        <td><code>GetTask</code></td>
+        <td><code>GET /tasks/{id}</code></td>
+        <td><code>tasks/get</code></td>
+      </tr>
+      <tr>
+        <td>取消任务</td>
+        <td><code>CancelTask</code></td>
+        <td><code>POST /tasks/{id}:cancel</code></td>
+        <td>平台端有 <code>POST /tasks/:id/cancel</code>，Agent 端未定义</td>
+      </tr>
+      <tr>
+        <td>订阅任务更新</td>
+        <td><code>SubscribeToTask</code></td>
+        <td><code>POST /tasks/{id}:subscribe</code></td>
+        <td>未实现</td>
+      </tr>
+      <tr>
+        <td>推送通知配置</td>
+        <td><code>Create/Get/List/DeleteTaskPushNotificationConfig</code></td>
+        <td><code>POST /tasks/{id}/pushNotificationConfigs</code> 等</td>
+        <td>未实现</td>
+      </tr>
+      <tr>
+        <td>获取扩展卡片</td>
+        <td><code>GetExtendedAgentCard</code></td>
+        <td><code>GET /extendedAgentCard</code></td>
+        <td>未实现</td>
+      </tr>
+    </table>
+    <div class="impact warn">
+      <b>建议对齐：</b>JSON-RPC method 名官方用 PascalCase（<code>SendMessage</code>），我们用 camelCase/snake_case（<code>tasks/send</code>）。虽然 JSON-RPC 规范不强制方法名大小写，但混用会导致与官方 SDK / 工具链不兼容。建议统一改为 PascalCase。
+    </div>
+
+    <h2 id="s4">4. 注册与心跳（Registry）</h2>
+    <div class="diff-grid">
+      <div class="diff-card google">
+        <h4>Google 官方 A2A</h4>
+        <ul>
+          <li>核心 spec <b>不定义注册中心协议</b></li>
+          <li>Agent 通过 well-known URI 被直接发现</li>
+          <li>注册是外部行为（目录、Catalog、直接配置）</li>
+          <li>官方样本中有 <code>POST /registry/register</code> + <code>POST /registry/heartbeat</code>，但明确标注为 <b>平台扩展</b></li>
+        </ul>
+      </div>
+      <div class="diff-card ours">
+        <h4>我们的实现</h4>
+        <ul>
+          <li>自建中心化 Registry 服务</li>
+          <li><code>POST /registry/register</code> + <code>POST /registry/heartbeat</code></li>
+          <li>心跳间隔 15s，清理超时 45s</li>
+          <li>Agent 必须先注册到平台才能被其他 Agent 发现</li>
+          <li>支持 namespace 隔离 + 关键词搜索</li>
+        </ul>
+      </div>
+    </div>
+    <div class="impact green">
+      <b>评价：</b>我们的 Registry 是平台层的合理扩展，与 Google 样本中的做法一致。中心化注册适合内部团队使用场景，且提供了发现、心跳、离线检测等完整生命周期管理。这不是与官方 spec 的冲突，而是平台能力的补充。
+    </div>
+
+    <h2 id="s5">5. 消息投递机制</h2>
+    <div class="diff-grid">
+      <div class="diff-card google">
+        <h4>Google 官方 A2A</h4>
+        <ul>
+          <li><b>默认：直接 HTTP 调用</b></li>
+          <li>Client 解析 Agent Card 后，直接 HTTP POST 到 Agent 的 <code>url</code></li>
+          <li>Agent <b>必须暴露公共 HTTP 端点</b></li>
+          <li>支持 Push Notification（Webhook）：Agent 主动 POST 到客户端注册的 URL</li>
+          <li>SSE 用于流式响应</li>
+        </ul>
+      </div>
+      <div class="diff-card ours">
+        <h4>我们的实现</h4>
+        <ul>
+          <li><b>默认：Polling（MessageInbox）</b></li>
+          <li>Agent 通过 <code>GET /inbox/poll</code> 拉取消息</li>
+          <li>Agent <b>不需要暴露公共端点</b>（仅 outbound 即可）</li>
+          <li>可选 WebSocket 长连接、HTTP Callback</li>
+          <li>SDK 将 Polling 封装为同步 API（<code>sendMessage()</code> 内部 poll 等待回复）</li>
+        </ul>
+      </div>
+    </div>
+    <div class="impact">
+      <b>影响：</b>我们的 Polling 默认策略对 NAT/防火墙后的 Agent 非常友好，但延迟较高（平均 2.5s）。Google 的 HTTP 直连模式延迟低，但要求 Agent 有公网可达地址。两者各有适用场景。我们的 SDK 可以兼容官方模式：如果 Agent 有公网地址，平台可以直接 POST 到 Agent（即我们的 HTTP Callback 模式）。
+    </div>
+
+    <h2 id="s6">6. 数据模型对比</h2>
+
+    <h3>6.1 Task 模型</h3>
+    <table>
+      <tr><th>字段</th><th>Google 官方</th><th>我们的实现</th></tr>
+      <tr><td>ID</td><td><code>id</code>（server-generated only）</td><td><code>id</code>（CUID，server-generated）</td></tr>
+      <tr><td>会话分组</td><td><code>contextId</code>（逻辑分组，Agent 可生成）</td><td><code>sessionId</code>（通过 <code>Task.sessionContext</code> 间接关联）</td></tr>
+      <tr><td>状态</td><td><code>status.state</code> + <code>status.message</code></td><td><code>status</code> enum + <code>TaskStatus</code> 独立字段</td></tr>
+      <tr><td>历史</td><td><code>history</code>（Message[]）</td><td>通过 <code>Message</code> 表外键查询</td></tr>
+      <tr><td>产物</td><td><code>artifacts</code>（Artifact[]）</td><td><code>Artifact</code> 表外键到 Message</td></tr>
+      <tr><td>元数据</td><td><code>metadata</code></td><td><code>metadata</code>（Json）</td></tr>
+      <tr><td>推送配置</td><td><code>pushNotificationConfig</code></td><td>未实现</td></tr>
+    </table>
+
+    <h3>6.2 Message 模型</h3>
+    <table>
+      <tr><th>字段</th><th>Google 官方</th><th>我们的实现</th></tr>
+      <tr><td>ID</td><td><code>messageId</code></td><td><code>id</code></td></tr>
+      <tr><td>角色</td><td><code>role</code>（user / agent）</td><td><code>role</code> 隐式通过 <code>fromAgentId</code> / <code>toAgentId</code> 表达</td></tr>
+      <tr><td>内容</td><td><code>parts</code>（Part[]：text / raw / url / data）</td><td><code>payload</code>（Json）+ <code>artifacts</code> 外键</td></tr>
+      <tr><td>上下文</td><td><code>contextId</code>、<code>taskId</code></td><td><code>taskId</code> + <code>parentMessageId</code> + <code>depth</code></td></tr>
+      <tr><td>引用</td><td><code>referenceTaskIds</code>（string[]）</td><td>无</td></tr>
+      <tr><td>扩展</td><td><code>extensions</code>（URI 列表）</td><td>无</td></tr>
+      <tr><td>类型</td><td>无显式类型字段</td><td><code>messageType</code> enum（TEXT / TASK_REQUEST / TASK_RESPONSE / STATUS_UPDATE / ARTIFACT / HEARTBEAT / SYSTEM）</td></tr>
+    </table>
+
+    <h3>6.3 Part 模型</h3>
+    <table>
+      <tr><th>类型</th><th>Google 官方</th><th>我们的实现</th></tr>
+      <tr><td>文本</td><td><code>text</code>（string）</td><td><code>TextPart { type: "text", text }</code></td></tr>
+      <tr><td>文件</td><td><code>raw</code>（bytes）、<code>url</code>（string）、<code>filename</code>、<code>mediaType</code></td><td><code>FilePart { type: "file", file }</code>（抽象程度不同）</td></tr>
+      <tr><td>结构化数据</td><td><code>data</code>（google.protobuf.Value）</td><td><code>DataPart { type: "data", data }</code></td></tr>
+      <tr><td>元数据</td><td><code>metadata</code></td><td><code>metadata</code>（Json）</td></tr>
+    </table>
+
+    <div class="impact green">
+      <b>我们的独特设计：</b><code>parentMessageId</code> + <code>depth</code> 的 DAG 消息树是官方 spec 未定义但我们实际需要的。它支持并行调用、条件分支、串行跟进等复杂编排场景，而官方的 <code>contextId</code> 仅做逻辑分组，无法表达调用关系。乐观锁（<code>SessionContext.version</code>）处理并发上下文合并也是我们的创新。
+    </div>
+
+    <h2 id="s7">7. Task 生命周期</h2>
+    <table>
+      <tr><th>状态</th><th>Google 官方</th><th>我们的实现</th></tr>
+      <tr><td>初始</td><td><code>SUBMITTED</code></td><td><code>CREATED</code> → <code>SUBMITTED</code></td></tr>
+      <tr><td>处理中</td><td><code>WORKING</code></td><td><code>WORKING</code> ✅</td></tr>
+      <tr><td>等待输入</td><td><code>INPUT_REQUIRED</code></td><td>未定义（通过 <code>messageCount</code> 限制间接处理）</td></tr>
+      <tr><td>等待认证</td><td><code>AUTH_REQUIRED</code></td><td>未定义</td></tr>
+      <tr><td>完成</td><td><code>COMPLETED</code> ✅</td><td><code>COMPLETED</code> ✅</td></tr>
+      <tr><td>失败</td><td><code>FAILED</code> ✅</td><td><code>FAILED</code> ✅</td></tr>
+      <tr><td>取消</td><td><code>CANCELED</code></td><td><code>CANCELLED</code>（拼写差一个 L）</td></tr>
+      <tr><td>拒绝</td><td><code>REJECTED</code></td><td>未定义</td></tr>
+      <tr><td>超时</td><td>无</td><td><code>TIMEOUT</code></td></tr>
+      <tr><td>升级</td><td>无</td><td><code>ESCALATED</code></td></tr>
+      <tr><td>未知</td><td><code>UNKNOWN</code></td><td>未定义</td></tr>
+    </table>
+    <div class="impact warn">
+      <b>建议对齐：</b>
+      <ul>
+        <li><code>CANCELLED</code>（双 L）→ 官方是 <code>CANCELED</code>（单 L），建议统一为单 L</li>
+        <li>考虑增加 <code>INPUT_REQUIRED</code> 和 <code>REJECTED</code> 状态，以兼容官方多轮对话和拒绝场景</li>
+        <li><code>AUTH_REQUIRED</code> 可以暂不支持，但需在文档中标注</li>
+      </ul>
+    </div>
+
+    <h2 id="s8">8. 多 Agent 编排模式</h2>
+    <div class="diff-grid">
+      <div class="diff-card google">
+        <h4>Google MultiAgent Host（官方样本）</h4>
+        <ul>
+          <li>基于 <b>Google ADK</b> + Gemini LLM</li>
+          <li>LLM 通过 <b>Tool Calling</b> 决定调用哪个 Agent</li>
+          <li>一次只调 <b>一个</b> Agent（顺序执行）</li>
+          <li>无预定义工作流图，纯 <b>反应式编排</b></li>
+          <li>状态存在 ADK <code>state</code> 中（<code>task_id</code>, <code>context_id</code>）</li>
+          <li>终端状态处理：<code>input_required</code> 升级给用户</li>
+        </ul>
+      </div>
+      <div class="diff-card ours">
+        <h4>我们的平台</h4>
+        <ul>
+          <li>平台层支持 <b>DAG（有向无环图）</b> 编排</li>
+          <li>通过 <code>parentMessageId</code> + <code>depth</code> 建模调用树</li>
+          <li>支持 <b>并行</b>（同时调多个 Agent）、<b>条件分支</b>、<b>串行</b></li>
+          <li>乐观锁（<code>SessionContext.version</code>）处理并发上下文合并</li>
+          <li>死循环检测：消息数限制 + 重复 payload 检测</li>
+          <li>平台作为中心代理，而非 LLM 工具调用</li>
+        </ul>
+      </div>
+    </div>
+    <div class="impact green">
+      <b>评价：</b>Google 的编排模式更简单（LLM 做决策），适合对话式场景。我们的 DAG 模式更强（支持并行 + 条件），适合复杂工作流。两者不是互斥的——我们的平台可以作为 Google ADK Host 的底层基础设施，ADK Host 通过我们的 <code>/sendMessage</code> API 调用远程 Agent。
+    </div>
+
+    <h2 id="s9">9. 安全与认证</h2>
+    <table>
+      <tr><th>维度</th><th>Google 官方 A2A</th><th>我们的实现</th></tr>
+      <tr>
+        <td><b>Agent Card 安全</b></td>
+        <td>JWS 签名（可选），<code>securitySchemes</code> 声明认证方式</td>
+        <td>无签名，JWT Bearer Token 平台统一管理</td>
+      </tr>
+      <tr>
+        <td><b>传输安全</b></td>
+        <td>TLS 必须（gRPC over HTTP/2），mTLS 可选</td>
+        <td>HTTP（文档中未强制要求 TLS）</td>
+      </tr>
+      <tr>
+        <td><b>扩展卡片认证</b></td>
+        <td><code>GET /extendedAgentCard</code> 需认证，可暴露更多技能</td>
+        <td>无此概念</td>
+      </tr>
+      <tr>
+        <td><b>推送通知认证</b></td>
+        <td><code>PushNotificationConfig.authentication</code> 支持 Bearer、Basic 等</td>
+        <td>未实现推送通知</td>
+      </tr>
+      <tr>
+        <td><b>输入信任</b></td>
+        <td>官方 README 明确警告：外部 Agent 的输入不可信，需 sanitize</td>
+        <td>未在文档中强调</td>
+      </tr>
+    </table>
+    <div class="impact">
+      <b>建议：</b>生产环境应强制 HTTPS/TLS。JWT 方案适合内部平台，但如对外开放需考虑 OAuth2 / mTLS。Agent Card JWS 签名在跨组织场景有价值。
+    </div>
+
+    <h2 id="s10">10. SDK 架构差异</h2>
+    <div class="diff-grid">
+      <div class="diff-card google">
+        <h4>Google A2A Python SDK</h4>
+        <ul>
+          <li>Agent 必须是 <b>HTTP Server</b>（FastAPI / Starlette）</li>
+          <li>实现 <code>AgentExecutor</code> 接口：<code>execute(context, event_queue)</code></li>
+          <li>用 <code>event_queue.enqueue_event()</code> 推送状态/产物</li>
+          <li><code>DefaultRequestHandler</code> 桥接 Executor ↔ HTTP/JSON-RPC</li>
+          <li><code>InMemoryTaskStore</code> 存储任务状态</li>
+          <li>Client：<code>A2ACardResolver</code> + <code>create_client()</code> + <code>send_message()</code></li>
+        </ul>
+      </div>
+      <div class="diff-card ours">
+        <h4>我们的 A2AAgentSDK（TypeScript）</h4>
+        <ul>
+          <li>Agent <b>可以没有 HTTP Server</b>（Polling 模式下纯客户端）</li>
+          <li>SDK 封装注册/心跳/轮询，对外暴露 <code>sendMessage()</code> 同步 API</li>
+          <li><code>onMessage(handler)</code> 注册回调处理 inbound 消息</li>
+          <li>SDK 自动回复：handler 返回结果 → 自动 <code>sendReply()</code></li>
+          <li>Agent HTTP Server 仅在 Callback 模式下需要（<code>/sendMessage</code>）</li>
+          <li>SDK 内部 poll loop 隐藏异步机制</li>
+        </ul>
+      </div>
+    </div>
+    <div class="impact green">
+      <b>评价：</b>Google SDK 假设 Agent 是 Server（被动接收请求），我们的 SDK 假设 Agent 是 Client（主动拉取）。两种模式互补：我们的 Polling 模式适合防火墙后的 Agent，Google 的 Server 模式适合云原生部署。我们的 SDK 已支持 Callback 模式（Agent 暴露 HTTP 端点），与 Google 模式兼容。
+    </div>
+
+    <h2 id="s11">11. 扩展性机制</h2>
+    <table>
+      <tr><th>维度</th><th>Google 官方 A2A</th><th>我们的实现</th></tr>
+      <tr>
+        <td><b>扩展声明</b></td>
+        <td><code>extensions</code>（URI 列表）+ <code>capabilities.extensions</code></td>
+        <td>无标准化扩展机制</td>
+      </tr>
+      <tr>
+        <td><b>Part 扩展</b></td>
+        <td><code>data</code> 字段为 <code>google.protobuf.Value</code>，可放任意 JSON</td>
+        <td><code>payload</code>（Json）+ <code>metadata</code>（Json）可放任意数据</td>
+      </tr>
+      <tr>
+        <td><b>自定义传输</b></td>
+        <td><code>AgentInterface.protocolBinding</code> 可声明自定义 URI</td>
+        <td>无自定义传输注册机制</td>
+      </tr>
+      <tr>
+        <td><b>元数据</b></td>
+        <td>Task、Message、Artifact、Part 均有 <code>metadata</code></td>
+        <td>Task 无 metadata，Message 和 Artifact 有</td>
+      </tr>
+    </table>
+
+    <h2 id="s12">12. 总结：对齐建议</h2>
+    <table>
+      <tr><th>优先级</th><th>建议</th><th>工作量</th><th>收益</th></tr>
+      <tr>
+        <td><span class="tag tag-diff">高</span></td>
+        <td>Agent Card 路径改为 <code>/.well-known/agent-card.json</code>（或同时兼容两个路径）</td>
+        <td>小</td>
+        <td>兼容官方 SDK 和工具链</td>
+      </tr>
+      <tr>
+        <td><span class="tag tag-diff">高</span></td>
+        <td>JSON-RPC method 名改为 PascalCase（<code>SendMessage</code>、<code>SendStreamingMessage</code>、<code>GetTask</code>、<code>CancelTask</code>）</td>
+        <td>小</td>
+        <td>与官方 SDK 互操作</td>
+      </tr>
+      <tr>
+        <td><span class="tag tag-warn">中</span></td>
+        <td>Task 状态 <code>CANCELLED</code> → <code>CANCELED</code>（单 L）</td>
+        <td>极小</td>
+        <td>命名对齐</td>
+      </tr>
+      <tr>
+        <td><span class="tag tag-warn">中</span></td>
+        <td>增加 <code>INPUT_REQUIRED</code> 状态，支持多轮对话暂停/恢复</td>
+        <td>中</td>
+        <td>兼容官方多轮对话模型</td>
+      </tr>
+      <tr>
+        <td><span class="tag tag-warn">中</span></td>
+        <td>Task 模型增加 <code>contextId</code> 字段（逻辑任务分组）</td>
+        <td>小</td>
+        <td>与官方 Task 结构对齐</td>
+      </tr>
+      <tr>
+        <td><span class="tag tag-info">低</span></td>
+        <td>Agent Card 增加 <code>supportedInterfaces</code> 列表，声明支持的传输协议</td>
+        <td>小</td>
+        <td>支持未来多协议切换</td>
+      </tr>
+      <tr>
+        <td><span class="tag tag-info">低</span></td>
+        <td>考虑增加 <code>REJECTED</code> 和 <code>UNKNOWN</code> 状态</td>
+        <td>极小</td>
+        <td>状态机完整</td>
+      </tr>
+      <tr>
+        <td><span class="tag tag-info">低</span></td>
+        <td>文档中增加安全警告：外部 Agent 输入需 sanitize</td>
+        <td>极小</td>
+        <td>安全意识</td>
+      </tr>
+      <tr>
+        <td><span class="tag tag-info">低</span></td>
+        <td>评估是否需要 gRPC 绑定（仅当对接 Google Cloud / Vertex AI 时）</td>
+        <td>大</td>
+        <td>生态兼容</td>
+      </tr>
+    </table>
+
+    <div class="summary-box">
+      <p><b>总体评价：</b>我们的实现与 Google A2A 核心概念高度一致（JSON-RPC 2.0、Agent Card、Task/Message/Artifact 模型、SSE Streaming）。主要差异集中在：</p>
+      <ol>
+        <li><b>平台层扩展</b>：Registry、Polling 投递、DAG 编排、SessionContext 乐观锁——这些是官方未定义但内部平台必需的能力</li>
+        <li><b>命名/路径偏差</b>：method 大小写、Agent Card 路径、CANCELLED 拼写——可低成本对齐</li>
+        <li><b>缺失状态</b>：INPUT_REQUIRED、REJECTED、AUTH_REQUIRED——建议逐步补齐</li>
+      </ol>
+      <p><b>互操作路径：</b>完成高优先级对齐后，我们的 Agent 理论上可以被 Google A2A Python SDK 的 Client 直接调用；反之，Google 官方 Agent（如 HelloWorld）也可以通过我们的平台注册并被其他 Agent 发现。两者的 Agent Card 结构足够接近，只需路径和方法名对齐即可。</p>
+    </div>
+  </div>
+</body>
+</html>
