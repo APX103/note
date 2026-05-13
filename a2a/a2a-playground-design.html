@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>A2A Playground — 技术调研与架构设计</title>
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --panel: #111827;
+      --surface: #1f2937;
+      --surface-hover: #374151;
+      --text: #f3f4f6;
+      --muted: #9ca3af;
+      --accent: #60a5fa;
+      --accent-soft: rgba(96,165,250,0.12);
+      --success: #34d399;
+      --danger: #f87171;
+      --warning: #fbbf24;
+      --purple: #a78bfa;
+      --cyan: #22d3ee;
+      --orange: #fb923c;
+      --border: #374151;
+      --border-light: #4b5563;
+      --mono: 'SFMono-Regular', Menlo, Monaco, Consolas, monospace;
+      --radius: 10px;
+      --shadow: 0 8px 24px rgba(0,0,0,0.35);
+    }
+    * { box-sizing: border-box; }
+    html, body { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      line-height: 1.65;
+      font-size: 15px;
+    }
+
+    /* Hero */
+    .hero {
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 3.5rem 1.5rem 2.5rem;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 50% 0%, rgba(96,165,250,0.08), transparent 60%);
+      pointer-events: none;
+    }
+    .hero h1 { margin: 0 0 .6rem; font-size: 2.2rem; color: var(--accent); letter-spacing: -0.5px; position: relative; }
+    .hero p { margin: 0 auto; color: var(--muted); max-width: 720px; font-size: 1.05rem; position: relative; }
+    .meta-row { margin-top: 1.2rem; display: inline-flex; gap: .6rem; flex-wrap: wrap; justify-content: center; position: relative; }
+    .meta-chip { display: inline-flex; align-items: center; gap: .4rem; padding: .35rem .8rem; border-radius: 999px; font-size: .82rem; background: var(--surface); border: 1px solid var(--border); color: var(--muted); }
+    .meta-chip strong { color: var(--text); font-weight: 500; }
+
+    /* Layout */
+    main { max-width: 1100px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+
+    /* Card */
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.6rem;
+      margin-bottom: 1.5rem;
+      box-shadow: var(--shadow);
+    }
+    .card h2 { margin: 0 0 1rem; font-size: 1.3rem; color: var(--accent); display: flex; align-items: center; gap: .5rem; }
+    .card h3 { margin: 1.2rem 0 .6rem; font-size: 1.1rem; color: var(--warning); font-weight: 600; }
+    .card h4 { margin: 1rem 0 .4rem; font-size: .98rem; color: var(--cyan); font-weight: 600; }
+    .card p { margin: .6rem 0; }
+
+    /* Diagram containers */
+    .diagram {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      margin: 1rem 0;
+      overflow-x: auto;
+    }
+
+    /* Architecture diagram styles */
+    .arch-layer { display: flex; gap: 1rem; margin-bottom: 1rem; align-items: stretch; }
+    .arch-box {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      min-width: 160px;
+      text-align: center;
+      position: relative;
+    }
+    .arch-box .label { font-weight: 600; color: var(--accent); font-size: .95rem; margin-bottom: .4rem; }
+    .arch-box .desc { font-size: .82rem; color: var(--muted); line-height: 1.5; }
+    .arch-box.highlight { border-color: var(--accent); background: var(--accent-soft); }
+    .arch-box.agent-box { border-color: var(--success); background: rgba(52,211,153,0.06); }
+    .arch-box.agent-box .label { color: var(--success); }
+    .arch-box.db-box { border-color: var(--purple); background: rgba(167,139,250,0.06); }
+    .arch-box.db-box .label { color: var(--purple); }
+
+    .arch-connector {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: .85rem;
+      padding: .3rem 0;
+      gap: .5rem;
+    }
+    .arch-connector .line { flex: 1; height: 1px; background: var(--border-light); max-width: 120px; }
+
+    /* Flow diagram */
+    .flow-wrap { display: flex; flex-direction: column; gap: .6rem; align-items: center; }
+    .flow-row { display: flex; align-items: center; gap: .8rem; width: 100%; justify-content: center; flex-wrap: wrap; }
+    .flow-node {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: .7rem 1rem;
+      font-size: .88rem;
+      color: var(--text);
+      min-width: 130px;
+      text-align: center;
+    }
+    .flow-node.user { border-color: var(--accent); background: var(--accent-soft); }
+    .flow-node.host { border-color: var(--warning); background: rgba(251,191,36,0.08); }
+    .flow-node.agent { border-color: var(--success); background: rgba(52,211,153,0.08); }
+    .flow-node.llm { border-color: var(--purple); background: rgba(167,139,250,0.08); }
+    .flow-arrow { color: var(--muted); font-size: 1.1rem; }
+    .flow-annotation { font-size: .8rem; color: var(--muted); max-width: 220px; text-align: center; }
+
+    /* Table */
+    table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+    th, td { text-align: left; padding: .7rem .6rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+    th { color: var(--muted); font-weight: 500; background: rgba(255,255,255,0.02); }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+    td code, th code { font-family: var(--mono); font-size: .85em; background: var(--bg); padding: .1rem .35rem; border-radius: 4px; border: 1px solid var(--border); }
+
+    /* Code blocks */
+    pre {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: .9rem 1rem;
+      overflow-x: auto;
+      font-size: .85rem;
+      line-height: 1.55;
+      font-family: var(--mono);
+    }
+    code { font-family: var(--mono); font-size: .9em; background: var(--bg); padding: .12rem .35rem; border-radius: 4px; border: 1px solid var(--border); }
+
+    /* Highlights */
+    .highlight { background: var(--accent-soft); border-left: 3px solid var(--accent); padding: .9rem 1rem; border-radius: 0 8px 8px 0; margin: .9rem 0; color: #dbeafe; }
+    .tip { background: rgba(52,211,153,0.08); border-left: 3px solid var(--success); padding: .9rem 1rem; border-radius: 0 8px 8px 0; margin: .9rem 0; color: #d1fae5; }
+    .warn { background: rgba(251,191,36,0.08); border-left: 3px solid var(--warning); padding: .9rem 1rem; border-radius: 0 8px 8px 0; margin: .9rem 0; color: #fef3c7; }
+
+    /* Grid components */
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; }
+    .grid-2 { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+    .component { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; }
+    .component .title { font-weight: 600; color: var(--accent); margin-bottom: .4rem; font-size: .95rem; }
+    .component .meta { font-size: .85rem; color: var(--muted); line-height: 1.55; }
+
+    /* Badges */
+    .badge { display: inline-block; padding: .2rem .55rem; border-radius: 999px; font-size: .72rem; font-weight: 600; margin-right: .35rem; margin-bottom: .25rem; border: 1px solid transparent; }
+    .badge-port { background: #172554; color: #93c5fd; border-color: #1e3a8a; }
+    .badge-type { background: #064e3b; color: #6ee7b7; border-color: #065f46; }
+
+    /* Lists */
+    ul { margin: .5rem 0; padding-left: 1.3rem; }
+    li { margin-bottom: .45rem; }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* Pretty Flowchart */
+    .pflow { display: flex; flex-direction: column; align-items: center; gap: .6rem; padding: .5rem 0; }
+    .pflow-row { display: flex; align-items: center; justify-content: center; gap: .6rem; flex-wrap: wrap; }
+    .pflow-node {
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: .55rem 1rem;
+      border-radius: 8px;
+      font-size: .84rem;
+      font-weight: 500;
+      color: #fff;
+      border: 1.5px solid transparent;
+      min-height: 38px;
+      text-align: center;
+      line-height: 1.4;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    }
+    .pflow-node small { display: block; font-size: .72rem; font-weight: 400; opacity: .85; margin-top: .15rem; }
+    .pflow-node.user { background: rgba(59,130,246,0.15); border-color: #3b82f6; color: #bfdbfe; }
+    .pflow-node.host { background: rgba(245,158,11,0.15); border-color: #f59e0b; color: #fde68a; }
+    .pflow-node.agent { background: rgba(16,185,129,0.15); border-color: #10b981; color: #a7f3d0; }
+    .pflow-node.llm { background: rgba(139,92,246,0.15); border-color: #8b5cf6; color: #ddd6fe; }
+    .pflow-node.db { background: rgba(236,72,153,0.15); border-color: #ec4899; color: #fbcfe8; }
+    .pflow-arrow {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 28px; height: 28px;
+      color: var(--muted);
+      font-size: 1rem;
+    }
+    .pflow-varrow {
+      display: flex; align-items: center; justify-content: center;
+      height: 20px;
+      color: var(--muted);
+      font-size: .9rem;
+    }
+    .pflow-group {
+      background: rgba(255,255,255,0.02);
+      border: 1px dashed var(--border);
+      border-radius: 10px;
+      padding: .8rem 1rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: .5rem;
+    }
+
+    /* Roadmap timeline */
+    .roadmap { display: flex; flex-direction: column; gap: .8rem; }
+    .road-item { display: flex; gap: 1rem; align-items: flex-start; }
+    .road-dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 6px; flex-shrink: 0; }
+    .road-dot.done { background: var(--success); box-shadow: 0 0 8px rgba(52,211,153,0.4); }
+    .road-dot.next { background: var(--warning); box-shadow: 0 0 8px rgba(251,191,36,0.4); }
+    .road-dot.future { background: var(--purple); box-shadow: 0 0 8px rgba(167,139,250,0.4); }
+    .road-body { flex: 1; }
+    .road-title { font-weight: 600; color: var(--text); margin-bottom: .2rem; }
+    .road-desc { font-size: .88rem; color: var(--muted); line-height: 1.5; }
+
+    /* TOC */
+    .toc {
+      position: sticky;
+      top: 1rem;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+      margin-bottom: 1.5rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: .5rem;
+      z-index: 10;
+    }
+    .toc a { color: var(--muted); text-decoration: none; font-size: .85rem; padding: .3rem .6rem; border-radius: 6px; transition: all .15s; }
+    .toc a:hover { background: var(--surface); color: var(--text); }
+
+    footer { text-align:center; padding: 3rem 0 2rem; color: var(--muted); font-size: .85rem; }
+  </style>
+</head>
+<body>
+
+<header class="hero">
+  <h1>🤖 A2A Playground 技术调研与架构设计</h1>
+  <p>基于 Google A2A 协议的多智能体协作平台：从协议调研到工程落地，再到全链路可观测</p>
+  <div class="meta-row">
+    <span class="meta-chip">版本 <strong>v0.0.3</strong></span>
+    <span class="meta-chip">协议 <strong>A2A 1.0</strong></span>
+    <span class="meta-chip">Python <strong>≥3.12</strong></span>
+    <span class="meta-chip">日期 <strong>2026-05-13</strong></span>
+  </div>
+</header>
+
+<main>
+
+<!-- TOC -->
+<div class="toc">
+  <a href="#a2a-research">A2A 调研</a>
+  <a href="#why">为什么做这个平台</a>
+  <a href="#architecture">逻辑架构</a>
+  <a href="#discovery">Agent 发现</a>
+  <a href="#messaging">A2A 通信</a>
+  <a href="#trace">Trace 追踪</a>
+  <a href="#agent-sdk">Agent SDK</a>
+  <a href="#agent-integration">Agent 接入方式</a>
+  <a href="#remote-register">远程注册 SDK</a>
+  <a href="#roadmap">未来扩展</a>
+</div>
+
+<!-- A2A 调研 -->
+<div class="card" id="a2a-research">
+  <h2>📖 A2A 协议调研</h2>
+
+  <h3>什么是 A2A？</h3>
+  <p><strong>A2A（Agent-to-Agent）</strong> 是 Google 推出的开放协议，旨在让不同厂商、不同框架构建的 AI Agent 能够相互发现、协作完成任务。它不替代 MCP（Model Context Protocol），而是与 MCP 互补：MCP 解决 Agent 与工具/资源的连接，A2A 解决 Agent 与 Agent 的连接。</p>
+
+  <div class="highlight">
+    <strong>核心定位：</strong>A2A 是 "Agent 的 HTTP" —— 标准化、无状态、可扩展，任何实现了 A2A 接口的 Agent 都可以被其他 A2A 客户端调用，无需了解对方内部实现。
+  </div>
+
+  <h3>协议核心概念</h3>
+  <div class="grid grid-2">
+    <div class="component">
+      <div class="title">AgentCard</div>
+      <div class="meta">Agent 的"名片"，包含 name、description、version、capabilities、skills、supportedInterfaces。客户端通过 GET <code>/.well-known/agent.json</code> 获取，实现零配置发现。</div>
+    </div>
+    <div class="component">
+      <div class="title">Task</div>
+      <div class="meta">任务状态机：SUBMITTED → WORKING → INPUT_REQUIRED / COMPLETED / FAILED。每个 Task 有唯一 ID，支持通过 context_id 关联会话上下文。</div>
+    </div>
+    <div class="component">
+      <div class="title">Message</div>
+      <div class="meta">消息载体，包含 role（user / agent）和 parts（text、file、data 等）。A2A 支持多模态，但文本是最小公共子集。</div>
+    </div>
+    <div class="component">
+      <div class="title">Streaming</div>
+      <div class="meta">通过 SSE 实时推送 Task 状态变更、Artifact 产出和 Message 响应，避免长轮询，提升交互体验。</div>
+    </div>
+  </div>
+
+  <h3>协议栈与版本兼容</h3>
+  <table>
+    <tr><th>层级</th><th>规范</th><th>说明</th></tr>
+    <tr><td>传输</td><td>HTTP/1.1 + SSE</td><td>JSON-RPC over HTTP，流式响应用 text/event-stream</td></tr>
+    <tr><td>协议</td><td>A2A JSON-RPC 2.0</td><td>方法：SendStreamingMessage、SendMessage</td></tr>
+    <tr><td>版本头</td><td><code>A2A-Version: 1.0</code></td><td>缺失时 Server 必须按 0.3 处理（规范要求）</td></tr>
+    <tr><td>SDK</td><td><code>a2a-sdk >= 1.0.1</code></td><td>Google 官方 Python SDK，封装 AgentCard、TaskStore、EventQueue</td></tr>
+  </table>
+
+  <div class="warn">
+    <strong>版本陷阱：</strong>旧版实现若未携带 <code>A2A-Version</code> Header，会被服务端视为 0.3 请求，触发 <code>VersionNotSupportedError</code>。我们的方案是在 Host Proxy 层自动补全该 Header，彻底规避此问题。
+  </div>
+</div>
+
+<!-- 为什么做这个平台 -->
+<div class="card" id="why">
+  <h2>🎯 为什么做这个平台</h2>
+
+  <h3>痛点分析</h3>
+  <div class="grid grid-2">
+    <div class="component">
+      <div class="title">❌ Agent 孤岛</div>
+      <div class="meta">各团队用不同框架（LangChain、LlamaIndex、自研）造 Agent，彼此无法通信。想让一个 Agent 调用另一个 Agent，只能写硬编码 HTTP 调用，耦合严重。</div>
+    </div>
+    <div class="component">
+      <div class="title">❌ 缺乏统一管控</div>
+      <div class="meta">Agent 跑在不同进程、不同机器，没有统一的注册中心、没有健康检查、没有状态视图。运维靠人肉和日志 grep。</div>
+    </div>
+    <div class="component">
+      <div class="title">❌ 调试困难</div>
+      <div class="meta">Agent 间通信是黑盒：消息发出去有没有到？对方怎么处理？返回了什么？中间有没有重试？出了问题只能加 print。</div>
+    </div>
+    <div class="component">
+      <div class="title">❌ 异构 LLM 难以协同</div>
+      <div class="meta">有的 Agent 用 GPT-4，有的用 Claude，有的用内网模型。没有统一协议把它们串成流水线，各模型优势无法互补。</div>
+    </div>
+  </div>
+
+  <h3>平台价值主张</h3>
+  <div class="roadmap">
+    <div class="road-item">
+      <div class="road-dot done"></div>
+      <div class="road-body">
+        <div class="road-title">标准化互通</div>
+        <div class="road-desc">所有 Agent 无论底层 LLM 是什么，只要实现 A2A 接口就能互相发现、发送消息、协作完成任务。</div>
+      </div>
+    </div>
+    <div class="road-item">
+      <div class="road-dot done"></div>
+      <div class="road-body">
+        <div class="road-title">统一管控面</div>
+        <div class="road-desc">Host 作为控制平面，提供 Agent 注册、健康状态、能力查询、任务追踪，一个页面看清全局。</div>
+      </div>
+    </div>
+    <div class="road-item">
+      <div class="road-dot done"></div>
+      <div class="road-body">
+        <div class="road-title">全链路可观测</div>
+        <div class="road-desc">从消息发出到最终响应，每个状态变更都记录为 Trace 事件，时间轴可视化，排障从小时降到分钟。</div>
+      </div>
+    </div>
+    <div class="road-item">
+      <div class="road-dot done"></div>
+      <div class="road-body">
+        <div class="road-title">异构兼容</div>
+        <div class="road-desc">helloworld（通用 OpenAI）、bridge（外部服务适配）、claude_code（本地 CLI）三类 Agent 共存，证明平台对异构场景的包容性。</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 逻辑架构 -->
+<div class="card" id="architecture">
+  <h2>🏗 逻辑架构</h2>
+
+  <h3>分层设计</h3>
+  <div class="diagram">
+    <div style="text-align:center; margin-bottom:1rem; color:var(--muted); font-size:.85rem;">Host 控制平面 + Agent 执行平面</div>
+
+    <!-- UI Layer -->
+    <div class="arch-layer">
+      <div class="arch-box" style="flex:0 0 100%;">
+        <div class="label">🖥 Web UI</div>
+        <div class="desc">纯前端 HTML，三栏布局：Agent 列表 | 聊天窗口 | Trace 时间轴<br>直接调用 Host REST API，实时 SSE 渲染</div>
+      </div>
+    </div>
+    <div class="arch-connector"><span class="line"></span> HTTP / SSE <span class="line"></span></div>
+
+    <!-- API Layer -->
+    <div class="arch-layer">
+      <div class="arch-box" style="flex:0 0 100%;">
+        <div class="label">🔌 API Gateway</div>
+        <div class="desc">
+          <span class="badge badge-type">Discovery</span> /api/agents /api/capabilities /api/tasks<br>
+          <span class="badge badge-type">Chat</span> POST /api/chat → SSE 流式响应<br>
+          <span class="badge badge-type">Proxy</span> /agent/{name} → 透传至 Agent 端点<br>
+          <span class="badge badge-type">MCP</span> SSE Server: list_agents / send_to_agent
+        </div>
+      </div>
+    </div>
+    <div class="arch-connector"><span class="line"></span> 内部调用 <span class="line"></span></div>
+
+    <!-- Core Layer -->
+    <div class="arch-layer">
+      <div class="arch-box highlight" style="flex:1.2;">
+        <div class="label">📋 Registry</div>
+        <div class="desc">AgentCard 解析、连接重试(3x)、状态管理、生命周期</div>
+      </div>
+      <div class="arch-box highlight" style="flex:1.5;">
+        <div class="label">💬 MessageBus</div>
+        <div class="desc">A2A 消息发送/接收、流式解析、统一工具定义、上下文续传</div>
+      </div>
+      <div class="arch-box highlight" style="flex:1.2;">
+        <div class="label">🔍 Tracer</div>
+        <div class="desc">Trace 事件采集、格式化时间线、按 task/context 查询</div>
+      </div>
+    </div>
+    <div class="arch-connector"><span class="line"></span> 持久化 <span class="line"></span></div>
+
+    <!-- Data Layer -->
+    <div class="arch-layer">
+      <div class="arch-box db-box" style="flex:0 0 100%;">
+        <div class="label">🗄 SQL Database</div>
+        <div class="desc">agents · tasks · messages · traces<br>零外部依赖，Repository 模式抽象，未来可无缝切换至 PostgreSQL / MySQL</div>
+      </div>
+    </div>
+    <div class="arch-connector"><span class="line"></span> A2A Protocol (HTTP + SSE) <span class="line"></span></div>
+
+    <!-- Agent Layer -->
+    <div class="arch-layer">
+      <div class="arch-box agent-box">
+        <div class="label">agent-a / agent-b</div>
+        <div class="desc">helloworld<br>通用 OpenAI SDK Agent<br>支持 function calling</div>
+      </div>
+      <div class="arch-box agent-box">
+        <div class="label">openclaw</div>
+        <div class="desc">bridge<br>前端/HTML 专用<br>对接 OpenClaw</div>
+      </div>
+      <div class="arch-box agent-box">
+        <div class="label">hermes</div>
+        <div class="desc">bridge<br>内网运维<br>对接内部 LLM</div>
+      </div>
+      <div class="arch-box agent-box">
+        <div class="label">claude-code</div>
+        <div class="desc">claude_code<br>spawn CLI<br>stream-json 解析</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tip">
+    <strong>设计原则：</strong>Host 只做"控制平面"（发现、路由、追踪），不做"智能网关"。所有业务逻辑（LLM 调用、工具选择、多轮对话）下沉到 Agent 层，保持 Host 轻薄、Agent 自治。
+  </div>
+</div>
+
+
+<!-- Agent 发现 -->
+<div class="card" id="discovery">
+  <h2>🔭 Agent 发现机制</h2>
+  <p>Agent 发现是平台的核心能力。没有它，多 Agent 协作就是空谈。</p>
+
+  <h3>发现流程</h3>
+  <div class="diagram">
+    <div class="pflow">
+      <div class="pflow-row">
+        <div class="pflow-node host">Host 启动</div>
+        <div class="pflow-arrow">→</div>
+        <div class="pflow-node host">读取配置</div>
+        <div class="pflow-arrow">→</div>
+        <div class="pflow-node host">Registry.connect()</div>
+      </div>
+      <div class="pflow-varrow">↓</div>
+      <div class="pflow-row">
+        <div class="pflow-node host">GET /.well-known/agent.json</div>
+        <div class="pflow-arrow">→</div>
+        <div class="pflow-node agent">Agent 返回 AgentCard</div>
+      </div>
+      <div class="pflow-varrow">↓</div>
+      <div class="pflow-row">
+        <div class="pflow-node agent">解析 AgentCard</div>
+        <div class="pflow-arrow">→</div>
+        <div class="pflow-node db">持久化到 SQL DB</div>
+        <div class="pflow-arrow">→</div>
+        <div class="pflow-node host">生成 A2A Client</div>
+      </div>
+      <div class="pflow-varrow">↓</div>
+      <div class="pflow-row">
+        <div class="pflow-node user">用户 / UI / MCP</div>
+        <div class="pflow-arrow">→</div>
+        <div class="pflow-node host">GET /api/agents</div>
+        <div class="pflow-arrow">→</div>
+        <div class="pflow-node user">返回状态+技能列表</div>
+      </div>
+    </div>
+  </div>
+
+  <h3>关键设计点</h3>
+  <ul>
+    <li><strong>AgentCard 驱动</strong>：不依赖人工填写 YAML 的 skills，而是从 AgentCard 动态解析。即使 Agent 升级了能力，Host 重新连接后自动同步。</li>
+    <li><strong>指数退避重试</strong>：连接失败时 1s → 2s → 4s 重试 3 次，避免抖动；最终失败写入 DB 并标记 <code>status=error</code>，UI 可感知。</li>
+    <li><strong>运行时动态增删</strong>：除了启动时从配置加载，还支持 <code>POST /api/agents {url}</code> 动态接入外部 Agent，<code>DELETE /api/agents/{name}</code> 下线。</li>
+    <li><strong>状态一致性</strong>：内存中的 <code>Registry._connections</code> 与 DB 中的 <code>agents</code> 表保持同步。列表查询时交叉校验，内存缺失则标记 disconnected。</li>
+  </ul>
+
+  <h3>Discovery API 返回示例</h3>
+  <pre>GET /api/agents
+[
+  {
+    "name": "hermes",
+    "description": "Intranet Operations agent",
+    "url": "/agent/hermes",
+    "status": "connected",
+    "type": "bridge",
+    "skills": ["intranet_ops"]
+  }
+]</pre>
+</div>
+
+<!-- A2A 通信 -->
+<div class="card" id="messaging">
+  <h2>📡 A2A 通信实现</h2>
+  <p>通信是平台的心脏。我们实现了从消息发起到流式响应的完整闭环。</p>
+
+  <h3>通信链路图</h3>
+  <div class="diagram">
+    <div style="text-align:center; margin-bottom:1rem; color:var(--muted); font-size:.85rem;">典型场景：用户 → agent-a → hermes → 返回总结</div>
+    <div class="pflow">
+      <!-- Step 1 -->
+      <div class="pflow-row">
+        <div class="pflow-node user">用户发送消息</div>
+        <div class="pflow-arrow">→</div>
+        <div class="pflow-node host">POST /api/chat</div>
+      </div>
+      <div class="pflow-varrow">↓</div>
+      <!-- Step 2 -->
+      <div class="pflow-row">
+        <div class="pflow-node host">MessageBus 创建 Task</div>
+        <div class="pflow-arrow">→</div>
+        <div class="pflow-node host">Registry 获取 A2A Client</div>
+        <div class="pflow-arrow">→</div>
+        <div class="pflow-node host">A2A SDK 构造 JSON-RPC</div>
+      </div>
+      <div class="pflow-varrow">↓</div>
+      <!-- Step 3 -->
+      <div class="pflow-row">
+        <div class="pflow-node host">Host Proxy<small>注入 A2A-Version: 1.0</small></div>
+        <div class="pflow-arrow">→</div>
+        <div class="pflow-node agent">agent-a 接收请求</div>
+      </div>
+      <div class="pflow-varrow">↓</div>
+      <!-- Step 4 -->
+      <div class="pflow-row">
+        <div class="pflow-node llm">LLM 判断需调用工具</div>
+        <div class="pflow-arrow">→</div>
+        <div class="pflow-node agent">send_to_agent(hermes)</div>
+        <div class="pflow-arrow">→</div>
+        <div class="pflow-node host">Host Proxy 透传</div>
+      </div>
+      <div class="pflow-varrow">↓</div>
+      <!-- Step 5 -->
+      <div class="pflow-row">
+        <div class="pflow-node agent">hermes 处理并返回 SSE</div>
+        <div class="pflow-arrow">→</div>
+        <div class="pflow-node agent">agent-a 收到 tool_result</div>
+        <div class="pflow-arrow">→</div>
+        <div class="pflow-node llm">LLM 总结生成回复</div>
+      </div>
+      <div class="pflow-varrow">↓</div>
+      <!-- Step 6 -->
+      <div class="pflow-row">
+        <div class="pflow-node agent">agent-a 返回 SSE</div>
+        <div class="pflow-arrow">→</div>
+        <div class="pflow-node host">MessageBus 解析事件</div>
+        <div class="pflow-arrow">→</div>
+        <div class="pflow-node db">更新 Task + Message + Trace</div>
+      </div>
+      <div class="pflow-varrow">↓</div>
+      <!-- Step 7 -->
+      <div class="pflow-row">
+        <div class="pflow-node host">SSE 流推送至 UI</div>
+        <div class="pflow-arrow">→</div>
+        <div class="pflow-node user">用户看到回复</div>
+      </div>
+    </div>
+  </div>
+
+  <h3>MessageBus 核心机制</h3>
+  <div class="grid grid-2">
+    <div class="component">
+      <div class="title">流式事件解析</div>
+      <div class="meta">A2A SDK 返回的 SSE 包含 message / task / statusUpdate / artifactUpdate 四种 payload。MessageBus 实时区分并转换为统一事件格式推送给前端。</div>
+    </div>
+    <div class="component">
+      <div class="title">上下文续传</div>
+      <div class="meta">同一 <code>context_id</code> 的多次消息自动关联到同一 Task，Agent 侧据此恢复对话历史，实现真正的多轮会话。</div>
+    </div>
+    <div class="component">
+      <div class="title">统一工具定义</div>
+      <div class="meta"><code>HOST_TOOLS</code> 在 MessageBus 中单点维护，helloworld 与 bridge Agent 通过 function calling 调用，MCP 客户端通过 SSE 调用，行为完全一致。</div>
+    </div>
+    <div class="component">
+      <div class="title">降级与兜底</div>
+      <div class="meta">若 SSE 未直接返回 message，依次 fallback 到 artifact text → status message → "(empty)"，确保前端永远有可见反馈，不卡住。</div>
+    </div>
+  </div>
+
+  <h3>版本兼容保障</h3>
+  <p>旧架构中存在 <code>Version mismatch: actual='0.3', expected='1.0'</code> 的错误，根因是 Relay 层透传时丢掉了 <code>A2A-Version</code> Header。我们的解决方案：</p>
+  <ul>
+    <li><strong>Proxy 自动补全</strong>：Host Proxy 在转发请求时，若检测到缺失 <code>A2A-Version</code>，自动注入 <code>A2A-Version: 1.0</code>。</li>
+    <li><strong>Agent 开启兼容</strong>：所有 Agent 的 JSON-RPC 路由启用 <code>enable_v0_3_compat=True</code>，即使收到 0.3 请求也能优雅处理。</li>
+    <li><strong>移除 Relay 层</strong>：旧架构中 relay 与 proxy 并存导致路径混乱，新架构统一走 proxy，流量单一、排障简单。</li>
+  </ul>
+</div>
+
+<!-- Trace 追踪 -->
+<div class="card" id="trace">
+  <h2>🔍 巧妙的 Trace 方案</h2>
+  <p>Trace 是本平台区别于普通 A2A 演示项目的核心竞争力。我们将"黑盒通信"变为"白盒可观测"。</p>
+
+  <h3>为什么需要 Trace？</h3>
+  <ul>
+    <li>Agent 间消息发了没收到？是网络问题还是解析问题？</li>
+    <li>LLM 调用了工具，但返回结果是空的，工具执行成功了吗？</li>
+    <li>一个用户请求触发了 3 个 Agent 的链式调用，时间花在哪一步？</li>
+  </ul>
+
+  <h3>Trace 事件模型</h3>
+  <table>
+    <tr><th>事件类型</th><th>触发时机</th><th>记录内容</th></tr>
+    <tr><td><code>send</code></td><td>MessageBus 发起请求</td><td>消息内容、message_id、context_id</td></tr>
+    <tr><td><code>task_created</code></td><td>本地 Task 创建成功</td><td>server_task_id、context_id</td></tr>
+    <tr><td><code>task_update</code></td><td>收到 statusUpdate / task 事件</td><td>状态变更（WORKING → RESPONDED 等）</td></tr>
+    <tr><td><code>artifact</code></td><td>收到 artifactUpdate</td><td>artifact 文本内容</td></tr>
+    <tr><td><code>response</code></td><td>收到 message 或 fallback 完成</td><td>最终回复文本、来源标记</td></tr>
+    <tr><td><code>error</code></td><td>异常捕获</td><td>错误码、异常信息</td></tr>
+  </table>
+
+  <h3>Trace 时间轴可视化</h3>
+  <div class="diagram">
+    <div style="font-family:var(--mono); font-size:.88rem; line-height:1.8; color:var(--muted);">
+      <div><span style="color:var(--accent)">[14:32:01]</span> <strong style="color:var(--accent)">SEND</strong>: 问 hermes 内网状态</div>
+      <div><span style="color:var(--purple)">[14:32:01]</span> <strong style="color:var(--purple)">TASK_CREATED</strong>: task_id=abc-123 context_id=ctx-456</div>
+      <div><span style="color:var(--warning)">[14:32:02]</span> <strong style="color:var(--warning)">STATE</strong>: WORKING | Processing request...</div>
+      <div><span style="color:var(--warning)">[14:32:03]</span> <strong style="color:var(--warning)">STATE</strong>: WORKING | [tool_call] send_to_agent({"agent_name":"hermes",...})</div>
+      <div><span style="color:var(--warning)">[14:32:05]</span> <strong style="color:var(--warning)">STATE</strong>: WORKING | [tool_result] send_to_agent: 内网服务正常...</div>
+      <div><span style="color:var(--cyan)">[14:32:06]</span> <strong style="color:var(--cyan)">RESPONSE</strong> (message): hermes 报告内网所有服务运行正常...</div>
+    </div>
+  </div>
+
+  <h3>设计亮点</h3>
+  <div class="grid grid-2">
+    <div class="component">
+      <div class="title">双维度查询</div>
+      <div class="meta">支持按 <code>task_id</code>（单次请求）和 <code>context_id</code>（整个会话）查询。前者看一次交互，后者看多轮对话全貌。</div>
+    </div>
+    <div class="component">
+      <div class="title">零侵入采集</div>
+      <div class="meta">Trace 逻辑内嵌在 MessageBus 和 Proxy 中，Agent 侧无需修改代码即可被完整追踪。</div>
+    </div>
+    <div class="component">
+      <div class="title">持久化到 SQL</div>
+      <div class="meta">Trace 事件实时写入数据库，页面刷新不丢失。支持历史回溯，便于审计与问题复盘。</div>
+    </div>
+    <div class="component">
+      <div class="title">前后端联动</div>
+      <div class="meta">UI 收到 SSE 事件的同时，后端自动写入 Trace；用户无需手动刷新，时间轴随消息流实时生长。</div>
+    </div>
+  </div>
+
+  <div class="tip">
+    <strong>Trace 的隐藏价值：</strong>不仅是调试工具，更是 Agent 协作的"审计日志"。未来可基于此做性能分析（哪一步最慢）、异常告警（错误率突增）、甚至自动优化（重试慢路径）。
+  </div>
+</div>
+
+<!-- Agent SDK -->
+<div class="card" id="agent-sdk">
+  <h2>📦 Agent SDK 设计</h2>
+  <p><code>agents/</code> 目录下的实现不仅是演示（demo），更是一套<strong>可复用的 Agent SDK</strong>。开发者可以基于这些模板快速构建自己的 A2A Agent。</p>
+
+  <h3>三种 Agent 类型</h3>
+  <table>
+    <tr><th>类型</th><th>适用场景</th><th>核心能力</th></tr>
+    <tr>
+      <td><code>helloworld</code></td>
+      <td>通用 LLM Agent</td>
+      <td>基于 OpenAI SDK，支持 function calling、多轮历史、工具调用闭环。是最简单的 A2A Agent 模板。</td>
+    </tr>
+    <tr>
+      <td><code>bridge</code></td>
+      <td>外部服务桥接</td>
+      <td>适配非标准 OpenAI 端点（如 OpenClaw、内网模型），支持自定义 Header、模型名、超时时间。</td>
+    </tr>
+    <tr>
+      <td><code>claude_code</code></td>
+      <td>原生 CLI 集成</td>
+      <td>spawn 本地 <code>claude</code> 进程，解析 stream-json 输出，支持会话续传、预算控制、权限跳过。</td>
+    </tr>
+  </table>
+
+  <h3>SDK 复用模式</h3>
+  <ul>
+    <li><strong>统一骨架</strong>：所有 Agent 共享同一套 <code>__main__.py</code> 模式 —— 解析配置 → 构建 AgentCard → 创建 JSON-RPC 路由 → 启动 Uvicorn。启动后自动调用 <code>agents/common/registration.py</code> 向 Host 注册。</li>
+    <li><strong>只改 Executor</strong>：开发者只需实现 <code>AgentExecutor.execute()</code> 方法，处理输入、调用 LLM、返回事件，即可拥有一个完整的 A2A Agent。</li>
+    <li><strong>共享注册 SDK</strong>：<code>agents/common/registration.py</code> 提供 <code>register_with_host()</code> 异步函数，封装了注册、冲突退避重试、幂等校验等逻辑，所有 Agent 类型均可复用。</li>
+    <li><strong>配置即部署</strong>：当前通过 <code>config.yaml</code> 声明实例；<strong>未来将迁移到数据库存储 Agent 配置</strong>，支持运行时动态注册与热更新，无需重启 Host。</li>
+  </ul>
+
+  <div class="warn">
+    <strong>演进方向：</strong>当前 Agent 配置走 YAML 是为了快速迭代和版本控制。随着平台成熟，配置将迁移到 SQL 数据库，Host 提供管理界面进行 CRUD，实现真正的 Agent 生命周期管理。
+  </div>
+</div>
+
+<!-- Agent 接入方式 -->
+<div class="card" id="agent-integration">
+  <h2>🔌 Agent 接入方式</h2>
+  <p>平台支持<strong>多种 Agent 接入方式</strong>，无论是本地启动的 Agent、远端部署的服务，还是第三方异构系统，都可以灵活接入 Host 控制平面。</p>
+
+  <h3>三种接入模式</h3>
+  <table>
+    <tr><th>接入方式</th><th>适用场景</th><th>核心机制</th></tr>
+    <tr>
+      <td><code>静态配置</code></td>
+      <td>Host 与 Agent 同网段 / 开发调试</td>
+      <td>Host 启动时读取 <code>config.yaml</code> 中的 agents 列表，主动拉取 <code>/.well-known/agent.json</code> 建立连接。适合固定基础设施。</td>
+    </tr>
+    <tr>
+      <td><code>远程自注册</code></td>
+      <td>Agent 动态启动 / 跨网段 / 容器化部署</td>
+      <td>Agent 启动后通过 <code>agents/common/registration.py</code> 向 Host <code>POST /api/agents/register</code> 主动上报自身信息。Host 自动完成 AgentCard 拉取、健康检查、连接池初始化。</td>
+    </tr>
+    <tr>
+      <td><code>手动动态添加</code></td>
+      <td>临时接入外部 Agent / 第三方服务</td>
+      <td>通过 Web UI 或 API <code>POST /api/agents {url}</code> 手动添加外部 Agent URL。Host 即时拉取 AgentCard 并尝试连接，支持运行时动态增删，无需重启。</td>
+    </tr>
+  </table>
+
+  <h3>接入方式对比</h3>
+  <div class="grid grid-2">
+    <div class="component">
+      <div class="title">Host 主动 vs Agent 主动</div>
+      <div class="meta">静态配置是 Host 主动发现（pull 模式），远程自注册是 Agent 主动上报（push 模式）。前者适合已知拓扑，后者适合弹性扩缩容场景。</div>
+    </div>
+    <div class="component">
+      <div class="title">异构兼容</div>
+      <div class="meta">三种方式对 Agent 的技术栈零要求：只要是 A2A 协议兼容的服务（JSON-RPC over HTTP + AgentCard），无论用 Python、Node.js 还是 Go 实现，均可接入。</div>
+    </div>
+    <div class="component">
+      <div class="title">状态一致性</div>
+      <div class="meta">无论通过哪种方式接入，Registry 都会将 Agent 信息持久化到 SQL DB，并与内存连接池交叉校验。即使 Host 重启，已注册的 Agent 信息不丢失。</div>
+    </div>
+    <div class="component">
+      <div class="title">混合部署</div>
+      <div class="meta">生产环境中可同时使用三种方式：核心 Agent 走静态配置保证稳定性，弹性 Agent 走远程自注册，临时测试 Agent 走手动添加，互不冲突。</div>
+    </div>
+  </div>
+
+  <div class="tip">
+    <strong>设计原则：</strong>Agent 接入方式的选择只影响"如何被发现"，不影响"如何通信"。一旦接入完成，所有 Agent 在 MessageBus 和 Trace 层面完全平等，统一走 A2A 协议交互。
+  </div>
+</div>
+
+<!-- 远程注册 SDK -->
+<div class="card" id="remote-register">
+  <h2>📡 远程注册 SDK</h2>
+  <p><code>agents/common/registration.py</code> 是所有 Agent 共享的<strong>自注册客户端 SDK</strong>。它封装了注册、冲突处理、退避重试等复杂逻辑，开发者只需一行调用即可让 Agent 自动加入 Host 集群。</p>
+
+  <h3>核心 API</h3>
+  <pre>async def register_with_host(
+    host_url: str,      # Host 发现 API 地址，如 http://127.0.0.1:7860
+    name: str,          # Agent 唯一标识名
+    agent_type: str,    # Agent 类型：helloworld / bridge / claude_code
+    port: int,          # Agent 本地监听端口
+    skills: list[dict], # 技能列表（会被序列化到 AgentCard）
+    url: str = "",      # 显式指定 URL（NAT/代理场景必填）
+    secret: str = "",   # 幂等重注册密钥
+    max_retries: int = 5,
+    retry_interval: float = 3.0,
+) -> bool</pre>
+
+  <h3>Host 注册端点行为</h3>
+  <p>Agent 调用 SDK 后，实际向 Host <code>POST /api/agents/register</code> 发送以下 JSON：</p>
+  <pre>{
+  "name": "agent-a",
+  "type": "helloworld",
+  "port": 10001,
+  "skills": [...],
+  "url": "",           // 留空时 Host 自动从请求 IP 推导
+  "secret": "agent-a-8ac73c6f7c16fa1f"
+}</pre>
+
+  <h3>关键设计点</h3>
+  <ul>
+    <li><strong>URL 自动推导</strong>：若 Agent 未显式提供 <code>url</code>，Host 从 HTTP 请求的 <code>X-Forwarded-For</code> 或 <code>request.client.host</code> 推导 IP，拼接端口生成 <code>http://{ip}:{port}</code>。支持反向代理和容器网络。</li>
+    <li><strong>幂等重注册</strong>：若 Agent 重启后重新注册，提供相同的 <code>secret</code> 且与 Host 记录匹配时，Host 视为<strong>同一 Agent 的重新上线</strong>，直接返回 <code>re_registered: true</code>，无冲突。</li>
+    <li><strong>冲突退避重试</strong>：若名称已被其他 Agent 占用（且无匹配的 secret），SDK 返回 409。此时 SDK 执行指数退避重试（间隔 3s → 6s → 9s...，最多 5 次），<strong>绝不自动 DELETE 其他 Agent</strong>，避免误删生产服务。</li>
+    <li><strong>异步无阻塞</strong>：Agent 的 <code>__main__.py</code> 在 Starlette <code>lifespan</code> 中通过 <code>asyncio.create_task(_delayed_register(...))</code> 延迟 1.5s 后发起注册，确保 HTTP 服务已启动完毕。</li>
+  </ul>
+
+  <h3>使用示例（helloworld Agent）</h3>
+  <pre>from agents.common.registration import register_with_host
+
+async def _delayed_register(host_url: str, instance) -> None:
+    await asyncio.sleep(1.5)
+    await register_with_host(
+        host_url=host_url,
+        name=instance.name,
+        agent_type=instance.type,
+        port=instance.port,
+        skills=instance.skills,
+        url=instance.url or "",
+        secret=instance.secret,
+    )
+
+@asynccontextmanager
+async def lifespan(app):
+    if host_url:
+        asyncio.create_task(_delayed_register(host_url, instance))
+    yield</pre>
+
+  <h3>配置示例（YAML）</h3>
+  <pre>name: agent-a
+port: 10001
+type: helloworld
+host_url: http://10.1.52.73:7860
+secret: agent-a-8ac73c6f7c16fa1f
+skills:
+  - id: chat
+    name: Chat
+    description: Chat with the LLM-powered agent
+    tags: [chat, llm]
+    examples: ["Hello", "What is 2+2?"]</pre>
+
+  <div class="highlight">
+    <strong>演进状态：</strong>远程自注册机制已从"未来规划"（v0.0.2）变为"已实现"（v0.0.3）。当前 helloworld、bridge、claude_code 三类 Agent 均已集成该 SDK，启动后自动向 Host 注册，实现 Agent 发现从"手工配置"到"自动注册"的闭环。
+  </div>
+</div>
+
+<!-- 未来扩展 -->
+<div class="card" id="roadmap">
+  <h2>🚀 未来扩展方向</h2>
+  <p>平台已完成从 0 到 1 的验证，以下是从 1 到 N 的确定规划：</p>
+
+  <div class="roadmap">
+    <div class="road-item">
+      <div class="road-dot done"></div>
+      <div class="road-body">
+        <div class="road-title">Agent 自动注册机制 ✅</div>
+        <div class="road-desc">
+          Agent 启动时通过 <code>agents/common/registration.py</code> 主动向 Host 发送注册请求（<code>POST /api/agents/register</code>），Host 自动完成 AgentCard 拉取、健康检查、连接池初始化。
+          支持幂等重注册（secret 校验）、冲突退避重试、URL 自动推导（含 X-Forwarded-For 支持）。三类 Agent（helloworld / bridge / claude_code）均已集成。
+        </div>
+      </div>
+    </div>
+
+    <div class="road-item">
+      <div class="road-dot next"></div>
+      <div class="road-body">
+        <div class="road-title">Agent 管理后台（管理员权限）</div>
+        <div class="road-desc">
+          将配置从 YAML 迁移到 SQL 数据库后，提供 Web 管理页面：新增/编辑 Agent 配置（URL、LLM 参数、skills）、批量启停、查看连接日志、设置访问权限。
+          引入 RBAC：普通用户只能聊天和查看，管理员可操作 Agent 生命周期。
+        </div>
+      </div>
+    </div>
+
+    <div class="road-item">
+      <div class="road-dot next"></div>
+      <div class="road-body">
+        <div class="road-title">稳定性与高可用设计</div>
+        <div class="road-desc">
+          <ul>
+            <li><strong>连接池健康检查</strong>：定时 ping Agent 的 AgentCard 端点，自动标记失活并告警。</li>
+            <li><strong>熔断与降级</strong>：某 Agent 连续失败时熔断，快速返回降级提示，避免拖垮 Host。</li>
+            <li><strong>水平扩展</strong>：Host 无状态化（除 SQL DB），可部署多实例 + 负载均衡；DB 可迁移至 PostgreSQL 主从。</li>
+            <li><strong>消息队列缓冲</strong>：高并发场景下，引入 Redis / RabbitMQ 缓冲 A2A 请求，削峰填谷。</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="road-item">
+      <div class="road-dot future"></div>
+      <div class="road-body">
+        <div class="road-title">监控与可观测体系</div>
+        <div class="road-desc">
+          将现有 Trace 数据升级为完整监控体系：
+          <ul>
+            <li><strong>Metrics</strong>：QPS、P99 延迟、Agent 错误率、LLM Token 消耗，对接 Prometheus + Grafana。</li>
+            <li><strong>Alerting</strong>：Agent 离线、错误率突增、Task 长时间未完成时自动告警（飞书/钉钉/邮件）。</li>
+            <li><strong>链路分析</strong>：基于 Trace 数据自动生成调用拓扑图，识别瓶颈 Agent 和热点路径。</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="road-item">
+      <div class="road-dot future"></div>
+      <div class="road-body">
+        <div class="road-title">工作流编排（Workflow）</div>
+        <div class="road-desc">
+          当前多 Agent 协作依赖 LLM 自主决策工具调用。未来将支持显式工作流定义：DAG 编排（A → B → C 并行 → D）、条件分支、人工审核节点。
+          用户可在 UI 中拖拽构建 Agent 流水线，将 Agent 从"聊天玩具"升级为"生产工具"。
+        </div>
+      </div>
+    </div>
+
+    <div class="road-item">
+      <div class="road-dot future"></div>
+      <div class="road-body">
+        <div class="road-title">安全与多租户</div>
+        <div class="road-desc">
+          引入 API Key / JWT 认证，支持多租户隔离：不同团队的 Agent 互不可见，消息流隔离存储。
+          对话内容审计日志、敏感词过滤、LLM 输出合规检查，满足企业级部署要求。
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 总结 -->
+<div class="card">
+  <h2>📝 总结</h2>
+  <p>A2A Playground 不仅是一个技术验证项目，更是一套<strong>可落地的多智能体协作基础设施</strong>。</p>
+  <ul>
+    <li><strong>协议层</strong>：深度调研 A2A 1.0，解决了版本兼容、SSE 流式、Header 治理等真实工程问题。</li>
+    <li><strong>发现层</strong>：基于 AgentCard 的自动发现 + 连接重试 + 状态持久化，让 Agent 注册从手工配置走向自动化。</li>
+    <li><strong>通信层</strong>：MessageBus 统一封装 A2A 消息流，Proxy 透明转发，工具定义单点维护，确保异构 Agent 行为一致。</li>
+    <li><strong>观测层</strong>：Trace 全链路追踪是本项目的独特优势，将 Agent 协作的黑盒变为白盒，为调试、审计、未来监控打下基础。</li>
+    <li><strong>SDK 层</strong>：helloworld / bridge / claude_code 三类 Agent 既是演示也是模板；<code>agents/common/registration.py</code> 提供通用远程注册 SDK，降低新 Agent 接入门槛。</li>
+    <li><strong>接入层</strong>：静态配置、远程自注册、手动动态添加三种接入方式并存，覆盖从开发调试到生产弹性扩缩容的全场景需求。</li>
+  </ul>
+  <div class="highlight">
+    <strong>下一步：</strong>持续完善 Agent 生命周期管理（配置数据库化、管理后台、健康检查与熔断），逐步从"实验平台"演进为"生产级 Agent 协作中枢"。
+  </div>
+</div>
+
+<footer>
+  A2A Playground 技术文档 · v0.0.3 · 汇报专用<br>
+  基于 Google A2A 协议 · 工程落地 + 全链路可观测
+</footer>
+
+</main>
+</body>
+</html>
