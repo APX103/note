@@ -1,0 +1,1076 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SkillRouter × SkillReducer — 大规模Agent技能系统架构解析</title>
+    <style>
+        :root {
+            --bg-primary: #fafbfc;
+            --bg-secondary: #ffffff;
+            --bg-card: #ffffff;
+            --text-primary: #1a1a2e;
+            --text-secondary: #4a4a68;
+            --text-muted: #8a8aa3;
+            --accent-blue: #2563eb;
+            --accent-cyan: #06b6d4;
+            --accent-purple: #7c3aed;
+            --accent-orange: #f59e0b;
+            --accent-red: #ef4444;
+            --accent-green: #10b981;
+            --border: #e2e8f0;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+            --radius: 12px;
+            --radius-lg: 16px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* Hero Section */
+        .hero {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 80px 20px 100px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px);
+            background-size: 30px 30px;
+            opacity: 0.3;
+            animation: gridMove 20s linear infinite;
+        }
+
+        @keyframes gridMove {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(30px, 30px); }
+        }
+
+        .hero-content { position: relative; z-index: 1; max-width: 900px; margin: 0 auto; }
+        .hero h1 {
+            font-size: 3rem;
+            font-weight: 800;
+            margin-bottom: 16px;
+            letter-spacing: -0.02em;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        .hero .subtitle {
+            font-size: 1.25rem;
+            opacity: 0.9;
+            margin-bottom: 40px;
+            font-weight: 400;
+        }
+        .hero-badges {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .badge {
+            background: rgba(255,255,255,0.15);
+            backdrop-filter: blur(10px);
+            padding: 8px 16px;
+            border-radius: 100px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        /* Container */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        /* Section */
+        .section {
+            padding: 60px 0;
+        }
+        .section-title {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+            color: var(--text-primary);
+        }
+        .section-desc {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            margin-bottom: 40px;
+            max-width: 700px;
+        }
+
+        /* Cards */
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+            gap: 24px;
+            margin-top: 32px;
+        }
+        .card {
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            padding: 32px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, var(--accent-blue), var(--accent-cyan));
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg);
+        }
+        .card:hover::before { opacity: 1; }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .card-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+        .card-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+        .card-body {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            line-height: 1.7;
+        }
+        .card-highlight {
+            background: linear-gradient(135deg, #eff6ff, #f0f9ff);
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 16px;
+            border-left: 4px solid var(--accent-blue);
+        }
+
+        /* Paper Cards Specific */
+        .paper-card.router { border-top: 4px solid var(--accent-blue); }
+        .paper-card.reducer { border-top: 4px solid var(--accent-purple); }
+        .paper-tag {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 12px;
+        }
+        .paper-tag.router { background: #dbeafe; color: #1e40af; }
+        .paper-tag.reducer { background: #ede9fe; color: #5b21b6; }
+
+        /* Stats */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 32px 0;
+        }
+        .stat-box {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 24px;
+            text-align: center;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            transition: transform 0.2s;
+        }
+        .stat-box:hover { transform: scale(1.03); }
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .stat-label {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        /* Architecture Diagram */
+        .arch-container {
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            padding: 40px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            margin: 40px 0;
+            overflow-x: auto;
+        }
+
+        /* SVG Diagram Styles */
+        .svg-diagram { width: 100%; height: auto; }
+        .box { rx: 8; }
+        .box-router { fill: #dbeafe; stroke: #2563eb; stroke-width: 2; }
+        .box-reducer { fill: #ede9fe; stroke: #7c3aed; stroke-width: 2; }
+        .box-agent { fill: #d1fae5; stroke: #10b981; stroke-width: 2; }
+        .box-store { fill: #fef3c7; stroke: #f59e0b; stroke-width: 2; }
+        .box-user { fill: #fee2e2; stroke: #ef4444; stroke-width: 2; }
+        .arrow { fill: none; stroke: #94a3b8; stroke-width: 2; marker-end: url(#arrowhead); }
+        .label-text { font-size: 13px; font-weight: 600; fill: #1e293b; }
+        .sublabel { font-size: 11px; fill: #64748b; }
+
+        /* Flow Steps */
+        .flow-steps {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin: 24px 0;
+        }
+        .flow-step {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            background: var(--bg-card);
+            padding: 20px 24px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow-sm);
+            transition: all 0.2s;
+        }
+        .flow-step:hover {
+            border-color: var(--accent-blue);
+            box-shadow: var(--shadow);
+        }
+        .step-num {
+            width: 36px;
+            height: 36px;
+            min-width: 36px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.875rem;
+        }
+        .step-content h4 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: var(--text-primary);
+        }
+        .step-content p {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        /* Table */
+        .table-wrap {
+            overflow-x: auto;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            margin: 24px 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--bg-card);
+            font-size: 0.9rem;
+        }
+        th {
+            background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+            padding: 14px 16px;
+            text-align: left;
+            font-weight: 600;
+            color: var(--text-primary);
+            border-bottom: 2px solid var(--border);
+            white-space: nowrap;
+        }
+        td {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+        tr:hover td { background: #f8fafc; }
+        .td-highlight { color: var(--accent-blue); font-weight: 600; }
+        .td-warn { color: var(--accent-red); font-weight: 600; }
+        .td-success { color: var(--accent-green); font-weight: 600; }
+
+        /* Code Block */
+        .code-block {
+            background: #0f172a;
+            border-radius: var(--radius);
+            padding: 20px 24px;
+            overflow-x: auto;
+            margin: 16px 0;
+            position: relative;
+        }
+        .code-block::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: linear-gradient(90deg, var(--accent-blue), var(--accent-cyan), var(--accent-purple));
+        }
+        .code-block code {
+            color: #e2e8f0;
+            font-family: "JetBrains Mono", "Fira Code", "SF Mono", Consolas, monospace;
+            font-size: 0.85rem;
+            line-height: 1.6;
+        }
+        .code-keyword { color: #c084fc; }
+        .code-string { color: #4ade80; }
+        .code-comment { color: #64748b; }
+        .code-func { color: #60a5fa; }
+
+        /* Comparison Bars */
+        .bar-chart {
+            margin: 24px 0;
+        }
+        .bar-item {
+            margin-bottom: 16px;
+        }
+        .bar-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            font-size: 0.875rem;
+        }
+        .bar-track {
+            height: 28px;
+            background: #f1f5f9;
+            border-radius: 6px;
+            overflow: hidden;
+            position: relative;
+        }
+        .bar-fill {
+            height: 100%;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 10px;
+            color: white;
+            font-size: 0.8rem;
+            font-weight: 600;
+            transition: width 1s ease-out;
+        }
+        .bar-fill.router { background: linear-gradient(90deg, #3b82f6, #06b6d4); }
+        .bar-fill.reducer { background: linear-gradient(90deg, #7c3aed, #a855f7); }
+        .bar-fill.base { background: linear-gradient(90deg, #94a3b8, #cbd5e1); color: #475569; }
+
+        /* Toggle Details */
+        .details-toggle {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            margin-bottom: 12px;
+            overflow: hidden;
+        }
+        .details-header {
+            padding: 16px 20px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+        .details-header:hover { background: #f8fafc; }
+        .details-content {
+            padding: 0 20px 20px;
+            display: none;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            line-height: 1.7;
+        }
+        .details-toggle.open .details-content { display: block; }
+        .details-toggle.open .details-header { background: #f8fafc; }
+        .chevron { transition: transform 0.2s; }
+        .details-toggle.open .chevron { transform: rotate(180deg); }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-muted);
+            font-size: 0.875rem;
+            border-top: 1px solid var(--border);
+            margin-top: 60px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .hero h1 { font-size: 2rem; }
+            .card-grid { grid-template-columns: 1fr; }
+            .stats-row { grid-template-columns: repeat(2, 1fr); }
+            .section { padding: 40px 0; }
+        }
+
+        /* Animations */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-in {
+            animation: fadeInUp 0.6s ease-out forwards;
+        }
+        .delay-1 { animation-delay: 0.1s; opacity: 0; }
+        .delay-2 { animation-delay: 0.2s; opacity: 0; }
+        .delay-3 { animation-delay: 0.3s; opacity: 0; }
+    </style>
+</head>
+<body>
+
+<!-- Hero -->
+<section class="hero">
+    <div class="hero-content">
+        <h1>SkillRouter × SkillReducer</h1>
+        <p class="subtitle">大规模 Agent 技能系统的「精准路由」与「结构化减肥」架构解析</p>
+        <div class="hero-badges">
+            <span class="badge">📄 arXiv:2603.22455</span>
+            <span class="badge">📄 arXiv:2603.29919</span>
+            <span class="badge">🔍 80K Skill Pool</span>
+            <span class="badge">⚡ 1.2B Parameters</span>
+            <span class="badge">📉 48% Token Reduction</span>
+        </div>
+    </div>
+</section>
+
+<div class="container">
+
+<!-- Overview -->
+<section class="section">
+    <h2 class="section-title">核心命题</h2>
+    <p class="section-desc">
+        当 Agent 技能生态从几十个增长到<strong>上万个</strong>时，两个致命问题浮现：
+        <strong>找不准</strong>（海量同质技能中路由失效）和<strong>装不下</strong>（技能膨胀导致上下文淹没）。
+        两篇论文分别给出了答案，合起来是一套完整的技能基础设施方案。
+    </p>
+
+    <div class="card-grid">
+        <div class="card paper-card router animate-in delay-1">
+            <span class="paper-tag router">SkillRouter — 路由层</span>
+            <div class="card-header">
+                <div class="card-icon" style="background: #dbeafe;">🎯</div>
+                <div class="card-title">全文本信号革命</div>
+            </div>
+            <div class="card-body">
+                <p>现有框架（Claude Code / OpenClaw）路由时只暴露<strong>名称+描述</strong>，隐藏完整实现（body）。实验证明：去掉 body 导致路由准确率暴跌 <strong style="color:var(--accent-red)">31–44pp</strong>。</p>
+                <div class="card-highlight">
+                    <strong>核心洞察：</strong>Body 里的实现细节（参数、API、边界条件）才是区分「看起来相似、功能完全不同」的技能的关键信号。
+                </div>
+            </div>
+        </div>
+
+        <div class="card paper-card reducer animate-in delay-2">
+            <span class="paper-tag reducer">SkillReducer — 优化层</span>
+            <div class="card-header">
+                <div class="card-icon" style="background: #ede9fe;">✂️</div>
+                <div class="card-title">结构化去膨胀</div>
+            </div>
+            <div class="card-body">
+                <p>对 55,315 个公开技能的实证：<strong>26.4%</strong> 技能完全缺失描述；<strong>60%+</strong> body 内容是非可执行的背景/示例；参考文件可能一次性注入数万 token。</p>
+                <div class="card-highlight">
+                    <strong>核心洞察：</strong>Less-is-more — 移除干扰信息后，Agent 功能质量反而提升 <strong style="color:var(--accent-green)">2.8%</strong>。
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Key Stats -->
+<section class="section">
+    <h2 class="section-title">关键数据对比</h2>
+    <div class="stats-row">
+        <div class="stat-box animate-in delay-1">
+            <div class="stat-number">74.0%</div>
+            <div class="stat-label">SkillRouter Hit@1<br><small>1.2B vs 16B 基线 68.0%</small></div>
+        </div>
+        <div class="stat-box animate-in delay-2">
+            <div class="stat-number">13×</div>
+            <div class="stat-label">参数缩减<br><small>1.2B 打平 16B 基线</small></div>
+        </div>
+        <div class="stat-box animate-in delay-3">
+            <div class="stat-number">5.8×</div>
+            <div class="stat-label">延迟降低<br><small>中位延迟 495ms</small></div>
+        </div>
+        <div class="stat-box animate-in delay-1">
+            <div class="stat-number">48%</div>
+            <div class="stat-label">描述压缩率<br><small>Delta Debugging 1-minimal</small></div>
+        </div>
+        <div class="stat-box animate-in delay-2">
+            <div class="stat-number">39%</div>
+            <div class="stat-label">Body 压缩率<br><small>Core + Progressive Disclosure</small></div>
+        </div>
+        <div class="stat-box animate-in delay-3">
+            <div class="stat-number">100%</div>
+            <div class="stat-label">路由保留率<br><small>Stage 1 两阶段验证</small></div>
+        </div>
+    </div>
+</section>
+
+<!-- Architecture Overview SVG -->
+<section class="section">
+    <h2 class="section-title">融合架构全景</h2>
+    <p class="section-desc">SkillRouter 负责 Runtime 精准路由，SkillReducer 负责 Build-time 结构化减肥，两者在「全文本索引」处交汇。</p>
+
+    <div class="arch-container">
+        <svg class="svg-diagram" viewBox="0 0 900 520" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                    <polygon points="0 0, 10 3.5, 0 7" fill="#94a3b8" />
+                </marker>
+                <linearGradient id="gradRouter" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:#dbeafe;stop-opacity:1" />
+                    <stop offset="100%" style="stop-color:#bfdbfe;stop-opacity:1" />
+                </linearGradient>
+                <linearGradient id="gradReducer" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:#ede9fe;stop-opacity:1" />
+                    <stop offset="100%" style="stop-color:#ddd6fe;stop-opacity:1" />
+                </linearGradient>
+                <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.15"/>
+                </filter>
+            </defs>
+
+            <!-- User -->
+            <rect x="380" y="20" width="140" height="50" rx="25" class="box box-user" filter="url(#shadow)"/>
+            <text x="450" y="50" text-anchor="middle" class="label-text">👤 用户任务</text>
+
+            <!-- Arrow to Router -->
+            <line x1="450" y1="70" x2="450" y2="100" class="arrow"/>
+
+            <!-- Router Layer -->
+            <rect x="250" y="100" width="400" height="180" rx="12" fill="url(#gradRouter)" stroke="#2563eb" stroke-width="2" filter="url(#shadow)"/>
+            <text x="450" y="125" text-anchor="middle" class="label-text" font-size="14">🔵 SkillRouter — Runtime 路由层</text>
+
+            <!-- Stage 1 -->
+            <rect x="270" y="140" width="160" height="110" rx="8" fill="#ffffff" stroke="#3b82f6" stroke-width="1.5"/>
+            <text x="350" y="165" text-anchor="middle" class="label-text" font-size="12">Stage 1: Bi-Encoder</text>
+            <text x="350" y="185" text-anchor="middle" class="sublabel">0.6B 全文本 Embedding</text>
+            <text x="350" y="200" text-anchor="middle" class="sublabel">ANN 检索 Top-20</text>
+            <text x="350" y="215" text-anchor="middle" class="sublabel">假阴性过滤</text>
+            <text x="350" y="235" text-anchor="middle" class="label-text" font-size="11" fill="#2563eb">召回率 75.4% R@20</text>
+
+            <!-- Stage 2 -->
+            <rect x="470" y="140" width="160" height="110" rx="8" fill="#ffffff" stroke="#3b82f6" stroke-width="1.5"/>
+            <text x="550" y="165" text-anchor="middle" class="label-text" font-size="12">Stage 2: Cross-Encoder</text>
+            <text x="550" y="185" text-anchor="middle" class="sublabel">0.6B 列表式重排序</text>
+            <text x="550" y="200" text-anchor="middle" class="sublabel">Listwise CE Loss</text>
+            <text x="550" y="215" text-anchor="middle" class="sublabel">完整 skill 文本比对</text>
+            <text x="550" y="235" text-anchor="middle" class="label-text" font-size="11" fill="#2563eb">Hit@1 74.0%</text>
+
+            <!-- Arrow to Context Assembly -->
+            <line x1="450" y1="280" x2="450" y2="310" class="arrow"/>
+
+            <!-- Context Assembly -->
+            <rect x="300" y="310" width="300" height="80" rx="10" fill="#f0fdf4" stroke="#10b981" stroke-width="2" filter="url(#shadow)"/>
+            <text x="450" y="335" text-anchor="middle" class="label-text" font-size="13">🟢 上下文装配层</text>
+            <text x="450" y="355" text-anchor="middle" class="sublabel">注入 Core Rules + 注册 References (when/topics)</text>
+            <text x="450" y="375" text-anchor="middle" class="sublabel">提供 read_file 工具供 Agent 按需加载</text>
+
+            <!-- Arrow to Agent -->
+            <line x1="450" y1="390" x2="450" y2="420" class="arrow"/>
+
+            <!-- Agent -->
+            <rect x="350" y="420" width="200" height="60" rx="10" class="box box-agent" filter="url(#shadow)"/>
+            <text x="450" y="445" text-anchor="middle" class="label-text" font-size="13">🤖 LLM Agent 执行</text>
+            <text x="450" y="465" text-anchor="middle" class="sublabel">系统 Prompt + Core + 用户对话</text>
+
+            <!-- Build-time Pipeline (Left) -->
+            <rect x="20" y="100" width="200" height="380" rx="12" fill="url(#gradReducer)" stroke="#7c3aed" stroke-width="2" filter="url(#shadow)"/>
+            <text x="120" y="125" text-anchor="middle" class="label-text" font-size="14">🟣 SkillReducer — Build-time</text>
+
+            <rect x="40" y="140" width="160" height="90" rx="8" fill="#ffffff" stroke="#7c3aed" stroke-width="1.5"/>
+            <text x="120" y="162" text-anchor="middle" class="label-text" font-size="11">Stage 1: 路由层优化</text>
+            <text x="120" y="180" text-anchor="middle" class="sublabel">Delta Debugging</text>
+            <text x="120" y="195" text-anchor="middle" class="sublabel">对抗性 Oracle</text>
+            <text x="120" y="210" text-anchor="middle" class="sublabel">1-minimal 描述</text>
+
+            <rect x="40" y="245" width="160" height="110" rx="8" fill="#ffffff" stroke="#7c3aed" stroke-width="1.5"/>
+            <text x="120" y="267" text-anchor="middle" class="label-text" font-size="11">Stage 2: Body 重组</text>
+            <text x="120" y="285" text-anchor="middle" class="sublabel">分类学驱动分类</text>
+            <text x="120" y="300" text-anchor="middle" class="sublabel">Core vs References</text>
+            <text x="120" y="315" text-anchor="middle" class="sublabel">Progressive Disclosure</text>
+            <text x="120" y="335" text-anchor="middle" class="sublabel">跨文件去重</text>
+
+            <rect x="40" y="370" width="160" height="90" rx="8" fill="#ffffff" stroke="#7c3aed" stroke-width="1.5"/>
+            <text x="120" y="392" text-anchor="middle" class="label-text" font-size="11">质量门控</text>
+            <text x="120" y="410" text-anchor="middle" class="sublabel">Gate 1: Faithfulness</text>
+            <text x="120" y="425" text-anchor="middle" class="sublabel">Gate 2: 任务评估</text>
+            <text x="120" y="440" text-anchor="middle" class="sublabel">反馈循环 Promote</text>
+
+            <!-- Arrow from Build to Index -->
+            <line x1="220" y1="200" x2="250" y2="200" class="arrow"/>
+            <text x="235" y="195" text-anchor="middle" class="sublabel" font-size="10">优化后入库</text>
+
+            <!-- Skill Store (Right) -->
+            <rect x="680" y="140" width="200" height="120" rx="10" class="box box-store" filter="url(#shadow)"/>
+            <text x="780" y="170" text-anchor="middle" class="label-text" font-size="13">📦 技能存储 & 索引</text>
+            <text x="780" y="195" text-anchor="middle" class="sublabel">结构化 Skill 对象</text>
+            <text x="780" y="210" text-anchor="middle" class="sublabel">(core + references)</text>
+            <text x="780" y="230" text-anchor="middle" class="sublabel">Bi-Encoder Embedding</text>
+            <text x="780" y="245" text-anchor="middle" class="sublabel">FAISS / Milvus 向量库</text>
+
+            <!-- Arrow from Store to Router -->
+            <line x1="680" y1="200" x2="630" y2="200" class="arrow"/>
+        </svg>
+    </div>
+</section>
+
+<!-- SkillRouter Deep Dive -->
+<section class="section">
+    <h2 class="section-title">🔵 SkillRouter 详解</h2>
+    <p class="section-desc">1.2B 参数的全文本检索-重排序流水线，两个训练技巧是成败关键。</p>
+
+    <div class="bar-chart">
+        <div class="bar-item">
+            <div class="bar-label"><span>BM25 (Sparse, 仅 Name+Desc)</span><span class="td-warn">0.0% Hit@1</span></div>
+            <div class="bar-track"><div class="bar-fill base" style="width: 2%">0%</div></div>
+        </div>
+        <div class="bar-item">
+            <div class="bar-label"><span>BM25 (Sparse, Full Text)</span><span>31.4% Hit@1</span></div>
+            <div class="bar-track"><div class="bar-fill base" style="width: 31.4%">31.4%</div></div>
+        </div>
+        <div class="bar-item">
+            <div class="bar-label"><span>Qwen3-Emb-8B (Full Text)</span><span>64.0% Hit@1</span></div>
+            <div class="bar-track"><div class="bar-fill base" style="width: 64%">64.0%</div></div>
+        </div>
+        <div class="bar-item">
+            <div class="bar-label"><span><strong>SkillRouter 1.2B (Ours)</strong></span><span class="td-highlight">74.0% Hit@1</span></div>
+            <div class="bar-track"><div class="bar-fill router" style="width: 74%">74.0%</div></div>
+        </div>
+        <div class="bar-item">
+            <div class="bar-label"><span>Qwen3-Emb-8B × Qwen3-Rank-8B (16B Base)</span><span>68.0% Hit@1</span></div>
+            <div class="bar-track"><div class="bar-fill base" style="width: 68%">68.0%</div></div>
+        </div>
+    </div>
+
+    <div class="flow-steps">
+        <div class="flow-step animate-in delay-1">
+            <div class="step-num">1</div>
+            <div class="step-content">
+                <h4>Bi-Encoder 检索 — 召回阶段</h4>
+                <p>SR-Emb-0.6B 基于 <strong>全文本</strong>（name + desc + body）生成 Embedding，通过 FAISS ANN 从 80K 池中召回 Top-20。关键：训练时使用 <strong>10 个 Hard Negatives</strong>（语义邻居 4 + BM25 匹配 3 + 同分类干扰 2 + 随机 1），迫使模型学会区分高度相似的技能。</p>
+            </div>
+        </div>
+        <div class="flow-step animate-in delay-2">
+            <div class="step-num">2</div>
+            <div class="step-content">
+                <h4>假阴性过滤 — 数据清洗</h4>
+                <p>技能池中大量「同功能不同名」或「同名不同实现」的技能。直接当负样本会污染对比学习。采用<strong>三层过滤</strong>：名称去重 → 三元组 Jaccard > 0.6 → Embedding 相似度 > 0.92。过滤后贡献 <strong>+4.0pp Hit@1</strong>。</p>
+            </div>
+        </div>
+        <div class="flow-step animate-in delay-3">
+            <div class="step-num">3</div>
+            <div class="step-content">
+                <h4>Cross-Encoder 重排序 — 精排阶段</h4>
+                <p>SR-Rank-0.6B 对 20 个候选做<strong>完整文本交叉编码</strong>。关键：必须使用 <strong>Listwise Cross-Entropy</strong>。消融实验证明 Pointwise BCE 会崩溃到 43.3% Hit@1，而 Listwise 达到 74.0% — 因为 Top-20 候选全是 topical plausible，需要相对比较而非独立打分。</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SkillReducer Deep Dive -->
+<section class="section">
+    <h2 class="section-title">🟣 SkillReducer 详解</h2>
+    <p class="section-desc">两阶段优化框架，将单体技能重构为「常驻 Core + 按需 Reference」的分层架构。</p>
+
+    <div class="card-grid">
+        <div class="card animate-in delay-1">
+            <div class="card-header">
+                <div class="card-icon" style="background: #fee2e2; color: var(--accent-red);">📉</div>
+                <div class="card-title">发现 1：描述层失效</div>
+            </div>
+            <div class="card-body">
+                <p>55,315 个公开技能中，<strong>26.4%</strong> 完全没有描述，<strong>44.1%</strong> 缺失或短于 20 tokens。这些描述仍被加载到路由池，但永远无法被匹配 — 每次调用都是纯 Token 浪费。</p>
+            </div>
+        </div>
+        <div class="card animate-in delay-2">
+            <div class="card-header">
+                <div class="card-icon" style="background: #fef3c7; color: var(--accent-orange);">📊</div>
+                <div class="card-title">发现 2：Body 内容冗余</div>
+            </div>
+            <div class="card-body">
+                <p>对 15,107 个段落级 item 分类后发现：仅 <strong>38.5%</strong> 是可执行 Core Rules，<strong>40.7%</strong> 是背景解释，<strong>12.9%</strong> 是示例。超过 60% 的内容注入上下文后并不参与任务执行。</p>
+            </div>
+        </div>
+        <div class="card animate-in delay-3">
+            <div class="card-header">
+                <div class="card-icon" style="background: #dbeafe; color: var(--accent-blue);">📁</div>
+                <div class="card-title">发现 3：参考文件爆炸</div>
+            </div>
+            <div class="card-body">
+                <p>14.8% 的技能包含外部参考文件。100 个 SkillHub 技能的参考文件总计 <strong>1.67M tokens</strong>，单次调用可能注入数万 token，而当前任务往往只需要其中一小部分。</p>
+            </div>
+        </div>
+    </div>
+
+    <div style="margin-top: 40px;">
+        <h3 style="font-size: 1.25rem; margin-bottom: 20px;">Stage 1：路由层优化 — Delta Debugging</h3>
+        <div class="flow-steps">
+            <div class="flow-step">
+                <div class="step-num" style="background: linear-gradient(135deg, #7c3aed, #a855f7);">1a</div>
+                <div class="step-content">
+                    <h4>对抗性模拟 Oracle</h4>
+                    <p>构建候选池：目标技能 + 4 个 TF-IDF 相似干扰项 + 1 个 LLM 生成的「影子技能」（同域不同功能）。Oracle 要求目标技能对所有测试 query 都被正确选中。</p>
+                </div>
+            </div>
+            <div class="flow-step">
+                <div class="step-num" style="background: linear-gradient(135deg, #7c3aed, #a855f7);">1b</div>
+                <div class="step-content">
+                    <h4>语义单元级 ddmin</h4>
+                    <p>LLM 将描述分割为「语义单元」（如 "JWT authentication"），而非句子或单词。ddmin 递归二分查找，O(n log n) 次 Oracle 调用后得到 <strong>1-minimal 子集</strong> — 每个剩余单元都是路由必需的。</p>
+                </div>
+            </div>
+            <div class="flow-step">
+                <div class="step-num" style="background: linear-gradient(135deg, #7c3aed, #a855f7);">1c</div>
+                <div class="step-content">
+                    <h4>真实环境验证 + 选择性恢复</h4>
+                    <p>将压缩描述部署到 Claude Code CLI，通过 stream event 解析检测触发率。若失败，从删除单元中贪婪恢复最能提升触发率的单元（最多 3 步），确保 100% 路由等价。</p>
+                </div>
+            </div>
+        </div>
+
+        <h3 style="font-size: 1.25rem; margin: 40px 0 20px;">Stage 2：Body 重组 — Progressive Disclosure</h3>
+        <div class="code-block">
+            <code>
+<span class="code-comment"># 优化前：单体架构（Monolithic）</span>
+Cost(s) = |description| + |body| + Σ|references|    <span class="code-comment"># 全部常驻上下文</span>
+
+<span class="code-comment"># 优化后：分层架构（Tiered）</span>
+Cost'(s) = |s'.d| + |b*| + Σ<sub>r∈R*used</sub>|r|    <span class="code-comment"># 仅 Core 常驻，Refs 按需 read_file</span>
+            </code>
+        </div>
+
+        <div class="flow-steps">
+            <div class="flow-step">
+                <div class="step-num" style="background: linear-gradient(135deg, #7c3aed, #a855f7);">2a</div>
+                <div class="step-content">
+                    <h4>分类学驱动分类</h4>
+                    <p>LLM 将 body 段落分类为 5 类：Core Rule（可执行指令）、Background（原理解释）、Example（代码示例）、Template（ boilerplate）、Redundant（重复内容）。仅 Core Rule 保留在常驻模块。</p>
+                </div>
+            </div>
+            <div class="flow-step">
+                <div class="step-num" style="background: linear-gradient(135deg, #7c3aed, #a855f7);">2b</div>
+                <div class="step-content">
+                    <h4>类型特定压缩 & 去重</h4>
+                    <p>Core Rules 合并为精简 bullet points；Examples 按概念去重仅保留最佳代表（减少 60-70%）；Background 摘要为保留关键事实的短段落；Templates 按概念去重。</p>
+                </div>
+            </div>
+            <div class="flow-step">
+                <div class="step-num" style="background: linear-gradient(135deg, #7c3aed, #a855f7);">2c</div>
+                <div class="step-content">
+                    <h4>跨文件去重 & 注解</h4>
+                    <p>检测 reference 与 body 的内容重叠并删除冗余。每个 reference 附加 <strong>when</strong> 触发条件（如 "you need to write YAML"）和 <strong>topics</strong> 关键词，让 Agent 无需读取即可判断是否加载。</p>
+                </div>
+            </div>
+            <div class="flow-step">
+                <div class="step-num" style="background: linear-gradient(135deg, #7c3aed, #a855f7);">2d</div>
+                <div class="step-content">
+                    <h4>双门控质量保障 + 自纠正反馈</h4>
+                    <p><strong>Gate 1（Faithfulness）：</strong>LLM 检查所有操作概念是否保留在 Core ∪ References 中。<br><strong>Gate 2（Task Eval）：</strong>5 个真实任务测试，Agent 使用 read_file 按需加载。若失败，分析缺失 criteria 并将所需内容 <strong>Promote</strong> 回 Core（最多 2 轮迭代）。</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Module Design -->
+<section class="section">
+    <h2 class="section-title">端到端模块设计</h2>
+    <p class="section-desc">将论文方案落地为可部署的 4 层架构：存储层、路由服务、上下文装配层、Agent 执行层。</p>
+
+    <div class="details-toggle open">
+        <div class="details-header" onclick="this.parentElement.classList.toggle('open')">
+            <span>📦 1. 技能存储与索引层（Skill Store）</span>
+            <span class="chevron">▼</span>
+        </div>
+        <div class="details-content">
+            <p><strong>不要只存 metadata。</strong> 按 SkillRouter 结论，索引必须包含完整 body；但按 SkillReducer 结论，body 应被预结构化。</p>
+            <div class="code-block">
+                <code>
+<span class="code-comment"># 建议的入库格式</span>
+skill_id: <span class="code-string">"jwt-auth-v2"</span>
+routing:
+  name: <span class="code-string">"JWT Authentication"</span>
+  description: <span class="code-string">"压缩后的1-minimal描述"</span>  <span class="code-comment"># Stage 1 产物</span>
+  embedding_text: <span class="code-string">"name + desc + core_rules摘要"</span>  <span class="code-comment"># 用于 Bi-Encoder</span>
+body:
+  core: <span class="code-string">"可执行核心规则（≤40%原body token）"</span>  <span class="code-comment"># Stage 2 产物</span>
+  references:
+    - id: <span class="code-string">"examples"</span>
+      when: <span class="code-string">"需要实现具体代码时"</span>
+      topics: [<span class="code-string">"code-example"</span>, <span class="code-string">"implementation"</span>]
+      content: <span class="code-string">"..."</span>
+    - id: <span class="code-string">"background"</span>
+      when: <span class="code-string">"需要理解安全原理时"</span>
+      topics: [<span class="code-string">"rationale"</span>, <span class="code-string">"security-context"</span>]
+      content: <span class="code-string">"..."</span>
+                </code>
+            </div>
+            <p><strong>索引策略：</strong>离线用 Bi-Encoder（0.6B 级别）预计算 Embedding，存 FAISS/Milvus；建索引前跑假阴性过滤流水线（名称 + 三元组 Jaccard + Embedding 相似度）。</p>
+        </div>
+    </div>
+
+    <div class="details-toggle">
+        <div class="details-header" onclick="this.parentElement.classList.toggle('open')">
+            <span>🎯 2. 路由服务（Skill Routing Service）</span>
+            <span class="chevron">▼</span>
+        </div>
+        <div class="details-content">
+            <p>A2A 平台里的核心服务，建议独立 GPU 部署：</p>
+            <div class="code-block">
+                <code>
+<span class="code-keyword">class</span> <span class="code-func">SkillRouter</span>:
+    <span class="code-keyword">def</span> <span class="code-func">route</span>(self, user_query: str, top_k: int = <span class="code-string">5</span>) -> List[Skill]:
+        <span class="code-comment"># Stage 1: 检索（全文本 Bi-Encoder）</span>
+        query_emb = self.encoder.encode(user_query)
+        candidates = self.index.search(query_emb, k=<span class="code-string">20</span>)
+
+        <span class="code-comment"># Stage 2: 重排序（列表式 Cross-Encoder）</span>
+        ranked = self.reranker.rank(
+            query=user_query,
+            candidates=[self.store.get_full_text(c) <span class="code-keyword">for</span> c <span class="code-keyword">in</span> candidates],
+            loss=<span class="code-string">"listwise_cross_entropy"</span>  <span class="code-comment"># 不是 pointwise BCE！</span>
+        )
+        <span class="code-keyword">return</span> ranked[:top_k]
+                </code>
+            </div>
+            <p><strong>训练数据：</strong>用 GPT-4o-mini 基于 skill body 生成 synthetic query（避免泄露 skill 名称），确保 query 反映功能需求而非词汇匹配。每个 query 配 10 个 hard negatives。</p>
+        </div>
+    </div>
+
+    <div class="details-toggle">
+        <div class="details-header" onclick="this.parentElement.classList.toggle('open')">
+            <span>🧩 3. 上下文装配层（Context Manager）</span>
+            <span class="chevron">▼</span>
+        </div>
+        <div class="details-content">
+            <p>Agent 执行前的关键层，直接决定 Token 成本和注意力质量：</p>
+            <div class="code-block">
+                <code>
+<span class="code-keyword">class</span> <span class="code-func">SkillContextManager</span>:
+    <span class="code-keyword">def</span> <span class="code-func">assemble</span>(self, skills: List[Skill], query: str) -> Context:
+        ctx = {
+            <span class="code-string">"system_prompt"</span>: base_prompt,
+            <span class="code-string">"user_query"</span>: query,
+            <span class="code-string">"injected_skills"</span>: []
+        }
+        <span class="code-keyword">for</span> skill <span class="code-keyword">in</span> skills:
+            ctx[<span class="code-string">"injected_skills"</span>].append({
+                <span class="code-string">"name"</span>: skill.routing.name,
+                <span class="code-string">"description"</span>: skill.routing.description,
+                <span class="code-string">"core_rules"</span>: skill.body.core,  <span class="code-comment"># 仅注入核心规则</span>
+                <span class="code-string">"available_refs"</span>: [
+                    {<span class="code-string">"id"</span>: r.id, <span class="code-string">"when"</span>: r.when, <span class="code-string">"topics"</span>: r.topics}
+                    <span class="code-keyword">for</span> r <span class="code-keyword">in</span> skill.body.references
+                ]
+            })
+        ctx[<span class="code-string">"tools"</span>].append(read_file_tool)  <span class="code-comment"># 供 Agent 按需加载</span>
+        <span class="code-keyword">return</span> ctx
+                </code>
+            </div>
+            <p><strong>为什么这样做？</strong> SkillRouter 证明全文本是路由信号，但路由完成后 Agent 不需要看到全文本 — 它只需要 Core Rules + 按需 Reference。SkillReducer 证明 core-only 加载可将单次调用从 12,019 token 降到 540 token，且功能质量提升 2.8%。</p>
+        </div>
+    </div>
+
+    <div class="details-toggle">
+        <div class="details-header" onclick="this.parentElement.classList.toggle('open')">
+            <span>⚙️ 4. 技能优化流水线（Build Pipeline）</span>
+            <span class="chevron">▼</span>
+        </div>
+        <div class="details-content">
+            <p>作为 build-time 步骤，所有入库技能必须经过 SkillReducer 处理：</p>
+            <div style="background: #f8fafc; border-radius: 8px; padding: 20px; margin: 16px 0;">
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                    <div style="width: 32px; height: 32px; background: #fee2e2; border-radius: 50%; display: flex; align-items: center; justify-content: center;">📄</div>
+                    <div><strong>原始 Skill.md</strong></div>
+                </div>
+                <div style="text-align: center; color: #94a3b8; margin: 8px 0;">↓</div>
+                <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 200px; background: #dbeafe; padding: 16px; border-radius: 8px;">
+                        <strong style="color: #1e40af;">Stage 1</strong><br>
+                        <span style="font-size: 0.85rem; color: #4a4a68;">Delta Debugging 压缩描述 → 1-minimal<br>缺失描述自动生成 + 对抗性验证</span>
+                    </div>
+                    <div style="flex: 1; min-width: 200px; background: #ede9fe; padding: 16px; border-radius: 8px;">
+                        <strong style="color: #5b21b6;">Stage 2</strong><br>
+                        <span style="font-size: 0.85rem; color: #4a4a68;">分类学分类 → Core + References<br>跨文件去重 + 按需加载注解</span>
+                    </div>
+                </div>
+                <div style="text-align: center; color: #94a3b8; margin: 8px 0;">↓</div>
+                <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 200px; background: #d1fae5; padding: 16px; border-radius: 8px;">
+                        <strong style="color: #065f46;">Gate 1</strong><br>
+                        <span style="font-size: 0.85rem; color: #4a4a68;">Faithfulness：概念保留检查</span>
+                    </div>
+                    <div style="flex: 1; min-width: 200px; background: #d1fae5; padding: 16px; border-radius: 8px;">
+                        <strong style="color: #065f46;">Gate 2</strong><br>
+                        <span style="font-size: 0.85rem; color: #4a4a68;">任务评估 + 反馈循环（失败则 Promote）</span>
+                    </div>
+                </div>
+                <div style="text-align: center; color: #94a3b8; margin: 8px 0;">↓</div>
+                <div style="display: flex; align-items: center; gap: 12px; background: #fef3c7; padding: 16px; border-radius: 8px;">
+                    <div style="width: 32px; height: 32px; background: #f59e0b; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center;">✓</div>
+                    <div><strong>结构化入库</strong> → 触发 Bi-Encoder 重新索引</div>
+                </div>
+            </div>
+            <p><strong>对你的 A2A 平台的意义：</strong>「Skill Guru」可作为 build-time 优化服务，任何 Agent 提交 skill 时自动跑这套 pipeline。优化后的 skill 进入共享技能市场，所有 Agent 消费的都是「已减肥」版本。</p>
+        </div>
+    </div>
+</section>
+
+<!-- Decision Matrix -->
+<section class="section">
+    <h2 class="section-title">关键决策矩阵</h2>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>决策点</th>
+                    <th>论文依据</th>
+                    <th>建议方案</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>索引是否存完整 body？</strong></td>
+                    <td>SkillRouter：body 是 critical signal，去掉后暴跌 31–44pp</td>
+                    <td class="td-highlight">必须存。但 SkillReducer 优化后的 body（core+refs 摘要）比原始 monolithic body 更适合索引</td>
+                </tr>
+                <tr>
+                    <td><strong>描述缺失怎么办？</strong></td>
+                    <td>SkillReducer：26.4% 技能缺失描述，导致路由失效</td>
+                    <td class="td-highlight">用 body 自动生成描述，再经 Delta Debugging 压缩到 1-minimal</td>
+                </tr>
+                <tr>
+                    <td><strong>Reranker 用 pointwise 还是 listwise？</strong></td>
+                    <td>SkillRouter 消融：pointwise BCE 崩溃到 43.3%，listwise CE 达 74.0%</td>
+                    <td class="td-warn">必须用 listwise CE。Top-20 候选全是 plausible，需相对比较</td>
+                </tr>
+                <tr>
+                    <td><strong>Agent 看到完整 body 还是 core？</strong></td>
+                    <td>SkillReducer：less-is-more，core-only 功能质量提升 2.8%</td>
+                    <td class="td-highlight">Agent 只加载 core，references 通过 read_file 按需加载</td>
+                </tr>
+                <tr>
+                    <td><strong>假阴性过滤阈值？</strong></td>
+                    <td>SkillRouter：trigram Jaccard > 0.6 + emb > 0.92</td>
+                    <td class="td-highlight">直接复用三层过滤，避免同功能不同名技能污染训练</td>
+                </tr>
+                <tr>
+                    <td><strong>模型选型？</strong></td>
+                    <td>SkillRouter：Qwen3-Emb/Rank-0.6B 足够</td>
+                    <td class="td-highlight">0.6B 级别足够。技能池 &lt;10K 可更小；&gt;100K 考虑 8B</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<!-- Summary -->
+<section class="section">
+    <h2 class="section-title">总结</h2>
+    <div class="card" style="background: linear-gradient(135deg, #f0f9ff, #faf5ff); border: none;">
+        <div class="card-body" style="font-size: 1.05rem;">
+            <p style="margin-bottom: 16px;">这两篇论文为你的 <strong>deep agent + skill guru</strong> 系统提供了 <strong>「找得准」+「给得精」</strong> 的闭环：</p>
+            <ul style="list-style: none; padding: 0;">
+                <li style="margin-bottom: 12px; padding-left: 28px; position: relative;">
+                    <span style="position: absolute; left: 0; color: var(--accent-blue);">🔵</span>
+                    <strong>SkillRouter</strong> 告诉你：路由层必须用<strong>全文本</strong>做信号，且要<strong>检索 + 重排序</strong>两阶段，配合<strong>假阴性过滤</strong>和<strong>列表式损失</strong>才能在大规模同质技能池中不迷路。
+                </li>
+                <li style="margin-bottom: 12px; padding-left: 28px; position: relative;">
+                    <span style="position: absolute; left: 0; color: var(--accent-purple);">🟣</span>
+                    <strong>SkillReducer</strong> 告诉你：入库前必须做<strong>结构化减肥</strong>，将单体技能拆成 <strong>Core（常驻）+ References（按需）</strong>，用 <strong>Delta Debugging</strong> 压缩描述，用<strong>任务反馈循环</strong>保证功能不丢。
+                </li>
+                <li style="padding-left: 28px; position: relative;">
+                    <span style="position: absolute; left: 0; color: var(--accent-green);">🟢</span>
+                    落实到你的架构，就是：<strong>Skill Guru 负责 build-time 优化（SkillReducer）</strong>，<strong>A2A Proxy 负责 runtime 路由（SkillRouter）</strong>，<strong>Agent Context Manager 负责按需装配（Progressive Disclosure）</strong>。这三层合起来，才能支撑你「1 万个 skills」的愿景。
+                </li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<div class="footer">
+    <p>基于 arXiv:2603.22455 (SkillRouter) 与 arXiv:2603.29919 (SkillReducer) 解析生成</p>
+    <p style="margin-top: 8px; opacity: 0.7;">Generated for Deep Agent + Skill Guru Architecture Design</p>
+</div>
+
+</div>
+
+<script>
+    // Intersection Observer for scroll animations
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.style.opacity = '1';
+                entry.target.style.transform = 'translateY(0)';
+            }
+        });
+    }, { threshold: 0.1 });
+
+    document.querySelectorAll('.animate-in').forEach(el => {
+        el.style.opacity = '0';
+        el.style.transform = 'translateY(20px)';
+        el.style.transition = 'opacity 0.6s ease-out, transform 0.6s ease-out';
+        observer.observe(el);
+    });
+
+    // Bar chart animation
+    setTimeout(() => {
+        document.querySelectorAll('.bar-fill').forEach(bar => {
+            const width = bar.style.width;
+            bar.style.width = '0%';
+            setTimeout(() => { bar.style.width = width; }, 100);
+        });
+    }, 500);
+</script>
+
+</body>
+</html>
