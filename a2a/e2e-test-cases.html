@@ -1,0 +1,1231 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Host E2E Test Cases</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0d1117; color: #c9d1d9; line-height: 1.6; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+  h1 { color: #58a6ff; font-size: 2em; margin-bottom: 8px; border-bottom: 1px solid #30363d; padding-bottom: 16px; }
+  .summary { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; margin-bottom: 24px; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }
+  .summary-card { text-align: center; }
+  .summary-card .num { font-size: 2em; font-weight: 700; }
+  .summary-card .label { font-size: 0.85em; color: #8b949e; text-transform: uppercase; letter-spacing: 1px; }
+  .total .num { color: #58a6ff; }
+  .msg .num { color: #ff9f43; }
+  .disc .num { color: #2ecc71; }
+  .tool .num { color: #e74c3c; }
+  .trace .num { color: #9b59b6; }
+  .reg .num { color: #1abc9c; }
+  .err .num { color: #e67e22; }
+
+  .module { margin-bottom: 32px; }
+  .module-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; cursor: pointer; user-select: none; }
+  .module-header h2 { font-size: 1.3em; }
+  .module-header .badge { background: #30363d; color: #c9d1d9; border-radius: 12px; padding: 2px 10px; font-size: 0.8em; }
+  .module-header .toggle { color: #8b949e; font-size: 0.9em; margin-left: auto; transition: transform 0.2s; }
+  .module-header .toggle.collapsed { transform: rotate(-90deg); }
+  .module-body { border-left: 3px solid #30363d; padding-left: 20px; }
+  .module-body.collapsed { display: none; }
+
+  .test-case { background: #161b22; border: 1px solid #21262d; border-radius: 8px; margin-bottom: 12px; overflow: hidden; }
+  .tc-header { padding: 12px 16px; cursor: pointer; display: flex; align-items: center; gap: 10px; }
+  .tc-header:hover { background: #1c2129; }
+  .tc-id { font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace; font-size: 0.8em; color: #8b949e; background: #21262d; padding: 2px 8px; border-radius: 4px; white-space: nowrap; }
+  .tc-title { font-weight: 600; font-size: 0.95em; }
+  .tc-arrow { margin-left: auto; color: #8b949e; transition: transform 0.2s; font-size: 0.8em; }
+  .tc-arrow.open { transform: rotate(90deg); }
+  .tc-body { padding: 0 16px 16px; display: none; }
+  .tc-body.open { display: block; }
+  .tc-section { margin-top: 12px; }
+  .tc-section h4 { color: #58a6ff; font-size: 0.85em; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+  .flow-steps { display: flex; flex-direction: column; gap: 6px; }
+  .step { display: flex; align-items: flex-start; gap: 10px; font-size: 0.9em; }
+  .step-num { background: #30363d; color: #58a6ff; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 0.75em; font-weight: 700; flex-shrink: 0; margin-top: 2px; }
+  .step-content { flex: 1; }
+  .step-content code { background: #1c2129; border: 1px solid #30363d; padding: 1px 6px; border-radius: 4px; font-family: 'SF Mono', Monaco, monospace; font-size: 0.9em; color: #79c0ff; }
+  .step-content .http { color: #7ee787; }
+  .step-content .assert { color: #ffa657; }
+  .step-content .event { color: #d2a8ff; }
+  .verify { background: #1c2129; border-left: 3px solid #ffa657; padding: 8px 12px; border-radius: 0 4px 4px 0; font-size: 0.9em; margin-top: 8px; }
+  .verify strong { color: #ffa657; }
+  .fixture { color: #8b949e; font-size: 0.85em; margin-top: 8px; }
+  .fixture code { color: #8b949e; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>Host E2E Test Cases</h1>
+
+<div class="summary">
+  <div class="summary-card total"><div class="num">53</div><div class="label">Total Cases</div></div>
+  <div class="summary-card msg"><div class="num">11</div><div class="label">Messaging</div></div>
+  <div class="summary-card disc"><div class="num">12</div><div class="label">Discovery</div></div>
+  <div class="summary-card tool"><div class="num">6</div><div class="label">Tool Call</div></div>
+  <div class="summary-card trace"><div class="num">8</div><div class="label">Tracing</div></div>
+  <div class="summary-card reg"><div class="num">6</div><div class="label">Registry</div></div>
+  <div class="summary-card err"><div class="num">8</div><div class="label">Error / Edge</div></div>
+</div>
+
+<!-- ============================================================ -->
+<!-- MODULE 1: Proxy / Messaging Flow -->
+<!-- ============================================================ -->
+<div class="module">
+<div class="module-header" onclick="toggleModule(this)">
+  <h2 style="color:#ff9f43">1. Proxy / Messaging Flow</h2>
+  <span class="badge">11 tests</span>
+  <span class="toggle">&#9660;</span>
+</div>
+<div class="module-body">
+
+<!-- 1.1 -->
+<div class="test-case">
+<div class="tc-header" onclick="toggleCase(this)">
+  <span class="tc-id">1.1</span>
+  <span class="tc-title">Send message via proxy - POST /agent/{name}</span>
+  <span class="tc-arrow">&#9654;</span>
+</div>
+<div class="tc-body">
+<div class="tc-section"><h4>Execution Flow</h4>
+<div class="flow-steps">
+  <div class="step"><span class="step-num">1</span><span class="step-content">Fixture 启动 Host（in-memory DB, random port）并注册 1 个 fake agent（echo mode）</span></div>
+  <div class="step"><span class="step-num">2</span><span class="step-content">Fixture 启动 fake agent Starlette app（实现 A2A JSON-RPC endpoint），监听随机端口</span></div>
+  <div class="step"><span class="step-num">3</span><span class="step-content">通过 <code class="http">POST http://{host}/agent/{name}</code> 发送 A2A JSON-RPC 请求（method=SendStreamingMessage, role=ROLE_USER, content="hello"）</span></div>
+  <div class="step"><span class="step-num">4</span><span class="step-content">Host proxy 接收请求 → 查找 registry 获取 fake agent URL → 转发请求</span></div>
+  <div class="step"><span class="step-num">5</span><span class="step-content">Fake agent 收到请求 → 解析 A2A protobuf → 返回 SSE 流（WORKING → echo response → COMPLETED）</span></div>
+  <div class="step"><span class="step-num">6</span><span class="step-content">Host proxy 将 SSE 流透传回客户端</span></div>
+</div></div>
+<div class="verify"><strong>Verify:</strong> HTTP response status 200; SSE 流包含 message 事件，text 内容包含 "hello"</div>
+<div class="fixture">Fixtures: e2e_host, fake_agent(echo), http_client</div>
+</div>
+</div>
+
+<!-- 1.2 -->
+<div class="test-case">
+<div class="tc-header" onclick="toggleCase(this)">
+  <span class="tc-id">1.2</span>
+  <span class="tc-title">SSE streaming event sequence</span>
+  <span class="tc-arrow">&#9654;</span>
+</div>
+<div class="tc-body">
+<div class="tc-section"><h4>Execution Flow</h4>
+<div class="flow-steps">
+  <div class="step"><span class="step-num">1</span><span class="step-content">启动 Host + fake agent（sequence mode）</span></div>
+  <div class="step"><span class="step-num">2</span><span class="step-content">发送 <code class="http">POST /agent/{name}</code>，Header: <code>Accept: text/event-stream</code></span></div>
+  <div class="step"><span class="step-num">3</span><span class="step-content">Fake agent 返回 SSE 流：event 1 = status_update(WORKING) → event 2 = message("processed") → event 3 = status_update(COMPLETED)</span></div>
+  <div class="step"><span class="step-num">4</span><span class="step-content">客户端逐行读取 SSE <code>data:</code> 行并解析 JSON</span></div>
+</div></div>
+<div class="verify"><strong>Verify:</strong> 收到 3 个 SSE data 事件；事件顺序为 status_update(WORKING) → message → status_update(COMPLETED)；message 事件包含 "processed"</div>
+<div class="fixture">Fixtures: e2e_host, fake_agent(sequence), http_client</div>
+</div>
+</div>
+
+<!-- 1.3 -->
+<div class="test-case">
+<div class="tc-header" onclick="toggleCase(this)">
+  <span class="tc-id">1.3</span>
+  <span class="tc-title">SSE artifact events</span>
+  <span class="tc-arrow">&#9654;</span>
+</div>
+<div class="tc-body">
+<div class="tc-section"><h4>Execution Flow</h4>
+<div class="flow-steps">
+  <div class="step"><span class="step-num">1</span><span class="step-content">启动 Host + fake agent（artifact mode — 返回 artifact_update 事件而非 message）</span></div>
+  <div class="step"><span class="step-num">2</span><span class="step-content">发送 <code class="http">POST /agent/{name}</code>，Accept: text/event-stream</span></div>
+  <div class="step"><span class="step-num">3</span><span class="step-content">Fake agent 返回：status_update(WORKING) → artifact_update(text="generated artifact") → status_update(COMPLETED)</span></div>
+  <div class="step"><span class="step-num">4</span><span class="step-content">Host proxy 透传 SSE 流</span></div>
+</div></div>
+<div class="verify"><strong>Verify:</strong> SSE 流中包含 artifact_update 类型的事件；artifact text 包含 "generated artifact"</div>
+<div class="fixture">Fixtures: e2e_host, fake_agent(artifact), http_client</div>
+</div>
+</div>
+
+<!-- 1.4 -->
+<div class="test-case">
+<div class="tc-header" onclick="toggleCase(this)">
+  <span class="tc-id">1.4</span>
+  <span class="tc-title">Non-SSE proxy pass-through</span>
+  <span class="tc-arrow">&#9654;</span>
+</div>
+<div class="tc-body">
+<div class="tc-section"><h4>Execution Flow</h4>
+<div class="flow-steps">
+  <div class="step"><span class="step-num">1</span><span class="step-content">启动 Host + fake agent（支持非 SSE 请求）</span></div>
+  <div class="step"><span class="step-num">2</span><span class="step-content">发送 <code class="http">POST /agent/{name}</code>，不带 Accept: text/event-stream header</span></div>
+  <div class="step"><span class="step-num">3</span><span class="step-content">Host proxy 走非 SSE 分支，等待完整响应后返回</span></div>
+  <div class="step"><span class="step-num">4</span><span class="step-content">Fake agent 返回普通 JSON 响应（非 SSE）</span></div>
+</div></div>
+<div class="verify"><strong>Verify:</strong> 收到完整的 JSON 响应（非流式）；状态码 200</div>
+<div class="fixture">Fixtures: e2e_host, fake_agent(json_response), http_client</div>
+</div>
+</div>
+
+<!-- 1.5 -->
+<div class="test-case">
+<div class="tc-header" onclick="toggleCase(this)">
+  <span class="tc-id">1.5</span>
+  <span class="tc-title">A2A-Version header injection</span>
+  <span class="tc-arrow">&#9654;</span>
+</div>
+<div class="tc-body">
+<div class="tc-section"><h4>Execution Flow</h4>
+<div class="flow-steps">
+  <div class="step"><span class="step-num">1</span><span class="step-content">启动 Host + fake agent（记录收到的所有 headers）</span></div>
+  <div class="step"><span class="step-num">2</span><span class="step-content">发送请求，不带 A2A-Version header</span></div>
+  <div class="step"><span class="step-num">3</span><span class="step-content">Host proxy 检测到缺少 A2A-Version，注入 <code>A2A-Version: 1.0</code> header</span></div>
+  <div class="step"><span class="step-num">4</span><span class="step-content">Fake agent 记录收到的 headers</span></div>
+</div></div>
+<div class="verify"><strong>Verify:</strong> Fake agent 收到的请求中包含 header <code>A2A-Version: 1.0</code></div>
+<div class="fixture">Fixtures: e2e_host, fake_agent(record_headers), http_client</div>
+</div>
+</div>
+
+<!-- 1.6 -->
+<div class="test-case">
+<div class="tc-header" onclick="toggleCase(this)">
+  <span class="tc-id">1.6</span>
+  <span class="tc-title">Hop-by-hop header stripping</span>
+  <span class="tc-arrow">&#9654;</span>
+</div>
+<div class="tc-body">
+<div class="tc-section"><h4>Execution Flow</h4>
+<div class="flow-steps">
+  <div class="step"><span class="step-num">1</span><span class="step-content">启动 Host + fake agent（记录收到的所有 headers）</span></div>
+  <div class="step"><span class="step-num">2</span><span class="step-content">发送请求，携带 hop-by-hop headers: <code>host, content-length, connection, accept-encoding, transfer-encoding</code></span></div>
+  <div class="step"><span class="step-num">3</span><span class="step-content">Host proxy 在转发前剥离这些 headers</span></div>
+  <div class="step"><span class="step-num">4</span><span class="step-content">Fake agent 记录收到的 headers</span></div>
+</div></div>
+<div class="verify"><strong>Verify:</strong> Fake agent 收到的请求中不包含 <code>host</code>, <code>content-length</code>, <code>connection</code>, <code>accept-encoding</code> headers</div>
+<div class="fixture">Fixtures: e2e_host, fake_agent(record_headers), http_client</div>
+</div>
+</div>
+
+<!-- 1.7 -->
+<div class="test-case">
+<div class="tc-header" onclick="toggleCase(this)">
+  <span class="tc-id">1.7</span>
+  <span class="tc-title">Query parameter forwarding</span>
+  <span class="tc-arrow">&#9654;</span>
+</div>
+<div class="tc-body">
+<div class="tc-section"><h4>Execution Flow</h4>
+<div class="flow-steps">
+  <div class="step"><span class="step-num">1</span><span class="step-content">启动 Host + fake agent（记录完整的 URL path + query）</span></div>
+  <div class="step"><span class="step-num">2</span><span class="step-content">发送 <code class="http">GET /agent/{name}/some/path?key=value&foo=bar</code></span></div>
+  <div class="step"><span class="step-num">3</span><span class="step-content">Host proxy 构造 target_url = agent_url + "/some/path?key=value&foo=bar"</span></div>
+  <div class="step"><span class="step-num">4</span><span class="step-content">Fake agent 记录收到的完整请求 URL</span></div>
+</div></div>
+<div class="verify"><strong>Verify:</strong> Fake agent 收到的请求 path 为 <code>/some/path</code>，query params 包含 <code>key=value</code> 和 <code>foo=bar</code></div>
+<div class="fixture">Fixtures: e2e_host, fake_agent(record_url), http_client</div>
+</div>
+</div>
+
+<!-- 1.8 -->
+<div class="test-case">
+<div class="tc-header" onclick="toggleCase(this)">
+  <span class="tc-id">1.8</span>
+  <span class="tc-title">MessageBus.send_streaming full protobuf event types</span>
+  <span class="tc-arrow">&#9654;</span>
+</div>
+<div class="tc-body">
+<div class="tc-section"><h4>Execution Flow</h4>
+<div class="flow-steps">
+  <div class="step"><span class="step-num">1</span><span class="step-content">启动 Host + fake agent（返回完整事件序列：task → status_update → artifact_update → message）</span></div>
+  <div class="step"><span class="step-num">2</span><span class="step-content">通过代码调用 <code>message_bus.send_streaming("sender", "agent-a", "test")</code></span></div>
+  <div class="step"><span class="step-num">3</span><span class="step-content">MessageBus 创建 task → 记录 send trace → 调用 A2A client.send_message()</span></div>
+  <div class="step"><span class="step-num">4</span><span class="step-content">逐个处理 A2A protobuf oneof 响应：</span></div>
+  <div class="step"><span class="step-num">4a</span><span class="step-content"><code class="event">task</code> → 更新 task state → yield task_update</span></div>
+  <div class="step"><span class="step-num">4b</span><span class="step-content"><code class="event">status_update</code> → 更新 task state → yield task_update</span></div>
+  <div class="step"><span class="step-num">4c</span><span class="step-content"><code class="event">artifact_update</code> → 记录 tracer → yield artifact</span></div>
+  <div class="step"><span class="step-num">4d</span><span class="step-content"><code class="event">message</code> → 记录 msg_repo + tracer → 更新 task state=RESPONDED → yield response → <strong>return</strong></span></div>
+  <div class="step"><span class="step-num">5</span><span class="step-content">收集所有 yielded 事件</span></div>
+</div></div>
+<div class="verify"><strong>Verify:</strong> 事件序列为 task_update → task_update → artifact → response；task state 最终为 RESPONDED；message_repo 包含 user + assistant 消息</div>
+<div class="fixture">Fixtures: e2e_host, fake_agent(full_events), message_bus</div>
+</div>
+</div>
+
+<!-- 1.9 -->
+<div class="test-case">
+<div class="tc-header" onclick="toggleCase(this)">
+  <span class="tc-id">1.9</span>
+  <span class="tc-title">send_message_to_agent standalone helper</span>
+  <span class="tc-arrow">&#9654;</span>
+</div>
+<div class="tc-body">
+<div class="tc-section"><h4>Execution Flow</h4>
+<div class="flow-steps">
+  <div class="step"><span class="step-num">1</span><span class="step-content">启动 Host + fake agent（echo mode）</span></div>
+  <div class="step"><span class="step-num">2</span><span class="step-content">调用 <code>send_message_to_agent(host_url, "agent-a", "ping")</code></span></div>
+  <div class="step"><span class="step-num">3</span><span class="step-content">函数构造 A2A JSON-RPC 请求 → <code class="http">POST {host_url}/agent/agent-a</code></span></div>
+  <div class="step"><span class="step-num">4</span><span class="step-content">Host proxy 转发给 fake agent → fake agent 返回 SSE 流</span></div>
+  <div class="step"><span class="step-num">5</span><span class="step-content">函数解析 SSE <code>data:</code> 行，提取 message 事件的 text</span></div>
+</div></div>
+<div class="verify"><strong>Verify:</strong> 返回值包含 "ping"；函数不抛异常</div>
+<div class="fixture">Fixtures: e2e_host, fake_agent(echo)</div>
+</div>
+</div>
+
+<!-- 1.10 -->
+<div class="test-case">
+<div class="tc-header" onclick="toggleCase(this)">
+  <span class="tc-id">1.10</span>
+  <span class="tc-title">Context ID reuse - appends to existing task</span>
+  <span class="tc-arrow">&#9654;</span>
+</div>
+<div class="tc-body">
+<div class="tc-section"><h4>Execution Flow</h4>
+<div class="flow-steps">
+  <div class="step"><span class="step-num">1</span><span class="step-content">启动 Host + fake agent（echo mode）</span></div>
+  <div class="step"><span class="step-num">2</span><span class="step-content">第一次调用 <code>message_bus.send("sender", "agent-a", "msg1", context_id="ctx-1")</code></span></div>
+  <div class="step"><span class="step-num">3</span><span class="step-content">MessageBus 创建新 task（context_id="ctx-1"）→ 记录消息</span></div>
+  <div class="step"><span class="step-num">4</span><span class="step-content">第二次调用 <code>message_bus.send("sender", "agent-a", "msg2", context_id="ctx-1")</code></span></div>
+  <div class="step"><span class="step-num">5</span><span class="step-content">MessageBus 发现已有 task with context_id="ctx-1" → 复用该 task → 追加消息</span></div>
+  <div class="step"><span class="step-num">6</span><span class="step-content">查询 task_repo 获取该 task 的消息列表</span></div>
+</div></div>
+<div class="verify"><strong>Verify:</strong> task_repo 中只有 1 个 task（context_id="ctx-1"）；message_repo 中有 3 条消息（2 user + 1 assistant）</div>
+<div class="fixture">Fixtures: e2e_host, fake_agent(echo), message_bus</div>
+</div>
+</div>
+
+<!-- 1.11 -->
+<div class="test-case">
+<div class="tc-header" onclick="toggleCase(this)">
+  <span class="tc-id">1.11</span>
+  <span class="tc-title">Empty message body</span>
+  <span class="tc-arrow">&#9654;</span>
+</div>
+<div class="tc-body">
+<div class="tc-section"><h4>Execution Flow</h4>
+<div class="flow-steps">
+  <div class="step"><span class="step-num">1</span><span class="step-content">启动 Host + fake agent（echo mode）</span></div>
+  <div class="step"><span class="step-num">2</span><span class="step-content">发送 <code class="http">POST /agent/{name}</code>，body 为 A2A 请求但 content text 为空字符串 ""</span></div>
+  <div class="step"><span class="step-num">3</span><span class="step-content">Host 转发给 fake agent → agent 返回空 echo</span></div>
+</div></div>
+<div class="verify"><strong>Verify:</strong> 请求不抛异常；fake agent 收到请求；响应正常返回（空内容或默认响应）</div>
+<div class="fixture">Fixtures: e2e_host, fake_agent(echo), http_client</div>
+</div>
+</div>
+
+<!-- 1.12 -->
+<div class="test-case">
+<div class="tc-header" onclick="toggleCase(this)">
+  <span class="tc-id">1.12</span>
+  <span class="tc-title">MessageBus.create_task standalone call - DB persistence</span>
+  <span class="tc-arrow">&#9654;</span>
+</div>
+<div class="tc-body">
+<div class="tc-section"><h4>Execution Flow</h4>
+<div class="flow-steps">
+  <div class="step"><span class="step-num">1</span><span class="step-content">启动 Host（in-memory DB）</span></div>
+  <div class="step"><span class="step-num">2</span><span class="step-content">调用 <code>message_bus.create_task("agent-a")</code></span></div>
+  <div class="step"><span class="step-num">3</span><span class="step-content">MessageBus 生成 UUID 作为 local_task_id → 调用 task_repo.create(TaskRecord) 写入 DB → 调用 task_repo.get() 读回</span></div>
+  <div class="step"><span class="step-num">4</span><span class="step-content">直接查询 <code>task_repo.get(returned_task.local_task_id)</code></span></div>
+  <div class="step"><span class="step-num">5</span><span class="step-content">调用 <code class="http">GET /api/tasks?agent_name=agent-a</code> 通过 API 验证</span></div>
+</div></div>
+<div class="verify"><strong>Verify:</strong> create_task 返回的 TaskRecord.local_task_id 为有效 UUID；task_repo.get 能读回同一条记录；API 返回的任务列表包含该 task；task.agent_name 为 "agent-a"；task.state 为初始状态</div>
+<div class="fixture">Fixtures: e2e_host, message_bus, http_client</div>
+</div>
+</div>
+
+</div>
+</div>
+
+<!-- ============================================================ -->
+<!-- MODULE 2: Discovery API -->
+<!-- ============================================================ -->
+<div class="module">
+<div class="module-header" onclick="toggleModule(this)">
+  <h2 style="color:#2ecc71">2. Discovery API</h2>
+  <span class="badge">12 tests</span>
+  <span class="toggle">&#9660;</span>
+</div>
+<div class="module-body">
+
+<!-- 2.1 -->
+<div class="test-case">
+<div class="tc-header" onclick="toggleCase(this)">
+  <span class="tc-id">2.1</span>
+  <span class="tc-title">GET /api/agents - list all with card info</span>
+  <span class="tc-arrow">&#9654;</span>
+</div>
+<div class="tc-body">
+<div class="tc-section"><h4>Execution Flow</h4>
+<div class="flow-steps">
+  <div class="step"><span class="step-num">1</span><span class="step-content">启动 Host + 注册 2 个 fake agent（agent-a, agent-b），各自有 AgentCard（description, version, skills）</span></div>
+  <div class="step"><span class="step-num">2</span><span class="step-content">调用 <code class="http">GET /api/agents</code></span></div>
+  <div class="step"><span class="step-num">3</span><span class="step-content">Discovery handler 调用 registry.list_agents() 获取 DB 记录</span></div>
+  <div class="step"><span class="step-num">4</span><span class="step-content">对每个记录，调用 registry.get_client(name) 获取 live connection → 用 card 覆盖 description/version</span></div>
+</div></div>
+<div class="verify"><strong>Verify:</strong> 返回 JSON 数组长度为 2；每个 agent 包含 name, description, url, status, type, version, skills 字段；description 和 version 来自 AgentCard（非空）</div>
+<div class="fixture">Fixtures: e2e_host, fake_agent_multi, http_client</div>
+</div>
+</div>
+
+<!-- 2.2 -->
+<div class="test-case">
+<div class="tc-header" onclick="toggleCase(this)">
+  <span class="tc-id">2.2</span>
+  <span class="tc-title">GET /api/agents/{name} - single agent detail</span>
+  <span class="tc-arrow">&#9654;</span>
+</div>
+<div class="tc-body">
+<div class="tc-section"><h4>Execution Flow</h4>
+<div class="flow-steps">
+  <div class="step"><span class="step-num">1</span><span class="step-content">启动 Host + 注册 1 个 fake agent（agent-a）</span></div>
+  <div class="step"><span class="step-num">2</span><span class="step-content">调用 <code class="http">GET /api/agents/agent-a</code></span></div>
+  <div class="step"><span class="step-num">3</span><span class="step-content">Discovery handler 调用 registry.get_agent("agent-a") → 获取 DB 记录</span></div>
+  <div class="step"><span class="step-num">4</span><span class="step-content">调用 registry.get_client("agent-a") → 获取 live connection</span></div>
+</div></div>
+<div class="verify"><strong>Verify:</strong> 返回 JSON 对象包含 name="agent-a"；包含 version, skills, status, url 字段</div>
+<div class="fixture">Fixtures: e2e_host, fake_agent, http_client</div>
+</div>
+</div>
+
+<!-- 2.3 -->
+<div class="test-case">
+<div class="tc-header" onclick="toggleCase(this)">
+  <span class="tc-id">2.3</span>
+  <span class="tc-title">GET /api/agents/{name} - agent not found → 404</span>
+  <span class="tc-arrow">&#9654;</span>
+</div>
+<div class="tc-body">
+<div class="tc-section"><h4>Execution Flow</h4>
+<div class="flow-steps">
+  <div class="step"><span class="step-num">1</span><span class="step-content">启动 Host（无 agent 注册）</span></div>
+  <div class="step"><span class="step-num">2</span><span class="step-content">调用 <code class="http">GET /api/agents/nonexistent</code></span></div>
+  <div class="step"><span class="step-num">3</span><span class="step-content">registry.get_agent("nonexistent") 返回 None</span></div>
+</div></div>
+<div class="verify"><strong>Verify:</strong> HTTP 404；响应 JSON 包含 <code>{"error": "Agent 'nonexistent' not found"}</code></div>
+<div class="fixture">Fixtures: e2e_host, http_client</div>
+</div>
+</div>
+
+<!-- 2.4 -->
+<div class="test-case">
+<div class="tc-header" onclick="toggleCase(this)">
+  <span class="tc-id">2.4</span>
+  <span class="tc-title">GET /api/capabilities - static response</span>
+  <span class="tc-arrow">&#9654;</span>
+</div>
+<div class="tc-body">
+<div class="tc-section"><h4>Execution Flow</h4>
+<div class="flow-steps">
+  <div class="step"><span class="step-num">1</span><span class="step-content">启动 Host（无需注册 agent）</span></div>
+  <div class="step"><span class="step-num">2</span><span class="step-content">调用 <code class="http">GET /api/capabilities</code></span></div>
+</div></div>
+<div class="verify"><strong>Verify:</strong> 返回 CAPABILITIES dict；包含 protocol, endpoints, message_format, tool_definitions 字段；tool_definitions 列出 list_agents, send_to_agent, get_agent_info</div>
+<div class="fixture">Fixtures: e2e_host, http_client</div>
+</div>
+</div>
+
+<!-- 2.4b -->
+<div class="test-case">
+<div class="tc-header" onclick="toggleCase(this)">
+  <span class="tc-id">2.4b</span>
+  <span class="tc-title">GET /api/capabilities - full structure with empty agents</span>
+  <span class="tc-arrow">&#9654;</span>
+</div>
+<div class="tc-body">
+<div class="tc-section"><h4>Execution Flow</h4>
+<div class="flow-steps">
+  <div class="step"><span class="step-num">1</span><span class="step-content">启动 Host（无 agent 注册，空 registry）</span></div>
+  <div class="step"><span class="step-num">2</span><span class="step-content">调用 <code class="http">GET /api/capabilities</code></span></div>
+  <div class="step"><span class="step-num">3</span><span class="step-content">Discovery handler 返回模块级常量 CAPABILITIES（与 agent 数量无关）</span></div>
+</div></div>
+<div class="verify"><strong>Verify:</strong> 返回完整 JSON 结构；tool_definitions 是非空数组，包含 list_agents, send_to_agent, get_agent_info 三个工具定义；endpoints 描述了 /api/agents, /agent/{name} 等路径；无论是否注册 agent，结构完全一致</div>
+<div class="fixture">Fixtures: e2e_host, http_client</div>
+</div>
+</div>
+
+<!-- 2.5 -->
+<div class="test-case">
+<div class="tc-header" onclick="toggleCase(this)">
+  <span class="tc-id">2.5</span>
+  <span class="tc-title">GET /api/tasks - list all tasks</span>
+  <span class="tc-arrow">&#9654;</span>
+</div>
+<div class="tc-body">
+<div class="tc-section"><h4>Execution Flow</h4>
+<div class="flow-steps">
+  <div class="step"><span class="step-num">1</span><span class="step-content">启动 Host + fake agent → 通过 message_bus 发送 2 条消息</span></div>
+  <div class="step"><span class="step-num">2</span><span class="step-content">调用 <code class="http">GET /api/tasks</code></span></div>
+  <div class="step"><span class="step-num">3</span><span class="step-content">task_repo.list() 返回所有任务</span></div>
+</div></div>
+<div class="verify"><strong>Verify:</strong> 返回 JSON 数组长度 >= 2；每个 task 包含 local_task_id, agent_name, state, display_id, created_at</div>
+<div class="fixture">Fixtures: e2e_host, fake_agent, message_bus, http_client</div>
+</div>
+</div>
+
+<!-- 2.6 -->
+<div class="test-case">
+<div class="tc-header" onclick="toggleCase(this)">
+  <span class="tc-id">2.6</span>
+  <span class="tc-title">GET /api/tasks?agent_name=X - filter by agent</span>
+  <span class="tc-arrow">&#9654;</span>
+</div>
+<div class="tc-body">
+<div class="tc-section"><h4>Execution Flow</h4>
+<div class="flow-steps">
+  <div class="step"><span class="step-num">1</span><span class="step-content">启动 Host + 2 个 fake agent（agent-a, agent-b）→ 分别发送消息给 agent-a 和 agent-b</span></div>
+  <div class="step"><span class="step-num">2</span><span class="step-content">调用 <code class="http">GET /api/tasks?agent_name=sender->agent-a</code></span></div>
+</div></div>
+<div class="verify"><strong>Verify:</strong> 返回的任务列表中，所有 task 的 agent_name 包含 "agent-a"；不包含 agent-b 的任务</div>
+<div class="fixture">Fixtures: e2e_host, fake_agent_multi, message_bus, http_client</div>
+</div>
+</div>
+
+<!-- 2.7 -->
+<div class="test-case">
+<div class="tc-header" onclick="toggleCase(this)">
+  <span class="tc-id">2.7</span>
+  <span class="tc-title">GET /api/tasks?state=X - filter by state</span>
+  <span class="tc-arrow">&#9654;</span>
+</div>
+<div class="tc-body">
+<div class="tc-section"><h4>Execution Flow</h4>
+<div class="flow-steps">
+  <div class="step"><span class="step-num">1</span><span class="step-content">启动 Host + fake agent → 发送消息（正常完成，state=RESPONDED）</span></div>
+  <div class="step"><span class="step-num">2</span><span class="step-content">调用 <code class="http">GET /api/tasks?state=RESPONDED</code></span></div>
+  <div class="step"><span class="step-num">3</span><span class="step-content">调用 <code class="http">GET /api/tasks?state=ERROR</code>（无匹配）</span></div>
+</div></div>
+<div class="verify"><strong>Verify:</strong> state=RESPONDED 返回 >=1 个 task；state=ERROR 返回空数组</div>
+<div class="fixture">Fixtures: e2e_host, fake_agent, message_bus, http_client</div>
+</div>
+</div>
+
+<!-- 2.8 -->
+<div class="test-case">
+<div class="tc-header" onclick="toggleCase(this)">
+  <span class="tc-id">2.8</span>
+  <span class="tc-title">GET /api/tasks/{id}/trace - task trace</span>
+  <span class="tc-arrow">&#9654;</span>
+</div>
+<div class="tc-body">
+<div class="tc-section"><h4>Execution Flow</h4>
+<div class="flow-steps">
+  <div class="step"><span class="step-num">1</span><span class="step-content">启动 Host + fake agent → 通过 message_bus 发送消息</span></div>
+  <div class="step"><span class="step-num">2</span><span class="step-content">从 send_streaming 返回的事件中获取 task.local_task_id</span></div>
+  <div class="step"><span class="step-num">3</span><span class="step-content">调用 <code class="http">GET /api/tasks/{task_id}/trace</code></span></div>
+  <div class="step"><span class="step-num">4</span><span class="step-content">tracer.get_debug_trace(task_id) 格式化 trace 事件</span></div>
+</div></div>
+<div class="verify"><strong>Verify:</strong> 返回 JSON 包含 task_id 和 trace 字段；trace 字符串非空，包含 send 和 response 事件</div>
+<div class="fixture">Fixtures: e2e_host, fake_agent, message_bus, http_client</div>
+</div>
+</div>
+
+<!-- 2.9 -->
+<div class="test-case">
+<div class="tc-header" onclick="toggleCase(this)">
+  <span class="tc-id">2.9</span>
+  <span class="tc-title">GET /api/tasks/{id}/trace - nonexistent task</span>
+  <span class="tc-arrow">&#9654;</span>
+</div>
+<div class="tc-body">
+<div class="tc-section"><h4>Execution Flow</h4>
+<div class="flow-steps">
+  <div class="step"><span class="step-num">1</span><span class="step-content">启动 Host</span></div>
+  <div class="step"><span class="step-num">2</span><span class="step-content">调用 <code class="http">GET /api/tasks/nonexistent-id/trace</code></span></div>
+</div></div>
+<div class="verify"><strong>Verify:</strong> 返回 JSON trace 字段为 "(no trace yet)"</div>
+<div class="fixture">Fixtures: e2e_host, http_client</div>
+</div>
+</div>
+
+<!-- 2.10 -->
+<div class="test-case">
+<div class="tc-header" onclick="toggleCase(this)">
+  <span class="tc-id">2.10</span>
+  <span class="tc-title">Agent with error status still listed</span>
+  <span class="tc-arrow">&#9654;</span>
+</div>
+<div class="tc-body">
+<div class="tc-section"><h4>Execution Flow</h4>
+<div class="flow-steps">
+  <div class="step"><span class="step-num">1</span><span class="step-content">启动 Host → 通过 registry 直接在 DB 中 upsert 一个 agent record（status="error", error_message="connection failed"），不注册到内存 _connections</span></div>
+  <div class="step"><span class="step-num">2</span><span class="step-content">调用 <code class="http">GET /api/agents</code></span></div>
+</div></div>
+<div class="verify"><strong>Verify:</strong> 返回列表包含该 error agent；status 为 "error"；description 为空（无 live connection 覆盖）；error_message 为 "connection failed"</div>
+<div class="fixture">Fixtures: e2e_host, http_client</div>
+</div>
+</div>
+
+<!-- 2.11 -->
+<div class="test-case">
+<div class="tc-header" onclick="toggleCase(this)">
+  <span class="tc-id">2.11</span>
+  <span class="tc-title">Agent disconnected - no card info override</span>
+  <span class="tc-arrow">&#9654;</span>
+</div>
+<div class="tc-body">
+<div class="tc-section"><h4>Execution Flow</h4>
+<div class="flow-steps">
+  <div class="step"><span class="step-num">1</span><span class="step-content">启动 Host + fake agent → 注册 agent（connected）</span></div>
+  <div class="step"><span class="step-num">2</span><span class="step-content">调用 registry.disconnect_agent("agent-a") → 从 _connections 移除，DB status 改为 "disconnected"</span></div>
+  <div class="step"><span class="step-num">3</span><span class="step-content">调用 <code class="http">GET /api/agents</code></span></div>
+</div></div>
+<div class="verify"><strong>Verify:</strong> agent-a 在列表中；status 为 "disconnected"；description 为 ""（无 live connection → 无 card 覆盖）；version 为 ""</div>
+<div class="fixture">Fixtures: e2e_host, fake_agent, http_client</div>
+</div>
+</div>
+
+<!-- 2.12 -->
+<div class="test-case">
+<div class="tc-header" onclick="toggleCase(this)">
+  <span class="tc-id">2.12</span>
+  <span class="tc-title">GET /api/agents/{name} - error_message field returned</span>
+  <span class="tc-arrow">&#9654;</span>
+</div>
+<div class="tc-body">
+<div class="tc-section"><h4>Execution Flow</h4>
+<div class="flow-steps">
+  <div class="step"><span class="step-num">1</span><span class="step-content">启动 Host → 直接在 DB 中 upsert 一个 agent record（name="failing-agent", status="error", error_message="connection refused after 3 retries"），不注册到内存 _connections</span></div>
+  <div class="step"><span class="step-num">2</span><span class="step-content">调用 <code class="http">GET /api/agents/failing-agent</code></span></div>
+  <div class="step"><span class="step-num">3</span><span class="step-content">Discovery handler 调用 registry.get_agent("failing-agent") → 获取 DB 记录</span></div>
+  <div class="step"><span class="step-num">4</span><span class="step-content">序列化 JSON，包含 error_message 字段</span></div>
+</div></div>
+<div class="verify"><strong>Verify:</strong> HTTP 200；返回 JSON 包含 error_message="connection refused after 3 retries"；status="error"；description=""（无 live connection）</div>
+<div class="fixture">Fixtures: e2e_host, http_client</div>
+</div>
+</div>
+
+</div>
+</div>
+
+<!-- ============================================================ -->
+<!-- MODULE 3: Agent Tool Call Back -->
+<!-- ============================================================ -->
+<div class="module">
+<div class="module-header" onclick="toggleModule(this)">
+  <h2 style="color:#e74c3c">3. Agent Tool Call Back</h2>
+  <span class="badge">6 tests</span>
+  <span class="toggle">&#9660;</span>
+</div>
+<div class="module-body">
+
+<!-- 3.1 -->
+<div class="test-case">
+<div class="tc-header" onclick="toggleCase(this)">
+  <span class="tc-id">3.1</span>
+  <span class="tc-title">list_agents tool call - agent calls Host API</span>
+  <span class="tc-arrow">&#9654;</span>
+</div>
+<div class="tc-body">
+<div class="tc-section"><h4>Execution Flow</h4>
+<div class="flow-steps">
+  <div class="step"><span class="step-num">1</span><span class="step-content">启动 Host + 2 个 fake agent（agent-a, agent-b）</span></div>
+  <div class="step"><span class="step-num">2</span><span class="step-content">Host 通过 proxy 发消息给 agent-a</span></div>
+  <div class="step"><span class="step-num">3</span><span class="step-content">Agent-a（tool_call mode=list_agents）收到消息后，暂停 SSE 响应，内部发起 <code class="http">GET {host_url}/api/agents</code></span></div>
+  <div class="step"><span class="step-num">4</span><span class="step-content">Host discovery 返回 agent 列表 JSON</span></div>
+  <div class="step"><span class="step-num">5</span><span class="step-content">Agent-a 解析结果，将 agent 列表信息嵌入最终 SSE 响应</span></div>
+  <div class="step"><span class="step-num">6</span><span class="step-content">Host proxy 将最终 SSE 流返回给客户端</span></div>
+</div></div>
+<div class="verify"><strong>Verify:</strong> 最终响应中包含 agent-a 和 agent-b 的名称信息；Host trace 中记录了 agent-a 的 tool call 请求</div>
+<div class="fixture">Fixtures: e2e_host, fake_agent_multi(tool_call=list_agents), http_client</div>
+</div>
+</div>
+
+<!-- 3.2 -->
+<div class="test-case">
+<div class="tc-header" onclick="toggleCase(this)">
+  <span class="tc-id">3.2</span>
+  <span class="tc-title">send_to_agent tool call - agent-A → agent-B via Host</span>
+  <span class="tc-arrow">&#9654;</span>
+</div>
+<div class="tc-body">
+<div class="tc-section"><h4>Execution Flow</h4>
+<div class="flow-steps">
+  <div class="step"><span class="step-num">1</span><span class="step-content">启动 Host + 2 个 fake agent（agent-a, agent-b）</span></div>
+  <div class="step"><span class="step-num">2</span><span class="step-content">Host 通过 proxy 发消息给 agent-a</span></div>
+  <div class="step"><span class="step-num">3</span><span class="step-content">Agent-a（tool_call mode=send_to_agent）收到消息后，发起 <code class="http">POST {host_url}/agent/agent-b</code>（A2A JSON-RPC）</span></div>
+  <div class="step"><span class="step-num">4</span><span class="step-content">Host proxy 转发请求给 agent-b → agent-b 返回 echo 响应</span></div>
+  <div class="step"><span class="step-num">5</span><span class="step-content">Agent-a 解析 agent-b 的响应，将结果嵌入最终 SSE 响应</span></div>
+</div></div>
+<div class="verify"><strong>Verify:</strong> 最终响应包含 agent-b 的 echo 内容；agent-b 的 received_messages 记录了来自 agent-a 的消息；trace 中记录了完整的 agent-a → agent-b 通信链路</div>
+<div class="fixture">Fixtures: e2e_host, fake_agent_multi(tool_call=send_to_agent), http_client</div>
+</div>
+</div>
+
+<!-- 3.3 -->
+<div class="test-case">
+<div class="tc-header" onclick="toggleCase(this)">
+  <span class="tc-id">3.3</span>
+  <span class="tc-title">get_agent_info tool call</span>
+  <span class="tc-arrow">&#9654;</span>
+</div>
+<div class="tc-body">
+<div class="tc-section"><h4>Execution Flow</h4>
+<div class="flow-steps">
+  <div class="step"><span class="step-num">1</span><span class="step-content">启动 Host + 2 个 fake agent（agent-a, agent-b）</span></div>
+  <div class="step"><span class="step-num">2</span><span class="step-content">Host 发消息给 agent-a</span></div>
+  <div class="step"><span class="step-num">3</span><span class="step-content">Agent-a（tool_call mode=get_agent_info）发起 <code class="http">GET {host_url}/api/agents/agent-b</code></span></div>
+  <div class="step"><span class="step-num">4</span><span class="step-content">Host discovery 返回 agent-b 详情 JSON</span></div>
+  <div class="step"><span class="step-num">5</span><span class="step-content">Agent-a 将 agent-b 信息嵌入最终响应</span></div>
+</div></div>
+<div class="verify"><strong>Verify:</strong> 最终响应包含 agent-b 的详细信息（name, url, skills 等）</div>
+<div class="fixture">Fixtures: e2e_host, fake_agent_multi(tool_call=get_agent_info), http_client</div>
+</div>
+</div>
+
+<!-- 3.4 -->
+<div class="test-case">
+<div class="tc-header" onclick="toggleCase(this)">
+  <span class="tc-id">3.4</span>
+  <span class="tc-title">Unknown tool name</span>
+  <span class="tc-arrow">&#9654;</span>
+</div>
+<div class="tc-body">
+<div class="tc-section"><h4>Execution Flow</h4>
+<div class="flow-steps">
+  <div class="step"><span class="step-num">1</span><span class="step-content">启动 Host + fake agent</span></div>
+  <div class="step"><span class="step-num">2</span><span class="step-content">Host 发消息给 agent-a</span></div>
+  <div class="step"><span class="step-num">3</span><span class="step-content">Agent-a（tool_call mode=unknown）发起 tool call 请求到 Host，但 tool_name 是 "nonexistent_tool"</span></div>
+  <div class="step"><span class="step-num">4</span><span class="step-content">Host handle_tool_call 返回 "Unknown tool: nonexistent_tool"</span></div>
+  <div class="step"><span class="step-num">5</span><span class="step-content">Agent-a 将错误信息嵌入最终响应</span></div>
+</div></div>
+<div class="verify"><strong>Verify:</strong> 最终响应包含 "Unknown tool" 错误信息</div>
+<div class="fixture">Fixtures: e2e_host, fake_agent(tool_call=unknown), http_client</div>
+</div>
+</div>
+
+<!-- 3.5 -->
+<div class="test-case">
+<div class="tc-header" onclick="toggleCase(this)">
+  <span class="tc-id">3.5</span>
+  <span class="tc-title">Tool call to nonexistent agent - error propagation</span>
+  <span class="tc-arrow">&#9654;</span>
+</div>
+<div class="tc-body">
+<div class="tc-section"><h4>Execution Flow</h4>
+<div class="flow-steps">
+  <div class="step"><span class="step-num">1</span><span class="step-content">启动 Host + 1 个 fake agent（agent-a）</span></div>
+  <div class="step"><span class="step-num">2</span><span class="step-content">Host 发消息给 agent-a</span></div>
+  <div class="step"><span class="step-num">3</span><span class="step-content">Agent-a（tool_call mode=send_to_agent）尝试调用 <code class="http">POST {host_url}/agent/nonexistent</code></span></div>
+  <div class="step"><span class="step-num">4</span><span class="step-content">Host proxy 返回 404（agent not found）</span></div>
+  <div class="step"><span class="step-num">5</span><span class="step-content">Agent-a 处理 404 错误，在最终响应中报告错误</span></div>
+</div></div>
+<div class="verify"><strong>Verify:</strong> 最终响应包含错误信息（"not found" 或 "error"）</div>
+<div class="fixture">Fixtures: e2e_host, fake_agent(tool_call=send_to_nonexistent), http_client</div>
+</div>
+</div>
+
+<!-- 3.6 -->
+<div class="test-case">
+<div class="tc-header" onclick="toggleCase(this)">
+  <span class="tc-id">3.6</span>
+  <span class="tc-title">No host URL configured</span>
+  <span class="tc-arrow">&#9654;</span>
+</div>
+<div class="tc-body">
+<div class="tc-section"><h4>Execution Flow</h4>
+<div class="flow-steps">
+  <div class="step"><span class="step-num">1</span><span class="step-content">直接调用 <code>MessageBus.handle_tool_call("list_agents", {}, host_url="")</code></span></div>
+  <div class="step"><span class="step-num">2</span><span class="step-content">函数检测到 host_url 为空，直接返回 "(no host configured)"</span></div>
+</div></div>
+<div class="verify"><strong>Verify:</strong> 返回 "(no host configured)"</div>
+<div class="fixture">Fixtures: 无需 Host 实例</div>
+</div>
+</div>
+
+</div>
+</div>
+
+<!-- ============================================================ -->
+<!-- MODULE 4: Tracing -->
+<!-- ============================================================ -->
+<div class="module">
+<div class="module-header" onclick="toggleModule(this)">
+  <h2 style="color:#9b59b6">4. Tracing</h2>
+  <span class="badge">8 tests</span>
+  <span class="toggle">&#9660;</span>
+</div>
+<div class="module-body">
+
+<!-- 4.1 -->
+<div class="test-case">
+<div class="tc-header" onclick="toggleCase(this)">
+  <span class="tc-id">4.1</span>
+  <span class="tc-title">Message creates trace - send + response events</span>
+  <span class="tc-arrow">&#9654;</span>
+</div>
+<div class="tc-body">
+<div class="tc-section"><h4>Execution Flow</h4>
+<div class="flow-steps">
+  <div class="step"><span class="step-num">1</span><span class="step-content">启动 Host + fake agent（echo mode）</span></div>
+  <div class="step"><span class="step-num">2</span><span class="step-content">通过 message_bus.send("sender", "agent-a", "hello") 发送消息</span></div>
+  <div class="step"><span class="step-num">3</span><span class="step-content">send_streaming 内部：record_send() → 记录 "send" trace event；收到响应后 record_response() → 记录 "response" trace event</span></div>
+  <div class="step"><span class="step-num">4</span><span class="step-content">调用 tracer.get_timeline(task_id) 获取所有 trace 事件</span></div>
+</div></div>
+<div class="verify"><strong>Verify:</strong> timeline 包含 event_type="send" 和 event_type="response" 的事件；send 事件 data 中包含 message="hello"</div>
+<div class="fixture">Fixtures: e2e_host, fake_agent, message_bus</div>
+</div>
+</div>
+
+<!-- 4.2 -->
+<div class="test-case">
+<div class="tc-header" onclick="toggleCase(this)">
+  <span class="tc-id">4.2</span>
+  <span class="tc-title">Error creates trace - error event recorded</span>
+  <span class="tc-arrow">&#9654;</span>
+</div>
+<div class="tc-body">
+<div class="tc-section"><h4>Execution Flow</h4>
+<div class="flow-steps">
+  <div class="step"><span class="step-num">1</span><span class="step-content">启动 Host（无 agent 注册）</span></div>
+  <div class="step"><span class="step-num">2</span><span class="step-content">调用 message_bus.send("sender", "nonexistent", "hello")</span></div>
+  <div class="step"><span class="step-num">3</span><span class="step-content">send_streaming 检测到 agent 不存在 → yield error 事件 → 外层 except 捕获 → task state 改为 ERROR</span></div>
+  <div class="step"><span class="step-num">4</span><span class="step-content">调用 tracer.get_timeline(task_id)</span></div>
+</div></div>
+<div class="verify"><strong>Verify:</strong> timeline 包含 event_type="error" 的事件；error data 中包含错误消息</div>
+<div class="fixture">Fixtures: e2e_host, message_bus</div>
+</div>
+</div>
+
+<!-- 4.3 -->
+<div class="test-case">
+<div class="tc-header" onclick="toggleCase(this)">
+  <span class="tc-id">4.3</span>
+  <span class="tc-title">Trace timeline ordering</span>
+  <span class="tc-arrow">&#9654;</span>
+</div>
+<div class="tc-body">
+<div class="tc-section"><h4>Execution Flow</h4>
+<div class="flow-steps">
+  <div class="step"><span class="step-num">1</span><span class="step-content">启动 Host + fake agent（返回多步事件：task → status_update → artifact → message）</span></div>
+  <div class="step"><span class="step-num">2</span><span class="step-content">调用 message_bus.send_streaming("sender", "agent-a", "test")</span></div>
+  <div class="step"><span class="step-num">3</span><span class="step-content">收集所有事件，记录 task_id</span></div>
+  <div class="step"><span class="step-num">4</span><span class="step-content">调用 tracer.get_timeline(task_id)</span></div>
+</div></div>
+<div class="verify"><strong>Verify:</strong> trace 事件按 timestamp 排序；事件类型顺序为 send → task_created/task_update → artifact → response</div>
+<div class="fixture">Fixtures: e2e_host, fake_agent(full_events), message_bus</div>
+</div>
+</div>
+
+<!-- 4.4 -->
+<div class="test-case">
+<div class="tc-header" onclick="toggleCase(this)">
+  <span class="tc-id">4.4</span>
+  <span class="tc-title">Artifact trace event</span>
+  <span class="tc-arrow">&#9654;</span>
+</div>
+<div class="tc-body">
+<div class="tc-section"><h4>Execution Flow</h4>
+<div class="flow-steps">
+  <div class="step"><span class="step-num">1</span><span class="step-content">启动 Host + fake agent（返回 artifact_update 事件）</span></div>
+  <div class="step"><span class="step-num">2</span><span class="step-content">调用 message_bus.send_streaming("sender", "agent-a", "test")</span></div>
+  <div class="step"><span class="step-num">3</span><span class="step-content">send_streaming 处理 artifact_update → tracer.record_artifact()</span></div>
+  <div class="step"><span class="step-num">4</span><span class="step-content">查询 tracer.get_timeline(task_id)</span></div>
+</div></div>
+<div class="verify"><strong>Verify:</strong> timeline 包含 event_type="artifact" 的事件；data 中包含 artifact text</div>
+<div class="fixture">Fixtures: e2e_host, fake_agent(artifact), message_bus</div>
+</div>
+</div>
+
+<!-- 4.5 -->
+<div class="test-case">
+<div class="tc-header" onclick="toggleCase(this)">
+  <span class="tc-id">4.5</span>
+  <span class="tc-title">Task state transitions in trace</span>
+  <span class="tc-arrow">&#9654;</span>
+</div>
+<div class="tc-body">
+<div class="tc-section"><h4>Execution Flow</h4>
+<div class="flow-steps">
+  <div class="step"><span class="step-num">1</span><span class="step-content">启动 Host + fake agent（返回 task(status=SUBMITTED) → status_update(status=WORKING) → status_update(status=COMPLETED) → message）</span></div>
+  <div class="step"><span class="step-num">2</span><span class="step-content">调用 message_bus.send_streaming("sender", "agent-a", "test")</span></div>
+  <div class="step"><span class="step-num">3</span><span class="step-content">send_streaming 逐步处理 task/status_update 事件 → 每次调用 tracer.record_task_update(old_state, new_state)</span></div>
+  <div class="step"><span class="step-num">4</span><span class="step-content">查询 tracer.get_timeline(task_id)</span></div>
+</div></div>
+<div class="verify"><strong>Verify:</strong> trace 中包含多个 task_update 事件；state 变化为 SUBMITTED → WORKING → COMPLETED → RESPONDED</div>
+<div class="fixture">Fixtures: e2e_host, fake_agent(state_transitions), message_bus</div>
+</div>
+</div>
+
+<!-- 4.6 -->
+<div class="test-case">
+<div class="tc-header" onclick="toggleCase(this)">
+  <span class="tc-id">4.6</span>
+  <span class="tc-title">Empty trace - no events yet</span>
+  <span class="tc-arrow">&#9654;</span>
+</div>
+<div class="tc-body">
+<div class="tc-section"><h4>Execution Flow</h4>
+<div class="flow-steps">
+  <div class="step"><span class="step-num">1</span><span class="step-content">启动 Host</span></div>
+  <div class="step"><span class="step-num">2</span><span class="step-content">调用 tracer.get_debug_trace("nonexistent-task-id")</span></div>
+</div></div>
+<div class="verify"><strong>Verify:</strong> 返回 "(no trace yet)"</div>
+<div class="fixture">Fixtures: e2e_host</div>
+</div>
+</div>
+
+<!-- 4.7 -->
+<div class="test-case">
+<div class="tc-header" onclick="toggleCase(this)">
+  <span class="tc-id">4.7</span>
+  <span class="tc-title">Multi-agent trace - agent-A → agent-B</span>
+  <span class="tc-arrow">&#9654;</span>
+</div>
+<div class="tc-body">
+<div class="tc-section"><h4>Execution Flow</h4>
+<div class="flow-steps">
+  <div class="step"><span class="step-num">1</span><span class="step-content">启动 Host + 2 个 fake agent（agent-a: tool_call=send_to_agent, agent-b: echo）</span></div>
+  <div class="step"><span class="step-num">2</span><span class="step-content">Host 发消息给 agent-a → agent-a 发起 tool call 给 agent-b → agent-b 响应</span></div>
+  <div class="step"><span class="step-num">3</span><span class="step-content">查询所有 trace 事件（跨所有 task_id）</span></div>
+</div></div>
+<div class="verify"><strong>Verify:</strong> trace 中包含两条通信链路：sender→agent-a 和 agent-a→agent-b；agent_name/target_agent 字段正确反映通信方向</div>
+<div class="fixture">Fixtures: e2e_host, fake_agent_multi(tool_call=send_to_agent), http_client</div>
+</div>
+</div>
+
+<!-- 4.8 -->
+<div class="test-case">
+<div class="tc-header" onclick="toggleCase(this)">
+  <span class="tc-id">4.8</span>
+  <span class="tc-title">Tracer.get_recent_by_agent - filter by agent_name</span>
+  <span class="tc-arrow">&#9654;</span>
+</div>
+<div class="tc-body">
+<div class="tc-section"><h4>Execution Flow</h4>
+<div class="flow-steps">
+  <div class="step"><span class="step-num">1</span><span class="step-content">启动 Host + 2 个 fake agent（agent-a, agent-b）</span></div>
+  <div class="step"><span class="step-num">2</span><span class="step-content">发送 3 条消息：2 条给 agent-a（"msg1", "msg2"），1 条给 agent-b（"msg3"）</span></div>
+  <div class="step"><span class="step-num">3</span><span class="step-content">调用 <code>tracer.get_recent_by_agent("sender->agent-a", limit=20)</code></span></div>
+  <div class="step"><span class="step-num">4</span><span class="step-content">调用 <code>tracer.get_recent_by_agent("sender->agent-b", limit=20)</code></span></div>
+  <div class="step"><span class="step-num">5</span><span class="step-content">调用 <code>tracer.get_recent_by_agent("sender->agent-a", limit=1)</code> 验证 limit 截断</span></div>
+</div></div>
+<div class="verify"><strong>Verify:</strong> agent-a 的 trace 事件数 >= 4（2 send + 2 response）；agent-b 的 trace 事件数 >= 2（1 send + 1 response）；limit=1 时只返回最近 1 条事件；所有返回事件的 agent_name 字段匹配查询的 agent_name</div>
+<div class="fixture">Fixtures: e2e_host, fake_agent_multi, message_bus</div>
+</div>
+</div>
+
+</div>
+</div>
+
+<!-- ============================================================ -->
+<!-- MODULE 5: Registry Operations -->
+<!-- ============================================================ -->
+<div class="module">
+<div class="module-header" onclick="toggleModule(this)">
+  <h2 style="color:#1abc9c">5. Registry Operations</h2>
+  <span class="badge">6 tests</span>
+  <span class="toggle">&#9660;</span>
+</div>
+<div class="module-body">
+
+<!-- 5.1 -->
+<div class="test-case">
+<div class="tc-header" onclick="toggleCase(this)">
+  <span class="tc-id">5.1</span>
+  <span class="tc-title">Register agent - appears in list + DB</span>
+  <span class="tc-arrow">&#9654;</span>
+</div>
+<div class="tc-body">
+<div class="tc-section"><h4>Execution Flow</h4>
+<div class="flow-steps">
+  <div class="step"><span class="step-num">1</span><span class="step-content">启动 Host（无 agent）</span></div>
+  <div class="step"><span class="step-num">2</span><span class="step-content">通过 registry.connect_agent_by_url(fake_agent_url) 注册 fake agent</span></div>
+  <div class="step"><span class="step-num">3</span><span class="step-content">调用 registry.list_agents() 查询 DB</span></div>
+  <div class="step"><span class="step-num">4</span><span class="step-content">调用 registry.get_client("agent-a") 查询内存</span></div>
+  <div class="step"><span class="step-num">5</span><span class="step-content">调用 <code class="http">GET /api/agents</code> 查询 API</span></div>
+</div></div>
+<div class="verify"><strong>Verify:</strong> DB 中有 agent record（status="connected"）；_connections 中有 AgentConnection；API 返回包含该 agent</div>
+<div class="fixture">Fixtures: e2e_host, fake_agent, http_client</div>
+</div>
+</div>
+
+<!-- 5.2 -->
+<div class="test-case">
+<div class="tc-header" onclick="toggleCase(this)">
+  <span class="tc-id">5.2</span>
+  <span class="tc-title">Disconnect agent - removed from connections, status=disconnected</span>
+  <span class="tc-arrow">&#9654;</span>
+</div>
+<div class="tc-body">
+<div class="tc-section"><h4>Execution Flow</h4>
+<div class="flow-steps">
+  <div class="step"><span class="step-num">1</span><span class="step-content">启动 Host + fake agent → 注册 agent-a</span></div>
+  <div class="step"><span class="step-num">2</span><span class="step-content">调用 registry.disconnect_agent("agent-a")</span></div>
+  <div class="step"><span class="step-num">3</span><span class="step-content">查询 registry.get_client("agent-a") → 应为 None</span></div>
+  <div class="step"><span class="step-num">4</span><span class="step-content">查询 registry.get_agent("agent-a") → DB record status 应为 "disconnected"</span></div>
+</div></div>
+<div class="verify"><strong>Verify:</strong> get_client 返回 None；DB record status="disconnected"；API GET /api/agents 仍列出该 agent 但 status=disconnected</div>
+<div class="fixture">Fixtures: e2e_host, fake_agent, http_client</div>
+</div>
+</div>
+
+<!-- 5.3 -->
+<div class="test-case">
+<div class="tc-header" onclick="toggleCase(this)">
+  <span class="tc-id">5.3</span>
+  <span class="tc-title">Re-register agent - reconnects with new card</span>
+  <span class="tc-arrow">&#9654;</span>
+</div>
+<div class="tc-body">
+<div class="tc-section"><h4>Execution Flow</h4>
+<div class="flow-steps">
+  <div class="step"><span class="step-num">1</span><span class="step-content">启动 Host + fake agent → 注册 agent-a</span></div>
+  <div class="step"><span class="step-num">2</span><span class="step-content">调用 registry.disconnect_agent("agent-a")</span></div>
+  <div class="step"><span class="step-num">3</span><span class="step-content">再次调用 registry.connect_agent_by_url(same_url) 重新注册</span></div>
+  <div class="step"><span class="step-num">4</span><span class="step-content">查询 registry.get_client("agent-a") → 应返回新的 AgentConnection</span></div>
+</div></div>
+<div class="verify"><strong>Verify:</strong> get_client 返回有效连接；DB record status="connected"；agent 可正常收发消息</div>
+<div class="fixture">Fixtures: e2e_host, fake_agent, http_client</div>
+</div>
+</div>
+
+<!-- 5.4 -->
+<div class="test-case">
+<div class="tc-header" onclick="toggleCase(this)">
+  <span class="tc-id">5.4</span>
+  <span class="tc-title">Register multiple agents</span>
+  <span class="tc-arrow">&#9654;</span>
+</div>
+<div class="tc-body">
+<div class="tc-section"><h4>Execution Flow</h4>
+<div class="flow-steps">
+  <div class="step"><span class="step-num">1</span><span class="step-content">启动 Host + 3 个 fake agent（agent-a, agent-b, agent-c）</span></div>
+  <div class="step"><span class="step-num">2</span><span class="step-content">分别注册 3 个 agent</span></div>
+  <div class="step"><span class="step-num">3</span><span class="step-content">调用 <code class="http">GET /api/agents</code></span></div>
+</div></div>
+<div class="verify"><strong>Verify:</strong> 返回 3 个 agent；每个有唯一的 name 和 url</div>
+<div class="fixture">Fixtures: e2e_host, fake_agent_multi(3), http_client</div>
+</div>
+</div>
+
+<!-- 5.5 -->
+<div class="test-case">
+<div class="tc-header" onclick="toggleCase(this)">
+  <span class="tc-id">5.5</span>
+  <span class="tc-title">Duplicate name registration - dedup by card.name</span>
+  <span class="tc-arrow">&#9654;</span>
+</div>
+<div class="tc-body">
+<div class="tc-section"><h4>Execution Flow</h4>
+<div class="flow-steps">
+  <div class="step"><span class="step-num">1</span><span class="step-content">启动 Host + fake agent（name=agent-a）</span></div>
+  <div class="step"><span class="step-num">2</span><span class="step-content">第一次注册 agent-a → 成功</span></div>
+  <div class="step"><span class="step-num">3</span><span class="step-content">第二次注册 agent-a（相同 URL）→ connect_agent 检测到 card.name 已在 _connections 中 → 返回现有连接</span></div>
+  <div class="step"><span class="step-num">4</span><span class="step-content">调用 <code class="http">GET /api/agents</code></span></div>
+</div></div>
+<div class="verify"><strong>Verify:</strong> 返回列表中 agent-a 只出现 1 次；get_client 返回同一个连接对象</div>
+<div class="fixture">Fixtures: e2e_host, fake_agent, http_client</div>
+</div>
+</div>
+
+<!-- 5.6 -->
+<div class="test-case">
+<div class="tc-header" onclick="toggleCase(this)">
+  <span class="tc-id">5.6</span>
+  <span class="tc-title">Registry.register_from_config retry - fails initially, succeeds on retry</span>
+  <span class="tc-arrow">&#9654;</span>
+</div>
+<div class="tc-body">
+<div class="tc-section"><h4>Execution Flow</h4>
+<div class="flow-steps">
+  <div class="step"><span class="step-num">1</span><span class="step-content">构造一个 fake agent 端点，前 2 次连接尝试返回 connection refused，第 3 次成功</span></div>
+  <div class="step"><span class="step-num">2</span><span class="step-content">启动 Host（不预注册 agent）</span></div>
+  <div class="step"><span class="step-num">3</span><span class="step-content">启动 fake agent（延迟启动，前 2 次请求时 agent 尚未就绪）</span></div>
+  <div class="step"><span class="step-num">4</span><span class="step-content">调用 <code>registry.register_from_config(config)</code>，config 中定义 1 个 instance 指向 fake agent 的 URL</span></div>
+  <div class="step"><span class="step-num">5</span><span class="step-content">第 1 次尝试：A2ACardResolver 连接被拒 → sleep 1s → 第 2 次尝试：连接被拒 → sleep 2s → 第 3 次尝试：连接成功 → AgentConnection 创建</span></div>
+  <div class="step"><span class="step-num">6</span><span class="step-content">查询 registry.get_client(name) 和 <code class="http">GET /api/agents</code></span></div>
+</div></div>
+<div class="verify"><strong>Verify:</strong> agent 最终注册成功（status="connected"）；get_client 返回有效连接；register_from_config 未抛异常；DB 中无 error 记录</div>
+<div class="fixture">Fixtures: e2e_host (raw), fake_agent(delayed_start), mock config</div>
+</div>
+</div>
+
+</div>
+</div>
+
+<!-- ============================================================ -->
+<!-- MODULE 6: Error Handling & Edge Cases -->
+<!-- ============================================================ -->
+<div class="module">
+<div class="module-header" onclick="toggleModule(this)">
+  <h2 style="color:#e67e22">6. Error Handling & Edge Cases</h2>
+  <span class="badge">8 tests</span>
+  <span class="toggle">&#9660;</span>
+</div>
+<div class="module-body">
+
+<!-- 6.1 -->
+<div class="test-case">
+<div class="tc-header" onclick="toggleCase(this)">
+  <span class="tc-id">6.1</span>
+  <span class="tc-title">Proxy: nonexistent agent → 404</span>
+  <span class="tc-arrow">&#9654;</span>
+</div>
+<div class="tc-body">
+<div class="tc-section"><h4>Execution Flow</h4>
+<div class="flow-steps">
+  <div class="step"><span class="step-num">1</span><span class="step-content">启动 Host（无 agent 注册）</span></div>
+  <div class="step"><span class="step-num">2</span><span class="step-content">发送 <code class="http">POST /agent/nonexistent</code></span></div>
+  <div class="step"><span class="step-num">3</span><span class="step-content">Proxy handler 调用 registry.get_client("nonexistent") → None → 返回 404</span></div>
+</div></div>
+<div class="verify"><strong>Verify:</strong> HTTP 404；JSON body: <code>{"error": "Agent 'nonexistent' not found"}</code></div>
+<div class="fixture">Fixtures: e2e_host, http_client</div>
+</div>
+</div>
+
+<!-- 6.2 -->
+<div class="test-case">
+<div class="tc-header" onclick="toggleCase(this)">
+  <span class="tc-id">6.2</span>
+  <span class="tc-title">Agent returns error - task state = ERROR</span>
+  <span class="tc-arrow">&#9654;</span>
+</div>
+<div class="tc-body">
+<div class="tc-section"><h4>Execution Flow</h4>
+<div class="flow-steps">
+  <div class="step"><span class="step-num">1</span><span class="step-content">启动 Host + fake agent（error mode — 返回 HTTP 500 或错误 SSE 事件）</span></div>
+  <div class="step"><span class="step-num">2</span><span class="step-content">调用 message_bus.send("sender", "agent-a", "test")</span></div>
+  <div class="step"><span class="step-num">3</span><span class="step-content">A2A client.send_message() 抛异常 → outer except 捕获 → task state 更新为 ERROR → yield error event</span></div>
+  <div class="step"><span class="step-num">4</span><span class="step-content">查询 task_repo.get(task_id) 获取最新状态</span></div>
+</div></div>
+<div class="verify"><strong>Verify:</strong> send_streaming yields error event；task state 为 "ERROR"；trace 包含 error 事件</div>
+<div class="fixture">Fixtures: e2e_host, fake_agent(error), message_bus</div>
+</div>
+</div>
+
+<!-- 6.3 -->
+<div class="test-case">
+<div class="tc-header" onclick="toggleCase(this)">
+  <span class="tc-id">6.3</span>
+  <span class="tc-title">Agent upstream timeout / connection refused</span>
+  <span class="tc-arrow">&#9654;</span>
+</div>
+<div class="tc-body">
+<div class="tc-section"><h4>Execution Flow</h4>
+<div class="flow-steps">
+  <div class="step"><span class="step-num">1</span><span class="step-content">启动 Host → 注册一个指向不存在端口的 agent（url=http://127.0.0.1:1）</span></div>
+  <div class="step"><span class="step-num">2</span><span class="step-content">通过 proxy 发送 <code class="http">POST /agent/dead-agent</code></span></div>
+  <div class="step"><span class="step-num">3</span><span class="step-content">Proxy 转发请求 → httpx 连接被拒绝 → 返回错误响应</span></div>
+</div></div>
+<div class="verify"><strong>Verify:</strong> 请求不 hang；返回非 200 状态码（502 或 500）或 SSE 流中包含错误事件</div>
+<div class="fixture">Fixtures: e2e_host, http_client（注册 dead agent）</div>
+</div>
+</div>
+
+<!-- 6.4 -->
+<div class="test-case">
+<div class="tc-header" onclick="toggleCase(this)">
+  <span class="tc-id">6.4</span>
+  <span class="tc-title">SSE mid-stream disconnect</span>
+  <span class="tc-arrow">&#9654;</span>
+</div>
+<div class="tc-body">
+<div class="tc-section"><h4>Execution Flow</h4>
+<div class="flow-steps">
+  <div class="step"><span class="step-num">1</span><span class="step-content">启动 Host + fake agent（disconnect mode — 发送 1 个 SSE 事件后立即关闭连接）</span></div>
+  <div class="step"><span class="step-num">2</span><span class="step-content">发送 <code class="http">POST /agent/{name}</code>，Accept: text/event-stream</span></div>
+  <div class="step"><span class="step-num">3</span><span class="step-content">收到 1 个 SSE 事件后，流中断</span></div>
+</div></div>
+<div class="verify"><strong>Verify:</strong> 客户端收到至少 1 个事件后流结束；不抛未处理的异常</div>
+<div class="fixture">Fixtures: e2e_host, fake_agent(disconnect_mid_stream), http_client</div>
+</div>
+</div>
+
+<!-- 6.5 -->
+<div class="test-case">
+<div class="tc-header" onclick="toggleCase(this)">
+  <span class="tc-id">6.5</span>
+  <span class="tc-title">Malformed skills_json - gracefully returns empty list</span>
+  <span class="tc-arrow">&#9654;</span>
+</div>
+<div class="tc-body">
+<div class="tc-section"><h4>Execution Flow</h4>
+<div class="flow-steps">
+  <div class="step"><span class="step-num">1</span><span class="step-content">启动 Host → 直接在 DB 中 upsert 一个 agent record，skills_json="not valid json{{"</span></div>
+  <div class="step"><span class="step-num">2</span><span class="step-content">调用 <code class="http">GET /api/agents</code></span></div>
+</div></div>
+<div class="verify"><strong>Verify:</strong> agent 在列表中；skills 字段为 []（不抛 500）</div>
+<div class="fixture">Fixtures: e2e_host, http_client</div>
+</div>
+</div>
+
+<!-- 6.6 -->
+<div class="test-case">
+<div class="tc-header" onclick="toggleCase(this)">
+  <span class="tc-id">6.6</span>
+  <span class="tc-title">Task with no text response - returns (empty)</span>
+  <span class="tc-arrow">&#9654;</span>
+</div>
+<div class="tc-body">
+<div class="tc-section"><h4>Execution Flow</h4>
+<div class="flow-steps">
+  <div class="step"><span class="step-num">1</span><span class="step-content">启动 Host + fake agent（empty_response mode — 返回只有 task_update/status_update 事件，没有 message）</span></div>
+  <div class="step"><span class="step-num">2</span><span class="step-content">调用 message_bus.send("sender", "agent-a", "test")</span></div>
+  <div class="step"><span class="step-num">3</span><span class="step-content">send_streaming 处理完所有事件后无 message → yield response(text="(empty)")</span></div>
+</div></div>
+<div class="verify"><strong>Verify:</strong> send() 返回 "(empty)"；task state 不为 ERROR</div>
+<div class="fixture">Fixtures: e2e_host, fake_agent(empty_response), message_bus</div>
+</div>
+</div>
+
+<!-- 6.7 -->
+<div class="test-case">
+<div class="tc-header" onclick="toggleCase(this)">
+  <span class="tc-id">6.7</span>
+  <span class="tc-title">Concurrent requests to same agent</span>
+  <span class="tc-arrow">&#9654;</span>
+</div>
+<div class="tc-body">
+<div class="tc-section"><h4>Execution Flow</h4>
+<div class="flow-steps">
+  <div class="step"><span class="step-num">1</span><span class="step-content">启动 Host + fake agent（echo mode）</span></div>
+  <div class="step"><span class="step-num">2</span><span class="step-content">使用 asyncio.gather 并发发送 3 个请求到 /agent/{name}</span></div>
+  <div class="step"><span class="step-num">3</span><span class="step-content">Fake agent 逐个处理请求</span></div>
+  <div class="step"><span class="step-num">4</span><span class="step-content">收集所有 3 个响应</span></div>
+</div></div>
+<div class="verify"><strong>Verify:</strong> 3 个请求全部成功返回；每个响应包含对应的请求内容</div>
+<div class="fixture">Fixtures: e2e_host, fake_agent(echo), http_client</div>
+</div>
+</div>
+
+<!-- 6.8 -->
+<div class="test-case">
+<div class="tc-header" onclick="toggleCase(this)">
+  <span class="tc-id">6.8</span>
+  <span class="tc-title">Self-messaging - agent sends to itself</span>
+  <span class="tc-arrow">&#9654;</span>
+</div>
+<div class="tc-body">
+<div class="tc-section"><h4>Execution Flow</h4>
+<div class="flow-steps">
+  <div class="step"><span class="step-num">1</span><span class="step-content">启动 Host + fake agent（echo mode）</span></div>
+  <div class="step"><span class="step-num">2</span><span class="step-content">调用 message_bus.send("agent-a", "agent-a", "self-message")</span></div>
+  <div class="step"><span class="step-num">3</span><span class="step-content">MessageBus 查找 target "agent-a" → 找到 → 发送消息给自身</span></div>
+  <div class="step"><span class="step-num">4</span><span class="step-content">Fake agent 收到消息，返回 echo 响应</span></div>
+</div></div>
+<div class="verify"><strong>Verify:</strong> 请求成功完成；响应包含 "self-message"；trace 中 agent_name 和 target_agent 都是 "agent-a"</div>
+<div class="fixture">Fixtures: e2e_host, fake_agent(echo), message_bus</div>
+</div>
+</div>
+
+</div>
+</div>
+
+</div>
+
+<script>
+function toggleModule(header) {
+  const body = header.nextElementSibling;
+  const toggle = header.querySelector('.toggle');
+  body.classList.toggle('collapsed');
+  toggle.classList.toggle('collapsed');
+}
+
+function toggleCase(header) {
+  const body = header.nextElementSibling;
+  const arrow = header.querySelector('.tc-arrow');
+  body.classList.toggle('open');
+  arrow.classList.toggle('open');
+}
+</script>
+
+</body>
+</html>
