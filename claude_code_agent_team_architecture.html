@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude Code Agent Team 系统深度解析</title>
+<style>
+    :root {
+        --bg: #0f0f12;
+        --surface: #1a1a1f;
+        --surface-hover: #222228;
+        --text: #e8e8ec;
+        --text-secondary: #9ca3af;
+        --accent: #6366f1;
+        --accent-glow: rgba(99, 102, 241, 0.15);
+        --accent-2: #8b5cf6;
+        --border: rgba(255,255,255,0.06);
+        --code-bg: #131318;
+        --code-border: rgba(255,255,255,0.08);
+        --tag-bg: rgba(99, 102, 241, 0.1);
+        --tag-color: #818cf8;
+        --warn: #f59e0b;
+        --ok: #10b981;
+        --info: #3b82f6;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.8;
+        -webkit-font-smoothing: antialiased;
+        min-height: 100vh;
+    }
+
+    .bg-glow {
+        position: fixed;
+        width: 500px; height: 500px;
+        border-radius: 50%;
+        background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+        top: -150px; right: -150px;
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    .container {
+        max-width: 820px;
+        margin: 0 auto;
+        padding: 0 24px;
+        position: relative;
+        z-index: 1;
+    }
+
+    .hero {
+        padding: 80px 0 40px;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 48px;
+    }
+
+    .hero h1 {
+        font-size: 2em;
+        font-weight: 700;
+        background: linear-gradient(135deg, var(--text) 0%, var(--accent) 50%, var(--accent-2) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 12px;
+    }
+
+    .hero .meta {
+        color: var(--text-secondary);
+        font-size: 0.9em;
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+
+    .hero .meta span {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    h2 {
+        font-size: 1.4em;
+        font-weight: 600;
+        margin: 48px 0 20px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--border);
+        color: var(--text);
+    }
+
+    h3 {
+        font-size: 1.1em;
+        font-weight: 600;
+        margin: 32px 0 14px;
+        color: var(--accent);
+    }
+
+    h4 {
+        font-size: 1em;
+        font-weight: 600;
+        margin: 24px 0 10px;
+        color: var(--text);
+    }
+
+    p {
+        margin-bottom: 16px;
+        color: var(--text-secondary);
+    }
+
+    p strong {
+        color: var(--text);
+    }
+
+    a {
+        color: var(--accent);
+        text-decoration: none;
+    }
+
+    a:hover {
+        text-decoration: underline;
+    }
+
+    code {
+        font-family: "SF Mono", Monaco, "Cascadia Code", monospace;
+        font-size: 0.88em;
+        background: var(--code-bg);
+        padding: 2px 6px;
+        border-radius: 4px;
+        border: 1px solid var(--code-border);
+        color: #c9cbff;
+    }
+
+    pre {
+        background: var(--code-bg);
+        border: 1px solid var(--code-border);
+        border-radius: 10px;
+        padding: 20px 24px;
+        overflow-x: auto;
+        margin: 20px 0;
+        font-size: 0.85em;
+        line-height: 1.6;
+    }
+
+    pre code {
+        background: none;
+        border: none;
+        padding: 0;
+        color: #a5b4fc;
+    }
+
+    .tag {
+        display: inline-block;
+        font-size: 0.72em;
+        padding: 2px 8px;
+        border-radius: 6px;
+        background: var(--tag-bg);
+        color: var(--tag-color);
+        font-weight: 500;
+        margin-right: 6px;
+    }
+
+    .tag.warn {
+        background: rgba(245, 158, 11, 0.1);
+        color: var(--warn);
+    }
+
+    .tag.ok {
+        background: rgba(16, 185, 129, 0.1);
+        color: var(--ok);
+    }
+
+    .tag.info {
+        background: rgba(59, 130, 246, 0.1);
+        color: var(--info);
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        font-size: 0.9em;
+    }
+
+    th, td {
+        padding: 12px 16px;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+    }
+
+    th {
+        color: var(--text);
+        font-weight: 600;
+        background: var(--surface);
+    }
+
+    td {
+        color: var(--text-secondary);
+    }
+
+    tr:hover td {
+        background: var(--surface-hover);
+    }
+
+    ul, ol {
+        margin: 16px 0;
+        padding-left: 24px;
+        color: var(--text-secondary);
+    }
+
+    li {
+        margin-bottom: 8px;
+    }
+
+    li strong {
+        color: var(--text);
+    }
+
+    .highlight-box {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 20px 24px;
+        margin: 24px 0;
+        border-left: 3px solid var(--accent);
+    }
+
+    .highlight-box.warn {
+        border-left-color: var(--warn);
+    }
+
+    .highlight-box.ok {
+        border-left-color: var(--ok);
+    }
+
+    .highlight-box.info {
+        border-left-color: var(--info);
+    }
+
+    .highlight-box p:last-child {
+        margin-bottom: 0;
+    }
+
+    .footer {
+        padding: 40px 0;
+        border-top: 1px solid var(--border);
+        margin-top: 60px;
+        text-align: center;
+        color: var(--text-secondary);
+        font-size: 0.85em;
+    }
+
+    .toc {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 24px 28px;
+        margin: 32px 0;
+    }
+
+    .toc h4 {
+        margin-top: 0;
+        margin-bottom: 14px;
+    }
+
+    .toc ul {
+        margin: 0;
+        list-style: none;
+        padding-left: 0;
+    }
+
+    .toc li {
+        margin-bottom: 6px;
+    }
+
+    .toc a {
+        color: var(--text-secondary);
+    }
+
+    .toc a:hover {
+        color: var(--accent);
+    }
+
+    .flow-step {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 16px 20px;
+        margin: 12px 0;
+        position: relative;
+        padding-left: 48px;
+    }
+
+    .flow-step::before {
+        content: attr(data-step);
+        position: absolute;
+        left: 16px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: var(--accent);
+        color: white;
+        font-size: 0.75em;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    @media (max-width: 600px) {
+        .hero { padding: 50px 0 30px; }
+        .hero h1 { font-size: 1.5em; }
+        pre { padding: 14px 16px; }
+    }
+</style>
+</head>
+<body>
+<div class="bg-glow"></div>
+
+<div class="container">
+    <div class="hero">
+        <h1>Claude Code Agent Team 系统深度解析</h1>
+        <div class="meta">
+            <span>源码分析</span>
+            <span>2026-05-15</span>
+            <span>Claude Code · Agent Swarm</span>
+        </div>
+    </div>
+
+    <div class="toc">
+        <h4>目录</h4>
+        <ul>
+            <li><a href="#overview">一、整体架构概览</a></li>
+            <li><a href="#core-files">二、核心文件与模块</a></li>
+            <li><a href="#create">三、Team 创建流程</a></li>
+            <li><a href="#backends">四、三种执行后端</a></li>
+            <li><a href="#spawn">五、Teammate 启动流程</a></li>
+            <li><a href="#mailbox">六、通信系统：Mailbox</a></li>
+            <li><a href="#inbox">七、Inbox 轮询与消息处理</a></li>
+            <li><a href="#permission">八、权限同步系统</a></li>
+            <li><a href="#tasks">九、任务系统</a></li>
+            <li><a href="#prompt">十、Teammate 系统提示</a></li>
+            <li><a href="#lifecycle">十一、生命周期管理</a></li>
+            <li><a href="#highlights">十二、关键设计亮点</a></li>
+        </ul>
+    </div>
+
+    <h2 id="overview">一、整体架构概览</h2>
+    <p>Claude Code 的 Agent Team 系统是一个<strong>扁平化的 Leader-Worker 协作模型</strong>：</p>
+
+    <table>
+        <tr>
+            <th>角色</th>
+            <th>职责</th>
+        </tr>
+        <tr>
+            <td><strong>Leader（team-lead）</strong></td>
+            <td>用户直接交互的主 agent，协调团队，审批权限，分配任务</td>
+        </tr>
+        <tr>
+            <td><strong>Teammate（Worker）</strong></td>
+            <td>被 spawn 出来的子 agent，执行具体任务，通过 Mailbox 与 Leader/其他 teammate 通信</td>
+        </tr>
+    </table>
+
+    <div class="highlight-box ok">
+        <p><strong>核心设计原则：</strong></p>
+        <ul>
+            <li><strong>扁平 roster</strong>：Teammate 不能 spawn 其他 teammate（防止嵌套混乱）</li>
+            <li><strong>文件驱动通信</strong>：所有跨 agent 通信通过文件系统 Mailbox 实现</li>
+            <li><strong>统一身份</strong>：通过 CLI args（<code>--agent-id</code>, <code>--team-name</code> 等）传递身份</li>
+            <li><strong>多后端支持</strong>：tmux pane / iTerm2 pane / in-process 三种执行模式</li>
+        </ul>
+    </div>
+
+    <h2 id="core-files">二、核心文件与模块</h2>
+
+    <table>
+        <tr>
+            <th>文件/目录</th>
+            <th>职责</th>
+        </tr>
+        <tr>
+            <td><code>tools/TeamCreateTool/</code></td>
+            <td>创建 Team 的工具入口</td>
+        </tr>
+        <tr>
+            <td><code>tools/AgentTool/AgentTool.tsx</code></td>
+            <td>当 <code>team_name + name</code> 同时存在时 spawn teammate</td>
+        </tr>
+        <tr>
+            <td><code>tools/shared/spawnMultiAgent.ts</code></td>
+            <td>teammate 创建的统一入口，处理三种后端</td>
+        </tr>
+        <tr>
+            <td><code>tools/SendMessageTool/</code></td>
+            <td>团队通信工具（单播/广播/结构化消息）</td>
+        </tr>
+        <tr>
+            <td><code>utils/swarm/backends/</code></td>
+            <td>三种执行后端：Tmux / iTerm2 / InProcess</td>
+        </tr>
+        <tr>
+            <td><code>utils/swarm/backends/registry.ts</code></td>
+            <td>后端检测与选择逻辑</td>
+        </tr>
+        <tr>
+            <td><code>utils/teammateMailbox.ts</code></td>
+            <td>文件邮箱系统（inbox + 消息协议）</td>
+        </tr>
+        <tr>
+            <td><code>utils/swarm/teamHelpers.ts</code></td>
+            <td>Team 文件读写（<code>config.json</code>）</td>
+        </tr>
+        <tr>
+            <td><code>utils/swarm/permissionSync.ts</code></td>
+            <td>跨 agent 权限同步系统</td>
+        </tr>
+        <tr>
+            <td><code>utils/tasks.ts</code></td>
+            <td>团队共享任务列表</td>
+        </tr>
+    </table>
+
+    <h2 id="create">三、Team 创建流程</h2>
+
+    <h3>1. 创建 Team：TeamCreateTool</h3>
+    <pre><code>TeamCreateTool.call({ team_name, description?, agent_type? })</code></pre>
+
+    <p>执行逻辑：</p>
+    <ol>
+        <li>检查 Leader 是否已在管理其他 team（<strong>一个 Leader 只能管理一个 team</strong>）</li>
+        <li>生成唯一 team name（如果冲突则自动生成）</li>
+        <li>创建 <code>~/.claude/teams/{teamName}/config.json</code></li>
+        <li>初始化 task list 目录（<code>~/.claude/tasks/{teamName}/</code>）</li>
+        <li>在 <code>AppState.teamContext</code> 中注册 team 信息</li>
+    </ol>
+
+    <h3>2. Spawn Teammate：AgentTool.call()</h3>
+    <p>当 Agent 工具调用传入 <code>team_name + name</code> 时，不走普通 subagent 路径，而是进入 teammate 创建：</p>
+    <pre><code>// AgentTool.tsx:284
+if (teamName && name) {
+  const result = await spawnTeammate({ name, prompt, team_name, ... }, toolUseContext)
+}</code></pre>
+
+    <p><code>spawnTeammate</code> 位于 <code>tools/shared/spawnMultiAgent.ts</code>，支持三种执行模式。</p>
+
+    <h2 id="backends">四、三种执行后端</h2>
+
+    <h3>Backend 检测优先级</h3>
+    <div class="flow-step" data-step="1">
+        <strong>如果在 tmux 中</strong> → 使用 tmux（即使也在 iTerm2 中）
+    </div>
+    <div class="flow-step" data-step="2">
+        <strong>如果在 iTerm2 中且 it2 CLI 可用</strong> → 使用 iTerm2
+    </div>
+    <div class="flow-step" data-step="3">
+        <strong>如果在 iTerm2 中但 it2 不可用，且 tmux 可用</strong> → 使用 tmux（提示用户安装 it2）
+    </div>
+    <div class="flow-step" data-step="4">
+        <strong>如果 tmux 可用</strong> → 使用 tmux（外部 session）
+    </div>
+    <div class="flow-step" data-step="5">
+        <strong>以上都不可用</strong> → 回退到 in-process
+    </div>
+
+    <h3>1. Tmux Backend</h3>
+    <ul>
+        <li><strong>在 tmux 内</strong>：分割当前窗口，Leader 在左（30%），teammates 在右（70%）</li>
+        <li><strong>在 tmux 外</strong>：创建 <code>claude-swarm</code> session，所有 teammates 平铺显示</li>
+        <li>每个 pane 有独立的颜色边框和标题</li>
+        <li>通过 <code>tmux send-keys</code> 发送启动命令</li>
+    </ul>
+
+    <h3>2. iTerm2 Backend</h3>
+    <ul>
+        <li>使用 iTerm2 的 <code>it2</code> CLI 创建 native split pane</li>
+        <li>比 tmux 更原生，支持更好的视觉效果</li>
+        <li>如果 it2 未安装，会提示用户安装</li>
+    </ul>
+
+    <h3>3. In-Process Backend</h3>
+    <ul>
+        <li>在同一个 Node.js 进程中运行</li>
+        <li>使用 <strong>AsyncLocalStorage</strong> 隔离上下文</li>
+        <li>共享 API client 和 MCP 连接</li>
+        <li>通信同样通过文件 mailbox（与 pane-based 保持一致）</li>
+        <li>通过 <code>AbortController</code> 终止（而非 kill pane）</li>
+    </ul>
+
+    <h2 id="spawn">五、Teammate 启动流程</h2>
+
+    <pre><code>// spawnMultiAgent.ts:handleSpawnSplitPane
+async function handleSpawnSplitPane(input, context) {
+  // 1. 解析 model（'inherit' → leader 的 model）
+  const model = resolveTeammateModel(input.model, getAppState().mainLoopModel)
+  
+  // 2. 生成唯一名字和 agentId（name@teamName）
+  const uniqueName = await generateUniqueTeammateName(name, teamName)
+  const teammateId = formatAgentId(sanitizedName, teamName)
+  
+  // 3. 检测后端
+  const detectionResult = await detectAndGetBackend()
+  
+  // 4. 分配颜色
+  const teammateColor = assignTeammateColor(teammateId)
+  
+  // 5. 创建 pane
+  const { paneId, isFirstTeammate } = await createTeammatePaneInSwarmView(name, color)
+  
+  // 6. 构建启动命令
+  const spawnCommand = `cd ${cwd} && ${binaryPath} \
+    --agent-id ${teammateId} \
+    --agent-name ${name} \
+    --team-name ${teamName} \
+    --agent-color ${color} \
+    --parent-session-id ${leaderSessionId} \
+    ${plan_mode_required ? '--plan-mode-required' : ''} \
+    ${model ? `--model ${model}` : ''}`
+  
+  // 7. 发送命令到 pane
+  await sendCommandToPane(paneId, spawnCommand)
+  
+  // 8. 注册到 AppState 和 team file
+  setAppState(prev => ({ teamContext: { teammates: { [teammateId]: {...} } } }))
+  teamFile.members.push({ agentId: teammateId, name, ... })
+  
+  // 9. 通过 mailbox 发送初始 prompt
+  await writeToMailbox(sanitizedName, { from: 'team-lead', text: prompt }, teamName)
+}</code></pre>
+
+    <div class="highlight-box info">
+        <p><strong>关键点</strong>：teammate 启动时<strong>不直接带 prompt</strong>，而是通过 mailbox 发送初始指令。这样 teammate 的 inbox poller 可以统一处理所有消息来源。</p>
+    </div>
+
+    <h2 id="mailbox">六、通信系统：Mailbox</h2>
+
+    <h3>文件结构</h3>
+    <pre><code>~/.claude/teams/{teamName}/
+├── config.json              # Team 元数据和成员列表
+├── inboxes/
+│   ├── team-lead.json       # Leader 的 inbox
+│   ├── researcher.json      # Researcher 的 inbox
+│   └── tester.json          # Tester 的 inbox
+└── permissions/
+    ├── pending/             # 待审批的权限请求
+    └── resolved/            # 已解决的权限请求</code></pre>
+
+    <h3>Mailbox API</h3>
+    <pre><code>// 写消息
+await writeToMailbox(recipientName, { from, text, timestamp, color, summary }, teamName)
+
+// 读所有消息
+const messages = await readMailbox(agentName, teamName)
+
+// 读未读消息
+const unread = await readUnreadMessages(agentName, teamName)
+
+// 标记已读
+await markMessageAsReadByIndex(agentName, teamName, messageIndex)</code></pre>
+
+    <p><strong>并发控制</strong>：使用 <code>proper-lockfile</code> 文件锁防止多 agent 同时写入同一个 inbox。</p>
+
+    <h3>消息类型</h3>
+    <table>
+        <tr>
+            <th>类型</th>
+            <th>说明</th>
+        </tr>
+        <tr>
+            <td>普通文本</td>
+            <td>团队成员之间的业务通信</td>
+        </tr>
+        <tr>
+            <td><code>shutdown_request</code></td>
+            <td>Leader 请求 teammate 退出</td>
+        </tr>
+        <tr>
+            <td><code>shutdown_response</code></td>
+            <td>Teammate 同意/拒绝退出</td>
+        </tr>
+        <tr>
+            <td><code>permission_request</code></td>
+            <td>Worker 请求 Leader 审批工具权限</td>
+        </tr>
+        <tr>
+            <td><code>permission_response</code></td>
+            <td>Leader 审批结果</td>
+        </tr>
+        <tr>
+            <td><code>plan_approval_request/response</code></td>
+            <td>计划审批请求与响应</td>
+        </tr>
+        <tr>
+            <td><code>idle_notification</code></td>
+            <td>Worker 完成任务进入空闲状态</td>
+        </tr>
+        <tr>
+            <td><code>sandbox_permission_request/response</code></td>
+            <td>沙箱网络访问权限</td>
+        </tr>
+    </table>
+
+    <h2 id="inbox">七、Inbox 轮询与消息处理</h2>
+
+    <h3>Teammate 的轮询循环</h3>
+    <pre><code>async function waitForNextPromptOrShutdown(identity, abortController, ...) {
+  while (!abortController.signal.aborted) {
+    // 1. 检查内存中的 pending messages
+    // 2. 检查 mailbox 中的未读消息
+    // 3. 检查 task list 中的未认领任务
+    await sleep(500)
+  }
+}</code></pre>
+
+    <p><strong>消息优先级</strong>：</p>
+    <ol>
+        <li><strong>Shutdown request</strong>（最高优先级）</li>
+        <li><strong>Team-lead 的消息</strong></li>
+        <li><strong>Peer-to-peer 消息</strong>（FIFO）</li>
+    </ol>
+
+    <h2 id="permission">八、权限同步系统</h2>
+
+    <h3>In-Process Teammate</h3>
+    <ul>
+        <li>通过 <code>leaderPermissionBridge.ts</code> 直接使用 Leader 的 <code>ToolUseConfirm</code> dialog</li>
+        <li>在 Leader UI 中显示带 worker badge 的权限请求</li>
+    </ul>
+
+    <h3>Pane-Based Teammate（tmux/iTerm2）</h3>
+    <ol>
+        <li>Worker 将权限请求写入 <code>permissions/pending/{requestId}.json</code></li>
+        <li>Worker 发送 <code>permission_request</code> 到 Leader 的 mailbox</li>
+        <li>Leader 的 inbox poller 检测到请求</li>
+        <li>Leader UI 显示权限请求（带 worker name 和 color badge）</li>
+        <li>用户审批后，Leader 写入 <code>permissions/resolved/{requestId}.json</code></li>
+        <li>Worker 轮询 <code>permissions/resolved/</code> 获取结果</li>
+    </ol>
+
+    <h3>Mailbox-Based Permission（新一代）</h3>
+    <pre><code>// Worker 发送权限请求
+await sendPermissionRequestViaMailbox(request)
+
+// Leader 审批后发送响应
+await sendPermissionResponseViaMailbox(workerName, resolution, requestId)</code></pre>
+
+    <h2 id="tasks">九、任务系统</h2>
+
+    <p>Team 共享一个任务列表，存储在 <code>~/.claude/tasks/{teamName}/</code>：</p>
+
+    <pre><code>type Task = {
+  id: string
+  subject: string
+  description: string
+  owner?: string       // 负责执行的 agent name
+  status: 'pending' | 'in_progress' | 'completed'
+  blocks: string[]     // 阻塞哪些任务
+  blockedBy: string[]  // 被哪些任务阻塞
+}</code></pre>
+
+    <p>Teammate 可以通过工具协作：</p>
+    <ul>
+        <li><code>TaskCreate</code>：创建任务</li>
+        <li><code>TaskList</code>：查看所有任务</li>
+        <li><code>TaskGet</code>：获取任务详情</li>
+        <li><code>TaskUpdate</code>：更新任务状态/负责人</li>
+    </ul>
+
+    <div class="highlight-box">
+        <p><strong>任务认领逻辑</strong>：teammate 优先检查 inbox，然后检查 task list 中是否有未认领的可用任务（状态为 pending、无负责人、所有依赖已解决）。</p>
+    </div>
+
+    <h2 id="prompt">十、Teammate 系统提示</h2>
+
+    <p>Teammate 的系统提示在 Leader 的基础上追加：</p>
+
+    <div class="highlight-box warn">
+        <p><strong>Agent Teammate Communication</strong></p>
+        <p>IMPORTANT: You are running as an agent in a team. To communicate with anyone on your team:</p>
+        <ul>
+            <li>Use the SendMessage tool with <code>to: "&lt;name&gt;"</code> to send messages to specific teammates</li>
+            <li>Use the SendMessage tool with <code>to: "*"</code> sparingly for team-wide broadcasts</li>
+        </ul>
+        <p>Just writing a response in text is not visible to others on your team — <strong>you MUST use the SendMessage tool</strong>.</p>
+    </div>
+
+    <h2 id="lifecycle">十一、生命周期管理</h2>
+
+    <h3>正常流程</h3>
+    <ol>
+        <li>Teammate 完成任务后发送 <code>idle_notification</code> 给 Leader</li>
+        <li>Leader 可以发送 <code>shutdown_request</code> 请求退出</li>
+        <li>Teammate 通过 <code>shutdown_response</code> 同意或拒绝</li>
+        <li>同意退出的 in-process teammate：abort 其 controller</li>
+        <li>同意退出的 pane-based teammate：调用 <code>gracefulShutdown(0)</code></li>
+    </ol>
+
+    <h3>异常清理</h3>
+    <pre><code>async function cleanupSessionTeams() {
+  // 1. 杀死所有 pane-backed teammate 的 pane
+  await Promise.allSettled(teams.map(name => killOrphanedTeammatePanes(name)))
+  // 2. 删除 team 目录和 task 目录
+  await Promise.allSettled(teams.map(name => cleanupTeamDirectories(name)))
+}</code></pre>
+    <p>在 SIGINT/SIGTERM 时自动调用，防止 orphan process。</p>
+
+    <h2 id="highlights">十二、关键设计亮点</h2>
+
+    <h3>1. 统一抽象：TeammateExecutor</h3>
+    <pre><code>type TeammateExecutor = {
+  readonly type: BackendType
+  isAvailable(): Promise<boolean>
+  spawn(config: TeammateSpawnConfig): Promise<TeammateSpawnResult>
+  sendMessage(agentId: string, message: TeammateMessage): Promise<void>
+  terminate(agentId: string, reason?: string): Promise<boolean>
+  kill(agentId: string): Promise<boolean>
+  isActive(agentId: string): Promise<boolean>
+}</code></pre>
+    <p>三种后端（tmux / iTerm2 / in-process）都实现这个接口，上层代码无需关心底层差异。</p>
+
+    <h3>2. 身份解析的多层优先级</h3>
+    <pre><code>function getAgentName() {
+  // 1. AsyncLocalStorage（in-process）
+  const inProcessCtx = getTeammateContext()
+  if (inProcessCtx) return inProcessCtx.agentName
+  
+  // 2. dynamicTeamContext（tmux 通过 CLI args）
+  return dynamicTeamContext?.agentName
+}</code></pre>
+
+    <h3>3. Pane 管理细节</h3>
+    <ul>
+        <li><strong>锁机制</strong>：<code>acquirePaneCreationLock()</code> 防止并行 spawn 时 pane 竞争</li>
+        <li><strong>Shell 初始化延迟</strong>：<code>PANE_SHELL_INIT_DELAY_MS = 200ms</code>，等待 shell rc 加载</li>
+        <li><strong>布局自动平衡</strong>：新增 teammate 时自动 <code>select-layout tiled</code> 或 <code>main-vertical</code></li>
+        <li><strong>隐藏/显示 pane</strong>：通过 <code>break-pane</code> 和 <code>join-pane</code> 实现</li>
+    </ul>
+
+    <h3>4. In-Process 的内存优化</h3>
+    <pre><code>export const TEAMMATE_MESSAGES_UI_CAP = 50</code></pre>
+    <p>in-process teammate 的 <code>task.messages</code>（用于 zoomed transcript dialog）只保留最近 50 条，防止 whale session 中大量 agent 同时运行时内存爆炸。</p>
+
+    <div class="highlight-box ok">
+        <p><strong>总结</strong>：Claude Code 的 Agent Team 系统通过<strong>文件邮箱 + 多后端执行 + 统一抽象</strong>实现了真正的多 Agent 协作，而不是简单的 subagent 串行调用。三种后端（tmux / iTerm2 / in-process）共享同一套 Mailbox 通信协议和权限同步机制，使得系统既能在终端中可视化展示多 Agent 协作，也能在资源受限时回退到进程内执行。</p>
+    </div>
+
+    <div class="footer">
+        <p>源码分析 · Claude Code Agent Team 架构</p>
+    </div>
+</div>
+
+</body>
+</html>
