@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Taste Test 算法诊断报告 — 为什么全是"安静精准派"？</title>
+  <style>
+    :root {
+      --bg: #0f1115;
+      --bg-elevated: #161920;
+      --bg-card: #1c1f28;
+      --border: #2a2e3a;
+      --text: #e2e4e9;
+      --text-secondary: #8b92a8;
+      --accent: #c4b5a0;
+      --accent-japandi: #c4b5a0;
+      --accent-nordic: #f5c96e;
+      --accent-industrial: #e07b3c;
+      --accent-tropical: #52c77e;
+      --accent-parisian: #d4a0c5;
+      --accent-modernist: #64b8d4;
+      --danger: #e8553d;
+      --warning: #f0a030;
+      --ok: #52c77e;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+      padding: 0;
+    }
+
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 40px 24px;
+    }
+
+    /* Hero */
+    .hero {
+      text-align: center;
+      padding: 60px 0 40px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 48px;
+    }
+
+    .hero h1 {
+      font-size: 2.2rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, var(--text) 0%, var(--accent) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero .subtitle {
+      color: var(--text-secondary);
+      font-size: 1.05rem;
+      max-width: 600px;
+      margin: 0 auto 24px;
+    }
+
+    .hero .meta {
+      display: inline-flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      justify-content: center;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+    }
+
+    .hero .meta span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 500;
+    }
+
+    .badge-danger { background: rgba(232, 85, 61, 0.15); color: var(--danger); border: 1px solid rgba(232, 85, 61, 0.3); }
+    .badge-warning { background: rgba(240, 160, 48, 0.15); color: var(--warning); border: 1px solid rgba(240, 160, 48, 0.3); }
+    .badge-ok { background: rgba(82, 199, 126, 0.15); color: var(--ok); border: 1px solid rgba(82, 199, 126, 0.3); }
+    .badge-info { background: rgba(100, 184, 212, 0.15); color: var(--accent-modernist); border: 1px solid rgba(100, 184, 212, 0.3); }
+
+    /* Sections */
+    h2 {
+      font-size: 1.4rem;
+      font-weight: 600;
+      margin: 48px 0 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    h3 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin: 32px 0 14px;
+      color: var(--text);
+    }
+
+    p { margin-bottom: 14px; color: var(--text-secondary); }
+
+    .lead {
+      font-size: 1.05rem;
+      color: var(--text);
+      margin-bottom: 20px;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+    }
+
+    .metric {
+      text-align: center;
+      padding: 20px;
+      background: var(--bg-elevated);
+      border-radius: 10px;
+      border: 1px solid var(--border);
+    }
+
+    .metric .value {
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .metric .label {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+    }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+      margin: 16px 0;
+    }
+
+    th, td {
+      padding: 10px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th {
+      color: var(--text-secondary);
+      font-weight: 500;
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    tr:hover td { background: rgba(255,255,255,0.02); }
+
+    /* Bars */
+    .bar-track {
+      width: 100%;
+      height: 22px;
+      background: var(--bg-elevated);
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .bar-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.8s ease;
+      position: relative;
+    }
+
+    .bar-label {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #fff;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+    }
+
+    /* Persona colors */
+    .p-japandi { color: var(--accent-japandi); }
+    .p-nordic { color: var(--accent-nordic); }
+    .p-industrial { color: var(--accent-industrial); }
+    .p-tropical { color: var(--accent-tropical); }
+    .p-parisian { color: var(--accent-parisian); }
+    .p-modernist { color: var(--accent-modernist); }
+
+    .bg-japandi { background: var(--accent-japandi); }
+    .bg-nordic { background: var(--accent-nordic); }
+    .bg-industrial { background: var(--accent-industrial); }
+    .bg-tropical { background: var(--accent-tropical); }
+    .bg-parisian { background: var(--accent-parisian); }
+    .bg-modernist { background: var(--accent-modernist); }
+
+    /* Heatmap grid */
+    .heatmap {
+      display: grid;
+      grid-template-columns: 140px repeat(8, 1fr);
+      gap: 2px;
+      font-size: 0.8rem;
+      margin: 16px 0;
+    }
+
+    .heatmap .cell {
+      padding: 8px 4px;
+      text-align: center;
+      border-radius: 4px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .heatmap .cell.header {
+      font-weight: 600;
+      color: var(--text-secondary);
+      background: transparent;
+    }
+
+    .heatmap .cell.row-label {
+      text-align: left;
+      font-weight: 500;
+      padding-left: 8px;
+    }
+
+    /* Insight boxes */
+    .insight {
+      border-left: 3px solid var(--accent);
+      background: var(--bg-elevated);
+      padding: 16px 20px;
+      border-radius: 0 8px 8px 0;
+      margin: 20px 0;
+    }
+
+    .insight.danger { border-left-color: var(--danger); }
+    .insight.warning { border-left-color: var(--warning); }
+    .insight.ok { border-left-color: var(--ok); }
+
+    .insight h4 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Collapsible */
+    details {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      margin-bottom: 12px;
+      overflow: hidden;
+    }
+
+    details > summary {
+      padding: 16px 20px;
+      cursor: pointer;
+      font-weight: 500;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    details > summary::after {
+      content: "▼";
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      transition: transform 0.2s;
+    }
+
+    details[open] > summary::after { transform: rotate(180deg); }
+
+    details > .content {
+      padding: 0 20px 20px;
+    }
+
+    /* Recommendation */
+    .rec-grid {
+      display: grid;
+      grid-template-columns: 40px 1fr;
+      gap: 16px;
+      align-items: start;
+      padding: 16px;
+      background: var(--bg-elevated);
+      border-radius: 10px;
+      margin-bottom: 12px;
+      border: 1px solid var(--border);
+    }
+
+    .rec-num {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--bg-card);
+      border: 2px solid var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 1rem;
+      color: var(--accent);
+      flex-shrink: 0;
+    }
+
+    .rec-content h4 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .rec-content p {
+      margin-bottom: 0;
+      font-size: 0.9rem;
+    }
+
+    /* Footer */
+    .footer {
+      text-align: center;
+      padding: 40px 0;
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+      border-top: 1px solid var(--border);
+      margin-top: 60px;
+    }
+
+    /* Mobile */
+    @media (max-width: 640px) {
+      .hero h1 { font-size: 1.6rem; }
+      .container { padding: 24px 16px; }
+      .heatmap { font-size: 0.7rem; grid-template-columns: 90px repeat(8, 1fr); }
+      .heatmap .cell { padding: 6px 2px; }
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- HERO -->
+  <div class="hero">
+    <h1>🎯 Taste Test 算法诊断报告</h1>
+    <p class="subtitle">为什么测试出来全是"安静精准派"？<br>基于 5000 次蒙特卡洛模拟 + 题库信号分布分析</p>
+    <div class="meta">
+      <span>📅 2026-05-15</span>
+      <span>🧪 5,000 次模拟</span>
+      <span>📋 62 题题库</span>
+      <span>🎭 6 大 Persona</span>
+    </div>
+  </div>
+
+  <!-- EXECUTIVE SUMMARY -->
+  <h2>📌 执行摘要</h2>
+
+  <div class="card">
+    <p class="lead">
+      <strong>不是题库有偏向，而是 Japandi 的 profile 恰好卡在了主流审美的"交集地带"。</strong>
+      当用户是"大众型审美"（极简 + 自然材质 + 安静）时，超过一半会被归到 Japandi；
+      更致命的是，即使是明确偏向"冷调功能主义"的用户，也有 <strong style="color:var(--danger)">36.3%</strong> 的概率被误归到 Japandi。
+    </p>
+
+    <div class="card-grid">
+      <div class="metric">
+        <div class="value" style="color:var(--danger)">36.3%</div>
+        <div class="label">Modernist 用户误归到 Japandi</div>
+      </div>
+      <div class="metric">
+        <div class="value" style="color:var(--warning)">54.3%</div>
+        <div class="label">大众型用户归到 Japandi</div>
+      </div>
+      <div class="metric">
+        <div class="value" style="color:var(--ok)">✓</div>
+        <div class="label">题库本身无明显偏向</div>
+      </div>
+      <div class="metric">
+        <div class="value" style="color:var(--warning)">12.9%</div>
+        <div class="label">culture 维度题目覆盖率</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 1 -->
+  <h2>🧪 一、蒙特卡洛模拟结果</h2>
+
+  <h3>1.1 完全随机答题（控制组）</h3>
+  <p>先验证题库本身是否有偏向。如果题库设计有问题，随机答题应该大量出 Japandi。</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>模式</th>
+        <th>🪨 安静精准派</th>
+        <th>⚙️ 复古浪漫派</th>
+        <th>◼ 清醒现代派</th>
+        <th>🕯 温柔策展人</th>
+        <th>🌴 生机漫游者</th>
+        <th>🌹 混搭收藏家</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>自适应选题 (15~16题)</td>
+        <td class="p-japandi">22.6%</td>
+        <td class="p-industrial"><strong>27.6%</strong></td>
+        <td class="p-modernist">13.4%</td>
+        <td class="p-nordic">19.2%</td>
+        <td class="p-tropical">11.2%</td>
+        <td class="p-parisian">6.0%</td>
+      </tr>
+      <tr>
+        <td>固定 15 题</td>
+        <td class="p-japandi">18.2%</td>
+        <td class="p-industrial">20.6%</td>
+        <td class="p-modernist"><strong>20.9%</strong></td>
+        <td class="p-nordic">16.7%</td>
+        <td class="p-tropical">12.6%</td>
+        <td class="p-parisian">11.0%</td>
+      </tr>
+      <tr>
+        <td>固定 20 题</td>
+        <td class="p-japandi">18.8%</td>
+        <td class="p-industrial"><strong>23.4%</strong></td>
+        <td class="p-modernist">19.1%</td>
+        <td class="p-nordic">16.7%</td>
+        <td class="p-tropical">12.5%</td>
+        <td class="p-parisian">9.5%</td>
+      </tr>
+      <tr>
+        <td>固定 40 题</td>
+        <td class="p-japandi">18.8%</td>
+        <td class="p-industrial"><strong>29.4%</strong></td>
+        <td class="p-modernist">14.7%</td>
+        <td class="p-nordic">17.1%</td>
+        <td class="p-tropical">11.8%</td>
+        <td class="p-parisian">8.1%</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="insight ok">
+    <h4>✅ 结论：题库本身没有 Japandi 偏向</h4>
+    <p>随机答题下，Japandi 仅占 18~23%，甚至经常输给 Industrial。这说明题库选项的信号分布是合理的。</p>
+  </div>
+
+  <h3>1.2 模拟真实用户偏向（实验组）</h3>
+  <p>真实用户不是随机答题的。下面模拟 5 种典型审美偏好，看会被归到哪个 Persona。</p>
+
+  <div style="margin: 24px 0;">
+
+    <!-- Row 1 -->
+    <div style="margin-bottom: 20px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+        <span style="font-weight:500; font-size:0.9rem;">🪨 偏极简自然安静（大众型，亚洲都市最常见）</span>
+        <span class="badge badge-danger">Japandi 54.3%</span>
+      </div>
+      <div class="bar-track">
+        <div class="bar-fill bg-japandi" style="width:54.3%">
+          <span class="bar-label">54.3%</span>
+        </div>
+      </div>
+      <div style="display:flex; gap:12px; margin-top:6px; font-size:0.78rem; color:var(--text-secondary);">
+        <span>🕯 Nordic 22.3%</span>
+        <span>◼ Modernist 15.1%</span>
+        <span>⚙️ Industrial 6.8%</span>
+      </div>
+    </div>
+
+    <!-- Row 2 -->
+    <div style="margin-bottom: 20px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+        <span style="font-weight:500; font-size:0.9rem;">◼ 偏冷调极简功能（Modernist 型）</span>
+        <span class="badge badge-warning">Modernist 47.4%，但 Japandi 36.3%</span>
+      </div>
+      <div class="bar-track">
+        <div class="bar-fill bg-modernist" style="width:47.4%">
+          <span class="bar-label">47.4% Modernist</span>
+        </div>
+      </div>
+      <div style="margin-top:4px;">
+        <div class="bar-track" style="height:14px;">
+          <div class="bar-fill bg-japandi" style="width:36.3%; opacity:0.6;">
+            <span class="bar-label" style="font-size:0.65rem;">36.3% 误归 Japandi</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 3 -->
+    <div style="margin-bottom: 20px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+        <span style="font-weight:500; font-size:0.9rem;">🕯 偏暖调自然（Nordic 型）</span>
+        <span class="badge badge-ok">Nordic 47.3%，Japandi 19.3%</span>
+      </div>
+      <div class="bar-track">
+        <div class="bar-fill bg-nordic" style="width:47.3%">
+          <span class="bar-label">47.3%</span>
+        </div>
+      </div>
+      <div style="margin-top:4px;">
+        <div class="bar-track" style="height:14px;">
+          <div class="bar-fill bg-japandi" style="width:19.3%; opacity:0.5;">
+            <span class="bar-label" style="font-size:0.65rem;">19.3% 误归</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 4 -->
+    <div style="margin-bottom: 20px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+        <span style="font-weight:500; font-size:0.9rem;">⚙️ 偏复古自然（Industrial 型）</span>
+        <span class="badge badge-ok">Industrial 48.6%</span>
+      </div>
+      <div class="bar-track">
+        <div class="bar-fill bg-industrial" style="width:48.6%">
+          <span class="bar-label">48.6%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 5 -->
+    <div style="margin-bottom: 20px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+        <span style="font-weight:500; font-size:0.9rem;">🌴🌹 偏活力外放（Tropical / Parisian 型）</span>
+        <span class="badge badge-ok">混搭 36.4% + 生机 35.2%</span>
+      </div>
+      <div class="bar-track">
+        <div class="bar-fill bg-parisian" style="width:36.4%">
+          <span class="bar-label">36.4%</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="insight danger">
+    <h4>🔴 关键发现：Japandi vs Modernist 区分度极差</h4>
+    <p>一个<strong>明确偏向冷调、极简、功能主义</strong>的用户，本应归到"清醒现代派"，却有 <strong style="color:var(--danger)">36.3%</strong> 的概率被归到"安静精准派"。<br>
+    这意味着大量 Modernist 型用户会被错误地打上 Japandi 标签。</p>
+  </div>
+
+  <!-- SECTION 2 -->
+  <h2>📊 二、6 大 Persona 的 8 维 Profile 对比</h2>
+
+  <p>下面热力图展示了每个 Persona 在 8 个维度上的理想分数。颜色越红越正向，越蓝越负向。</p>
+
+  <div class="card" style="overflow-x:auto;">
+    <div class="heatmap" style="min-width:700px;">
+      <div class="cell header row-label">Persona</div>
+      <div class="cell header">色温</div>
+      <div class="cell header">复杂度</div>
+      <div class="cell header">质感</div>
+      <div class="cell header">氛围</div>
+      <div class="cell header">时代</div>
+      <div class="cell header">声量</div>
+      <div class="cell header">文化</div>
+      <div class="cell header">风险</div>
+
+      <!-- Japandi -->
+      <div class="cell row-label p-japandi">🪨 安静精准派</div>
+      <div class="cell" style="background:rgba(100,184,212,0.3);color:#64b8d4">-0.3</div>
+      <div class="cell" style="background:rgba(196,181,160,0.5);color:#c4b5a0">-0.8</div>
+      <div class="cell" style="background:rgba(196,181,160,0.4);color:#c4b5a0">+0.7</div>
+      <div class="cell" style="background:rgba(196,181,160,0.5);color:#c4b5a0">-0.7</div>
+      <div class="cell" style="background:rgba(100,184,212,0.2);color:#64b8d4">-0.2</div>
+      <div class="cell" style="background:rgba(196,181,160,0.5);color:#c4b5a0">-0.7</div>
+      <div class="cell" style="background:rgba(196,181,160,0.3);color:#c4b5a0">-0.4</div>
+      <div class="cell" style="background:rgba(100,184,212,0.2);color:#64b8d4">-0.3</div>
+
+      <!-- Nordic -->
+      <div class="cell row-label p-nordic">🕯 温柔策展人</div>
+      <div class="cell" style="background:rgba(245,201,110,0.35);color:#f5c96e">+0.6</div>
+      <div class="cell" style="background:rgba(100,184,212,0.1);color:#64b8d4">-0.2</div>
+      <div class="cell" style="background:rgba(245,201,110,0.3);color:#f5c96e">+0.6</div>
+      <div class="cell" style="background:rgba(100,184,212,0.2);color:#64b8d4">-0.4</div>
+      <div class="cell" style="background:rgba(100,184,212,0.15);color:#64b8d4">-0.3</div>
+      <div class="cell" style="background:rgba(100,184,212,0.15);color:#64b8d4">-0.3</div>
+      <div class="cell" style="background:rgba(200,200,200,0.1);color:#aaa">+0.1</div>
+      <div class="cell" style="background:rgba(100,184,212,0.1);color:#64b8d4">-0.2</div>
+
+      <!-- Industrial -->
+      <div class="cell row-label p-industrial">⚙️ 复古浪漫派</div>
+      <div class="cell" style="background:rgba(245,201,110,0.15);color:#f5c96e">+0.3</div>
+      <div class="cell" style="background:rgba(245,201,110,0.1);color:#f5c96e">+0.3</div>
+      <div class="cell" style="background:rgba(224,123,60,0.45);color:#e07b3c">+0.8</div>
+      <div class="cell" style="background:rgba(200,200,200,0.05);color:#aaa">+0.1</div>
+      <div class="cell" style="background:rgba(224,123,60,0.5);color:#e07b3c">-0.8</div>
+      <div class="cell" style="background:rgba(245,201,110,0.1);color:#f5c96e">+0.3</div>
+      <div class="cell" style="background:rgba(100,184,212,0.05);color:#64b8d4">-0.1</div>
+      <div class="cell" style="background:rgba(245,201,110,0.15);color:#f5c96e">+0.4</div>
+
+      <!-- Tropical -->
+      <div class="cell row-label p-tropical">🌴 生机漫游者</div>
+      <div class="cell" style="background:rgba(245,201,110,0.35);color:#f5c96e">+0.6</div>
+      <div class="cell" style="background:rgba(245,201,110,0.2);color:#f5c96e">+0.5</div>
+      <div class="cell" style="background:rgba(82,199,126,0.35);color:#52c77e">+0.7</div>
+      <div class="cell" style="background:rgba(82,199,126,0.3);color:#52c77e">+0.6</div>
+      <div class="cell" style="background:rgba(100,184,212,0.05);color:#64b8d4">-0.1</div>
+      <div class="cell" style="background:rgba(245,201,110,0.08);color:#f5c96e">+0.2</div>
+      <div class="cell" style="background:rgba(200,200,200,0.1);color:#aaa">+0.1</div>
+      <div class="cell" style="background:rgba(245,201,110,0.12);color:#f5c96e">+0.3</div>
+
+      <!-- Parisian -->
+      <div class="cell row-label p-parisian">🌹 混搭收藏家</div>
+      <div class="cell" style="background:rgba(200,200,200,0.1);color:#aaa">+0.2</div>
+      <div class="cell" style="background:rgba(212,160,197,0.4);color:#d4a0c5">+0.7</div>
+      <div class="cell" style="background:rgba(245,201,110,0.1);color:#f5c96e">+0.3</div>
+      <div class="cell" style="background:rgba(245,201,110,0.1);color:#f5c96e">+0.3</div>
+      <div class="cell" style="background:rgba(212,160,197,0.2);color:#d4a0c5">-0.5</div>
+      <div class="cell" style="background:rgba(212,160,197,0.4);color:#d4a0c5">+0.7</div>
+      <div class="cell" style="background:rgba(200,200,200,0.1);color:#aaa">+0.1</div>
+      <div class="cell" style="background:rgba(245,201,110,0.2);color:#f5c96e">+0.5</div>
+
+      <!-- Modernist -->
+      <div class="cell row-label p-modernist">◼ 清醒现代派</div>
+      <div class="cell" style="background:rgba(100,184,212,0.4);color:#64b8d4">-0.5</div>
+      <div class="cell" style="background:rgba(196,181,160,0.4);color:#c4b5a0">-0.7</div>
+      <div class="cell" style="background:rgba(100,184,212,0.2);color:#64b8d4">-0.3</div>
+      <div class="cell" style="background:rgba(200,200,200,0.05);color:#aaa">+0.1</div>
+      <div class="cell" style="background:rgba(245,201,110,0.15);color:#f5c96e">+0.4</div>
+      <div class="cell" style="background:rgba(100,184,212,0.3);color:#64b8d4">-0.5</div>
+      <div class="cell" style="background:rgba(245,201,110,0.15);color:#f5c96e">+0.4</div>
+      <div class="cell" style="background:rgba(100,184,212,0.05);color:#64b8d4">-0.1</div>
+    </div>
+  </div>
+
+  <div class="insight warning">
+    <h4>🟡 观察：Japandi 和 Modernist 高度重叠</h4>
+    <p>两者在 <strong>complexity（-0.8 vs -0.7）</strong> 和 <strong>volume（-0.7 vs -0.5）</strong> 上几乎一致。<br>
+    唯一的关键区分维度是 <strong>texture（+0.7 vs -0.3）</strong>——但 texture 是大众最容易偏正的维度（自然材质 vs 合成材质）。</p>
+  </div>
+
+  <!-- SECTION 3 -->
+  <h2>📋 三、题库维度覆盖分析</h2>
+
+  <p>某些维度被大量题目覆盖，某些维度则被严重欠采样。这直接影响 Persona 的区分精度。</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>维度</th>
+        <th>覆盖题数</th>
+        <th>覆盖率</th>
+        <th>状态</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>risk（风险倾向）</td>
+        <td>32 / 62</td>
+        <td>
+          <div class="bar-track" style="height:10px; width:120px; display:inline-block; vertical-align:middle;">
+            <div class="bar-fill bg-ok" style="width:51.6%"></div>
+          </div>
+          51.6%
+        </td>
+        <td><span class="badge badge-ok">充足</span></td>
+      </tr>
+      <tr>
+        <td>volume（声量偏好）</td>
+        <td>30 / 62</td>
+        <td>
+          <div class="bar-track" style="height:10px; width:120px; display:inline-block; vertical-align:middle;">
+            <div class="bar-fill bg-ok" style="width:48.4%"></div>
+          </div>
+          48.4%
+        </td>
+        <td><span class="badge badge-ok">充足</span></td>
+      </tr>
+      <tr>
+        <td>complexity（复杂度）</td>
+        <td>29 / 62</td>
+        <td>
+          <div class="bar-track" style="height:10px; width:120px; display:inline-block; vertical-align:middle;">
+            <div class="bar-fill bg-ok" style="width:46.8%"></div>
+          </div>
+          46.8%
+        </td>
+        <td><span class="badge badge-ok">充足</span></td>
+      </tr>
+      <tr>
+        <td>atmosphere（氛围）</td>
+        <td>27 / 62</td>
+        <td>
+          <div class="bar-track" style="height:10px; width:120px; display:inline-block; vertical-align:middle;">
+            <div class="bar-fill bg-ok" style="width:43.5%"></div>
+          </div>
+          43.5%
+        </td>
+        <td><span class="badge badge-ok">充足</span></td>
+      </tr>
+      <tr>
+        <td>texture（质感）</td>
+        <td>15 / 62</td>
+        <td>
+          <div class="bar-track" style="height:10px; width:120px; display:inline-block; vertical-align:middle;">
+            <div class="bar-fill bg-warning" style="width:24.2%"></div>
+          </div>
+          24.2%
+        </td>
+        <td><span class="badge badge-warning">偏低</span></td>
+      </tr>
+      <tr>
+        <td>era（时代）</td>
+        <td>14 / 62</td>
+        <td>
+          <div class="bar-track" style="height:10px; width:120px; display:inline-block; vertical-align:middle;">
+            <div class="bar-fill bg-warning" style="width:22.6%"></div>
+          </div>
+          22.6%
+        </td>
+        <td><span class="badge badge-warning">偏低</span></td>
+      </tr>
+      <tr>
+        <td>colorTemp（色温）</td>
+        <td>9 / 62</td>
+        <td>
+          <div class="bar-track" style="height:10px; width:120px; display:inline-block; vertical-align:middle;">
+            <div class="bar-fill bg-danger" style="width:14.5%"></div>
+          </div>
+          14.5%
+        </td>
+        <td><span class="badge badge-danger">严重不足</span></td>
+      </tr>
+      <tr>
+        <td>culture（文化）</td>
+        <td>8 / 62</td>
+        <td>
+          <div class="bar-track" style="height:10px; width:120px; display:inline-block; vertical-align:middle;">
+            <div class="bar-fill bg-danger" style="width:12.9%"></div>
+          </div>
+          12.9%
+        </td>
+        <td><span class="badge badge-danger">严重不足</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="insight danger">
+    <h4>🔴 colorTemp 和 culture 的覆盖率极低</h4>
+    <p>这两个维度分别是 <strong>Japandi vs Nordic</strong>（色温 -0.3 vs +0.6）和 <strong>Japandi vs Modernist</strong>（文化 -0.4 vs +0.4）的关键区分维度。<br>
+    覆盖率只有 ~13%，意味着用户的暖调/冷调偏好和文化倾向被采样不足，导致区分精度大幅下降。</p>
+  </div>
+
+  <!-- SECTION 4 -->
+  <h2>🔍 四、相似度置信度分析</h2>
+
+  <p>匹配算法使用余弦相似度，但缺少"低置信度保护"。即使用户和某个 Persona 的相似度很低，算法仍会硬塞一个结果。</p>
+
+  <div class="card-grid">
+    <div class="metric">
+      <div class="value" style="color:var(--warning)">25.5%</div>
+      <div class="label">固定20题时 bestSim &lt; 0.4</div>
+    </div>
+    <div class="metric">
+      <div class="value" style="color:var(--warning)">0.167</div>
+      <div class="label">第一名 vs 第二名平均差距</div>
+    </div>
+    <div class="metric">
+      <div class="value" style="color:var(--danger)">0.000</div>
+      <div class="label">第一名 vs 第二名最小差距（平局）</div>
+    </div>
+    <div class="metric">
+      <div class="value" style="color:var(--text-secondary)">-0.055</div>
+      <div class="label">Modernist 的平均相似度（最低）</div>
+    </div>
+  </div>
+
+  <div class="insight warning">
+    <h4>🟡 1/4 的结果处于低置信度区间</h4>
+    <p>当 bestSim &lt; 0.4 时，算法仍在"猜"。此时返回的 Persona 可能并不具备统计学意义。<br>
+    更糟的是，当所有相似度都接近 0 时（magA → 0），<code>matchPersona</code> 默认返回数组第一个元素（Japandi）。</p>
+  </div>
+
+  <!-- SECTION 5 -->
+  <h2>📝 五、根因总结</h2>
+
+  <div class="card">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:28%">问题层面</th>
+          <th style="width:42%">具体表现</th>
+          <th style="width:30%">影响程度</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Persona Profile 重叠</strong></td>
+          <td>Japandi 与 Modernist 在 complexity/volume 上几乎一致，仅靠 texture 区分；与 Nordic 仅靠 colorTemp 区分</td>
+          <td><span class="badge badge-danger">严重</span></td>
+        </tr>
+        <tr>
+          <td><strong>大众审美交集</strong></td>
+          <td>Japandi 的 profile = 极简 + 自然 + 安静 + 低调，恰好是亚洲都市人群最常见的默认偏好</td>
+          <td><span class="badge badge-danger">严重</span></td>
+        </tr>
+        <tr>
+          <td><strong>维度覆盖不均</strong></td>
+          <td>colorTemp 和 culture 覆盖率仅 ~13%，而它们是 Japandi/Nordic/Modernist 的关键区分维度</td>
+          <td><span class="badge badge-warning">中等</span></td>
+        </tr>
+        <tr>
+          <td><strong>无相似度阈值</strong></td>
+          <td>bestSim &lt; 0.4 时仍硬返回结果；magA=0 时默认返回数组第一个元素（Japandi）</td>
+          <td><span class="badge badge-warning">中等</span></td>
+        </tr>
+        <tr>
+          <td><strong>题库信号分布</strong></td>
+          <td>随机答题时分布均匀，本身无明显偏向</td>
+          <td><span class="badge badge-ok">无问题</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- SECTION 6 -->
+  <h2>💡 六、修复建议</h2>
+
+  <div class="rec-grid">
+    <div class="rec-num">1</div>
+    <div class="rec-content">
+      <h4>拉远 Japandi 和 Modernist 的 Profile 距离</h4>
+      <p>建议将 Modernist 的 <code>texture</code> 从 <strong>-0.3 → -0.7</strong>（更明确偏好合成/工业材质），或将 Japandi 的 <code>texture</code> 从 <strong>0.7 → 0.4</strong>。目前两者仅靠 texture 区分，而这个维度恰好是大众最容易偏正的。</p>
+    </div>
+  </div>
+
+  <div class="rec-grid">
+    <div class="rec-num">2</div>
+    <div class="rec-content">
+      <h4>增加 colorTemp 和 culture 的题目覆盖</h4>
+      <p>这两个维度的覆盖率仅 ~13%，却承担着 Japandi/Nordic/Modernist 的关键区分任务。建议各增加 5~8 道题，将覆盖率提升到 30% 以上。</p>
+    </div>
+  </div>
+
+  <div class="rec-grid">
+    <div class="rec-num">3</div>
+    <div class="rec-content">
+      <h4>引入相似度阈值 + 副类型机制</h4>
+      <p>当 <code>bestSim &lt; 0.4</code> 或 <code>gap &lt; 0.1</code> 时，不返回单一 Persona，而是返回"介于 X 和 Y 之间"。这能避免低置信度硬猜，也能更真实地反映用户的混合审美。</p>
+    </div>
+  </div>
+
+  <div class="rec-grid">
+    <div class="rec-num">4</div>
+    <div class="rec-content">
+      <h4>修复 magA=0 时的默认回退逻辑</h4>
+      <p>当前 <code>matchPersona</code> 在 <code>magA === 0</code> 时返回数组第一个元素（Japandi）。应改为返回 null 或提示"需要更多答题"。</p>
+    </div>
+  </div>
+
+  <div class="rec-grid">
+    <div class="rec-num">5</div>
+    <div class="rec-content">
+      <h4>考虑增加"中间型" Persona</h4>
+      <p>比如"温和极简派"（介于 Japandi 和 Nordic 之间）或"自然功能派"（介于 Japandi 和 Modernist 之间），降低边缘用户的误归率。</p>
+    </div>
+  </div>
+
+  <!-- APPENDIX -->
+  <h2>📎 附录：模拟方法说明</h2>
+
+  <details>
+    <summary>点击展开：蒙特卡洛模拟的技术细节</summary>
+    <div class="content">
+      <p><strong>模拟框架：</strong>基于实际代码库中的 <code>tasteTestData.ts</code> 和 <code>tasteTestEngine.ts</code>，使用相同的评分逻辑和匹配算法。</p>
+      <p><strong>模式 A（自适应）：</strong>完全模拟自适应选题流程（selectNextQuestion → updateSignals → shouldStop），随机选择选项。</p>
+      <p><strong>模式 B/C/D（固定题量）：</strong>从 62 题池中随机抽取 N 题，随机选择选项，计算最终分数。</p>
+      <p><strong>偏向模拟：</strong>为每种用户类型定义维度偏向（如 complexity: -0.6 表示倾向选低复杂度选项），在选项评分时加入该偏向权重 + 20% 随机噪声，模拟真实用户的不完全一致性。</p>
+      <p><strong>匹配算法：</strong>余弦相似度，与生产代码完全一致。</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>点击展开：题库信号分布原始数据</summary>
+    <div class="content">
+      <table>
+        <thead>
+          <tr><th>维度</th><th>正信号选项占比</th><th>负信号选项占比</th><th>零信号选项占比</th><th>平均非零得分</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>colorTemp</td><td>6.1%</td><td>5.5%</td><td>88.3%</td><td>+0.032</td></tr>
+          <tr><td>complexity</td><td>13.5%</td><td>20.9%</td><td>65.6%</td><td>-0.064</td></tr>
+          <tr><td>texture</td><td>9.8%</td><td>3.7%</td><td>86.5%</td><td>+0.191</td></tr>
+          <tr><td>atmosphere</td><td>17.8%</td><td>15.3%</td><td>66.9%</td><td>-0.009</td></tr>
+          <tr><td>era</td><td>5.5%</td><td>8.6%</td><td>85.9%</td><td>-0.130</td></tr>
+          <tr><td>volume</td><td>16.6%</td><td>18.4%</td><td>65.0%</td><td>-0.016</td></tr>
+          <tr><td>culture</td><td>5.5%</td><td>3.7%</td><td>90.8%</td><td>-0.027</td></tr>
+          <tr><td>risk</td><td>20.9%</td><td>10.4%</td><td>68.7%</td><td>+0.124</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </details>
+
+  <div class="footer">
+    <p>Dimio Taste Test Algorithm Diagnosis Report</p>
+    <p style="margin-top:4px; font-size:0.78rem;">Generated by Monte Carlo simulation (n=5000) on the actual codebase</p>
+  </div>
+
+</div>
+
+</body>
+</html>
