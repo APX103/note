@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude Code 上下文压缩实现深度解析</title>
+<style>
+    :root {
+        --bg: #0f0f12;
+        --surface: #1a1a1f;
+        --surface-hover: #222228;
+        --text: #e8e8ec;
+        --text-secondary: #9ca3af;
+        --accent: #f59e0b;
+        --accent-glow: rgba(245, 158, 11, 0.12);
+        --accent-2: #f97316;
+        --border: rgba(255,255,255,0.06);
+        --code-bg: #111118;
+        --code-border: rgba(255,255,255,0.08);
+        --tag-bg: rgba(245, 158, 11, 0.1);
+        --tag-color: #fbbf24;
+        --green: #34d399;
+        --red: #f85149;
+        --blue: #60a5fa;
+        --purple: #c084fc;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.8;
+        -webkit-font-smoothing: antialiased;
+        min-height: 100vh;
+    }
+
+    .bg-glow {
+        position: fixed;
+        width: 600px; height: 600px;
+        border-radius: 50%;
+        background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+        top: -200px; right: -200px;
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    .bg-glow-2 {
+        position: fixed;
+        width: 400px; height: 400px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(249, 115, 22, 0.06) 0%, transparent 70%);
+        bottom: -100px; left: -100px;
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    .container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 0 24px;
+        position: relative;
+        z-index: 1;
+    }
+
+    .hero {
+        padding: 80px 0 40px;
+    }
+
+    .hero h1 {
+        font-size: 2em;
+        font-weight: 700;
+        background: linear-gradient(135deg, var(--text) 0%, var(--accent) 50%, var(--accent-2) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 12px;
+    }
+
+    .hero .meta {
+        color: var(--text-secondary);
+        font-size: 0.9em;
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+
+    .hero .meta span {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .tag {
+        display: inline-block;
+        font-size: 0.75em;
+        padding: 3px 10px;
+        border-radius: 6px;
+        background: var(--tag-bg);
+        color: var(--tag-color);
+        font-weight: 500;
+        margin-right: 6px;
+    }
+
+    .section {
+        margin: 48px 0;
+    }
+
+    .section-title {
+        font-size: 1.3em;
+        font-weight: 600;
+        color: var(--text);
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .section-title .num {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px; height: 28px;
+        border-radius: 8px;
+        background: var(--accent);
+        color: var(--bg);
+        font-size: 0.75em;
+        font-weight: 700;
+    }
+
+    h3 {
+        font-size: 1.1em;
+        font-weight: 600;
+        color: var(--text);
+        margin: 28px 0 12px;
+    }
+
+    p {
+        color: var(--text-secondary);
+        margin-bottom: 14px;
+    }
+
+    p strong {
+        color: var(--text);
+    }
+
+    .highlight-box {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 20px 24px;
+        margin: 20px 0;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .highlight-box::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0;
+        width: 3px; height: 100%;
+        background: linear-gradient(180deg, var(--accent), var(--accent-2));
+    }
+
+    .highlight-box.green::before {
+        background: linear-gradient(180deg, var(--green), #10b981);
+    }
+
+    .highlight-box.blue::before {
+        background: linear-gradient(180deg, var(--blue), #3b82f6);
+    }
+
+    .highlight-box.purple::before {
+        background: linear-gradient(180deg, var(--purple), #a855f7);
+    }
+
+    code {
+        font-family: "SF Mono", "Fira Code", "JetBrains Mono", monospace;
+        font-size: 0.85em;
+        background: rgba(245, 158, 11, 0.08);
+        color: var(--tag-color);
+        padding: 2px 6px;
+        border-radius: 4px;
+    }
+
+    pre {
+        background: var(--code-bg);
+        border: 1px solid var(--code-border);
+        border-radius: 10px;
+        padding: 18px 22px;
+        overflow-x: auto;
+        margin: 16px 0;
+    }
+
+    pre code {
+        background: none;
+        color: var(--text);
+        padding: 0;
+        font-size: 0.82em;
+        line-height: 1.6;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 16px 0;
+        font-size: 0.88em;
+    }
+
+    th, td {
+        padding: 10px 14px;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+    }
+
+    th {
+        color: var(--text);
+        font-weight: 600;
+        background: var(--surface);
+    }
+
+    td {
+        color: var(--text-secondary);
+    }
+
+    tr:hover td {
+        background: var(--surface-hover);
+    }
+
+    ul, ol {
+        margin: 12px 0 12px 20px;
+        color: var(--text-secondary);
+    }
+
+    li {
+        margin-bottom: 8px;
+    }
+
+    li strong {
+        color: var(--text);
+    }
+
+    .footer {
+        padding: 40px 0;
+        border-top: 1px solid var(--border);
+        text-align: center;
+        color: var(--text-secondary);
+        font-size: 0.82em;
+        margin-top: 60px;
+    }
+
+    .footer a {
+        color: var(--accent);
+        text-decoration: none;
+    }
+
+    .flow {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        margin: 20px 0;
+    }
+
+    .flow-step {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 14px 18px;
+    }
+
+    .flow-step .step-num {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px; height: 32px;
+        border-radius: 8px;
+        background: var(--accent);
+        color: var(--bg);
+        font-size: 0.8em;
+        font-weight: 700;
+        flex-shrink: 0;
+    }
+
+    .flow-step .step-text {
+        color: var(--text-secondary);
+        font-size: 0.92em;
+    }
+
+    .flow-step .step-text strong {
+        color: var(--text);
+    }
+
+    @media (max-width: 600px) {
+        .hero { padding: 50px 0 30px; }
+        .hero h1 { font-size: 1.5em; }
+        .section-title { font-size: 1.1em; }
+        pre { padding: 14px 16px; }
+    }
+</style>
+</head>
+<body>
+<div class="bg-glow"></div>
+<div class="bg-glow-2"></div>
+
+<div class="container">
+    <div class="hero">
+        <h1>Claude Code 上下文压缩实现深度解析</h1>
+        <div class="meta">
+            <span><span class="tag">源码分析</span></span>
+            <span>📅 2026-05-15</span>
+            <span>🔖 TypeScript / Anthropic</span>
+        </div>
+    </div>
+
+    <div class="section">
+        <p>Claude Code 的上下文压缩系统分为 <strong>5 个层级</strong>，从轻到重依次为：Cached Microcompact → Time-based Microcompact → Session Memory Compact → Legacy Compact → Reactive Compact。本文基于源码分析其判定条件与实现原理。</p>
+    </div>
+
+    <div class="section">
+        <div class="section-title"><span class="num">01</span> 触发判定条件</div>
+
+        <h3>1.1 自动压缩（AutoCompact）阈值</h3>
+        <p>自动压缩的阈值计算采用了"双重缓冲"策略，确保在触及模型硬上限前预留足够空间。</p>
+
+        <pre><code>// services/compact/autoCompact.ts
+
+// 有效窗口 = 模型上下文窗口 - 预留摘要输出空间（20K tokens）
+function getEffectiveContextWindowSize(model: string): number {
+  const reservedTokensForSummary = Math.min(
+    getMaxOutputTokensForModel(model),
+    MAX_OUTPUT_TOKENS_FOR_SUMMARY,  // 20,000
+  )
+  return getContextWindowForModel(model) - reservedTokensForSummary
+}
+
+// 自动压缩阈值 = 有效窗口 - 13K tokens 缓冲
+function getAutoCompactThreshold(model: string): number {
+  return getEffectiveContextWindowSize(model) - AUTOCOMPACT_BUFFER_TOKENS  // 13,000
+}</code></pre>
+
+        <p>对于 200K 窗口的模型，实际阈值约为 <code>180K - 13K = 167K</code> tokens。可通过 <code>CLAUDE_CODE_AUTO_COMPACT_WINDOW</code> 环境变量覆盖窗口大小，或通过 <code>CLAUDE_AUTOCOMPACT_PCT_OVERRIDE</code> 设置百分比阈值。</p>
+
+        <div class="highlight-box">
+            <strong>排除场景（防止死锁/竞态）：</strong><br>
+            • <code>querySource === 'session_memory'</code> 或 <code>'compact'</code> — forked agent 避免递归死锁<br>
+            • <code>querySource === 'marble_origami'</code> — ctx-agent 避免破坏主线程状态<br>
+            • <code>DISABLE_AUTO_COMPACT</code> / <code>DISABLE_COMPACT</code> 环境变量为真<br>
+            • 用户在设置中关闭了 auto-compact<br>
+            • Context Collapse 模式开启时（避免与 collapse 竞争）
+        </div>
+
+        <div class="highlight-box green">
+            <strong>熔断机制：</strong>连续失败 3 次后停止尝试（<code>MAX_CONSECUTIVE_AUTOCOMPACT_FAILURES = 3</code>）。此前曾有 1,279 个会话出现 50+ 连续失败，每天浪费约 25 万次 API 调用。
+        </div>
+
+        <h3>1.2 微压缩（Microcompact）</h3>
+        <table>
+            <tr><th>类型</th><th>触发条件</th><th>范围</th></tr>
+            <tr><td>Time-based</td><td>距离上条 assistant 消息超过 60 分钟</td><td>仅主线程</td></tr>
+            <tr><td>Cached</td><td>工具结果数量超过 GrowthBook 配置阈值</td><td>仅主线程 + 支持 cache_edits 的模型</td></tr>
+        </table>
+
+        <h3>1.3 手动/响应式压缩</h3>
+        <ul>
+            <li><strong>手动</strong>：用户输入 <code>/compact</code> 命令时触发，支持自定义压缩指令</li>
+            <li><strong>响应式（Reactive）</strong>：当 API 返回 <code>prompt_too_long</code>（413）错误时触发，从消息尾部按 API round 分组逐层剥离</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <div class="section-title"><span class="num">02</span> 核心实现原理</div>
+
+        <h3>2.1 传统压缩（Legacy Compact）</h3>
+        <p><strong>核心文件：</strong><code>services/compact/compact.ts</code></p>
+
+        <div class="flow">
+            <div class="flow-step">
+                <div class="step-num">1</div>
+                <div class="step-text"><strong>预处理</strong> — 移除图片/文档块替换为标记，过滤 skill_discovery/skill_listing 附件</div>
+            </div>
+            <div class="flow-step">
+                <div class="step-num">2</div>
+                <div class="step-text"><strong>摘要生成</strong> — forked agent 优先复用 prompt cache，失败回退 streaming</div>
+            </div>
+            <div class="flow-step">
+                <div class="step-num">3</div>
+                <div class="step-text"><strong>附件重建</strong> — 恢复最近文件、skills、plan mode、MCP 指令等关键上下文</div>
+            </div>
+            <div class="flow-step">
+                <div class="step-num">4</div>
+                <div class="step-text"><strong>消息重组</strong> — boundary marker → summary → kept messages → attachments → hooks</div>
+            </div>
+            <div class="flow-step">
+                <div class="step-num">5</div>
+                <div class="step-text"><strong>PTL 容错</strong> — 压缩请求自身触发 PTL 时，从头部丢弃旧 API round 组</div>
+            </div>
+        </div>
+
+        <p>摘要 Prompt 模板要求模型生成包含 9 个部分的结构化摘要：</p>
+        <ol>
+            <li>Primary Request and Intent — 用户显式请求与意图</li>
+            <li>Key Technical Concepts — 关键技术概念与框架</li>
+            <li>Files and Code Sections — 文件与代码段（含完整代码片段）</li>
+            <li>Errors and fixes — 遇到的错误及修复方式</li>
+            <li>Problem Solving — 问题解决过程</li>
+            <li>All user messages — 所有非工具结果的用户消息</li>
+            <li>Pending Tasks — 待处理任务</li>
+            <li>Current Work — 当前正在进行的工作</li>
+            <li>Optional Next Step — 下一步建议</li>
+        </ol>
+
+        <p>值得注意的是，Prompt 前插入了极其强硬的 <code>NO_TOOLS_PREAMBLE</code>，明确禁止模型在压缩过程中调用任何工具——否则会被拒绝且浪费唯一的 turn。</p>
+
+        <h3>2.2 后压缩附件重建预算</h3>
+        <pre><code>POST_COMPACT_MAX_FILES_TO_RESTORE = 5       // 最多恢复 5 个文件
+POST_COMPACT_TOKEN_BUDGET = 50_000          // 附件总预算
+POST_COMPACT_MAX_TOKENS_PER_FILE = 5_000    // 单个文件上限
+POST_COMPACT_MAX_TOKENS_PER_SKILL = 5_000   // 单个 skill 上限
+POST_COMPACT_SKILLS_TOKEN_BUDGET = 25_000   // skills 总预算</code></pre>
+
+        <h3>2.3 Session Memory 压缩（实验性）</h3>
+        <p><strong>核心文件：</strong><code>services/compact/sessionMemoryCompact.ts</code></p>
+        <p>利用已持久化的 session memory 文件作为摘要，<strong>无需额外 API 调用</strong>。保留策略采用三约束条件：</p>
+        <ul>
+            <li><code>minTokens: 10_000</code> — 至少保留 10K tokens</li>
+            <li><code>minTextBlockMessages: 5</code> — 至少 5 条含文本的消息</li>
+            <li><code>maxTokens: 40_000</code> — 硬上限</li>
+        </ul>
+        <p>从 <code>lastSummarizedMessageId</code> 开始向后扩展，同时确保不拆散 <code>tool_use</code>/<code>tool_result</code> 对。</p>
+
+        <h3>2.4 微压缩（Microcompact）</h3>
+
+        <div class="highlight-box blue">
+            <strong>Time-based 微压缩：</strong>直接修改本地 <code>message.content</code>，将旧工具结果清空为 <code>"[Old tool result content cleared]"</code>，保留最近 5 个可压缩工具结果。这是最轻量的压缩方式。
+        </div>
+
+        <div class="highlight-box purple">
+            <strong>Cached Microcompact：</strong>使用 Anthropic 的 <code>cache_edits</code> API 删除服务器端缓存中的工具结果，<strong>不修改本地消息内容</strong> — 仅添加 <code>cache_reference</code> 和 <code>cache_edits</code> 块。仅支持特定模型和主线程查询。
+        </div>
+
+        <h3>2.5 PTL（Prompt Too Long）容错</h3>
+        <p>如果压缩请求本身触发 PTL，系统从最旧的 API round 组开始丢弃（每次最多丢弃 20%），最多重试 3 次。这是"丢车保帅"策略——丢失旧上下文总比完全卡住好。</p>
+
+        <pre><code>const MAX_PTL_RETRIES = 3
+
+// 从头部丢弃最旧的 API round 组
+const groups = groupMessagesByApiRound(messages)
+const dropCount = Math.max(1, Math.floor(groups.length * 0.2))
+const truncated = groups.slice(dropCount).flat()</code></pre>
+    </div>
+
+    <div class="section">
+        <div class="section-title"><span class="num">03</span> Token 估算与预算系统</div>
+
+        <h3>3.1 简易 Token 估算</h3>
+        <pre><code>// services/tokenEstimation.ts
+function roughTokenCountEstimation(content: string, bytesPerToken = 4): number {
+  return Math.round(content.length / bytesPerToken)
+}
+
+// JSON 文件更密集，使用 2 字符/token
+// 图片/文档估算为 2000 tokens
+// tool_use 估算为 name + JSON(input)</code></pre>
+
+        <h3>3.2 上下文窗口计算</h3>
+        <ul>
+            <li>默认 200K</li>
+            <li><code>[1m]</code> 后缀 → 1M</li>
+            <li>可通过 <code>CLAUDE_CODE_MAX_CONTEXT_TOKENS</code> 覆盖</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <div class="section-title"><span class="num">04</span> 关键设计决策</div>
+
+        <table>
+            <tr><th>设计</th><th>说明</th></tr>
+            <tr><td>Cache Sharing 优先</td><td>压缩优先使用 forked agent 复用主对话的 prompt cache，关闭后 cache miss 率高达 98%</td></tr>
+            <tr><td>Session Memory 优先</td><td>实验性路径优先尝试已提取的 session memory，避免额外 API 摘要调用</td></tr>
+            <tr><td>PTL 渐进降级</td><td>压缩请求自身也可能 PTL，通过从头部丢弃旧消息来渐进降级</td></tr>
+            <tr><td>熔断机制</td><td>连续 3 次失败后熔断，避免无意义地 hammer API</td></tr>
+            <tr><td>Post-Compact 附件重建</td><td>压缩后重新注入最近文件、skills、plan mode 等关键上下文，避免信息丢失</td></tr>
+            <tr><td>子线程安全</td><td>微压缩和自动压缩严格限制在主线程，避免子 agent 污染全局状态</td></tr>
+        </table>
+    </div>
+
+    <div class="section">
+        <div class="section-title"><span class="num">05</span> 核心文件路径</div>
+
+        <table>
+            <tr><th>文件</th><th>职责</th></tr>
+            <tr><td><code>services/compact/compact.ts</code></td><td>传统压缩主逻辑（摘要生成、附件重建、PTL 容错）</td></tr>
+            <tr><td><code>services/compact/autoCompact.ts</code></td><td>自动压缩触发判定、阈值计算、熔断机制</td></tr>
+            <tr><td><code>services/compact/microCompact.ts</code></td><td>微压缩（time-based + cached cache_edits）</td></tr>
+            <tr><td><code>services/compact/sessionMemoryCompact.ts</code></td><td>Session Memory 压缩实验</td></tr>
+            <tr><td><code>services/compact/prompt.ts</code></td><td>压缩/摘要的 prompt 模板和格式化</td></tr>
+            <tr><td><code>services/compact/grouping.ts</code></td><td>API round 消息分组</td></tr>
+            <tr><td><code>services/tokenEstimation.ts</code></td><td>Token 估算</td></tr>
+            <tr><td><code>utils/context.ts</code></td><td>上下文窗口大小解析</td></tr>
+            <tr><td><code>query.ts</code></td><td>主查询循环，在 API 调用前应用 microcompact + autocompact</td></tr>
+        </table>
+    </div>
+
+    <div class="footer">
+        <a href="https://github.com/APX103/note">APX103/note</a> · 源码分析笔记
+    </div>
+</div>
+
+</body>
+</html>
