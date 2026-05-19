@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude Code Agent Team 深度调研报告</title>
+<style>
+  :root {
+    --bg: #f8f9fa;
+    --surface: #ffffff;
+    --surface-2: #f1f3f5;
+    --border: #dee2e6;
+    --text: #212529;
+    --text-2: #495057;
+    --text-3: #868e96;
+    --accent: #1c7ed6;
+    --accent-2: #339af0;
+    --accent-soft: #e7f5ff;
+    --success: #2b8a3e;
+    --success-soft: #d3f9d8;
+    --warning: #f08c00;
+    --warning-soft: #fff3bf;
+    --danger: #c92a2a;
+    --danger-soft: #ffe3e3;
+    --code-bg: #f1f3f5;
+    --code-text: #212529;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08);
+    --shadow-lg: 0 8px 24px rgba(0,0,0,0.08);
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans SC", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .container { max-width: 960px; margin: 0 auto; padding: 0 20px; }
+  header {
+    background: linear-gradient(135deg, #e7f5ff 0%, #f8f9fa 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 56px 0 40px;
+    text-align: center;
+  }
+  header h1 {
+    font-size: 2.2rem;
+    font-weight: 800;
+    margin: 0 0 12px;
+    letter-spacing: -0.02em;
+  }
+  header p {
+    margin: 0;
+    color: var(--text-2);
+    font-size: 1.05rem;
+  }
+  .meta {
+    margin-top: 16px;
+    font-size: 0.9rem;
+    color: var(--text-3);
+  }
+  nav.toc {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 24px;
+    margin: 28px 0;
+    box-shadow: var(--shadow);
+    position: sticky;
+    top: 16px;
+    z-index: 10;
+  }
+  nav.toc h2 {
+    font-size: 1rem;
+    margin: 0 0 12px;
+    color: var(--text-2);
+  }
+  nav.toc ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 6px 20px;
+  }
+  nav.toc li a {
+    display: block;
+    padding: 6px 10px;
+    border-radius: 6px;
+    color: var(--text-2);
+    font-size: 0.92rem;
+    transition: background .15s;
+  }
+  nav.toc li a:hover {
+    background: var(--surface-2);
+    text-decoration: none;
+  }
+  section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px 32px;
+    margin: 24px 0;
+    box-shadow: var(--shadow);
+  }
+  section h2 {
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin: 0 0 18px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--accent-soft);
+    color: var(--accent);
+  }
+  section h3 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 28px 0 12px;
+    color: var(--text);
+  }
+  section h4 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 20px 0 8px;
+    color: var(--text-2);
+  }
+  p { margin: 0 0 14px; }
+  ul, ol { margin: 0 0 14px; padding-left: 22px; }
+  li { margin: 4px 0; }
+  code {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 0.88em;
+    background: var(--code-bg);
+    color: var(--code-text);
+    padding: 2px 6px;
+    border-radius: 5px;
+    border: 1px solid var(--border);
+  }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    overflow-x: auto;
+    font-size: 0.88rem;
+    line-height: 1.6;
+  }
+  pre code {
+    background: transparent;
+    border: none;
+    padding: 0;
+    font-size: inherit;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 14px 0;
+    font-size: 0.95rem;
+  }
+  th, td {
+    border: 1px solid var(--border);
+    padding: 10px 12px;
+    text-align: left;
+  }
+  th {
+    background: var(--surface-2);
+    font-weight: 600;
+    color: var(--text-2);
+  }
+  tr:nth-child(even) td { background: #fafbfc; }
+  .badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    vertical-align: middle;
+    margin-left: 6px;
+  }
+  .badge-accent { background: var(--accent-soft); color: var(--accent); }
+  .badge-success { background: var(--success-soft); color: var(--success); }
+  .badge-warning { background: var(--warning-soft); color: var(--warning); }
+  .badge-danger { background: var(--danger-soft); color: var(--danger); }
+  .callout {
+    border-radius: var(--radius);
+    padding: 14px 18px;
+    margin: 14px 0;
+    border-left: 4px solid;
+  }
+  .callout.info { background: var(--accent-soft); border-color: var(--accent); }
+  .callout.success { background: var(--success-soft); border-color: var(--success); }
+  .callout.warn { background: var(--warning-soft); border-color: var(--warning); }
+  .callout.danger { background: var(--danger-soft); border-color: var(--danger); }
+  .callout-title { font-weight: 700; margin-bottom: 4px; }
+  .grid-2 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    margin: 14px 0;
+  }
+  .card {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+  }
+  .card h4 { margin-top: 0; }
+  .diagram {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin: 14px 0;
+    font-family: "SFMono-Regular", Consolas, monospace;
+    font-size: 0.88rem;
+    line-height: 1.7;
+    overflow-x: auto;
+    white-space: pre;
+  }
+  footer {
+    text-align: center;
+    padding: 40px 0;
+    color: var(--text-3);
+    font-size: 0.9rem;
+  }
+  @media (max-width: 640px) {
+    header h1 { font-size: 1.6rem; }
+    section { padding: 20px; }
+    nav.toc ul { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="container">
+    <h1>Claude Code Agent Team 深度调研报告</h1>
+    <p>多 Agent 发起机制 · 通信协议 · Subagent 协议 · Hooks 运行机制</p>
+    <div class="meta">生成时间：2026-05-19 · 基于 /home/lijialun/work/cc 源码级分析</div>
+  </div>
+</header>
+
+<div class="container">
+
+<nav class="toc">
+  <h2>目录</h2>
+  <ul>
+    <li><a href="#sec-overview">1. 整体架构概览</a></li>
+    <li><a href="#sec-spawn">2. 多 Agent 发起机制（tmux）</a></li>
+    <li><a href="#sec-comm">3. Agent 间通信协议</a></li>
+    <li><a href="#sec-subagent">4. Subagent 下发协议</a></li>
+    <li><a href="#sec-hooks">5. Hooks 运行机制</a></li>
+    <li><a href="#sec-compare">6. 协议对比总结</a></li>
+  </ul>
+</nav>
+
+<section id="sec-overview">
+  <h2>1. 整体架构概览 <span class="badge badge-accent">Agent Team</span></h2>
+  <p>Claude Code 的 Agent Team（亦称 Swarm）是一个<strong>分层混合架构</strong>：根据场景不同，同时存在三套通信协议栈：</p>
+  <div class="grid-2">
+    <div class="card">
+      <h4>本地多 Agent 协作</h4>
+      <p>一个 Leader + 多个 Teammate 的本地多进程/同进程协作，核心依赖<strong>文件系统 Mailbox</strong> + tmux/iTerm2 Pane 管理。</p>
+    </div>
+    <div class="card">
+      <h4>远程 CCR 连接</h4>
+      <p>本地客户端 ↔ 云端 CCR（Compute Platform）会话，当前主推 <strong>SSE + HTTP POST</strong>（v2），兼容 Legacy WebSocket（v1）。</p>
+    </div>
+    <div class="card">
+      <h4>本地直连服务器</h4>
+      <p><strong>Direct Connect</strong> 模式：本地启动 WebSocket 服务器，客户端通过 NDJSON 格式直接通信。</p>
+    </div>
+    <div class="card">
+      <h4>Hooks 扩展系统</h4>
+      <p>用户可扩展的生命周期钩子，支持 <strong>6 种类型 × 28 种事件</strong>，深度嵌入工具调用、会话生命周期和消息流中。</p>
+    </div>
+  </div>
+</section>
+
+<section id="sec-spawn">
+  <h2>2. 多 Agent 发起机制（tmux）</h2>
+
+  <h3>2.1 双轨架构：Pane-based vs In-process</h3>
+  <p>项目在运行时通过 <code>isInProcessEnabled()</code> 决定 teammate 创建方式：</p>
+  <table>
+    <tr>
+      <th>模式</th>
+      <th>后端</th>
+      <th>适用场景</th>
+    </tr>
+    <tr>
+      <td><strong>Pane-based</strong></td>
+      <td>tmux / iTerm2</td>
+      <td>用户在交互式终端中使用（默认）</td>
+    </tr>
+    <tr>
+      <td><strong>In-process</strong></td>
+      <td>同一 Node.js 进程</td>
+      <td>非交互式会话、无 tmux 环境、或显式 <code>--teammate-mode in-process</code></td>
+    </tr>
+  </table>
+
+  <h3>2.2 tmux 的核心角色</h3>
+  <p>tmux 是 Pane-based 模式的主力后端（<code>utils/swarm/backends/TmuxBackend.ts</code>），职责包括：</p>
+  <ol>
+    <li><strong>Pane 生命周期管理</strong>：<code>createTeammatePaneInSwarmView()</code> 创建 pane、<code>killPane()</code> 销毁、<code>hidePane()/showPane()</code> 隐藏/恢复。</li>
+    <li><strong>布局管理</strong>：
+      <ul>
+        <li>若 Leader <strong>在 tmux 内</strong>：Leader pane 占左侧 30%，teammates 在右侧 70% 内水平/垂直分割（<code>main-vertical</code> 布局）。</li>
+        <li>若 Leader <strong>不在 tmux 内</strong>：创建独立的 <code>claude-swarm</code> session（socket 隔离，名称 <code>claude-swarm-${PID}</code>），teammates 在 <code>swarm-view</code> window 中使用 <code>tiled</code> 布局。</li>
+      </ul>
+    </li>
+    <li><strong>命令投递</strong>：通过 <code>sendCommandToPane()</code> 向 pane 发送启动命令，teammate 进程由此诞生。</li>
+    <li><strong>视觉标识</strong>：为每个 teammate pane 设置边框颜色和标题，便于区分。</li>
+  </ol>
+
+  <h3>2.3 每个 Agent 的运行隔离级别</h3>
+  <div class="callout info">
+    <div class="callout-title">Pane 级别独立，Session/Window 级别共享</div>
+    <p>Pane-based 模式下每个 agent 是独立 pane（共享 window/session）；In-process 模式下共享同一 Node.js 进程，通过 <code>AsyncLocalStorage</code> 隔离上下文。</p>
+  </div>
+
+  <h3>2.4 启动流程</h3>
+  <div class="diagram">TeamCreateTool.call()                     // 阶段一：创建团队
+    └── tools/TeamCreateTool/TeamCreateTool.ts
+
+AgentTool.call()                          // 阶段二：发起 agent
+    └── tools/AgentTool/AgentTool.tsx
+        └── spawnTeammate()               // tools/shared/spawnMultiAgent.ts
+            ├── handleSpawnSplitPane()    // 默认：tmux/iTerm2 分 pane
+            ├── handleSpawnSeparateWindow() // legacy：独立 tmux window
+            └── handleSpawnInProcess()    // in-process 模式</div>
+
+  <h4>阶段一：Team 创建</h4>
+  <ul>
+    <li>检查 leader 是否已在管理团队（<code>appState.teamContext?.teamName</code>），限制一 leader 一团队。</li>
+    <li>创建 <code>~/.claude/teams/{team_name}/config.json</code>（TeamFile），写入 leader 信息（<code>leadAgentId</code> 固定为 <code>team-lead@teamName</code>）。</li>
+    <li>初始化对应 task list 目录。</li>
+    <li>更新 <code>AppState.teamContext</code>，记录 <code>teamName</code>、<code>leadAgentId</code>、<code>teammates</code> 映射。</li>
+  </ul>
+
+  <h4>阶段二：Teammate Spawn</h4>
+  <p>当调用参数同时包含 <code>name</code> 和 <code>team_name</code> 时，走 teammate spawn 分支：</p>
+  <ol>
+    <li>检测后端：<code>detectAndGetBackend()</code> → 选中 TmuxBackend 或 ITermBackend。</li>
+    <li>创建 pane：<code>createTeammatePaneInSwarmView()</code> → 实际 split pane。</li>
+    <li>构建 CLI 启动命令（再次运行 Claude Code CLI）：<br>
+      <code>claude --agent-id researcher@my-team --agent-name researcher --team-name my-team --parent-session-id xxx ...</code>
+    </li>
+    <li>投递到 pane：<code>sendCommandToPane(paneId, spawnCommand)</code>。</li>
+    <li>通过 mailbox 发送初始 prompt：<code>writeToMailbox(sanitizedName, { from: TEAM_LEAD_NAME, text: prompt }, teamName)</code>。</li>
+  </ol>
+
+  <h3>2.5 Leader / Teammate 层级协调</h3>
+  <p>项目中存在严格的 leader/teammate 层级：</p>
+  <ul>
+    <li><strong>Leader</strong>：创建 team 的主 agent，固定名称为 <code>TEAM_LEAD_NAME = 'team-lead'</code>。Leader 不设置 <code>CLAUDE_CODE_AGENT_ID</code>，因此 <code>isTeammate()</code> 返回 <code>false</code>。</li>
+    <li><strong>Teammate</strong>：通过 <code>AgentTool</code> spawn 的子 agent，拥有 <code>agentId</code>（格式 <code>name@teamName</code>）。<code>isTeammate()</code> 返回 <code>true</code>。</li>
+  </ul>
+</section>
+
+<section id="sec-comm">
+  <h2>3. Agent 间通信协议</h2>
+
+  <h3>3.1 三层通信架构</h3>
+  <table>
+    <tr>
+      <th>场景</th>
+      <th>协议版本</th>
+      <th>读方向</th>
+      <th>写方向</th>
+      <th>核心文件</th>
+    </tr>
+    <tr>
+      <td rowspan="2">CCR 远程</td>
+      <td>v1 (Legacy)</td>
+      <td>WebSocket (wss://)</td>
+      <td>HTTP POST (Session Ingress)</td>
+      <td>WebSocketTransport.ts + HybridTransport.ts</td>
+    </tr>
+    <tr>
+      <td>v2 (Current)</td>
+      <td><strong>SSE</strong> (Server-Sent Events)</td>
+      <td>HTTP POST (<code>/worker/events</code>)</td>
+      <td>SSETransport.ts + CCRClient.ts</td>
+    </tr>
+    <tr>
+      <td>Direct Connect</td>
+      <td>-</td>
+      <td colspan="2">本地 WebSocket + <strong>NDJSON</strong>（每行一个 JSON）</td>
+      <td>directConnectManager.ts</td>
+    </tr>
+    <tr>
+      <td>Agent Team / Swarm</td>
+      <td>-</td>
+      <td colspan="2"><strong>文件系统 Mailbox</strong> + 进程管理后端</td>
+      <td>teammateMailbox.ts</td>
+    </tr>
+  </table>
+
+  <h3>3.2 CCR v2 初始化流程</h3>
+  <div class="diagram">1. POST /v1/code/sessions          (OAuth) → created sessionId
+2. POST /v1/code/sessions/{id}/bridge (OAuth) → worker_jwt + worker_epoch + api_base_url
+3. buildCCRv2SdkUrl(api_base_url, sessionId) → sessionUrl
+4. createV2ReplTransport({ sessionUrl, ingressToken: worker_jwt, epoch: worker_epoch })
+   └─ SSETransport(sseUrl)   [读]
+   └─ CCRClient(sessionUrl)  [写 + 心跳]
+5. sse.connect() → 打开 SSE 流
+6. ccr.initialize(epoch) → PUT /worker {worker_status: 'idle'}
+7. 启动 JWT refresh scheduler（到期前 5min proactive 刷新）</div>
+
+  <h3>3.3 核心消息结构（Tagged Union）</h3>
+  <p>所有消息都使用 <code>type</code> 字段做 discriminated union 路由：</p>
+  <pre><code>// 控制协议请求
+{
+  type: "control_request",
+  request_id: string,       // 用于 req/res 配对
+  request: {
+    subtype: "initialize" | "interrupt" | "can_use_tool" | "set_model" | ...,
+    // subtype 特定字段...
+  }
+}
+
+// 控制协议响应
+{
+  type: "control_response",
+  response: {
+    subtype: "success" | "error",
+    request_id: string,
+    response?: { ... },      // success 时的负载
+    error?: string           // error 时的描述
+  }
+}</code></pre>
+
+  <h3>3.4 Agent Team Mailbox 消息结构</h3>
+  <p>Mailbox 路径：<code>~/.claude/teams/{team_name}/inboxes/{agent_name}.json</code></p>
+  <pre><code>type TeammateMessage = {
+  from: string;             // 发送者 agent 名
+  text: string;             // 消息正文（通常是嵌套 JSON）
+  timestamp: string;
+  read: boolean;
+  color?: string;
+  summary?: string;
+}</code></pre>
+  <p><code>text</code> 字段内部可嵌套多种结构化消息类型：</p>
+  <ul>
+    <li><code>idle_notification</code> — 子 agent 报告空闲/中断/失败</li>
+    <li><code>permission_request</code> / <code>permission_response</code> — 权限协商</li>
+    <li><code>plan_approval_request</code> / <code>plan_approval_response</code> — 计划审批</li>
+    <li><code>shutdown_request</code> / <code>shutdown_approved</code> / <code>shutdown_rejected</code> — 优雅关闭</li>
+    <li><code>task_assignment</code> — 任务分配</li>
+    <li><code>sandbox_permission_request</code> / <code>sandbox_permission_response</code> — 沙箱网络权限</li>
+  </ul>
+
+  <h3>3.5 消息路由与去重</h3>
+  <div class="grid-2">
+    <div class="card">
+      <h4>CCR 服务端路由</h4>
+      <p>通过 <code>session_id</code> 路由到正确的 SSE/WebSocket 连接；v2 通过 <code>worker_epoch</code> 确保只有一个 worker 实例活跃（旧 epoch 收到 409 淘汰）。</p>
+    </div>
+    <div class="card">
+      <h4>Bridge 层入站路由</h4>
+      <p><code>handleIngressMessage</code> 是核心路由函数，使用 <code>BoundedUUIDSet</code>（环形缓冲区）防止消息回显和重复投递。</p>
+    </div>
+    <div class="card">
+      <h4>Agent Team 路由</h4>
+      <p>Mailbox 点对点路由：通过文件路径 <code>teams/{team}/inboxes/{agent}.json</code> 直接定位目标 agent；广播通过遍历 TeamFile.members 实现。</p>
+    </div>
+    <div class="card">
+      <h4>SeqNum 续传</h4>
+      <p>SSE 使用 <code>sequence_num</code> 和 <code>event_id</code> 保证有序投递，支持 <code>from_sequence_num</code> / <code>Last-Event-ID</code> 断点续传。</p>
+    </div>
+  </div>
+</section>
+
+<section id="sec-subagent">
+  <h2>4. Subagent 模式下 Root → Subagent 协议</h2>
+
+  <h3>4.1 三种 Subagent 标识系统</h3>
+  <table>
+    <tr>
+      <th>类型</th>
+      <th>标识方式</th>
+      <th>上下文传递</th>
+      <th>返回路径</th>
+    </tr>
+    <tr>
+      <td><strong>AgentTool Subagent</strong></td>
+      <td><code>AgentId</code> UUID（<code>a-...</code>）</td>
+      <td>直接 <code>Message[]</code> 数组 + <code>ToolUseContext</code></td>
+      <td>Generator yield（sync）或 <code>&lt;task-notification&gt;</code> XML（async）</td>
+    </tr>
+    <tr>
+      <td><strong>Teammate (Swarm)</strong></td>
+      <td><code>name@teamName</code></td>
+      <td>文件系统 Mailbox JSON</td>
+      <td>Mailbox JSON + idle 通知</td>
+    </tr>
+    <tr>
+      <td><strong>Remote Agent</strong></td>
+      <td>CCR Session ID</td>
+      <td>WebSocket <code>SDKMessage</code></td>
+      <td>WebSocket + HTTP</td>
+    </tr>
+  </table>
+
+  <h3>4.2 AgentTool 的两种上下文传递路径</h3>
+
+  <h4>路径 A：Fork 路径（subagent_type 省略）</h4>
+  <p>由 <code>buildForkedMessages()</code>（<code>forkSubagent.ts</code>）构建：</p>
+  <ul>
+    <li>保留父 agent 的<strong>完整 assistant message</strong>（所有 <code>tool_use</code> 块），最大化 prompt cache hits。</li>
+    <li>后续跟一个 synthetic <code>user</code> 消息，包含：
+      <ul>
+        <li>placeholder <code>tool_result</code> 块，文本固定为 <code>"Fork started — processing in background"</code></li>
+        <li>每个子 agent 的指令包裹在 <code>&lt;fork-boilerplate&gt;</code> XML + <code>FORK_DIRECTIVE_PREFIX</code> 中</li>
+      </ul>
+    </li>
+    <li>防递归：<code>isInForkChild()</code> 扫描对话历史中的 <code>&lt;fork-boilerplate&gt;</code> 标签。</li>
+  </ul>
+
+  <h4>路径 B：普通路径（subagent_type 指定）</h4>
+  <p>由 <code>runAgent()</code>（<code>runAgent.ts</code>）执行：</p>
+  <ul>
+    <li>Subagent 获得自己的 system prompt（来自 agent definition 的 <code>getSystemPrompt</code>）。</li>
+    <li>仅含一个简单 <code>user</code> 消息，内容为 <code>prompt</code> 参数。</li>
+    <li>除非显式通过 <code>forkContextMessages</code> 传递，否则不继承父 agent 对话上下文。</li>
+  </ul>
+
+  <h3>4.3 同步 vs 异步通信</h3>
+  <table>
+    <tr>
+      <th>模式</th>
+      <th>触发条件</th>
+      <th>行为</th>
+      <th>结果交付</th>
+    </tr>
+    <tr>
+      <td><strong>同步（阻塞）</strong></td>
+      <td><code>run_in_background !== true</code>，非强制 async，非 fork，非 coordinator</td>
+      <td>Root 阻塞在 <code>runAgent()</code> 的 AsyncGenerator 上，实时迭代消息</td>
+      <td>通过 <code>onProgress</code> 回调返回 <code>AgentToolProgress</code>；最终返回 <code>AgentToolResult</code></td>
+    </tr>
+    <tr>
+      <td><strong>异步（Fire-and-Forget）</strong></td>
+      <td><code>run_in_background === true</code>、agent 定义 <code>background: true</code>、coordinator 模式、fork subagent</td>
+      <td><code>registerAsyncAgent()</code> 创建 <code>LocalAgentTaskState</code>，<code>runAgent()</code> 被 <code>void</code>  detached 执行</td>
+      <td>完成后 <code>enqueueAgentNotification()</code> 构造 <code>&lt;task-notification&gt;</code> XML 注入父 agent 消息队列</td>
+    </tr>
+  </table>
+
+  <h3>4.4 与 Agent Team 协议的对比</h3>
+  <div class="callout warn">
+    <div class="callout-title">核心差异</div>
+    <p>Subagent（AgentTool）与 Teammate（Swarm）虽然在调用时都可能用到 <code>AgentTool</code>，但通信协议<strong>完全不同</strong>：</p>
+    <ul>
+      <li><strong>Subagent</strong>：同进程内直接函数调用（<code>runAgent()</code>），消息通过内存中的 <code>Message[]</code> 和 <code>AsyncGenerator</code> 传递，身份用 UUID 标识。</li>
+      <li><strong>Teammate</strong>：通过文件系统 Mailbox 轮询（500ms）实现跨进程/跨 pane 通信，身份用 <code>name@teamName</code> 标识。</li>
+    </ul>
+    <p>只有<strong>远程 Agent</strong>才使用 WebSocket/SSE 等网络协议；本地 Subagent 和 Teammate 都不走网络。</p>
+  </div>
+
+  <h3>4.5 AgentTool 输入输出定义</h3>
+  <pre><code>// 输入（tools/AgentTool/AgentTool.tsx）
+{
+  description: string;           // 3-5 词任务摘要
+  prompt: string;                // 实际任务指令
+  subagent_type?: string;        // Agent 专精（如 "Explore"）
+  model?: 'sonnet' | 'opus' | 'haiku';
+  run_in_background?: boolean;   // 异步标志
+  name?: string;                 // SendMessage 可寻址名称
+  team_name?: string;            // 若与 name 同时设置 → 触发 teammate spawn
+  mode?: PermissionMode;         // e.g. "plan"
+  isolation?: 'worktree' | 'remote';
+  cwd?: string;                  // 工作目录覆盖
+}
+
+// 输出（Union）
+// A. 同步完成
+{ status: 'completed', agentId: string, content: TextBlock[],
+  totalToolUseCount, totalDurationMs, totalTokens, usage }
+
+// B. 异步启动
+{ status: 'async_launched', agentId: string, description, prompt,
+  outputFile, canReadOutputFile }</code></pre>
+</section>
+
+<section id="sec-hooks">
+  <h2>5. Hooks 运行机制</h2>
+
+  <h3>5.1 Hooks 是什么？</h3>
+  <p>Hooks 是 Claude Code 提供的<strong>用户可扩展的生命周期钩子系统</strong>，允许用户在运行过程中的特定时机，执行自定义的命令、脚本、LLM 提示词、HTTP 请求或 TypeScript 回调函数。它类似于 Git hooks，但深度嵌入 AI 会话的完整生命周期。</p>
+
+  <h3>5.2 六种注册来源</h3>
+  <table>
+    <tr>
+      <th>来源</th>
+      <th>注册方式</th>
+      <th>作用域</th>
+      <th>持久化</th>
+    </tr>
+    <tr>
+      <td><strong>Settings 文件</strong></td>
+      <td><code>settings.json</code> 中的 <code>hooks</code> 字段</td>
+      <td>用户 / 项目 / 本地 / 策略</td>
+      <td>磁盘</td>
+    </tr>
+    <tr>
+      <td><strong>插件 (Plugins)</strong></td>
+      <td>插件 manifest 声明，通过 <code>registerHookCallbacks</code></td>
+      <td>全局</td>
+      <td>随插件安装</td>
+    </tr>
+    <tr>
+      <td><strong>技能 (Skills)</strong></td>
+      <td>Skill frontmatter 声明，转为 session hooks</td>
+      <td>当前会话</td>
+      <td>内存</td>
+    </tr>
+    <tr>
+      <td><strong>Agent frontmatter</strong></td>
+      <td>Agent 定义中的 hooks，自动转为 SubagentStop 等</td>
+      <td>Agent 子会话</td>
+      <td>内存</td>
+    </tr>
+    <tr>
+      <td><strong>SDK 回调</strong></td>
+      <td>外部 SDK 调用 <code>registerHookCallbacks</code></td>
+      <td>全局</td>
+      <td>内存</td>
+    </tr>
+    <tr>
+      <td><strong>Session 函数钩子</strong></td>
+      <td>代码中调用 <code>addFunctionHook</code> / <code>addSessionHook</code></td>
+      <td>单个会话</td>
+      <td>内存</td>
+    </tr>
+  </table>
+
+  <h3>5.3 加载流程</h3>
+  <div class="diagram">1. captureHooksConfigSnapshot()   // 从 settings.json 读取并缓存
+2. getHooksFromAllowedSources()   // policy_settings 过滤
+3. getHooksConfig()               // snapshot + registered + session 三层合并
+4. getMatchingHooks()             // 按事件类型和 matcher 模式匹配，按来源去重</div>
+
+  <h3>5.4 执行流程</h3>
+  <p>核心入口：<code>executeHooks()</code>（REPL 内）和 <code>executeHooksOutsideREPL()</code>（REPL 外）。</p>
+  <div class="diagram">executeHooks()
+├── 安全检查：shouldSkipHookDueToTrust()（交互模式需 workspace trust）
+├── 获取匹配钩子：getMatchingHooks(appState, sessionId, hookEvent, hookInput)
+├── 生成进度消息：为每个 hook 生成 progress message（UI 展示）
+├── 并行执行：Promise.all 并行运行所有匹配 hooks
+│   ├── command 钩子 → execCommandHook() → spawn shell
+│   ├── prompt 钩子 → execPromptHook() → 调用 LLM
+│   ├── agent 钩子  → execAgentHook()  → 调用 agent 验证
+│   ├── http 钩子   → execHttpHook()   → HTTP POST
+│   ├── callback 钩子 → hook.callback(...) → 内存 TS 回调
+│   └── function 钩子 → executeFunctionHook() → 内存 TS 回调
+├── 结果聚合：processHookJSONOutput() 解析 JSON 输出
+└── 产出：yield AggregatedHookResult（message / blockingError / permissionBehavior）</div>
+
+  <h3>5.5 28 种 Hook 事件</h3>
+  <table>
+    <tr>
+      <th>类别</th>
+      <th>事件</th>
+      <th>触发时机</th>
+    </tr>
+    <tr>
+      <td rowspan="5">工具调用</td>
+      <td><code>PreToolUse</code></td>
+      <td>工具执行前</td>
+    </tr>
+    <tr><td><code>PostToolUse</code></td><td>工具成功执行后</td></tr>
+    <tr><td><code>PostToolUseFailure</code></td><td>工具执行失败后</td></tr>
+    <tr><td><code>PermissionRequest</code></td><td>需要用户权限确认时（可被 hook 自动批准/拒绝）</td></tr>
+    <tr><td><code>PermissionDenied</code></td><td>权限被拒绝后</td></tr>
+    <tr>
+      <td rowspan="4">会话生命周期</td>
+      <td><code>SessionStart</code></td>
+      <td>会话启动（startup/resume/clear/compact）</td>
+    </tr>
+    <tr><td><code>SessionEnd</code></td><td>会话结束</td></tr>
+    <tr><td><code>Setup</code></td><td>应用初始化或维护时</td></tr>
+    <tr><td><code>UserPromptSubmit</code></td><td>用户提交 prompt 后、模型处理前</td></tr>
+    <tr>
+      <td rowspan="5">模型回合</td>
+      <td><code>Stop</code></td>
+      <td>模型完成一轮回复后（主会话）</td>
+    </tr>
+    <tr><td><code>StopFailure</code></td><td>模型回复出现错误时</td></tr>
+    <tr><td><code>SubagentStart</code></td><td>子 Agent 启动时</td></tr>
+    <tr><td><code>SubagentStop</code></td><td>子 Agent 完成时</td></tr>
+    <tr><td><code>PreCompact</code> / <code>PostCompact</code></td><td>会话压缩前后</td></tr>
+    <tr>
+      <td rowspan="2">任务/协作</td>
+      <td><code>TaskCreated</code> / <code>TaskCompleted</code></td>
+      <td>任务创建/完成时</td>
+    </tr>
+    <tr><td><code>TeammateIdle</code></td><td>Teammate 即将进入空闲状态时</td></tr>
+    <tr>
+      <td rowspan="2">通知/交互</td>
+      <td><code>Notification</code></td>
+      <td>系统通知触发时</td>
+    </tr>
+    <tr><td><code>Elicitation</code> / <code>ElicitationResult</code></td><td>MCP 交互表单触发时</td></tr>
+    <tr>
+      <td rowspan="6">配置/环境</td>
+      <td><code>ConfigChange</code></td>
+      <td>配置变更时</td>
+    </tr>
+    <tr><td><code>CwdChanged</code></td><td>工作目录变更时</td></tr>
+    <tr><td><code>FileChanged</code></td><td>监听文件变更时</td></tr>
+    <tr><td><code>WorktreeCreate</code> / <code>WorktreeRemove</code></td><td>Git worktree 创建/删除时</td></tr>
+    <tr><td><code>InstructionsLoaded</code></td><td>CLAUDE.md 等指令文件加载时</td></tr>
+  </table>
+
+  <h3>5.6 Hooks 输入输出格式</h3>
+  <h4>输入（HookInput）— 通过 stdin 传入 command/http 钩子</h4>
+  <pre><code>{
+  "session_id": "uuid",
+  "transcript_path": "/path/to/session.jsonl",
+  "cwd": "/current/working/dir",
+  "permission_mode": "ask",
+  "agent_id": "subagent-uuid-or-null",
+  "agent_type": "general-purpose-or-null",
+  // 事件特定字段：
+  // PreToolUse → tool_name, tool_input, tool_use_id
+  // Stop → stop_hook_active, last_assistant_message
+  // UserPromptSubmit → prompt
+}</code></pre>
+
+  <h4>输出（HookJSONOutput）— 通过 stdout 返回</h4>
+  <pre><code>{
+  "continue": false,
+  "stopReason": "可选的停止原因",
+  "suppressOutput": false,
+  "decision": "approve | block",
+  "reason": "解释",
+  "systemMessage": "给用户看的警告",
+  "hookSpecificOutput": {
+    "hookEventName": "PreToolUse",
+    "permissionDecision": "allow | deny | ask",
+    "updatedInput": { "filePath": "modified" },
+    "additionalContext": "补充上下文"
+  }
+}
+
+// 异步响应
+{ "async": true, "asyncTimeout": 30000 }</code></pre>
+
+  <h4>Exit Code 语义</h4>
+  <ul>
+    <li><code>0</code>：成功</li>
+    <li><code>2</code>：阻塞错误（blocking error），会阻止工具执行或继续对话</li>
+    <li>其他非零：非阻塞错误（仅记录）</li>
+  </ul>
+
+  <h3>5.7 stopHooks 是什么？</h3>
+  <p><code>stopHooks</code> 不是单一钩子，而是指 <code>query/stopHooks.ts</code> 中 <code>handleStopHooks()</code> 所 orchestrate 的一整套<strong>后采样钩子集合</strong>，在<strong>每轮模型回复完成后</strong>触发。</p>
+  <p>执行内容按顺序包括：</p>
+  <ol>
+    <li>保存缓存安全参数（为 REPL <code>/btw</code> 命令和 SDK <code>side_question</code> 保存上下文快照）。</li>
+    <li>Job 分类（TEMPLATES feature）。</li>
+    <li>Prompt Suggestion：分析对话历史，生成后续提示词建议（fire-and-forget）。</li>
+    <li>Memory Extraction（EXTRACT_MEMORIES feature）：提取并保存会话记忆。</li>
+    <li>Auto-Dream：触发自动背景思考。</li>
+    <li>Computer Use 清理。</li>
+    <li>用户自定义 Stop Hooks：执行 <code>settings.json</code> 中配置的 <code>Stop</code> 或 <code>SubagentStop</code> 钩子。</li>
+    <li>Teammate 钩子（若是 teammate 模式）：<code>TaskCompleted</code> hooks + <code>TeammateIdle</code> hooks。</li>
+  </ol>
+
+  <h3>5.8 Hooks 与核心系统的集成关系</h3>
+  <div class="grid-2">
+    <div class="card">
+      <h4>与工具调用</h4>
+      <p><code>PreToolUse</code> 可阻止执行（<code>decision: 'block'</code>）、自动批准（<code>decision: 'approve'</code>）、修改输入（<code>updatedInput</code>）。<code>PostToolUse</code> 可审查输出并阻止继续对话。</p>
+    </div>
+    <div class="card">
+      <h4>与 Agent 运行</h4>
+      <p><code>SubagentStart / SubagentStop</code> 在 Agent 启动/完成时触发。Agent frontmatter 中的 <code>Stop</code> 钩子自动转为 <code>SubagentStop</code>。</p>
+    </div>
+    <div class="card">
+      <h4>与消息处理</h4>
+      <p><code>UserPromptSubmit</code> 可在用户输入提交后、发送给模型前注入 <code>additionalContext</code> 或阻止输入。</p>
+    </div>
+    <div class="card">
+      <h4>与消息流</h4>
+      <p>执行结果通过 <code>AggregatedHookResult</code> 返回：progress 消息、attachment 消息（<code>hook_success</code> / <code>hook_blocking_error</code> 等）、systemMessage 注入。</p>
+    </div>
+  </div>
+</section>
+
+<section id="sec-compare">
+  <h2>6. 协议对比总结</h2>
+  <table>
+    <tr>
+      <th>维度</th>
+      <th>AgentTool Subagent</th>
+      <th>Teammate (Swarm)</th>
+      <th>Remote Agent (CCR)</th>
+    </tr>
+    <tr>
+      <td><strong>进程</strong></td>
+      <td>同一 Node.js 进程</td>
+      <td>同进程（in-process）或独立 OS 进程（tmux）</td>
+      <td>远程 CCR 容器</td>
+    </tr>
+    <tr>
+      <td><strong>身份标识</strong></td>
+      <td><code>AgentId</code> UUID（<code>a-...</code>）</td>
+      <td><code>name@teamName</code></td>
+      <td>CCR Session ID</td>
+    </tr>
+    <tr>
+      <td><strong>通信协议</strong></td>
+      <td>内存直接调用（AsyncGenerator）</td>
+      <td>文件系统 Mailbox JSON（500ms 轮询）</td>
+      <td>SSE + HTTP POST（v2）或 WebSocket（v1）</td>
+    </tr>
+    <tr>
+      <td><strong>上下文传递</strong></td>
+      <td><code>Message[]</code> 数组 + <code>ToolUseContext</code></td>
+      <td>Mailbox JSON 文件</td>
+      <td>WebSocket <code>SDKMessage</code></td>
+    </tr>
+    <tr>
+      <td><strong>返回路径</strong></td>
+      <td>Generator yield（sync）或 <code>&lt;task-notification&gt;</code> XML（async）</td>
+      <td>Mailbox JSON + idle 通知</td>
+      <td>WebSocket + HTTP</td>
+    </tr>
+    <tr>
+      <td><strong>隔离级别</strong></td>
+      <td><code>createSubagentContext()</code> 克隆状态</td>
+      <td><code>AsyncLocalStorage</code>（in-process）或 OS 进程</td>
+      <td>完全远程隔离</td>
+    </tr>
+    <tr>
+      <td><strong>Cache 策略</strong></td>
+      <td>Fork 路径共享字节级相同 system prompt &amp; tools</td>
+      <td>独立上下文</td>
+      <td>独立</td>
+    </tr>
+  </table>
+
+  <div class="callout success">
+    <div class="callout-title">一句话总结</div>
+    <p>Claude Code 的 Agent Team 是一个<strong>去中心化、分层混合、安全优先</strong>的协作系统：本地 Subagent 走内存直接调用，本地 Teammate 走文件 Mailbox + tmux 进程管理，远程 Agent 走 SSE/WebSocket 网络协议；Hooks 则像神经中枢一样，在 28 个关键生命周期节点上提供可扩展的拦截与增强能力。</p>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    调研基于 /home/lijialun/work/cc 源码 · 涵盖 coordinator/、tools/AgentTool/、bridge/、utils/swarm/、utils/hooks.ts、query/stopHooks.ts 等核心目录
+  </div>
+</footer>
+
+</div>
+</body>
+</html>
