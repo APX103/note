@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KimiSoul、DenwaRenji 与 Wire 协议深度解析</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', 'Noto Sans SC', sans-serif; }
+        .gradient-text {
+            background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            transition: all 0.2s ease;
+        }
+        .card:hover { box-shadow: 0 10px 40px -10px rgba(0,0,0,0.1); transform: translateY(-2px); }
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .badge-green { background: #dcfce7; color: #166534; }
+        .badge-red { background: #fee2e2; color: #991b1b; }
+        .badge-blue { background: #dbeafe; color: #1e40af; }
+        .badge-yellow { background: #fef3c7; color: #92400e; }
+        .badge-purple { background: #f3e8ff; color: #6b21a8; }
+        .section-divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, #e5e7eb, transparent);
+        }
+        .mermaid { display: flex; justify-content: center; }
+        .mermaid svg { max-width: 100%; height: auto; }
+        code {
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            background: #f3f4f6;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.875em;
+        }
+        pre {
+            background: #1f2937;
+            color: #e5e7eb;
+            padding: 16px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-size: 0.875rem;
+        }
+        pre code { background: transparent; padding: 0; color: inherit; }
+        .comparison-table th {
+            background: #f9fafb;
+            font-weight: 600;
+            text-align: left;
+            padding: 12px 16px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        .comparison-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #f3f4f6;
+            vertical-align: top;
+        }
+        .comparison-table tr:hover td { background: #fafafa; }
+        .callout {
+            border-left: 4px solid #3b82f6;
+            background: #eff6ff;
+            padding: 16px;
+            border-radius: 0 8px 8px 0;
+            margin: 16px 0;
+        }
+        .callout-red {
+            border-left-color: #ef4444;
+            background: #fef2f2;
+        }
+        .callout-amber {
+            border-left-color: #f59e0b;
+            background: #fffbeb;
+        }
+        .callout-green {
+            border-left-color: #22c55e;
+            background: #f0fdf4;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900">
+    <div class="max-w-6xl mx-auto px-6 py-12">
+        <!-- Header -->
+        <header class="text-center mb-16">
+            <h1 class="text-4xl font-bold mb-4 gradient-text">KimiSoul、DenwaRenji 与 Wire 协议深度解析</h1>
+            <p class="text-lg text-gray-600 max-w-3xl mx-auto">
+                从源代码出发，彻底解析核心循环、上下文压缩、D-Mail 时间旅行机制与 Agent 间通信协议
+            </p>
+            <div class="flex justify-center gap-3 mt-6">
+                <span class="badge badge-blue">kimisoul.py</span>
+                <span class="badge badge-purple">denwarenji.py</span>
+                <span class="badge badge-green">wire/types.py</span>
+            </div>
+        </header>
+
+        <!-- TOC -->
+        <div class="card p-6 mb-12">
+            <h3 class="font-semibold mb-4">目录</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                <a href="#kimisoul" class="text-blue-600 hover:underline">1. KimiSoul 核心架构与主循环</a>
+                <a href="#context-update" class="text-blue-600 hover:underline">2. 上下文更新机制</a>
+                <a href="#compaction" class="text-blue-600 hover:underline">3. Compaction：为什么不会超长？</a>
+                <a href="#token-usage" class="text-blue-600 hover:underline">4. Token 占用与阈值</a>
+                <a href="#denwarenji" class="text-blue-600 hover:underline">5. DenwaRenji 与 D-Mail 机制</a>
+                <a href="#wire-protocol" class="text-blue-600 hover:underline">6. Wire 协议与 Agent 间通信</a>
+                <a href="#summary" class="text-blue-600 hover:underline">7. 总结</a>
+            </div>
+        </div>
+
+        <!-- Section 1: KimiSoul -->
+        <section id="kimisoul" class="mb-16">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold">1</div>
+                <h2 class="text-2xl font-bold">KimiSoul 核心架构与主循环</h2>
+            </div>
+
+            <p class="text-gray-700 mb-6 leading-relaxed">
+                <code>KimiSoul</code> 是 Kimi CLI 的"灵魂"，位于 <code>src/kimi_cli/soul/kimisoul.py</code>。
+                每个 Agent（Root 或 Subagent）都拥有独立的 <code>KimiSoul</code> 实例，负责驱动 LLM 调用的主循环。
+            </p>
+
+            <div class="card p-6 mb-6">
+                <h3 class="font-semibold mb-4 text-lg">核心调用链</h3>
+                <div class="mermaid">
+flowchart TB
+    A[run user_input] --> B[_turn user_message]
+    B --> C[_checkpoint 0]
+    B --> D[append_message user]
+    B --> E[_agent_loop]
+    E --> F[Step 1]
+    E --> G[Step 2]
+    E --> H[Step N]
+    F --> I[_step]
+    G --> I
+    H --> I
+    I --> J[_grow_context]
+    J --> K[append_message assistant]
+    J --> L[append_message tool_results]
+    I --> M{BackToTheFuture?}
+    M -->|Yes| N[revert_to checkpoint]
+    M -->|No| O{stop?}
+    O -->|No| E
+    O -->|Yes| P[TurnOutcome]
+                </div>
+            </div>
+
+            <h3 class="font-semibold text-lg mb-4">四个核心方法</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div class="card p-5">
+                    <h4 class="font-semibold mb-2 text-blue-700"><code>run()</code></h4>
+                    <p class="text-sm text-gray-600">Turn 的入口。创建 ApprovalSource，触发 hook，发送 <code>TurnBegin</code> wire 事件，解析 slash command，最终调用 <code>_turn()</code>。</p>
+                </div>
+                <div class="card p-5">
+                    <h4 class="font-semibold mb-2 text-blue-700"><code>_turn()</code></h4>
+                    <p class="text-sm text-gray-600">单轮初始化。生成唯一的 <code>turn_id</code>，创建 <code>checkpoint 0</code>，将用户消息追加到 context，然后进入 <code>_agent_loop()</code>。</p>
+                </div>
+                <div class="card p-5">
+                    <h4 class="font-semibold mb-2 text-blue-700"><code>_agent_loop()</code></h4>
+                    <p class="text-sm text-gray-600">Step 循环控制器。每 step 检查 <code>max_steps_per_turn</code>，触发 compaction，创建 checkpoint，调用 <code>_step()</code>，处理异常和 steers。</p>
+                </div>
+                <div class="card p-5">
+                    <h4 class="font-semibold mb-2 text-blue-700"><code>_step()</code></h4>
+                    <p class="text-sm text-gray-600">单步执行核心。投递通知、收集动态注入、归一化 history、调用 LLM（<code>kosong.step</code>）、执行 tools、增长 context。</p>
+                </div>
+            </div>
+
+            <div class="callout callout-green">
+                <p class="font-medium text-green-800 mb-1">关键设计</p>
+                <p class="text-sm text-green-700">
+                    <code>_step()</code> 中的 LLM 调用时，<strong>system prompt 作为参数传入</strong>（<code>kosong.step(system_prompt=...)</code>），
+                    并不存储在 <code>context._history</code> 中。这使得 system prompt 不会占用 context 的 token 额度，
+                    且在 compaction 后可以被独立重新写入。
+                </p>
+            </div>
+        </section>
+
+        <div class="section-divider mb-16"></div>
+
+        <!-- Section 2: Context Update -->
+        <section id="context-update" class="mb-16">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold">2</div>
+                <h2 class="text-2xl font-bold">上下文更新机制</h2>
+            </div>
+
+            <p class="text-gray-700 mb-6 leading-relaxed">
+                <code>Context</code>（<code>src/kimi_cli/soul/context.py</code>）是对话历史的容器，同时负责持久化到 <code>context.jsonl</code>。
+                所有消息都通过 <code>Context.append_message()</code> 进入 history。
+            </p>
+
+            <div class="card p-6 mb-6">
+                <h3 class="font-semibold mb-4 text-lg">消息进入 Context 的路径</h3>
+                <div class="mermaid">
+flowchart LR
+    subgraph User["用户输入"]
+        U1[run user_input]
+        U2[_turn]
+        U3[append_message user]
+    end
+
+    subgraph LLM["LLM 响应"]
+        L1[_step]
+        L2[kosong.step]
+        L3[_grow_context]
+        L4[append_message assistant]
+    end
+
+    subgraph Tool["工具结果"]
+        T1[_step]
+        T2[execute tools]
+        T3[_grow_context]
+        T4[append_message tool_results]
+    end
+
+    U3 --> C[Context]
+    L4 --> C
+    T4 --> C
+    C --> F[context.jsonl]
+                </div>
+            </div>
+
+            <h3 class="font-semibold text-lg mb-4">各类消息的处理方式</h3>
+            <div class="overflow-x-auto mb-6">
+                <table class="comparison-table w-full text-sm">
+                    <thead>
+                        <tr><th>消息类型</th><th>来源</th><th>进入 Context 的方式</th><th>备注</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>user</code></td>
+                            <td>用户输入 / Steer</td>
+                            <td><code>_turn() → append_message()</code></td>
+                            <td>触发新一轮 turn 的原始输入</td>
+                        </tr>
+                        <tr>
+                            <td><code>assistant</code></td>
+                            <td>LLM 生成</td>
+                            <td><code>_grow_context() → append_message(result.message)</code></td>
+                            <td>包含文本和 tool_calls</td>
+                        </tr>
+                        <tr>
+                            <td><code>tool</code></td>
+                            <td>Tool 执行结果</td>
+                            <td><code>_grow_context() → append_message(tool_messages)</code></td>
+                            <td>由 <code>tool_result_to_message()</code> 转换</td>
+                        </tr>
+                        <tr>
+                            <td><code>_system_prompt</code></td>
+                            <td>Agent spec</td>
+                            <td><code>Context.write_system_prompt()</code></td>
+                            <td>单独存储，不在 history 列表中</td>
+                        </tr>
+                        <tr>
+                            <td><code>_checkpoint</code></td>
+                            <td>KimiSoul</td>
+                            <td><code>Context.checkpoint()</code></td>
+                            <td>用于 D-Mail 回退的标记点</td>
+                        </tr>
+                        <tr>
+                            <td><code>_usage</code></td>
+                            <td>LLM usage 响应</td>
+                            <td><code>Context.update_token_count()</code></td>
+                            <td>记录 input tokens，清空 pending</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="callout">
+                <p class="font-medium text-blue-800 mb-1">Context 的 dual-track token 追踪</p>
+                <p class="text-sm text-blue-700">
+                    <code>Context</code> 内部维护两个 token 计数器：<br>
+                    • <code>_token_count</code>：上次 LLM 调用返回的准确 input tokens<br>
+                    • <code>_pending_token_estimate</code>：自上次 usage 后新增消息的启发式估算（字符数 ÷ 4）<br>
+                    <code>token_count_with_pending = _token_count + _pending_token_estimate</code> 用于触发 compaction。
+                </p>
+            </div>
+        </section>
+
+        <div class="section-divider mb-16"></div>
+
+        <!-- Section 3: Compaction -->
+        <section id="compaction" class="mb-16">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold">3</div>
+                <h2 class="text-2xl font-bold">Compaction：为什么不会超长？</h2>
+            </div>
+
+            <p class="text-gray-700 mb-6 leading-relaxed">
+                这是回答"每个 agent 都用 KimiSoul，不会超长么"这个问题的关键。
+                Kimi CLI 没有使用 Sliding Window 或 LRU，而是采用了独特的 <strong>LLM 驱动的 Compaction（压缩）</strong> 机制。
+            </p>
+
+            <div class="callout callout-amber">
+                <p class="font-medium text-amber-800 mb-1">一句话总结</p>
+                <p class="text-sm text-amber-700">
+                    当上下文接近 token 上限时，系统会<strong>保留最后 2 条对话，把前面的所有历史丢给另一个 LLM 调用进行压缩总结</strong>，
+                    然后将总结 + 保留的 2 条消息作为新的上下文。这是一种"以 LLM 管理 LLM"的策略。
+                </p>
+            </div>
+
+            <h3 class="font-semibold text-lg mb-4">触发条件</h3>
+            <div class="card p-6 mb-6">
+                <div class="mermaid">
+flowchart LR
+    A[token_count_with_pending] --> B{>= max_size * 0.85?}
+    A --> C{+ 50000 >= max_size?}
+    B -->|Yes| D[触发 Compaction]
+    C -->|Yes| D
+    D --> E[SimpleCompaction.prepare]
+    E --> F[保留尾部 2 条消息]
+    E --> G[压缩前面所有历史]
+    G --> H[调用 compaction LLM]
+    H --> I[生成 summary]
+    I --> J[清空原 context]
+    J --> K[重新写入 system_prompt]
+    J --> L[创建新 checkpoint]
+    J --> M[追加 summary + 保留消息]
+                </div>
+            </div>
+
+            <h3 class="font-semibold text-lg mb-4">配置阈值（具体数字）</h3>
+            <div class="overflow-x-auto mb-6">
+                <table class="comparison-table w-full text-sm">
+                    <thead>
+                        <tr><th>配置项</th><th>默认值</th><th>作用</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>compaction_trigger_ratio</code></td>
+                            <td><strong>0.85</strong></td>
+                            <td>当 token 占比达到 85% 时触发压缩</td>
+                        </tr>
+                        <tr>
+                            <td><code>reserved_context_size</code></td>
+                            <td><strong>50,000</strong></td>
+                            <td>为 LLM 回复预留的 token 空间</td>
+                        </tr>
+                        <tr>
+                            <td><code>max_steps_per_turn</code></td>
+                            <td><strong>1,000</strong></td>
+                            <td>单轮最大 step 数（防止死循环）</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="text-gray-700 mb-4 text-sm">
+                以常见的 128K 上下文模型为例：
+                <code>128000 * 0.85 = 108,800</code> tokens 触发 ratio 条件；
+                <code>128000 - 50000 = 78,000</code> tokens 触发 reserved 条件。
+                <strong>满足任一即压缩</strong>。
+            </p>
+
+            <h3 class="font-semibold text-lg mb-4">Compaction 前后对比</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div class="card p-5">
+                    <h4 class="font-semibold mb-3 text-red-700">Compaction 前</h4>
+                    <pre><code>context.jsonl:
+{"role":"_system_prompt",...}
+{"role":"_checkpoint","id":0}
+{"role":"user","content":[...]}
+{"role":"assistant","content":[...]}
+{"role":"tool","content":[...]}
+... (50+ 轮对话)
+{"role":"_checkpoint","id":12}
+{"role":"user","content":[...]}
+{"role":"assistant","content":[...]}
+
+_token_count: ~105,000</code></pre>
+                </div>
+                <div class="card p-5">
+                    <h4 class="font-semibold mb-3 text-green-700">Compaction 后</h4>
+                    <pre><code>context.jsonl:
+{"role":"_system_prompt",...}
+{"role":"_checkpoint","id":0}
+{"role":"user","content":[
+  "Previous context has been compacted.
+   Here is the compaction output:
+   [summary of 50+ turns...]"
+]}
+{"role":"user","content":[...]}   <-- 保留
+{"role":"assistant","content":[...]} <-- 保留
+
+_token_count: ~15,000 (估算)</code></pre>
+                </div>
+            </div>
+
+            <div class="callout callout-red">
+                <p class="font-medium text-red-800 mb-1">没有 Sliding Window / LRU</p>
+                <p class="text-sm text-red-700">
+                    与许多其他 Agent 框架不同，Kimi CLI <strong>不使用</strong>基于消息年龄或数量的滑动窗口淘汰策略。
+                    它的策略只有两种：<strong>Compaction（压缩总结）</strong>和 <strong>Checkpoint Revert（D-Mail 回退）</strong>。
+                    这意味着旧消息要么被总结保留，要么被完整回退恢复，不会无声消失。
+                </p>
+            </div>
+        </section>
+
+        <div class="section-divider mb-16"></div>
+
+        <!-- Section 4: Token Usage -->
+        <section id="token-usage" class="mb-16">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold">4</div>
+                <h2 class="text-2xl font-bold">Token 占用与上下文管理</h2>
+            </div>
+
+            <h3 class="font-semibold text-lg mb-4">每个 Agent 的 KimiSoul 独立吗？会超长吗？</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div class="card p-5">
+                    <h4 class="font-semibold mb-3 text-blue-700">Root Agent</h4>
+                    <ul class="text-sm text-gray-600 space-y-2">
+                        <li>• 独立的 <code>KimiSoul</code> 实例</li>
+                        <li>• Context 绑定到 <code>session/context.jsonl</code></li>
+                        <li>• 独立的 <code>DenwaRenji</code></li>
+                        <li>• 自己的 compaction 周期</li>
+                    </ul>
+                </div>
+                <div class="card p-5">
+                    <h4 class="font-semibold mb-3 text-blue-700">Subagent A / B / C</h4>
+                    <ul class="text-sm text-gray-600 space-y-2">
+                        <li>• 各自独立的 <code>KimiSoul</code> 实例</li>
+                        <li>• Context 绑定到 <code>subagents/{id}/context.jsonl</code></li>
+                        <li>• 各自的 <code>DenwaRenji</code>（全新实例）</li>
+                        <li>• 各自的 compaction 周期</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="callout callout-green">
+                <p class="font-medium text-green-800 mb-1">结论：不会互相影响</p>
+                <p class="text-sm text-green-700">
+                    每个 agent 的 context 是<strong>完全物理隔离</strong>的（不同的 jsonl 文件）。
+                    Root agent 的 compaction 不会清理 subagent 的历史，反之亦然。
+                    但 subagent 运行结束后，它的 <code>context.jsonl</code> 会<strong>永久保留在磁盘上</strong>（直到 session 被删除），不会自动清理。
+                </p>
+            </div>
+
+            <h3 class="font-semibold text-lg mb-4">Token 统计方式</h3>
+            <div class="card p-6 mb-6">
+                <pre><code># compaction.py:44
+# 启发式估算（pending 阶段使用）
+def estimate_text_tokens(messages: Sequence[Message]) -> int:
+    total_chars = 0
+    for msg in messages:
+        for part in msg.content:
+            if isinstance(part, TextPart):
+                total_chars += len(part.text)
+    return total_chars // 4   # ~4 chars per token for English
+
+# context.py
+# 准确值（LLM 返回 usage 后更新）
+self._token_count: int = 0
+# 估算值（自上次 usage 后的增量）
+self._pending_token_estimate: int = 0</code></pre>
+            </div>
+        </section>
+
+        <div class="section-divider mb-16"></div>
+
+        <!-- Section 5: DenwaRenji -->
+        <section id="denwarenji" class="mb-16">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="w-10 h-10 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold">5</div>
+                <h2 class="text-2xl font-bold">DenwaRenji 与 D-Mail 机制</h2>
+            </div>
+
+            <div class="callout" style="border-left-color: #a855f7; background: #faf5ff;">
+                <p class="font-medium text-purple-800 mb-1">名字来源</p>
+                <p class="text-sm text-purple-700">
+                    <strong>Denwa Renji</strong>（電話レンジ）是动漫《Steins;Gate》（命运石之门）中"电话微波炉（暂定）"的日文读音。
+                    在作品中，D-Mail 是通过这台设备向过去发送的邮件，能够改变时间线。代码中的 D-Mail 机制正是对这一概念的致敬——
+                    向"过去的自己"（即之前的 checkpoint）发送信息。
+                </p>
+            </div>
+
+            <h3 class="font-semibold text-lg mb-4">核心组件</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div class="card p-5">
+                    <h4 class="font-semibold mb-2 text-purple-700"><code>DenwaRenji</code></h4>
+                    <p class="text-sm text-gray-600">极简的邮箱中转站。只有两个字段：<code>_pending_dmail</code>（最多一条待处理邮件）和 <code>_n_checkpoints</code>（已知 checkpoint 总数）。</p>
+                </div>
+                <div class="card p-5">
+                    <h4 class="font-semibold mb-2 text-purple-700"><code>DMail</code></h4>
+                    <p class="text-sm text-gray-600">数据模型：<code>message: str</code>（要发送的内容）和 <code>checkpoint_id: int</code>（目标 checkpoint）。</p>
+                </div>
+                <div class="card p-5">
+                    <h4 class="font-semibold mb-2 text-purple-700"><code>BackToTheFuture</code></h4>
+                    <p class="text-sm text-gray-600">受控异常。携带 <code>checkpoint_id</code> 和要注入的 <code>messages</code>，被 <code>_agent_loop()</code> 捕获后执行回退。</p>
+                </div>
+            </div>
+
+            <h3 class="font-semibold text-lg mb-4">D-Mail 完整生命周期</h3>
+            <div class="card p-6 mb-6">
+                <div class="mermaid">
+sequenceDiagram
+    participant LLM as LLM
+    participant Tool as SendDMail Tool
+    participant DR as DenwaRenji
+    participant Soul as KimiSoul._step
+    participant Loop as KimiSoul._agent_loop
+    participant Ctx as Context
+
+    Note over DR: _n_checkpoints = 5
+    LLM->>Tool: 调用 SendDMail<br/>checkpoint_id=2, message="..."
+    Tool->>DR: send_dmail(dmail)
+    DR->>DR: 验证 id < 5
+    DR->>DR: _pending_dmail = dmail
+    Tool-->>LLM: ToolOk
+
+    Soul->>Soul: 工具执行完成
+    Soul->>DR: fetch_pending_dmail()
+    DR-->>Soul: 返回 dmail
+    Soul->>Soul: raise BackToTheFuture(2, messages)
+
+    Loop->>Loop: catch BackToTheFuture
+    Loop->>Ctx: revert_to(2)
+    Ctx->>Ctx: 清空 history<br/>从文件恢复到 checkpoint 2 之前
+    Loop->>Ctx: checkpoint() 新 checkpoint
+    Loop->>Ctx: append_message(D-Mail content)
+    Note over Loop: 继续下一个 step<br/>LLM 看到"来自未来的邮件"
+                </div>
+            </div>
+
+            <h3 class="font-semibold text-lg mb-4">Checkpoint 系统</h3>
+            <p class="text-gray-700 mb-4 text-sm">
+                Checkpoint 是对话历史中的可回退标记点。每次 <code>_agent_loop</code> 的 step 开始时会创建一个新的 checkpoint：
+            </p>
+            <div class="card p-5 mb-6">
+                <pre><code># context.py:123-133
+async def checkpoint(self, add_user_message: bool):
+    checkpoint_id = self._next_checkpoint_id  # 从 0 递增
+    self._next_checkpoint_id += 1
+    # 在 jsonl 中写入标记
+    await f.write(json.dumps({"role": "_checkpoint", "id": checkpoint_id}) + "\n")
+    # 如果启用了 SendDMail 工具，插入可见的 CHECKPOINT N 消息
+    if add_user_message:
+        await self.append_message(
+            Message(role="user", content=[system(f"CHECKPOINT {checkpoint_id}")])
+        )</code></pre>
+            </div>
+
+            <h3 class="font-semibold text-lg mb-4">为什么 D-Mail 不能跨 Agent？</h3>
+            <div class="card p-6 mb-6">
+                <div class="mermaid">
+flowchart TB
+    subgraph RootRuntime["Root Runtime"]
+        RDR[DenwaRenji<br/>实例 A]
+    end
+
+    subgraph Sub1Runtime["Subagent A Runtime"]
+        S1DR[DenwaRenji<br/>实例 B]
+    end
+
+    subgraph Sub2Runtime["Subagent B Runtime"]
+        S2DR[DenwaRenji<br/>实例 C]
+    end
+
+    RDR -.->|独立对象| S1DR
+    RDR -.->|独立对象| S2DR
+
+    Note over RDR: _pending_dmail 只在此对象中
+    Note over S1DR: 看不到 Root 的 pending
+    Note over S2DR: 看不到其他 agent 的 pending
+                </div>
+            </div>
+
+            <div class="callout callout-red">
+                <p class="font-medium text-red-800 mb-1">硬隔离</p>
+                <p class="text-sm text-red-700">
+                    <code>Runtime.copy_for_subagent()</code> 中为 subagent 创建全新的 <code>DenwaRenji()</code> 实例。
+                    <code>SendDMail</code> 工具注入的是当前 Runtime 的 DenwaRenji，
+                    而 <code>KimiSoul</code> 只检查自己 Runtime 的 DenwaRenji。
+                    这是一个<strong>设计上的硬隔离</strong>，D-Mail 严格限制在单个 agent 内部。
+                </p>
+            </div>
+        </section>
+
+        <div class="section-divider mb-16"></div>
+
+        <!-- Section 6: Wire Protocol -->
+        <section id="wire-protocol" class="mb-16">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="w-10 h-10 rounded-full bg-green-600 text-white flex items-center justify-center font-bold">6</div>
+                <h2 class="text-2xl font-bold">Wire 协议与 Agent 间通信</h2>
+            </div>
+
+            <p class="text-gray-700 mb-6 leading-relaxed">
+                <code>Wire</code>（<code>src/kimi_cli/wire/</code>）是 Soul 与 UI 之间的通信通道，也是 Agent 间消息流转的载体。
+                它是一个 <strong>SPMC（Single-Producer Multi-Consumer）</strong> 的发布-订阅系统。
+            </p>
+
+            <h3 class="font-semibold text-lg mb-4">Wire 核心抽象</h3>
+            <div class="card p-6 mb-6">
+                <div class="mermaid">
+flowchart TB
+    subgraph Wire["Wire 实例"]
+        SS[WireSoulSide<br/>生产者]
+        RQ[raw_queue<br/>BroadcastQueue]
+        MQ[merged_queue<br/>BroadcastQueue]
+    end
+
+    subgraph Consumers["消费者"]
+        UI1[Shell UI<br/>merge=True]
+        UI2[Wire Server<br/>merge=True]
+        REC[WireRecorder<br/>merge=False]
+    end
+
+    SS -->|publish_nowait| RQ
+    SS -->|flush / merge| MQ
+    RQ -->|subscribe| REC
+    MQ -->|subscribe| UI1
+    MQ -->|subscribe| UI2
+                </div>
+            </div>
+
+            <h3 class="font-semibold text-lg mb-4">消息类型体系</h3>
+            <div class="overflow-x-auto mb-6">
+                <table class="comparison-table w-full text-sm">
+                    <thead>
+                        <tr><th>分类</th><th>类型</th><th>用途</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td rowspan="3"><strong>控制流</strong></td>
+                            <td><code>TurnBegin / TurnEnd</code></td>
+                            <td>Turn 生命周期</td>
+                        </tr>
+                        <tr>
+                            <td><code>StepBegin / StepRetry</code></td>
+                            <td>Step 生命周期</td>
+                        </tr>
+                        <tr>
+                            <td><code>CompactionBegin / End</code></td>
+                            <td>压缩事件</td>
+                        </tr>
+                        <tr>
+                            <td rowspan="3"><strong>内容</strong></td>
+                            <td><code>TextPart / ThinkPart</code></td>
+                            <td>模型生成的文本/思考</td>
+                        </tr>
+                        <tr>
+                            <td><code>ToolCall / ToolCallPart</code></td>
+                            <td>工具调用请求/参数片段</td>
+                        </tr>
+                        <tr>
+                            <td><code>ToolResult</code></td>
+                            <td>工具执行结果</td>
+                        </tr>
+                        <tr>
+                            <td rowspan="3"><strong>请求</strong></td>
+                            <td><code>ApprovalRequest</code></td>
+                            <td>需要用户审批</td>
+                        </tr>
+                        <tr>
+                            <td><code>QuestionRequest</code></td>
+                            <td>向用户提问（结构化选项）</td>
+                        </tr>
+                        <tr>
+                            <td><code>ToolCallRequest</code></td>
+                            <td>外部工具调用请求</td>
+                        </tr>
+                        <tr>
+                            <td><strong>跨 Agent</strong></td>
+                            <td><code>SubagentEvent</code></td>
+                            <td>包装 subagent 的事件发给父 agent</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3 class="font-semibold text-lg mb-4">SubagentEvent：Agent 间通信的核心</h3>
+            <div class="card p-6 mb-6">
+                <pre><code># wire/types.py:242-265
+class SubagentEvent(BaseModel):
+    parent_tool_call_id: str | None = None
+    agent_id: str | None = None
+    subagent_type: str | None = None
+    event: Event  # 被包装的子事件
+
+# 序列化时使用 WireMessageEnvelope 嵌套
+@field_serializer("event", when_used="json")
+def _serialize_event(self, event: Event) -> dict[str, Any]:
+    envelope = WireMessageEnvelope.from_wire_message(event)
+    return envelope.model_dump(mode="json")</code></pre>
+            </div>
+
+            <h3 class="font-semibold text-lg mb-4">Foreground Subagent 消息流转</h3>
+            <div class="card p-6 mb-6">
+                <div class="mermaid">
+sequenceDiagram
+    participant Sub as Subagent Soul
+    participant SW as Subagent Wire
+    participant UL as UI Loop Fn
+    participant PW as Parent Wire
+    participant Root as Root Soul
+
+    Sub->>SW: send(TextPart)
+    SW->>UL: receive()
+    UL->>UL: 写入 output 文件
+    UL->>PW: send(SubagentEvent)
+    PW->>Root: receive()
+
+    Sub->>SW: send(ApprovalRequest)
+    SW->>UL: receive()
+    UL->>PW: send(ApprovalRequest) 直接透传
+    PW->>Root: receive()
+    Note over Root: Root UI 显示审批请求
+                </div>
+            </div>
+
+            <div class="callout">
+                <p class="font-medium text-blue-800 mb-1">Foreground 消息分类处理</p>
+                <p class="text-sm text-blue-700">
+                    在 <code>ForegroundSubagentRunner._make_ui_loop_fn()</code> 中，subagent 的 wire 消息被分为三类：<br>
+                    1. <strong>ApprovalRequest / ApprovalResponse / ToolCallRequest / QuestionRequest</strong> → <strong>直接透传</strong>到父 Wire<br>
+                    2. <strong>HookRequest</strong> → <strong>忽略</strong>（子 agent 的 hook 不应影响父 UI）<br>
+                    3. <strong>其他所有 Event</strong> → <strong>包装为 SubagentEvent</strong> 后发送给父 agent
+                </p>
+            </div>
+
+            <h3 class="font-semibold text-lg mb-4">RootWireHub：Session 级广播中心</h3>
+            <p class="text-gray-700 mb-4 text-sm">
+                <code>RootWireHub</code> 是一个 session 级别的广播队列，所有 agent（root + subagent）共享同一个实例。
+                它主要用于 <strong>out-of-turn 消息</strong> 的广播，最典型的场景是 Approval 请求/响应的跨 agent 投射。
+            </p>
+            <div class="card p-6 mb-6">
+                <pre><code># wire/root_hub.py
+class RootWireHub:
+    def __init__(self) -> None:
+        self._queue = BroadcastQueue[WireMessage]()
+
+# approval_runtime/runtime.py
+# 当创建/解决审批请求时，广播到 RootWireHub
+self._root_wire_hub.publish_nowait(ApprovalRequest(...))
+self._root_wire_hub.publish_nowait(ApprovalResponse(...))</code></pre>
+            </div>
+
+            <h3 class="font-semibold text-lg mb-4">merge=True 的含义</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div class="card p-5">
+                    <h4 class="font-semibold mb-2 text-green-700"><code>merge=True</code>（UI 渲染用）</h4>
+                    <p class="text-sm text-gray-600">
+                        订阅 <code>_merged_queue</code>。连续的 <code>TextPart</code> 会被合并为一条消息，
+                        <code>ToolCall</code> + 多个 <code>ToolCallPart</code> 合并为完整调用。
+                        减少 UI 刷新次数，适合渲染。
+                    </p>
+                </div>
+                <div class="card p-5">
+                    <h4 class="font-semibold mb-2 text-green-700"><code>merge=False</code>（记录/回放用）</h4>
+                    <p class="text-sm text-gray-600">
+                        订阅 <code>_raw_queue</code>。接收每一条原始消息，100% 保真。
+                        适合写入 <code>wire.jsonl</code> 进行持久化和回放。
+                    </p>
+                </div>
+            </div>
+
+            <h3 class="font-semibold text-lg mb-4">Wire 持久化格式</h3>
+            <div class="card p-5 mb-6">
+                <pre><code># session_dir/wire.jsonl
+{"type":"metadata","protocol_version":"1.10"}
+{"timestamp":1715980000.123,"message":{"type":"TurnBegin","payload":{"user_input":"..."}}}
+{"timestamp":1715980000.456,"message":{"type":"TextPart","payload":{"type":"text","text":"Hello"}}}
+{"timestamp":1715980000.789,"message":{"type":"SubagentEvent","payload":{"agent_id":"a1b2c3d4","event":{"type":"ToolCall",...}}}}</code></pre>
+            </div>
+        </section>
+
+        <div class="section-divider mb-16"></div>
+
+        <!-- Section 7: Summary -->
+        <section id="summary" class="mb-16">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold">7</div>
+                <h2 class="text-2xl font-bold">总结</h2>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="card p-6">
+                    <h3 class="font-semibold text-lg mb-3 text-blue-700">KimiSoul</h3>
+                    <ul class="text-sm text-gray-600 space-y-2">
+                        <li>• <code>run → _turn → _agent_loop → _step</code> 四级调用链</li>
+                        <li>• 每个 agent 独立的 KimiSoul + Context 实例</li>
+                        <li>• system prompt 作为参数传入，不占 context</li>
+                        <li>• <strong>Compaction</strong> 在 85% 或 +50K 阈值时触发</li>
+                        <li>• 保留 2 条消息，其余压缩为 summary</li>
+                        <li>• <strong>无 Sliding Window</strong></li>
+                    </ul>
+                </div>
+                <div class="card p-6">
+                    <h3 class="font-semibold text-lg mb-3 text-purple-700">DenwaRenji</h3>
+                    <ul class="text-sm text-gray-600 space-y-2">
+                        <li>• 名字致敬《Steins;Gate》的"电话微波炉"</li>
+                        <li>• D-Mail = 向过去的 checkpoint 发送消息</li>
+                        <li>• 通过 <code>BackToTheFuture</code> 异常实现时间旅行</li>
+                        <li>• <code>revert_to(checkpoint_id)</code> 回退 context</li>
+                        <li>• 每个 agent 独立的 DenwaRenji 实例</li>
+                        <li>• <strong>严格禁止跨 agent 通信</strong></li>
+                    </ul>
+                </div>
+                <div class="card p-6">
+                    <h3 class="font-semibold text-lg mb-3 text-green-700">Wire 协议</h3>
+                    <ul class="text-sm text-gray-600 space-y-2">
+                        <li>• SPMC 发布-订阅通道（Soul → UI）</li>
+                        <li>• 双队列：raw（保真）+ merged（合并）</li>
+                        <li>• <code>SubagentEvent</code> 包装子 agent 事件</li>
+                        <li>• Approval 请求直接透传，不包装</li>
+                        <li>• <code>RootWireHub</code> 广播 session 级消息</li>
+                        <li>• <code>wire.jsonl</code> 记录完整事件流</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="text-center text-sm text-gray-500 pt-8 border-t border-gray-200">
+            <p>基于 Kimi CLI 源代码分析生成 · 使用 Mermaid.js 绘制图表</p>
+        </footer>
+    </div>
+
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'default',
+            flowchart: {
+                useMaxWidth: true,
+                htmlLabels: true,
+                curve: 'basis'
+            },
+            sequenceDiagram: {
+                useMaxWidth: true
+            }
+        });
+    </script>
+</body>
+</html>
