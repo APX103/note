@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kimi CLI Subagent 架构解析</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', 'Noto Sans SC', sans-serif; }
+        .gradient-text {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            transition: all 0.2s ease;
+        }
+        .card:hover {
+            box-shadow: 0 10px 40px -10px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .badge-green { background: #dcfce7; color: #166534; }
+        .badge-red { background: #fee2e2; color: #991b1b; }
+        .badge-blue { background: #dbeafe; color: #1e40af; }
+        .badge-yellow { background: #fef3c7; color: #92400e; }
+        .section-divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, #e5e7eb, transparent);
+        }
+        .mermaid {
+            display: flex;
+            justify-content: center;
+        }
+        .mermaid svg {
+            max-width: 100%;
+            height: auto;
+        }
+        code {
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            background: #f3f4f6;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.875em;
+        }
+        pre {
+            background: #1f2937;
+            color: #e5e7eb;
+            padding: 16px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-size: 0.875rem;
+        }
+        pre code {
+            background: transparent;
+            padding: 0;
+            color: inherit;
+        }
+        .comparison-table th {
+            background: #f9fafb;
+            font-weight: 600;
+            text-align: left;
+            padding: 12px 16px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        .comparison-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #f3f4f6;
+            vertical-align: top;
+        }
+        .comparison-table tr:hover td {
+            background: #fafafa;
+        }
+        .icon-box {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900">
+    <div class="max-w-6xl mx-auto px-6 py-12">
+        <!-- Header -->
+        <header class="text-center mb-16">
+            <h1 class="text-4xl font-bold mb-4 gradient-text">Kimi CLI Subagent 架构深度解析</h1>
+            <p class="text-lg text-gray-600 max-w-2xl mx-auto">
+                从源代码出发，解析 subagent 启动逻辑、通信机制，以及 Agent Team 的构想
+            </p>
+            <div class="flex justify-center gap-3 mt-6">
+                <span class="badge badge-blue">Python 3.12+</span>
+                <span class="badge badge-green">Asyncio</span>
+                <span class="badge badge-yellow">Kosong LLM</span>
+            </div>
+        </header>
+
+        <!-- Quick Overview Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
+            <div class="card p-6">
+                <div class="icon-box bg-blue-100 text-blue-600 mb-4">🚀</div>
+                <h3 class="font-semibold text-lg mb-2">启动机制</h3>
+                <p class="text-gray-600 text-sm">通过 <code>Agent</code> 工具触发，支持 Foreground 阻塞式和 Background 后台式两种启动模式</p>
+            </div>
+            <div class="card p-6">
+                <div class="icon-box bg-green-100 text-green-600 mb-4">🔒</div>
+                <h3 class="font-semibold text-lg mb-2">隔离设计</h3>
+                <p class="text-gray-600 text-sm">每个 subagent 拥有独立的 Context、Wire、DenwaRenji，禁止嵌套创建</p>
+            </div>
+            <div class="card p-6">
+                <div class="icon-box bg-yellow-100 text-yellow-600 mb-4">📡</div>
+                <h3 class="font-semibold text-lg mb-2">通信方式</h3>
+                <p class="text-gray-600 text-sm">仅支持 Parent → Subagent 的单向委托，subagent 间无法直接通信</p>
+            </div>
+        </div>
+
+        <!-- Section 1: Subagent Startup -->
+        <section class="mb-16">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold">1</div>
+                <h2 class="text-2xl font-bold">Subagent 启动逻辑</h2>
+            </div>
+
+            <p class="text-gray-700 mb-6 leading-relaxed">
+                当 LLM 调用 <code>Agent</code> 工具时，系统会经过权限检查 → 实例准备 → 运行时克隆 → Agent 构建 → Soul 启动的完整流程。
+                只有 <code>role="root"</code> 的 agent 才能创建 subagent，这是一个硬限制。
+            </p>
+
+            <div class="card p-6 mb-6">
+                <h3 class="font-semibold mb-4 text-lg">启动流程图</h3>
+                <div class="mermaid">
+flowchart TB
+    A[用户/LLM 调用 Agent 工具] --> B{权限检查}
+    B -->|role != root| C[拒绝: Subagents cannot launch other subagents]
+    B -->|role == root| D{run_in_background?}
+    
+    D -->|No| E[ForegroundSubagentRunner.run]
+    D -->|Yes| F[BackgroundAgentRunner.run]
+    
+    E --> G[_prepare_instance]
+    G --> H{resume?}
+    H -->|Yes| I[从 SubagentStore 恢复实例]
+    H -->|No| J[生成 agent_id, 创建新实例]
+    
+    J --> K[SubagentBuilder.build_builtin_instance]
+    K --> L[resolve_effective_model]
+    L --> M[clone_llm_with_model_alias]
+    M --> N[Runtime.copy_for_subagent]
+    N --> O[load_agent YAML + system_prompt + tools]
+    
+    O --> P[prepare_soul]
+    P --> Q[Context.restore 恢复历史]
+    P --> R[写入 prompt 快照]
+    P --> S[创建 KimiSoul]
+    
+    S --> T[run_with_summary_continuation]
+    T --> U[soul.run 进入主循环]
+    U --> V[提取 final_response 作为 summary]
+    V --> W[返回 ToolOk]
+    
+    F --> X[创建 Background Task]
+    X --> Y[prepare_soul 同上]
+    Y --> Z[异步运行 soul]
+    Z --> AA[完成后 Notification 通知 Root]
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="card p-5">
+                    <h4 class="font-semibold mb-3 flex items-center gap-2">
+                        <span class="text-green-600">●</span> Foreground 模式
+                    </h4>
+                    <ul class="text-sm text-gray-600 space-y-2">
+                        <li>• 阻塞式执行，父 agent 等待结果</li>
+                        <li>• Wire 消息实时透传到父 UI（ApprovalRequest 直接透传）</li>
+                        <li>• 其他事件包装为 <code>SubagentEvent</code> 发送</li>
+                        <li>• 结果以字符串 summary 返回给父 agent</li>
+                        <li>• 支持自动续写（输出太短会自动追加 prompt 重跑）</li>
+                    </ul>
+                </div>
+                <div class="card p-5">
+                    <h4 class="font-semibold mb-3 flex items-center gap-2">
+                        <span class="text-blue-600">●</span> Background 模式
+                    </h4>
+                    <ul class="text-sm text-gray-600 space-y-2">
+                        <li>• 非阻塞，立即返回 task_id 和 agent_id</li>
+                        <li>• Wire 消息仅写入本地文件，不实时转发</li>
+                        <li>• 完成后通过 <code>NotificationManager</code> 通知 root</li>
+                        <li>• 支持通过 <code>TaskOutput</code> / <code>TaskStop</code> 管理</li>
+                        <li>• Approval 状态独立追踪（awaiting_approval）</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <div class="section-divider mb-16"></div>
+
+        <!-- Section 2: Runtime Sharing -->
+        <section class="mb-16">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold">2</div>
+                <h2 class="text-2xl font-bold">Runtime 共享与隔离</h2>
+            </div>
+
+            <p class="text-gray-700 mb-6 leading-relaxed">
+                <code>Runtime.copy_for_subagent()</code> 是 subagent 启动的核心。它决定哪些组件共享、哪些隔离。
+                共享的组件通过同一个 Python 对象引用实现，隔离的组件则是全新实例。
+            </p>
+
+            <div class="card p-6 mb-6">
+                <h3 class="font-semibold mb-4 text-lg">Runtime 组件关系图</h3>
+                <div class="mermaid">
+flowchart TB
+    subgraph Session["Session 级共享组件"]
+        direction TB
+        S1[SubagentStore]
+        S2[ApprovalRuntime]
+        S3[RootWireHub]
+    end
+
+    subgraph Root["Root Agent"]
+        direction TB
+        R1[KimiSoul]
+        R2[Context]
+        R3[DenwaRenji]
+        R4[Wire]
+    end
+
+    subgraph Sub1["Foreground Subagent"]
+        direction TB
+        F1[KimiSoul]
+        F2[Context]
+        F3[DenwaRenji]
+        F4[Wire]
+    end
+
+    subgraph Sub2["Background Subagent"]
+        direction TB
+        B1[KimiSoul]
+        B2[Context]
+        B3[DenwaRenji]
+        B4[Wire]
+    end
+
+    X[禁止嵌套]
+
+    S1 -.->|共享引用| R1
+    S1 -.->|共享引用| F1
+    S1 -.->|共享引用| B1
+
+    R1 -.->|不能创建| F1
+    R1 -.->|不能创建| B1
+    F1 -.->|禁止嵌套| X
+    B1 -.->|禁止嵌套| X
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="comparison-table w-full text-sm">
+                    <thead>
+                        <tr>
+                            <th>组件</th>
+                            <th>行为</th>
+                            <th>说明</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>config</code></td>
+                            <td><span class="badge badge-green">共享</span></td>
+                            <td>同一配置对象</td>
+                        </tr>
+                        <tr>
+                            <td><code>session</code></td>
+                            <td><span class="badge badge-green">共享</span></td>
+                            <td>同一会话目录，共享状态文件</td>
+                        </tr>
+                        <tr>
+                            <td><code>subagent_store</code></td>
+                            <td><span class="badge badge-green">共享</span></td>
+                            <td>所有 agent 共用同一个 store</td>
+                        </tr>
+                        <tr>
+                            <td><code>approval_runtime</code></td>
+                            <td><span class="badge badge-green">共享</span></td>
+                            <td>session 级别单例，统一审批</td>
+                        </tr>
+                        <tr>
+                            <td><code>labor_market</code></td>
+                            <td><span class="badge badge-green">共享</span></td>
+                            <td>subagent 类型注册表共享</td>
+                        </tr>
+                        <tr>
+                            <td><code>additional_dirs</code></td>
+                            <td><span class="badge badge-green">共享</span></td>
+                            <td><code>/add-dir</code> 变更对所有 agent 可见</td>
+                        </tr>
+                        <tr>
+                            <td><code>denwa_renji</code></td>
+                            <td><span class="badge badge-red">隔离</span></td>
+                            <td>每个 agent 独立，D-Mail 不能跨 agent</td>
+                        </tr>
+                        <tr>
+                            <td><code>Context</code></td>
+                            <td><span class="badge badge-red">隔离</span></td>
+                            <td>独立的 context.jsonl 文件</td>
+                        </tr>
+                        <tr>
+                            <td><code>Wire</code></td>
+                            <td><span class="badge badge-red">隔离</span></td>
+                            <td>每个 run_soul 创建新的 Wire</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <div class="section-divider mb-16"></div>
+
+        <!-- Section 3: Communication -->
+        <section class="mb-16">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold">3</div>
+                <h2 class="text-2xl font-bold">Subagent 间通信机制</h2>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+                <p class="text-amber-800 font-medium mb-1">⚠️ 核心结论</p>
+                <p class="text-amber-700 text-sm">
+                    Subagent 之间<strong>无法直接通信</strong>。当前架构是严格的层级委托模型：Root Agent 作为唯一中心，
+                    subagent 只能与父 agent 单向交互（prompt 进，summary 出）。
+                </p>
+            </div>
+
+            <div class="card p-6 mb-6">
+                <h3 class="font-semibold mb-4 text-lg">Foreground Subagent 消息流向</h3>
+                <div class="mermaid">
+sequenceDiagram
+    participant Root as Root Agent
+    participant Wire as Subagent Wire
+    participant Parent as Parent Wire
+    participant UI as Root UI
+    
+    Root->>Wire: soul.run(prompt)
+    Wire->>Wire: LLM 调用 + 工具执行
+    
+    loop UI Loop (Foreground)
+        Wire->>Parent: receive()
+        
+        alt ApprovalRequest / ToolCallRequest / QuestionRequest
+            Parent->>UI: 直接透传
+            UI->>Parent: 用户响应
+            Parent->>Wire: 传回 subagent
+        else HookRequest
+            Wire->>Wire: 忽略
+        else 其他事件 (TextPart, ToolResult...)
+            Parent->>Root: 包装为 SubagentEvent
+            Root->>Root: 放入 context 作为 tool result
+        end
+    end
+    
+    Wire->>Root: 返回 final_response (summary)
+                </div>
+            </div>
+
+            <div class="card p-6 mb-6">
+                <h3 class="font-semibold mb-4 text-lg">Background Subagent 消息流向</h3>
+                <div class="mermaid">
+sequenceDiagram
+    participant Root as Root Agent
+    participant BRunner as BackgroundAgentRunner
+    participant Wire as Subagent Wire
+    participant Notify as NotificationManager
+    
+    Root->>BRunner: create_agent_task()
+    Root->>Root: 立即返回 ToolOk (task_id)
+    
+    BRunner->>Wire: soul.run(prompt)
+    Wire->>Wire: 异步执行...
+    
+    loop UI Loop (Background)
+        Wire->>Wire: 仅写入 output 文件
+        Note over Wire: 不实时转发到父 wire
+    end
+    
+    Wire->>BRunner: 执行完成
+    BRunner->>Notify: publish_terminal_notifications()
+    Notify->>Root: NotificationEvent (下次 LLM 调用前检查)
+    Root->>Root: 将通知追加到 context
+                </div>
+            </div>
+
+            <h3 class="font-semibold text-lg mb-4">间接通信方式</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="card p-4">
+                    <h4 class="font-medium mb-2">📁 文件系统</h4>
+                    <p class="text-sm text-gray-600">
+                        通过 <code>WriteFile</code> / <code>ReadFile</code> 读写共享目录（如 session 目录）
+                        实现跨 agent 的数据交换
+                    </p>
+                </div>
+                <div class="card p-4">
+                    <h4 class="font-medium mb-2">🔄 父 Agent 中转</h4>
+                    <p class="text-sm text-gray-600">
+                        Root agent 读取一个 subagent 的返回结果，
+                        再作为 prompt 传给另一个 subagent
+                    </p>
+                </div>
+                <div class="card p-4">
+                    <h4 class="font-medium mb-2">📂 additional_dirs</h4>
+                    <p class="text-sm text-gray-600">
+                        共享同一个 Python list 引用，通过 <code>/add-dir</code> 添加的目录
+                        对所有 agent 立即可见
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <div class="section-divider mb-16"></div>
+
+        <!-- Section 4: Agent Team vs Subagent -->
+        <section class="mb-16">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold">4</div>
+                <h2 class="text-2xl font-bold">Agent Team vs Subagent</h2>
+            </div>
+
+            <p class="text-gray-700 mb-6 leading-relaxed">
+                <strong>Agent Team（智能体团队）</strong> 是一个更高级的多智能体协作概念：多个 agent 以对等（peer-to-peer）或集群方式协作，
+                共享状态、动态分配任务、相互通信。当前 Kimi CLI 的 subagent 模型还远未达到这个层次。
+            </p>
+
+            <div class="card p-6 mb-6">
+                <h3 class="font-semibold mb-4 text-lg">架构对比图</h3>
+                <div class="mermaid">
+flowchart TB
+    subgraph Current["当前 Subagent 模型 — 星型层级"]
+        CR[Root Agent<br/>唯一协调者]
+        CS1[Subagent A<br/>coder]
+        CS2[Subagent B<br/>explore]
+        CS3[Subagent C<br/>plan]
+        
+        CR -->|委托 + 等待 summary| CS1
+        CR -->|委托 + 等待 summary| CS2
+        CR -->|委托 + 等待 summary| CS3
+        
+        CS1 -.->|❌ 不能直接通信| CS2
+        CS2 -.->|❌ 不能直接通信| CS3
+    end
+    
+    subgraph Team["Agent Team 模型 — 网状协作"]
+        TL[Team Leader<br/>协调者]
+        TM1[Teammate A<br/>开发者]
+        TM2[Teammate B<br/>审阅者]
+        TM3[Teammate C<br/>测试员]
+        TB[Team Bus<br/>共享消息总线]
+        TS[TeamStore<br/>共享状态]
+        
+        TL <-->|任务分配| TM1
+        TL <-->|任务分配| TM2
+        TL <-->|任务分配| TM3
+        
+        TM1 <-->|直接通信| TM2
+        TM2 <-->|直接通信| TM3
+        TM3 <-->|直接通信| TM1
+        
+        TM1 -->|publish| TB
+        TM2 -->|publish| TB
+        TM3 -->|publish| TB
+        TB -->|subscribe| TM1
+        TB -->|subscribe| TM2
+        TB -->|subscribe| TM3
+        
+        TM1 -->|读写| TS
+        TM2 -->|读写| TS
+        TM3 -->|读写| TS
+    end
+    
+    Current -.->|演进方向| Team
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="comparison-table w-full text-sm">
+                    <thead>
+                        <tr>
+                            <th class="w-1/4">维度</th>
+                            <th class="w-3/8">当前 Subagent 模型</th>
+                            <th class="w-3/8">Agent Team 模型</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>拓扑结构</strong></td>
+                            <td>星型层级：Root 为中心，Subagent 为叶子</td>
+                            <td>网状或集群：Agent 之间可点对点通信</td>
+                        </tr>
+                        <tr>
+                            <td><strong>通信方式</strong></td>
+                            <td>Parent → Subagent 单向 prompt；Subagent → Parent 单向 summary</td>
+                            <td>Team 成员间多播/广播/私信；共享频道</td>
+                        </tr>
+                        <tr>
+                            <td><strong>协调机制</strong></td>
+                            <td>无，依赖 root agent 手动编排</td>
+                            <td>有 Coordinator / Leader 角色；任务分解与合并</td>
+                        </tr>
+                        <tr>
+                            <td><strong>状态共享</strong></td>
+                            <td>无共享状态，各自独立的 context</td>
+                            <td>共享工作区、共享记忆、共享 todo 列表</td>
+                        </tr>
+                        <tr>
+                            <td><strong>嵌套能力</strong></td>
+                            <td>Subagent 禁止创建 subagent</td>
+                            <td>Team member 可以递归创建子团队</td>
+                        </tr>
+                        <tr>
+                            <td><strong>动态角色</strong></td>
+                            <td>静态 YAML 定义（coder/explore/plan）</td>
+                            <td>动态招募、角色协商、自适应分工</td>
+                        </tr>
+                        <tr>
+                            <td><strong>审批模型</strong></td>
+                            <td>全部汇聚到 root UI</td>
+                            <td>可能按角色分配审批权限（如 reviewer 批准代码）</td>
+                        </tr>
+                        <tr>
+                            <td><strong>并行结果合并</strong></td>
+                            <td>Root agent 自己读多个输出后手动合并</td>
+                            <td>自动聚合、投票、共识机制</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <div class="section-divider mb-16"></div>
+
+        <!-- Section 5: Evolution -->
+        <section class="mb-16">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold">5</div>
+                <h2 class="text-2xl font-bold">架构演进历史</h2>
+            </div>
+
+            <div class="card p-6">
+                <div class="mermaid">
+timeline
+    title Kimi CLI 多代理机制演进
+    
+    section 早期 ~v0.30
+        Task 工具 + CreateSubagent 工具 : 动态创建 subagent
+                                      : 共享 parent toolset
+                                      : 单次调用无持久化
+                                      
+    section v1.25.0 重构
+        移除 multiagent 模块 : 引入现在的 Agent 工具
+        强调持久化实例 : agent_id + resume 机制
+        强调隔离上下文 : 独立 Context + SubagentStore
+        统一前后台执行 : ForegroundRunner + BackgroundRunner
+        
+    section 当前状态
+        稳定的委托-执行-返回模型 : 3 种内置类型 coder/explore/plan
+                               : 支持并发启动
+                               : 未向团队协作方向演进
+                               </div>
+            </div>
+        </section>
+
+        <div class="section-divider mb-16"></div>
+
+        <!-- Section 6: Future -->
+        <section class="mb-16">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold">6</div>
+                <h2 class="text-2xl font-bold">如果要构建 Agent Team</h2>
+            </div>
+
+            <p class="text-gray-700 mb-6">
+                基于当前代码架构，如果要演进到 Agent Team，需要新增以下核心组件：
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="card p-5">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="icon-box bg-purple-100 text-purple-600">📡</div>
+                        <h4 class="font-semibold">Team Bus / Shared Channel</h4>
+                    </div>
+                    <p class="text-sm text-gray-600">
+                        当前 <code>Wire</code> 是点对点的（soul ↔ UI）。Team 模型需要 publish-subscribe 机制，
+                        新增 <code>TeamMessage</code> Wire 事件类型，让 teammates 订阅共享频道。
+                    </p>
+                </div>
+                <div class="card p-5">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="icon-box bg-indigo-100 text-indigo-600">🎯</div>
+                        <h4 class="font-semibold">TeamCoordinator</h4>
+                    </div>
+                    <p class="text-sm text-gray-600">
+                        扩展当前的 <code>LaborMarket</code>（静态类型注册表）为动态 team 管理器，维护 <code>team_members</code>，
+                        负责任务分解、结果聚合、冲突仲裁。
+                    </p>
+                </div>
+                <div class="card p-5">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="icon-box bg-rose-100 text-rose-600">🗃️</div>
+                        <h4 class="font-semibold">TeamStore</h4>
+                    </div>
+                    <p class="text-sm text-gray-600">
+                        当前 <code>SubagentStore</code> 是每个 agent 独立的。Team 模型需要共享状态层：
+                        共享上下文片段（全局 todo、共享知识库）、文件锁或变更日志。
+                    </p>
+                </div>
+                <div class="card p-5">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="icon-box bg-teal-100 text-teal-600">👥</div>
+                        <h4 class="font-semibold">动态角色招募</h4>
+                    </div>
+                    <p class="text-sm text-gray-600">
+                        恢复旧版 <code>CreateSubagent</code> 能力并扩展为 <code>JoinTeam</code> / <code>RecruitAgent</code>，
+                        允许运行时根据任务需求动态组建团队。
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <div class="section-divider mb-16"></div>
+
+        <!-- Summary -->
+        <section class="mb-16">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold">7</div>
+                <h2 class="text-2xl font-bold">总结</h2>
+            </div>
+
+            <div class="card p-6">
+                <p class="text-gray-700 leading-relaxed mb-4">
+                    Kimi CLI 当前的 subagent 架构是一个<strong>设计良好的"主从委托"系统</strong>，适合将独立子任务交给专门化的代理执行，
+                    但它<strong>不是</strong>一个多智能体团队（Agent Team）系统：
+                </p>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                        <h4 class="font-semibold text-green-800 mb-2">✅ 当前支持</h4>
+                        <ul class="text-sm text-green-700 space-y-1">
+                            <li>• 并发启动多个 subagent</li>
+                            <li>• 前后台执行、持久化、恢复</li>
+                            <li>• 审批透传和 Wire 事件代理</li>
+                            <li>• 独立的上下文隔离</li>
+                        </ul>
+                    </div>
+                    <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                        <h4 class="font-semibold text-red-800 mb-2">❌ 当前不支持</h4>
+                        <ul class="text-sm text-red-700 space-y-1">
+                            <li>• Subagent 间直接通信</li>
+                            <li>• 动态角色创建</li>
+                            <li>• 共享状态或协调原语</li>
+                            <li>• 嵌套委托</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <p class="text-gray-700 leading-relaxed">
+                    如果要演进为 Agent Team，最大的架构缺口是：<strong>peer-to-peer 通信机制</strong>、<strong>共享状态层</strong>、
+                    <strong>动态团队编排器</strong>。这些在当前的 <code>LaborMarket</code>、<code>SubagentStore</code> 和 <code>Wire</code> 协议中都没有设计痕迹。
+                </p>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="text-center text-sm text-gray-500 pt-8 border-t border-gray-200">
+            <p>基于 Kimi CLI 源代码分析生成 · 使用 Mermaid.js 绘制图表</p>
+        </footer>
+    </div>
+
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'default',
+            flowchart: {
+                useMaxWidth: true,
+                htmlLabels: true,
+                curve: 'basis'
+            },
+            sequenceDiagram: {
+                useMaxWidth: true
+            },
+            timeline: {
+                useMaxWidth: true
+            }
+        });
+    </script>
+</body>
+</html>
