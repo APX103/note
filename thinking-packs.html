@@ -1,0 +1,1238 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Agent 思维包：实践闭环与五个核心模块</title>
+  <style>
+    :root {
+      --ink: #1f2933;
+      --muted: #5f6c7b;
+      --soft: #f4f7f9;
+      --line: #d8e0e7;
+      --paper: #ffffff;
+      --green: #2f9e75;
+      --green-soft: #dff5ec;
+      --blue: #2f80ed;
+      --blue-soft: #e3f0ff;
+      --red: #d95d5d;
+      --red-soft: #ffe9e9;
+      --amber: #c9851f;
+      --amber-soft: #fff1d7;
+      --violet: #7557d6;
+      --violet-soft: #eee9ff;
+      --shadow: 0 18px 45px rgba(31, 41, 51, 0.12);
+      --radius: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: #f7fafc;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+        "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      line-height: 1.65;
+    }
+
+    button, input, textarea {
+      font: inherit;
+    }
+
+    .hero {
+      min-height: 78vh;
+      display: grid;
+      align-items: center;
+      padding: 56px 6vw 42px;
+      color: white;
+      background:
+        linear-gradient(125deg, rgba(11, 31, 45, 0.92), rgba(31, 71, 76, 0.72)),
+        url("data:image/svg+xml,%3Csvg width='1600' height='900' viewBox='0 0 1600 900' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='1600' height='900' fill='%2323333a'/%3E%3Cg opacity='0.38'%3E%3Cpath d='M0 670 C250 590 280 460 535 500 C790 540 840 250 1085 300 C1330 350 1350 170 1600 220 L1600 900 L0 900 Z' fill='%234ba388'/%3E%3Cpath d='M0 760 C240 660 420 700 650 610 C880 520 930 620 1160 520 C1390 420 1460 500 1600 430 L1600 900 L0 900 Z' fill='%232f80ed'/%3E%3Cpath d='M0 835 C250 770 455 840 700 760 C945 680 1020 740 1225 690 C1430 640 1500 700 1600 650 L1600 900 L0 900 Z' fill='%23f2c36b'/%3E%3C/g%3E%3Cg stroke='%23ffffff' stroke-width='2' opacity='0.22' fill='none'%3E%3Cpath d='M180 210 H470 M330 210 V380 M330 380 H620 M620 380 V190 M620 190 H960 M960 190 V450 M960 450 H1270'/%3E%3Ccircle cx='180' cy='210' r='8' fill='%23fff'/%3E%3Ccircle cx='330' cy='380' r='8' fill='%23fff'/%3E%3Ccircle cx='620' cy='190' r='8' fill='%23fff'/%3E%3Ccircle cx='960' cy='450' r='8' fill='%23fff'/%3E%3Ccircle cx='1270' cy='450' r='8' fill='%23fff'/%3E%3C/g%3E%3C/svg%3E");
+      background-size: cover;
+      background-position: center;
+    }
+
+    .hero-inner {
+      max-width: 980px;
+    }
+
+    .kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 18px;
+      padding: 7px 10px;
+      border: 1px solid rgba(255, 255, 255, 0.28);
+      border-radius: 999px;
+      color: rgba(255, 255, 255, 0.88);
+      background: rgba(255, 255, 255, 0.08);
+      font-size: 14px;
+    }
+
+    .kicker::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #70d6ad;
+      box-shadow: 0 0 0 5px rgba(112, 214, 173, 0.15);
+    }
+
+    h1 {
+      max-width: 880px;
+      margin: 0;
+      font-size: clamp(40px, 7vw, 82px);
+      line-height: 1.04;
+      letter-spacing: 0;
+    }
+
+    .hero p {
+      max-width: 760px;
+      margin: 24px 0 0;
+      color: rgba(255, 255, 255, 0.84);
+      font-size: 19px;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 34px;
+    }
+
+    .hero-actions a {
+      display: inline-flex;
+      align-items: center;
+      min-height: 44px;
+      padding: 10px 16px;
+      border-radius: var(--radius);
+      color: white;
+      text-decoration: none;
+      background: rgba(255, 255, 255, 0.14);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+    }
+
+    .hero-actions a:first-child {
+      color: #11252b;
+      background: #ffffff;
+      border-color: #ffffff;
+    }
+
+    main {
+      padding: 0 0 72px;
+    }
+
+    .section {
+      padding: 64px 6vw;
+    }
+
+    .section:nth-child(even) {
+      background: white;
+    }
+
+    .wrap {
+      max-width: 1180px;
+      margin: 0 auto;
+    }
+
+    .section-header {
+      display: grid;
+      grid-template-columns: minmax(0, 0.78fr) minmax(280px, 0.42fr);
+      gap: 36px;
+      align-items: end;
+      margin-bottom: 32px;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: clamp(28px, 4vw, 46px);
+      line-height: 1.12;
+      letter-spacing: 0;
+    }
+
+    .section-header p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 16px;
+    }
+
+    .diagram {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(120px, 1fr));
+      gap: 14px;
+      align-items: stretch;
+      margin-top: 26px;
+    }
+
+    .node {
+      position: relative;
+      min-height: 140px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--paper);
+      box-shadow: 0 8px 24px rgba(31, 41, 51, 0.06);
+    }
+
+    .node::after {
+      content: "→";
+      position: absolute;
+      right: -15px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #718096;
+      font-weight: 700;
+      z-index: 1;
+    }
+
+    .node:last-child::after {
+      content: "";
+    }
+
+    .node strong {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 18px;
+    }
+
+    .node span {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .node.action { border-top: 5px solid var(--blue); }
+    .node.judge { border-top: 5px solid var(--amber); }
+    .node.success { border-top: 5px solid var(--green); }
+    .node.fail { border-top: 5px solid var(--red); }
+    .node.think { border-top: 5px solid var(--violet); }
+
+    .split {
+      display: grid;
+      grid-template-columns: minmax(0, 0.92fr) minmax(300px, 0.58fr);
+      gap: 28px;
+      align-items: start;
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--paper);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .panel-header {
+      padding: 20px 22px;
+      border-bottom: 1px solid var(--line);
+      background: #fbfdfe;
+    }
+
+    .panel-header h3 {
+      margin: 0;
+      font-size: 21px;
+      letter-spacing: 0;
+    }
+
+    .panel-body {
+      padding: 22px;
+    }
+
+    .formula {
+      display: grid;
+      gap: 12px;
+    }
+
+    .formula-row {
+      display: grid;
+      grid-template-columns: 120px minmax(0, 1fr);
+      gap: 14px;
+      padding: 13px 0;
+      border-bottom: 1px dashed var(--line);
+    }
+
+    .formula-row:last-child {
+      border-bottom: 0;
+    }
+
+    .label {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .value {
+      font-weight: 650;
+    }
+
+    .stack {
+      display: grid;
+      gap: 16px;
+    }
+
+    .mini-card {
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: white;
+    }
+
+    .mini-card h4 {
+      margin: 0 0 8px;
+      font-size: 17px;
+    }
+
+    .mini-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .library {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .tool-card {
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: white;
+      min-height: 184px;
+    }
+
+    .tool-card h3 {
+      margin: 0 0 8px;
+      font-size: 19px;
+    }
+
+    .tool-card p {
+      margin: 0 0 12px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      color: #334155;
+      background: #eef2f6;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .packs {
+      display: grid;
+      gap: 26px;
+    }
+
+    .pack {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: white;
+      box-shadow: 0 14px 34px rgba(31, 41, 51, 0.08);
+      overflow: hidden;
+    }
+
+    .pack-top {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 18px;
+      align-items: center;
+      padding: 24px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .pack-title {
+      display: flex;
+      gap: 14px;
+      align-items: center;
+    }
+
+    .pack-number {
+      display: inline-grid;
+      place-items: center;
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      color: white;
+      background: var(--ink);
+      font-weight: 800;
+    }
+
+    .pack h3 {
+      margin: 0;
+      font-size: 25px;
+      letter-spacing: 0;
+    }
+
+    .pack-subtitle {
+      margin: 4px 0 0;
+      color: var(--muted);
+    }
+
+    .badge {
+      padding: 7px 10px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .badge.green { color: #166044; background: var(--green-soft); }
+    .badge.blue { color: #185abc; background: var(--blue-soft); }
+    .badge.red { color: #9b2c2c; background: var(--red-soft); }
+    .badge.amber { color: #7a4a00; background: var(--amber-soft); }
+    .badge.violet { color: #4b35a4; background: var(--violet-soft); }
+
+    .pack-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 0.92fr) minmax(310px, 0.58fr);
+      gap: 0;
+    }
+
+    .pack-detail {
+      padding: 24px;
+      border-right: 1px solid var(--line);
+    }
+
+    .pack-copy {
+      padding: 24px;
+      background: #fbfdfe;
+    }
+
+    .spec-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .spec {
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+
+    .spec b {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 14px;
+    }
+
+    .spec span {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .steps {
+      counter-reset: step;
+      display: grid;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .steps li {
+      counter-increment: step;
+      position: relative;
+      padding: 12px 12px 12px 48px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: white;
+    }
+
+    .steps li::before {
+      content: counter(step);
+      position: absolute;
+      left: 14px;
+      top: 13px;
+      display: grid;
+      place-items: center;
+      width: 23px;
+      height: 23px;
+      border-radius: 50%;
+      color: white;
+      background: var(--ink);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .copy-box {
+      position: relative;
+      display: grid;
+      gap: 12px;
+    }
+
+    .copy-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .copy-title b {
+      font-size: 15px;
+    }
+
+    .copy-btn {
+      min-height: 34px;
+      padding: 6px 10px;
+      border: 1px solid #c9d4df;
+      border-radius: var(--radius);
+      color: #263645;
+      background: white;
+      cursor: pointer;
+    }
+
+    .copy-btn:hover {
+      background: #f0f5f8;
+    }
+
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: #203040;
+      background: #eef4f7;
+      border: 1px solid #d6e2ea;
+      border-radius: var(--radius);
+      padding: 14px;
+      font-size: 13px;
+      line-height: 1.58;
+      overflow: auto;
+    }
+
+    .route {
+      display: grid;
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .route-row {
+      display: grid;
+      grid-template-columns: 132px minmax(0, 1fr);
+      gap: 12px;
+      align-items: start;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: white;
+    }
+
+    .route-row strong {
+      color: #243447;
+    }
+
+    .route-row span {
+      color: var(--muted);
+    }
+
+    .matrix {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+
+    .path {
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: white;
+    }
+
+    .path h3 {
+      margin: 0 0 12px;
+      font-size: 21px;
+    }
+
+    .path ol {
+      margin: 0;
+      padding-left: 22px;
+    }
+
+    .path li {
+      margin: 8px 0;
+    }
+
+    .footer-note {
+      padding: 28px 6vw 54px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    @media (max-width: 980px) {
+      .section-header,
+      .split,
+      .pack-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .diagram,
+      .library {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .pack-detail {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .matrix {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .hero {
+        min-height: 72vh;
+        padding: 42px 20px 34px;
+      }
+
+      .section {
+        padding: 48px 20px;
+      }
+
+      .diagram,
+      .library,
+      .spec-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .node::after {
+        content: "↓";
+        right: 18px;
+        top: auto;
+        bottom: -24px;
+        transform: none;
+      }
+
+      .pack-top {
+        grid-template-columns: 1fr;
+      }
+
+      .formula-row,
+      .route-row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <div class="hero-inner">
+      <div class="kicker">Agent Thinking Pack System</div>
+      <h1>把思想家的工具，做成可堆叠的实践闭环</h1>
+      <p>
+        这是一套给 agent 使用的“思维包”设计：每次行动之后，不急着下结论，而是先判断结果真假、分析成败原因、抽象可复用经验，再把下一轮行动接上。
+      </p>
+      <nav class="hero-actions" aria-label="页面导航">
+        <a href="#core">查看五个核心包</a>
+        <a href="#map">总控流程</a>
+        <a href="#template">复制通用模板</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="section" id="map">
+      <div class="wrap">
+        <div class="section-header">
+          <div>
+            <h2>总控思维链</h2>
+          </div>
+          <p>
+            你的原始结构可以被表达成一个实践闭环：行动产生结果，结果先被检验，再进入成因分析、路径选择和下一轮实验。
+          </p>
+        </div>
+
+        <div class="diagram" aria-label="实践闭环流程图">
+          <div class="node action">
+            <strong>1. 行动 / 实验</strong>
+            <span>带着假设进入现实，记录目标、变量、过程和观察。</span>
+          </div>
+          <div class="node judge">
+            <strong>2. 结果判定</strong>
+            <span>不要只问“成没成”，先问“成功标准是什么”。</span>
+          </div>
+          <div class="node success">
+            <strong>3A. 如果成了</strong>
+            <span>检验真成、总结成因、验证可复制性。</span>
+          </div>
+          <div class="node fail">
+            <strong>3B. 如果没成</strong>
+            <span>检验真没成、定位根因、找到主要矛盾。</span>
+          </div>
+          <div class="node think">
+            <strong>4. 抽象思维包</strong>
+            <span>把一次经验变成下次可调用的模块。</span>
+          </div>
+          <div class="node action">
+            <strong>5. 下一轮实验</strong>
+            <span>设计更小、更准、更可验证的行动。</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="template">
+      <div class="wrap">
+        <div class="section-header">
+          <div>
+            <h2>思维包标准格式</h2>
+          </div>
+          <p>
+            每个思维包都应该像一个函数：有触发条件、输入、处理过程、输出，以及能连接到下一个包的接口。
+          </p>
+        </div>
+
+        <div class="split">
+          <div class="panel">
+            <div class="panel-header">
+              <h3>模块接口设计</h3>
+            </div>
+            <div class="panel-body">
+              <div class="formula">
+                <div class="formula-row">
+                  <div class="label">触发条件</div>
+                  <div class="value">什么时候调用这个思维包</div>
+                </div>
+                <div class="formula-row">
+                  <div class="label">输入材料</div>
+                  <div class="value">目标、证据、过程、约束、已有判断</div>
+                </div>
+                <div class="formula-row">
+                  <div class="label">核心问题</div>
+                  <div class="value">这个包必须回答的一组关键问题</div>
+                </div>
+                <div class="formula-row">
+                  <div class="label">操作步骤</div>
+                  <div class="value">可执行的推理动作，而不是口号</div>
+                </div>
+                <div class="formula-row">
+                  <div class="label">输出物</div>
+                  <div class="value">结论、证据等级、风险、下一步动作</div>
+                </div>
+                <div class="formula-row">
+                  <div class="label">下游接口</div>
+                  <div class="value">下一步应该接哪个思维包</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <h3>可复制通用模板</h3>
+            </div>
+            <div class="panel-body">
+              <div class="copy-box">
+                <div class="copy-title">
+                  <b>思维包模板</b>
+                  <button class="copy-btn" data-copy="template-general">复制</button>
+                </div>
+                <pre id="template-general">【思维包名称】
+触发条件：
+- 在什么场景下调用这个包？
+
+输入材料：
+- 目标：
+- 假设：
+- 行动/实验：
+- 观察到的结果：
+- 证据：
+- 约束：
+
+核心问题：
+1. 这个包要判断什么？
+2. 最容易误判的地方是什么？
+3. 怎样把判断落到证据和行动上？
+
+操作步骤：
+1. 明确评价标准。
+2. 检查证据质量。
+3. 区分事实、解释、情绪、愿望。
+4. 给出结论等级：成立 / 不成立 / 不确定。
+5. 生成下一步行动。
+
+输出物：
+- 结论：
+- 证据等级：
+- 关键原因：
+- 主要风险：
+- 下一步：
+
+下游接口：
+- 如果成立，接：
+- 如果不成立，接：
+- 如果不确定，接：</pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="wrap">
+        <div class="section-header">
+          <div>
+            <h2>可借用的现成思想工具</h2>
+          </div>
+          <p>
+            这些不是要被照搬成信条，而是拆成 agent 可调用的“操作件”：判断、归因、抽象、决策、验证。
+          </p>
+        </div>
+
+        <div class="library">
+          <article class="tool-card">
+            <h3>实践论式闭环</h3>
+            <p>从实践到认识，再从认识回到实践。适合防止 agent 停在语言自洽里。</p>
+            <div class="tags"><span class="tag">实践</span><span class="tag">认识</span><span class="tag">再实践</span></div>
+          </article>
+          <article class="tool-card">
+            <h3>矛盾论式定位</h3>
+            <p>从多个问题里找主要矛盾，再看矛盾的主要方面。适合复杂系统的突破口选择。</p>
+            <div class="tags"><span class="tag">主要矛盾</span><span class="tag">条件转化</span><span class="tag">阶段性</span></div>
+          </article>
+          <article class="tool-card">
+            <h3>科学方法</h3>
+            <p>把想法变成可检验假设，用实验和证据校正判断。</p>
+            <div class="tags"><span class="tag">假设</span><span class="tag">实验</span><span class="tag">证据</span></div>
+          </article>
+          <article class="tool-card">
+            <h3>Popper 证伪</h3>
+            <p>主动问“什么情况能证明我错”，给判断设置退出条件。</p>
+            <div class="tags"><span class="tag">可证伪</span><span class="tag">反例</span><span class="tag">边界</span></div>
+          </article>
+          <article class="tool-card">
+            <h3>Lean Startup</h3>
+            <p>构建、测量、学习，用最小实验获取最大信息。</p>
+            <div class="tags"><span class="tag">MVP</span><span class="tag">指标</span><span class="tag">迭代</span></div>
+          </article>
+          <article class="tool-card">
+            <h3>Toyota A3 / 5 Whys</h3>
+            <p>把问题、现状、根因、对策和验证放在一张纸上，避免泛泛反思。</p>
+            <div class="tags"><span class="tag">根因</span><span class="tag">现状</span><span class="tag">对策</span></div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="core">
+      <div class="wrap">
+        <div class="section-header">
+          <div>
+            <h2>五个核心思维包的详细设计</h2>
+          </div>
+          <p>
+            这五个包可以拼出最小可用系统：先判断真假，再归因，再找突破口，最后生成下一轮实验。
+          </p>
+        </div>
+
+        <div class="packs">
+          <article class="pack">
+            <div class="pack-top">
+              <div class="pack-title">
+                <span class="pack-number">1</span>
+                <div>
+                  <h3>真成了吗包</h3>
+                  <p class="pack-subtitle">防止把偶然、噪声、局部改善误认为真正成功。</p>
+                </div>
+              </div>
+              <span class="badge green">成功校验</span>
+            </div>
+            <div class="pack-grid">
+              <div class="pack-detail">
+                <div class="spec-grid">
+                  <div class="spec"><b>触发</b><span>实验或行动看起来成功了。</span></div>
+                  <div class="spec"><b>输入</b><span>目标、预设成功标准、结果数据、对照信息、上下文。</span></div>
+                  <div class="spec"><b>输出</b><span>真成功 / 假成功 / 不确定，附证据等级和复验建议。</span></div>
+                  <div class="spec"><b>下游</b><span>真成功接“下一轮实验包”；不确定接“复现实验”；假成功接“根因分析包”。</span></div>
+                </div>
+                <ol class="steps">
+                  <li>还原实验前的成功标准，检查是否事后改口径。</li>
+                  <li>把结果拆成事实、解释和期望，先只保留事实。</li>
+                  <li>检查样本量、对照组、时间窗口、幸存者偏差和选择性观察。</li>
+                  <li>寻找至少一个能推翻成功判断的反证。</li>
+                  <li>给出证据等级：强、中、弱，并说明为什么。</li>
+                  <li>决定是否可以放大，或必须先复现。</li>
+                </ol>
+              </div>
+              <div class="pack-copy">
+                <div class="copy-box">
+                  <div class="copy-title">
+                    <b>可复制 prompt</b>
+                    <button class="copy-btn" data-copy="pack-success">复制</button>
+                  </div>
+                  <pre id="pack-success">请调用【真成了吗包】。
+
+背景：
+- 原目标：
+- 原假设：
+- 行动/实验：
+- 观察到的成功结果：
+- 成功标准：
+- 可用证据：
+
+请按以下步骤分析：
+1. 判断这个结果是否满足实验前的成功标准。
+2. 区分事实、解释、愿望和噪声。
+3. 检查是否存在偶然性、样本偏差、选择性观察、短期收益掩盖长期问题。
+4. 找出最强反证：什么证据会说明这其实没有成功？
+5. 给出结论：真成功 / 假成功 / 不确定。
+6. 给出证据等级：强 / 中 / 弱。
+7. 如果真成功，提出如何复现、放大或迁移。
+8. 如果不确定，提出最小补充实验。</pre>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="pack">
+            <div class="pack-top">
+              <div class="pack-title">
+                <span class="pack-number">2</span>
+                <div>
+                  <h3>真没成吗包</h3>
+                  <p class="pack-subtitle">防止把错误指标、过早判断、局部失败误认为整体失败。</p>
+                </div>
+              </div>
+              <span class="badge red">失败校验</span>
+            </div>
+            <div class="pack-grid">
+              <div class="pack-detail">
+                <div class="spec-grid">
+                  <div class="spec"><b>触发</b><span>实验或行动看起来失败了。</span></div>
+                  <div class="spec"><b>输入</b><span>目标、失败表现、时间窗口、指标、异常观察、外部条件。</span></div>
+                  <div class="spec"><b>输出</b><span>真失败 / 假失败 / 尚未到判断时点，并给出保留价值。</span></div>
+                  <div class="spec"><b>下游</b><span>真失败接“根因分析包”；假失败接“下一轮实验包”；不确定接“证据补全”。</span></div>
+                </div>
+                <ol class="steps">
+                  <li>确认失败标准是否清楚，是否与原目标一致。</li>
+                  <li>检查判断是否过早：时间窗口够不够，滞后效应有没有出现。</li>
+                  <li>寻找局部成功：哪一部分有效，哪一类人或场景有效。</li>
+                  <li>检查指标是否选错：是否测了容易测的，而不是真正重要的。</li>
+                  <li>区分执行失败、假设失败、环境失败和测量失败。</li>
+                  <li>决定是停止、保留局部、换指标，还是继续补充实验。</li>
+                </ol>
+              </div>
+              <div class="pack-copy">
+                <div class="copy-box">
+                  <div class="copy-title">
+                    <b>可复制 prompt</b>
+                    <button class="copy-btn" data-copy="pack-fail">复制</button>
+                  </div>
+                  <pre id="pack-fail">请调用【真没成吗包】。
+
+背景：
+- 原目标：
+- 原假设：
+- 行动/实验：
+- 观察到的失败表现：
+- 失败标准：
+- 时间窗口：
+- 可用证据：
+
+请按以下步骤分析：
+1. 判断失败标准是否清楚，是否与原目标一致。
+2. 检查是否过早下结论，是否存在滞后效果。
+3. 寻找局部成功：有没有某个场景、人群、步骤或指标出现有效信号？
+4. 检查是否测错指标，是否把代理指标当成最终目标。
+5. 区分失败类型：假设失败 / 执行失败 / 测量失败 / 环境失败。
+6. 给出结论：真失败 / 假失败 / 不确定。
+7. 说明仍然值得保留的经验。
+8. 给出下一步：停止、调整、复测或转向。</pre>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="pack">
+            <div class="pack-top">
+              <div class="pack-title">
+                <span class="pack-number">3</span>
+                <div>
+                  <h3>根因分析包</h3>
+                  <p class="pack-subtitle">把“为什么”从情绪化解释，推进到可验证的因果链。</p>
+                </div>
+              </div>
+              <span class="badge amber">归因分析</span>
+            </div>
+            <div class="pack-grid">
+              <div class="pack-detail">
+                <div class="spec-grid">
+                  <div class="spec"><b>触发</b><span>已经确认成功或失败，需要解释原因。</span></div>
+                  <div class="spec"><b>输入</b><span>结果、过程记录、关键变量、对照案例、异常点。</span></div>
+                  <div class="spec"><b>输出</b><span>候选原因排序、证据强弱、待验证根因。</span></div>
+                  <div class="spec"><b>下游</b><span>原因复杂接“主要矛盾包”；原因明确接“下一轮实验包”。</span></div>
+                </div>
+                <ol class="steps">
+                  <li>列出所有候选原因，不急着选一个喜欢的解释。</li>
+                  <li>用 5 Whys 深挖每个候选原因的上游条件。</li>
+                  <li>按“可控性、影响力、证据强度”给原因排序。</li>
+                  <li>寻找反例：相同原因是否也导致过不同结果。</li>
+                  <li>区分根因、近因、背景条件和触发因素。</li>
+                  <li>把最可能根因改写成可验证假设。</li>
+                </ol>
+              </div>
+              <div class="pack-copy">
+                <div class="copy-box">
+                  <div class="copy-title">
+                    <b>可复制 prompt</b>
+                    <button class="copy-btn" data-copy="pack-cause">复制</button>
+                  </div>
+                  <pre id="pack-cause">请调用【根因分析包】。
+
+背景：
+- 要解释的结果：
+- 过程记录：
+- 已知变量：
+- 对照案例：
+- 异常现象：
+
+请按以下步骤分析：
+1. 列出所有可能原因，不少于 5 个。
+2. 对每个原因追问：为什么会这样？继续追问到可行动或可验证的层面。
+3. 区分根因、近因、背景条件、触发因素。
+4. 对每个候选原因打分：
+   - 影响力：高 / 中 / 低
+   - 可控性：高 / 中 / 低
+   - 证据强度：强 / 中 / 弱
+5. 找反例：有没有相同原因但不同结果，或不同原因但相同结果？
+6. 给出最可能的 1-3 个根因。
+7. 把根因改写成下一轮可验证假设。</pre>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="pack">
+            <div class="pack-top">
+              <div class="pack-title">
+                <span class="pack-number">4</span>
+                <div>
+                  <h3>主要矛盾包</h3>
+                  <p class="pack-subtitle">从一堆问题里找当前阶段最值得抓的突破口。</p>
+                </div>
+              </div>
+              <span class="badge violet">突破口选择</span>
+            </div>
+            <div class="pack-grid">
+              <div class="pack-detail">
+                <div class="spec-grid">
+                  <div class="spec"><b>触发</b><span>原因很多、约束很多，不知道先解决哪个。</span></div>
+                  <div class="spec"><b>输入</b><span>目标、约束、候选矛盾、资源、阶段、依赖关系。</span></div>
+                  <div class="spec"><b>输出</b><span>主要矛盾、矛盾主要方面、阶段判断和突破策略。</span></div>
+                  <div class="spec"><b>下游</b><span>接“下一轮实验包”，把突破口变成行动。</span></div>
+                </div>
+                <ol class="steps">
+                  <li>列出所有阻碍目标实现的矛盾：需求、资源、能力、时间、组织、环境。</li>
+                  <li>判断哪个矛盾一旦改变，会带动最多其他问题变化。</li>
+                  <li>判断当前阶段的主要方面：是供给不足、需求不清、能力不够，还是信任不足。</li>
+                  <li>检查矛盾是否会随阶段转化，避免拿旧突破口解决新问题。</li>
+                  <li>选择一个可撬动的关键点，而不是选择最大、最难、最显眼的问题。</li>
+                  <li>把突破策略写成一个具体实验。</li>
+                </ol>
+              </div>
+              <div class="pack-copy">
+                <div class="copy-box">
+                  <div class="copy-title">
+                    <b>可复制 prompt</b>
+                    <button class="copy-btn" data-copy="pack-contradiction">复制</button>
+                  </div>
+                  <pre id="pack-contradiction">请调用【主要矛盾包】。
+
+背景：
+- 当前目标：
+- 当前阶段：
+- 已知问题/矛盾：
+- 可用资源：
+- 关键约束：
+- 时间压力：
+
+请按以下步骤分析：
+1. 列出所有阻碍目标实现的矛盾。
+2. 判断每个矛盾的影响范围：它影响哪些其他问题？
+3. 判断每个矛盾的可撬动性：用较小行动是否能产生明显变化？
+4. 找出当前阶段的主要矛盾。
+5. 找出主要矛盾中的主要方面：哪一边正在主导局面？
+6. 判断这个主要矛盾在什么条件下会转化。
+7. 给出一个突破策略，并把它转化为下一轮小实验。</pre>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="pack">
+            <div class="pack-top">
+              <div class="pack-title">
+                <span class="pack-number">5</span>
+                <div>
+                  <h3>下一轮实验包</h3>
+                  <p class="pack-subtitle">把反思收束成更小、更准、更可验证的行动。</p>
+                </div>
+              </div>
+              <span class="badge blue">行动生成</span>
+            </div>
+            <div class="pack-grid">
+              <div class="pack-detail">
+                <div class="spec-grid">
+                  <div class="spec"><b>触发</b><span>已有判断、根因或突破口，需要继续实践。</span></div>
+                  <div class="spec"><b>输入</b><span>结论、假设、主要矛盾、资源约束、成功/失败标准。</span></div>
+                  <div class="spec"><b>输出</b><span>下一轮实验设计、指标、停止条件、复盘时间。</span></div>
+                  <div class="spec"><b>下游</b><span>执行后回到“真成了吗包”或“真没成吗包”。</span></div>
+                </div>
+                <ol class="steps">
+                  <li>把上一轮结论改写成一个可检验假设。</li>
+                  <li>设计最小行动，只改变一个关键变量。</li>
+                  <li>定义成功标准、失败标准和不确定标准。</li>
+                  <li>提前写下停止条件，防止沉没成本。</li>
+                  <li>设定观察指标：结果指标、过程指标、反作用指标。</li>
+                  <li>安排复盘节点，明确下一次调用哪个思维包。</li>
+                </ol>
+              </div>
+              <div class="pack-copy">
+                <div class="copy-box">
+                  <div class="copy-title">
+                    <b>可复制 prompt</b>
+                    <button class="copy-btn" data-copy="pack-next">复制</button>
+                  </div>
+                  <pre id="pack-next">请调用【下一轮实验包】。
+
+背景：
+- 上一轮结论：
+- 待验证假设：
+- 主要矛盾/根因：
+- 可用资源：
+- 约束条件：
+- 风险：
+
+请设计下一轮实验：
+1. 用一句话写出本轮假设。
+2. 设计最小行动，尽量只改变一个关键变量。
+3. 定义成功标准：什么结果算成？
+4. 定义失败标准：什么结果算没成？
+5. 定义不确定标准：什么情况说明信息不够？
+6. 指定观察指标：
+   - 结果指标：
+   - 过程指标：
+   - 反作用指标：
+7. 写出停止条件和复盘时间。
+8. 指定复盘时优先调用哪个思维包。</pre>
+                </div>
+              </div>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="wrap">
+        <div class="section-header">
+          <div>
+            <h2>两条默认串联路径</h2>
+          </div>
+          <p>
+            Agent 不需要每次都调用全部模块。先根据结果进入成功路径或失败路径，再按证据情况分流。
+          </p>
+        </div>
+
+        <div class="matrix">
+          <div class="path">
+            <h3>看起来成了</h3>
+            <ol>
+              <li>调用【真成了吗包】，判断成功是否可靠。</li>
+              <li>如果证据弱，先做复现实验，不急着放大。</li>
+              <li>如果证据强，调用【根因分析包】，找到可复制成因。</li>
+              <li>如果成因涉及多个系统条件，调用【主要矛盾包】找放大突破口。</li>
+              <li>调用【下一轮实验包】，设计复现、放大或迁移实验。</li>
+            </ol>
+          </div>
+
+          <div class="path">
+            <h3>看起来没成</h3>
+            <ol>
+              <li>调用【真没成吗包】，判断失败是否可靠。</li>
+              <li>如果是假失败，保留有效信号，重设指标或时间窗口。</li>
+              <li>如果是真失败，调用【根因分析包】，区分假设、执行、测量、环境失败。</li>
+              <li>如果原因很多，调用【主要矛盾包】，选择最可撬动的问题。</li>
+              <li>调用【下一轮实验包】，设计更小的修正实验。</li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="route">
+          <div class="route-row">
+            <strong>判断原则</strong>
+            <span>先判定结果，再解释结果。不要在结果真假还没确认时急着讲故事。</span>
+          </div>
+          <div class="route-row">
+            <strong>归因原则</strong>
+            <span>一个原因如果不能生成下一轮可验证行动，就还不是足够好的根因。</span>
+          </div>
+          <div class="route-row">
+            <strong>迭代原则</strong>
+            <span>下一轮实验要比上一轮更小、更清楚、更容易被证伪。</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="footer-note">
+    版本 0.1：一个可扩展的 agent 思维包骨架。后续可以继续加入调查研究包、红队攻击包、二阶后果包、证据强度包、复现实验包。
+  </div>
+
+  <script>
+    const buttons = document.querySelectorAll("[data-copy]");
+
+    function setButtonState(button, text) {
+      const original = button.dataset.originalText || button.textContent;
+      button.dataset.originalText = original;
+      button.textContent = text;
+      window.setTimeout(() => {
+        button.textContent = original;
+      }, 1300);
+    }
+
+    buttons.forEach((button) => {
+      button.addEventListener("click", async () => {
+        const target = document.getElementById(button.dataset.copy);
+        if (!target) return;
+
+        const text = target.innerText;
+        try {
+          await navigator.clipboard.writeText(text);
+          setButtonState(button, "已复制");
+        } catch (error) {
+          const range = document.createRange();
+          range.selectNodeContents(target);
+          const selection = window.getSelection();
+          selection.removeAllRanges();
+          selection.addRange(range);
+          setButtonState(button, "已选中");
+        }
+      });
+    });
+  </script>
+</body>
+</html>
