@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matrix Chat Agent System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .gradient-bg {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #f8fafc 100%);
+        }
+        .glass {
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .code-block {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+        }
+        .highlight-line {
+            background: rgba(14, 165, 233, 0.08);
+            border-left: 3px solid #0ea5e9;
+        }
+    </style>
+</head>
+<body class="gradient-bg text-slate-700 min-h-screen">
+    <!-- Hero -->
+    <header class="relative overflow-hidden py-20 px-6">
+        <div class="max-w-5xl mx-auto text-center">
+            <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full glass text-sm text-sky-600 mb-6">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                基于 Matrix 协议的多 Agent 聊天系统
+            </div>
+            <h1 class="text-5xl md:text-6xl font-bold text-slate-900 mb-6 tracking-tight">
+                Matrix Chat <span class="text-transparent bg-clip-text bg-gradient-to-r from-sky-600 to-indigo-600">Agent System</span>
+            </h1>
+            <p class="text-xl text-slate-500 max-w-2xl mx-auto leading-relaxed">
+                一个极简但完整的多 Agent 协作演示系统。基于 Synapse Homeserver + Element Web，
+                支持人类与 Agent、Agent 与 Agent 在 Matrix 聊天室中实时对话。
+            </p>
+        </div>
+    </header>
+
+    <!-- 系统架构 -->
+    <section class="py-16 px-6">
+        <div class="max-w-5xl mx-auto">
+            <h2 class="text-3xl font-bold text-slate-900 mb-2">系统架构</h2>
+            <p class="text-slate-500 mb-8">整体由四层组成：基础设施层、通信层、Agent 层、模型层</p>
+            
+            <div class="glass rounded-2xl p-8 mb-8">
+                <div class="mermaid">
+flowchart TB
+    subgraph User["👤 用户层"]
+        Alice["Alice<br/>@alice:localhost"]
+        Bob["Bob<br/>@bob:localhost"]
+        Element["Element Web<br/>http://localhost:8080"]
+    end
+
+    subgraph Infra["🔧 基础设施层"]
+        Synapse["Synapse<br/>Matrix Homeserver<br/>localhost:8008"]
+    end
+
+    subgraph Agent["🤖 Agent 层"]
+        Bot1["Bot1<br/>@bot:localhost"]
+        Bot2["Bot2<br/>@bot2:localhost"]
+    end
+
+    subgraph Model["🧠 模型层"]
+        LLM["LLM API<br/>mimo-v2.5-pro"]
+    end
+
+    Alice --> Element
+    Bob --> Element
+    Element <-->|HTTP| Synapse
+    Synapse <-->|Matrix Sync API| Bot1
+    Synapse <-->|Matrix Sync API| Bot2
+    Bot1 -->|OpenAI API| LLM
+    Bot2 -->|OpenAI API| LLM
+                </div>
+            </div>
+
+            <div class="grid md:grid-cols-4 gap-4">
+                <div class="glass rounded-xl p-5">
+                    <div class="text-2xl mb-2">🔧</div>
+                    <h3 class="font-semibold text-slate-900 mb-1">Synapse</h3>
+                    <p class="text-sm text-slate-500">Matrix 官方 Homeserver，负责用户管理、消息路由、房间管理</p>
+                </div>
+                <div class="glass rounded-xl p-5">
+                    <div class="text-2xl mb-2">💬</div>
+                    <h3 class="font-semibold text-slate-900 mb-1">Element Web</h3>
+                    <p class="text-sm text-slate-500">Matrix 官方 Web 客户端，人类通过浏览器与 Agent 交互</p>
+                </div>
+                <div class="glass rounded-xl p-5">
+                    <div class="text-2xl mb-2">🤖</div>
+                    <h3 class="font-semibold text-slate-900 mb-1">Bot (Python)</h3>
+                    <p class="text-sm text-slate-500">基于 matrix-nio 的 Agent，支持自动注册、历史上下文、防循环</p>
+                </div>
+                <div class="glass rounded-xl p-5">
+                    <div class="text-2xl mb-2">🧠</div>
+                    <h3 class="font-semibold text-slate-900 mb-1">LLM API</h3>
+                    <p class="text-sm text-slate-500">兼容 OpenAI API 的大模型接口，负责生成对话回复</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 消息传递链路 -->
+    <section class="py-16 px-6">
+        <div class="max-w-5xl mx-auto">
+            <h2 class="text-3xl font-bold text-slate-900 mb-2">消息传递链路</h2>
+            <p class="text-slate-500 mb-8">一条消息从人类发出到 Bot 回复的完整链路</p>
+            
+            <div class="glass rounded-2xl p-8 mb-8">
+                <div class="mermaid">
+sequenceDiagram
+    participant U as Alice
+    participant E as Element Web
+    participant S as Synapse
+    participant B as Bot
+    participant L as LLM
+
+    U->>E: 输入：@bot 你好
+    E->>S: PUT /send/m.room.message
+    S->>S: 持久化消息
+    S-->>B: /sync 长轮询推送
+    B->>B: is_mention 检测
+    B->>B: 加载房间历史（20条）
+    B->>L: Chat Completion（含上下文）
+    L-->>B: 生成回复
+    B->>B: clean_reply 清洗
+    B->>S: PUT /send/m.room.message
+    S->>S: 持久化消息
+    S-->>E: /sync 推送
+    E-->>U: 显示 Bot 回复
+                </div>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="code-block rounded-xl p-5 overflow-x-auto">
+                    <h4 class="text-sm font-semibold text-sky-600 mb-3">🔍 Mention 检测逻辑</h4>
+                    <pre class="text-xs text-slate-700 leading-relaxed"><code>explicit_mention = (
+    USER_ID in body          # @bot:localhost
+    or f"@{USERNAME}" in body # @bot
+)
+
+fuzzy_match = USERNAME.lower() in body.lower()
+
+# 群聊：只响应明确 @mention
+# 私聊：响应模糊匹配
+is_mention = explicit_mention or (is_dm and fuzzy_match)</code></pre>
+                </div>
+                <div class="code-block rounded-xl p-5 overflow-x-auto">
+                    <h4 class="text-sm font-semibold text-sky-600 mb-3">🔄 防循环机制</h4>
+                    <pre class="text-xs text-slate-700 leading-relaxed"><code># 冷却时间（同一房间10秒内只回复一次）
+if now - last &lt; COOLDOWN_SECONDS:
+    跳过
+
+# Bot 对话深度限制
+bot_chain = 0
+for msg in reversed(history):
+    if is_bot(msg.sender):
+        bot_chain += 1
+    else:
+        break
+
+if bot_chain &gt;= MAX_BOT_CHAIN:  # 默认20
+    跳过</code></pre>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Bot-Bot 对话链路 -->
+    <section class="py-16 px-6">
+        <div class="max-w-5xl mx-auto">
+            <h2 class="text-3xl font-bold text-slate-900 mb-2">Bot-Bot 对话链路</h2>
+            <p class="text-slate-500 mb-8">两个 Agent 在聊天室中互相 @mention 触发对话</p>
+            
+            <div class="glass rounded-2xl p-8 mb-8">
+                <div class="mermaid">
+sequenceDiagram
+    participant U as Alice
+    participant S as Synapse
+    participant B1 as Bot1 (@bot)
+    participant B2 as Bot2 (@bot2)
+    participant L as LLM
+
+    U->>S: @bot 你跟 bot2 聊3轮
+    S-->>B1: 推送消息
+    B1->>L: 生成回复
+    L-->>B1: @bot2:localhost 你好！
+    B1->>S: 发送回复
+    S-->>B2: 推送 @mention
+    B2->>B2: is_mention = True
+    B2->>L: 生成回复（含历史）
+    L-->>B2: @bot:localhost 你好！
+    B2->>S: 发送回复
+    S-->>B1: 推送 @mention
+    B1->>B1: 检查 bot_chain=2
+    B1->>L: 生成第3轮回复
+    L-->>B1: @bot2:localhost 再见～
+    B1->>S: 发送
+    S-->>B2: 推送
+    B2->>B2: bot_chain=3 &gt;= MAX
+    B2->>B2: 静默跳过，对话终止
+                </div>
+            </div>
+
+            <div class="glass rounded-xl p-6">
+                <h4 class="font-semibold text-slate-900 mb-3">上下文传递格式</h4>
+                <p class="text-sm text-slate-500 mb-4">Bot 调用 LLM 时，会把整个房间历史包装成对话格式传入</p>
+                <div class="code-block rounded-lg p-4 overflow-x-auto">
+                    <pre class="text-xs text-slate-700 leading-relaxed"><code>[
+  {role: "system", content: "你是 @bot:localhost..."},
+  {role: "user",     content: "alice: @bot 你好"},
+  {role: "assistant", content: "bot: 你好 Alice！"},
+  {role: "user",     content: "bot2: @bot 你好！很高兴见到你"},
+  {role: "user",     content: "bob: @bot 你跟 bot2 聊3轮"},
+]</code></pre>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 项目结构 -->
+    <section class="py-16 px-6">
+        <div class="max-w-5xl mx-auto">
+            <h2 class="text-3xl font-bold text-slate-900 mb-2">项目结构</h2>
+            <p class="text-slate-500 mb-8">代码组织与关键文件说明</p>
+            
+            <div class="code-block rounded-2xl p-6 mb-6">
+                <pre class="text-sm text-slate-700 leading-relaxed"><code>matrix-chat/
+├── docker-compose.yml          # Synapse + Element Web
+├── synapse-data/               # Homeserver 数据（SQLite）
+├── element-web-config/
+│   └── config.json             # Element 默认指向本地 Synapse
+├── bot/
+│   ├── bot.py                  # Agent 主程序（matrix-nio + OpenAI）
+│   ├── config.yaml             # Bot1 配置（@bot:localhost）
+│   ├── config2.yaml            # Bot2 配置（@bot2:localhost）
+│   ├── requirements.txt        # Python 依赖
+│   ├── run-bot1.sh             # 启动脚本
+│   ├── run-bot2.sh
+│   └── .venv/                  # uv 虚拟环境
+└── index.html                  # 本介绍页面</code></pre>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-4">
+                <div class="glass rounded-xl p-5">
+                    <h4 class="font-semibold text-slate-900 mb-2">bot.py 核心模块</h4>
+                    <ul class="text-sm text-slate-500 space-y-1">
+                        <li>• <code>login_or_register</code> - 自动注册/登录</li>
+                        <li>• <code>load_room_history</code> - 拉取房间历史</li>
+                        <li>• <code>on_message</code> - 消息事件处理</li>
+                        <li>• <code>ask_llm</code> - 调用大模型生成回复</li>
+                        <li>• <code>clean_reply</code> - 清洗 LLM 输出</li>
+                    </ul>
+                </div>
+                <div class="glass rounded-xl p-5">
+                    <h4 class="font-semibold text-slate-900 mb-2">配置文件</h4>
+                    <ul class="text-sm text-slate-500 space-y-1">
+                        <li>• <code>matrix.*</code> - Homeserver / 账号</li>
+                        <li>• <code>llm.*</code> - API 地址 / Key / 模型</li>
+                        <li>• <code>bot.mode</code> - echo / llm</li>
+                        <li>• <code>bot.max_bot_chain</code> - 最大对话轮数</li>
+                        <li>• <code>bot.cooldown_seconds</code> - 冷却时间</li>
+                    </ul>
+                </div>
+                <div class="glass rounded-xl p-5">
+                    <h4 class="font-semibold text-slate-900 mb-2">关键技术选型</h4>
+                    <ul class="text-sm text-slate-500 space-y-1">
+                        <li>• <strong>Synapse</strong> - Matrix 官方 Homeserver</li>
+                        <li>• <strong>matrix-nio</strong> - Python Matrix 客户端</li>
+                        <li>• <strong>openai</strong> - OpenAI API 兼容客户端</li>
+                        <li>• <strong>PyYAML</strong> - 配置文件解析</li>
+                        <li>• <strong>uv</strong> - Python 包管理</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 快速开始 -->
+    <section class="py-16 px-6">
+        <div class="max-w-5xl mx-auto">
+            <h2 class="text-3xl font-bold text-slate-900 mb-2">快速开始</h2>
+            <p class="text-slate-500 mb-8">5 分钟跑起来</p>
+            
+            <div class="space-y-4">
+                <div class="glass rounded-xl p-5">
+                    <div class="flex items-start gap-4">
+                        <div class="w-8 h-8 rounded-lg bg-sky-100 text-sky-700 flex items-center justify-center font-bold text-sm shrink-0">1</div>
+                        <div>
+                            <h4 class="font-semibold text-slate-900 mb-1">启动基础设施</h4>
+                            <pre class="code-block rounded-lg p-3 text-xs text-slate-700 mt-2"><code>cd /Users/apx103/work/matrix-chat
+docker compose up -d</code></pre>
+                        </div>
+                    </div>
+                </div>
+                <div class="glass rounded-xl p-5">
+                    <div class="flex items-start gap-4">
+                        <div class="w-8 h-8 rounded-lg bg-sky-100 text-sky-700 flex items-center justify-center font-bold text-sm shrink-0">2</div>
+                        <div>
+                            <h4 class="font-semibold text-slate-900 mb-1">注册账号</h4>
+                            <p class="text-sm text-slate-500">浏览器访问 <code class="text-sky-600">http://localhost:8080</code>，注册 @alice 和 @bob</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="glass rounded-xl p-5">
+                    <div class="flex items-start gap-4">
+                        <div class="w-8 h-8 rounded-lg bg-sky-100 text-sky-700 flex items-center justify-center font-bold text-sm shrink-0">3</div>
+                        <div>
+                            <h4 class="font-semibold text-slate-900 mb-1">启动 Bot</h4>
+                            <pre class="code-block rounded-lg p-3 text-xs text-slate-700 mt-2"><code>cd bot
+source .venv/bin/activate
+CONFIG=config.yaml python3 -u bot.py &
+CONFIG=config2.yaml python3 -u bot.py &</code></pre>
+                        </div>
+                    </div>
+                </div>
+                <div class="glass rounded-xl p-5">
+                    <div class="flex items-start gap-4">
+                        <div class="w-8 h-8 rounded-lg bg-sky-100 text-sky-700 flex items-center justify-center font-bold text-sm shrink-0">4</div>
+                        <div>
+                            <h4 class="font-semibold text-slate-900 mb-1">开始聊天</h4>
+                            <p class="text-sm text-slate-500">在 Element 里创建房间，邀请两个 bot，然后 <code class="text-sky-600">@bot:localhost 你好</code></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="py-12 px-6 border-t border-slate-200">
+        <div class="max-w-5xl mx-auto text-center text-slate-500 text-sm">
+            <p>Matrix Chat Agent System — 基于 Matrix 协议的多 Agent 协作演示</p>
+            <p class="mt-2">Synapse + Element Web + Python Bot + OpenAI API</p>
+        </div>
+    </footer>
+
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'default',
+            themeVariables: {
+                primaryColor: '#0ea5e9',
+                primaryTextColor: '#0f172a',
+                primaryBorderColor: '#bae6fd',
+                lineColor: '#94a3b8',
+                secondaryColor: '#f1f5f9',
+                tertiaryColor: '#f8fafc',
+                fontFamily: 'Inter, sans-serif'
+            }
+        });
+    </script>
+</body>
+</html>
