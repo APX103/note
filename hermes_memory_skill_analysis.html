@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hermes Agent 记忆系统与 Skill 机制 - 深度技术分析</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+            line-height: 1.7;
+            color: #e2e8f0;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #312e81 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            box-shadow: 0 25px 80px rgba(0,0,0,0.5);
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.06);
+        }
+        .header {
+            background: linear-gradient(135deg, #1e3a8a 0%, #4f46e5 50%, #7c3aed 100%);
+            color: white;
+            padding: 50px 40px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 60%);
+            animation: pulse 6s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.5; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+        .header h1 {
+            font-size: 2.4em;
+            margin-bottom: 12px;
+            position: relative;
+            z-index: 1;
+        }
+        .header .subtitle {
+            font-size: 1.15em;
+            opacity: 0.85;
+            position: relative;
+            z-index: 1;
+        }
+        .nav {
+            background: rgba(30, 41, 59, 0.9);
+            padding: 16px 40px;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+        .nav a {
+            color: #94a3b8;
+            text-decoration: none;
+            padding: 8px 18px;
+            border-radius: 8px;
+            font-size: 0.9em;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+        .nav a:hover {
+            color: #e2e8f0;
+            background: rgba(79, 70, 229, 0.15);
+            border-color: rgba(79, 70, 229, 0.3);
+        }
+        .content { padding: 40px; }
+        .section {
+            margin-bottom: 48px;
+            padding-bottom: 32px;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .section:last-child { border-bottom: none; }
+        h2 {
+            color: #818cf8;
+            font-size: 1.7em;
+            margin-bottom: 24px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid rgba(99, 102, 241, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        h2 .icon { font-size: 0.9em; }
+        h3 {
+            color: #a5b4fc;
+            font-size: 1.25em;
+            margin: 28px 0 16px;
+        }
+        h4 {
+            color: #c7d2fe;
+            font-size: 1.08em;
+            margin: 20px 0 10px;
+        }
+        p { margin-bottom: 14px; color: #cbd5e1; }
+        .highlight-box {
+            background: linear-gradient(135deg, rgba(79, 70, 229, 0.12), rgba(124, 58, 237, 0.08));
+            border-left: 4px solid #6366f1;
+            padding: 20px 24px;
+            border-radius: 0 12px 12px 0;
+            margin: 20px 0;
+            font-size: 0.95em;
+        }
+        .highlight-box strong { color: #e0e7ff; }
+        .architecture-box {
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px solid rgba(99, 102, 241, 0.15);
+            border-radius: 16px;
+            padding: 28px;
+            margin: 24px 0;
+        }
+        .layer-card {
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.6));
+            border: 1px solid rgba(99, 102, 241, 0.12);
+            border-radius: 12px;
+            padding: 24px;
+            margin: 16px 0;
+            transition: all 0.3s ease;
+        }
+        .layer-card:hover {
+            border-color: rgba(99, 102, 241, 0.3);
+            transform: translateX(4px);
+        }
+        .layer-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+        .layer-number {
+            width: 36px; height: 36px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.9em;
+            flex-shrink: 0;
+        }
+        .layer-title { font-size: 1.15em; font-weight: 600; color: #e0e7ff; }
+        .layer-meta {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+        .meta-tag {
+            font-size: 0.78em;
+            padding: 3px 10px;
+            border-radius: 20px;
+            background: rgba(99, 102, 241, 0.1);
+            color: #a5b4fc;
+            border: 1px solid rgba(99, 102, 241, 0.15);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 0.92em;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        th {
+            background: linear-gradient(135deg, rgba(79, 70, 229, 0.2), rgba(124, 58, 237, 0.15));
+            color: #e0e7ff;
+            padding: 14px 16px;
+            text-align: left;
+            font-weight: 600;
+        }
+        td {
+            padding: 12px 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            color: #cbd5e1;
+        }
+        tr:hover td { background: rgba(99, 102, 241, 0.04); }
+        code {
+            background: rgba(30, 41, 59, 0.8);
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-family: "SF Mono", Monaco, "Cascadia Code", monospace;
+            font-size: 0.88em;
+            color: #a5b4fc;
+            border: 1px solid rgba(99, 102, 241, 0.1);
+        }
+        pre {
+            background: #0b1120;
+            padding: 20px;
+            border-radius: 12px;
+            overflow-x: auto;
+            margin: 16px 0;
+            border: 1px solid rgba(255,255,255,0.04);
+            font-size: 0.86em;
+            line-height: 1.6;
+        }
+        pre code {
+            background: transparent;
+            padding: 0;
+            border: none;
+            color: #94a3b8;
+        }
+        .code-comment { color: #64748b; }
+        .code-keyword { color: #c084fc; }
+        .code-string { color: #86efac; }
+        .code-func { color: #60a5fa; }
+        .flow-diagram {
+            background: rgba(15, 23, 42, 0.6);
+            border-radius: 16px;
+            padding: 28px;
+            margin: 24px 0;
+            font-family: "SF Mono", monospace;
+            font-size: 0.85em;
+            line-height: 1.8;
+            color: #94a3b8;
+            overflow-x: auto;
+            border: 1px solid rgba(99, 102, 241, 0.1);
+        }
+        .flow-diagram .box {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 8px;
+            margin: 4px;
+            font-weight: 600;
+        }
+        .flow-box { background: rgba(79, 70, 229, 0.15); border: 1px solid rgba(79, 70, 229, 0.3); color: #c7d2fe; }
+        .flow-data { background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.25); color: #6ee7b7; }
+        .flow-action { background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.25); color: #fcd34d; }
+        ul, ol { margin: 14px 0 14px 24px; color: #cbd5e1; }
+        li { margin-bottom: 8px; }
+        .tag {
+            display: inline-block;
+            font-size: 0.72em;
+            padding: 2px 10px;
+            border-radius: 20px;
+            background: rgba(16, 185, 129, 0.1);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.15);
+            margin-right: 6px;
+        }
+        .tag-warn {
+            background: rgba(245, 158, 11, 0.1);
+            color: #fbbf24;
+            border-color: rgba(245, 158, 11, 0.15);
+        }
+        .footer {
+            background: rgba(15, 23, 42, 0.9);
+            padding: 30px 40px;
+            text-align: center;
+            color: #64748b;
+            font-size: 0.85em;
+            border-top: 1px solid rgba(255,255,255,0.04);
+        }
+        @media (max-width: 768px) {
+            .header h1 { font-size: 1.6em; }
+            .content { padding: 24px; }
+            .nav { padding: 12px 24px; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>🧠 Hermes Agent 记忆系统与 Skill 机制</h1>
+        <div class="subtitle">深度技术分析报告 — 三层记忆架构设计与技能系统全解析</div>
+    </div>
+
+    <div class="nav">
+        <a href="#memory-overview">记忆系统概览</a>
+        <a href="#layer1">Layer 1: 内置策划记忆</a>
+        <a href="#layer2">Layer 2: 会话搜索</a>
+        <a href="#layer3">Layer 3: 外部记忆</a>
+        <a href="#read-write">读写触发机制</a>
+        <a href="#context-embed">上下文嵌入</a>
+        <a href="#skill-system">Skill 机制</a>
+        <a href="#skill-eval">评估与更新</a>
+    </div>
+
+    <div class="content">
+        <!-- 第一部分：记忆系统概览 -->
+        <div class="section" id="memory-overview">
+            <h2><span class="icon">🗂️</span> 记忆系统概览</h2>
+            <p>Hermes Agent 采用<strong>三层分级记忆架构</strong>，灵感来源于计算机体系结构中的缓存分层策略（L1/L2/L3）。每一层在容量、延迟、持久性和访问方式上都有明确的分工，以在有限的 Token 预算下最大化上下文质量。</p>
+
+            <div class="architecture-box">
+                <table>
+                    <tr>
+                        <th>层级</th>
+                        <th>存储介质</th>
+                        <th>容量 / 延迟</th>
+                        <th>核心定位</th>
+                    </tr>
+                    <tr>
+                        <td><strong>Layer 1</strong><br>内置策划记忆</td>
+                        <td><code>~/.hermes/memories/</code><br>MEMORY.md + USER.md</td>
+                        <td>~2,200 + 1,375 chars<br>瞬时（系统提示中）</td>
+                        <td>高频关键事实，始终在线</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Layer 2</strong><br>会话搜索</td>
+                        <td>SQLite <code>state.db</code><br>FTS5 全文索引</td>
+                        <td>无上限（全历史）<br>~20ms 查询</td>
+                        <td>按需召回，对话考古</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Layer 3</strong><br>外部记忆提供者</td>
+                        <td>插件后端<br>Honcho / Mem0 / Hindsight 等</td>
+                        <td>提供者决定<br>每轮预取 + 同步</td>
+                        <td>深度长期记忆，智能抽取</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="highlight-box">
+                <strong>设计哲学：</strong>系统提示（System Prompt）一旦构建，在会话期间保持不变，仅由上下文压缩触发重建。这样做的核心目的是<strong>保护上游 Prefix Cache</strong>——大多数推理后端会对相同前缀进行 KV Cache 复用，重建系统提示意味着丢弃这一优化。因此，Layer 1 采用"冻结快照"模式，写入磁盘但不实时反映到系统提示中。
+            </div>
+        </div>
+
+        <!-- 第二部分：Layer 1 -->
+        <div class="section" id="layer1">
+            <h2><span class="icon">📌</span> Layer 1: 内置策划记忆（Built-in Curated Memory）</h2>
+            
+            <div class="layer-card">
+                <div class="layer-header">
+                    <div class="layer-number">1</div>
+                    <div class="layer-title">Agent 的个人笔记 · MEMORY.md</div>
+                </div>
+                <div class="layer-meta">
+                    <span class="meta-tag">上限 2,200 chars</span>
+                    <span class="meta-tag">~800 tokens</span>
+                    <span class="meta-tag">文件: ~/.hermes/memories/MEMORY.md</span>
+                </div>
+                <p>存储 Agent 对工作环境、项目约定、工具使用经验的总结。例如：</p>
+                <ul>
+                    <li>操作系统和已安装工具的版本信息</li>
+                    <li>项目目录结构和技术栈（如 "Rust web service at ~/code/myapi using Axum + SQLx"）</li>
+                    <li>特定工具的怪癖和 Workaround</li>
+                    <li>从错误中吸取的教训</li>
+                </ul>
+            </div>
+
+            <div class="layer-card">
+                <div class="layer-header">
+                    <div class="layer-number">2</div>
+                    <div class="layer-title">用户画像 · USER.md</div>
+                </div>
+                <div class="layer-meta">
+                    <span class="meta-tag">上限 1,375 chars</span>
+                    <span class="meta-tag">~500 tokens</span>
+                    <span class="meta-tag">文件: ~/.hermes/memories/USER.md</span>
+                </div>
+                <p>存储关于用户的静态偏好信息，帮助 Agent 个性化交互：</p>
+                <ul>
+                    <li>用户的姓名、角色、时区</li>
+                    <li>沟通偏好（简洁 vs 详细，代码优先 vs 概念优先）</li>
+                    <li>需要避免的话题或习惯（Pet Peeves）</li>
+                    <li>常用的工作流和快捷键</li>
+                </ul>
+            </div>
+
+            <h3>冻结快照模式（Frozen Snapshot）</h3>
+            <p>这是 Layer 1 最核心的设计决策。在 <code>tools/memory_tool.py</code> 中，<code>MemoryStore</code> 类维护了一个 <code>_system_prompt_snapshot</code> 字典：</p>
+
+<pre><code><span class="code-keyword">class</span> <span class="code-func">MemoryStore</span>:
+    <span class="code-keyword">def</span> <span class="code-func">__init__</span>(self, memory_char_limit=<span class="code-string">2200</span>, user_char_limit=<span class="code-string">1375</span>):
+        self.memory_entries: List[str] = []
+        self.user_entries: List[str] = []
+        <span class="code-comment"># Frozen snapshot for system prompt — set once at load_from_disk()</span>
+        self._system_prompt_snapshot: Dict[str, str] = {
+            <span class="code-string">"memory"</span>: <span class="code-string">""</span>, <span class="code-string">"user"</span>: <span class="code-string">""</span>
+        }
+
+    <span class="code-keyword">def</span> <span class="code-func">load_from_disk</span>(self):
+        <span class="code-comment"># ... 读取文件 ...</span>
+        self._system_prompt_snapshot = {
+            <span class="code-string">"memory"</span>: self._render_block(<span class="code-string">"memory"</span>, sanitized_memory),
+            <span class="code-string">"user"</span>: self._render_block(<span class="code-string">"user"</span>, sanitized_user),
+        }</code></pre>
+
+            <p><strong>关键行为：</strong></p>
+            <ul>
+                <li>会话启动时：从磁盘加载，捕获快照，注入系统提示</li>
+                <li>工具调用时（add/replace/remove）：<strong>立即写入磁盘</strong>，但<strong>不更新快照</strong></li>
+                <li>上下文压缩后：重建系统提示时，才会重新调用 <code>load_from_disk()</code> 刷新快照</li>
+            </ul>
+
+            <h3>为什么用字符而非 Token 计量？</h3>
+            <div class="highlight-box">
+                字符数（char count）是模型无关的计量方式。不同模型的 Tokenizer 对同一文本的切分结果差异很大（如 GPT-4 与 Claude 的 Token 比例约为 1:0.75）。使用字符作为上限可以保证在任何后端模型下都能保持大致相同的上下文占用，避免换模型后溢出或浪费。
+            </div>
+        </div>
+
+        <!-- 第三部分：Layer 2 -->
+        <div class="section" id="layer2">
+            <h2><span class="icon">🔍</span> Layer 2: 会话搜索（Session Search）</h2>
+            
+            <p>会话搜索基于 SQLite FTS5 全文搜索引擎，存储在 <code>~/.hermes/state.db</code> 中。它的设计哲学与 Layer 1 完全不同：<strong>不做主动注入，只在被问到时响应</strong>。这避免了在每一轮对话中支付 Token 成本。</p>
+
+            <h3>三种调用形态</h3>
+            <table>
+                <tr>
+                    <th>模式</th>
+                    <th>参数</th>
+                    <th>用途</th>
+                </tr>
+                <tr>
+                    <td><strong>Discovery</strong><br>发现模式</td>
+                    <td><code>query="auth refactor"</code></td>
+                    <td>FTS5 全文搜索，返回匹配的消息片段及其上下文窗口（bookends + anchored window）</td>
+                </tr>
+                <tr>
+                    <td><strong>Scroll</strong><br>滚动浏览</td>
+                    <td><code>session_id + around_message_id</code></td>
+                    <td>在特定会话内上下翻页浏览</td>
+                </tr>
+                <tr>
+                    <td><strong>Browse</strong><br>浏览模式</td>
+                    <td>无参数</td>
+                    <td>列出最近的会话列表</td>
+                </tr>
+            </table>
+
+            <h3>与 Layer 1 的核心差异</h3>
+            <div class="highlight-box">
+                <strong>记忆（Memory）</strong>是 Agent 认为"必须在每一轮都记得"的关键事实——它始终占据系统提示的宝贵空间。<br><br>
+                <strong>会话搜索（Session Search）</strong>是"当我们上周讨论过 X 时发生了什么？"这类追溯性问题——它不占用常驻 Token，只在 Agent 主动调用 <code>session_search</code> 工具时按需查询。
+            </div>
+        </div>
+
+        <!-- 第四部分：Layer 3 -->
+        <div class="section" id="layer3">
+            <h2><span class="icon">🌐</span> Layer 3: 外部记忆提供者（External Memory Providers）</h2>
+            
+            <p>外部记忆是 Hermes 的可插拔扩展层。系统通过 <code>agent/memory_manager.py</code> 统一编排，但后端可以由用户自由选择。一个关键约束是：<strong>同时只能激活一个外部记忆提供者</strong>，防止工具 Schema 膨胀和 backend 冲突。</p>
+
+            <h3>8 个内置提供者对比</h3>
+            <table>
+                <tr>
+                    <th>提供者</th>
+                    <th>存储位置</th>
+                    <th>独特能力</th>
+                </tr>
+                <tr>
+                    <td><strong>Honcho</strong></td>
+                    <td>Cloud / Self-hosted</td>
+                    <td>辩证式用户建模（Dialectic User Modeling），支持会话级上下文作用域</td>
+                </tr>
+                <tr>
+                    <td><strong>OpenViking</strong></td>
+                    <td>Self-hosted</td>
+                    <td>文件系统层级存储 + 三级加载（L0/L1/L2）</td>
+                </tr>
+                <tr>
+                    <td><strong>Mem0</strong></td>
+                    <td>Cloud</td>
+                    <td>服务端 LLM 自动事实抽取，零配置智能记忆</td>
+                </tr>
+                <tr>
+                    <td><strong>Hindsight</strong></td>
+                    <td>Cloud / Local</td>
+                    <td>知识图谱 + <code>reflect</code> 综合，支持跨会话关系推理</td>
+                </tr>
+                <tr>
+                    <td><strong>Holographic</strong></td>
+                    <td>Local SQLite</td>
+                    <td>HRR（全息简化表示）代数运算 + 信任评分机制</td>
+                </tr>
+                <tr>
+                    <td><strong>RetainDB</strong></td>
+                    <td>Cloud ($20/mo)</td>
+                    <td>Delta 压缩，高效存储长历史</td>
+                </tr>
+                <tr>
+                    <td><strong>ByteRover</strong></td>
+                    <td>Local / Cloud</td>
+                    <td>预压缩提取，在写入前进行语义压缩</td>
+                </tr>
+                <tr>
+                    <td><strong>Supermemory</strong></td>
+                    <td>Cloud</td>
+                    <td>上下文围栏（Context Fencing）+ 会话图谱导入</td>
+                </tr>
+            </table>
+
+            <h3>MemoryProvider ABC 接口</h3>
+            <p>所有外部提供者必须实现 <code>agent/memory_provider.py</code> 中定义的抽象基类：</p>
+
+<pre><code><span class="code-keyword">class</span> <span class="code-func">MemoryProvider</span>(ABC):
+    <span class="code-keyword">def</span> <span class="code-func">initialize</span>(self) -&gt; <span class="code-keyword">None</span>: ...          <span class="code-comment"># 连接后端、预热</span>
+    <span class="code-keyword">def</span> <span class="code-func">system_prompt_block</span>(self) -&gt; str: ...   <span class="code-comment"># 静态提供者信息</span>
+    <span class="code-keyword">def</span> <span class="code-func">prefetch</span>(self, query: str) -&gt; str: ...  <span class="code-comment"># 每轮 API 调用前召回</span>
+    <span class="code-keyword">def</span> <span class="code-func">sync_turn</span>(self, user, assistant) -&gt; <span class="code-keyword">None</span>: ...  <span class="code-comment"># 每轮结束后持久化</span>
+    <span class="code-keyword">def</span> <span class="code-func">on_session_end</span>(self, messages) -&gt; <span class="code-keyword">None</span>: ...  <span class="code-comment"># 会话结束时最终刷新</span></code></pre>
+        </div>
+
+        <!-- 第五部分：读写触发机制 -->
+        <div class="section" id="read-write">
+            <h2><span class="icon">⚡</span> 读写触发机制</h2>
+            
+            <h3>Layer 1: 内置记忆</h3>
+            <table>
+                <tr>
+                    <th>操作</th>
+                    <th>触发时机</th>
+                    <th>代码位置</th>
+                </tr>
+                <tr>
+                    <td><strong>读取（Read）</strong></td>
+                    <td>会话启动时一次加载，生成冻结快照</td>
+                    <td><code>agent/agent_init.py:1081-1085</code></td>
+                </tr>
+                <tr>
+                    <td><strong>写入（Write）</strong></td>
+                    <td><code>memory()</code> 工具调用时立即写盘</td>
+                    <td><code>tools/memory_tool.py:298-346</code></td>
+                </tr>
+                <tr>
+                    <td><strong>重载（Reload）</strong></td>
+                    <td>上下文压缩使 Prompt Cache 失效后重建</td>
+                    <td><code>agent/system_prompt.py:340-348</code></td>
+                </tr>
+            </table>
+
+            <h3>Layer 2: 会话搜索</h3>
+            <p>纯被动查询层——<strong>没有自动触发</strong>。只有在 Agent 主动调用 <code>session_search</code> 工具时才会执行 FTS5 查询。Agent 通常在以下场景调用它：</p>
+            <ul>
+                <li>用户问"我们上次讨论 X 时说了什么？"</li>
+                <li>Agent 需要验证某个事实是否在之前会话中已确认</li>
+                <li>用户引用了之前会话中的某个概念，Agent 需要找回上下文</li>
+            </ul>
+
+            <h3>Layer 3: 外部记忆</h3>
+            <table>
+                <tr>
+                    <th>钩子</th>
+                    <th>触发时机</th>
+                    <th>用途</th>
+                </tr>
+                <tr>
+                    <td><code>initialize()</code></td>
+                    <td>Agent 启动</td>
+                    <td>建立后端连接、认证、预热缓存</td>
+                </tr>
+                <tr>
+                    <td><code>prefetch(query)</code></td>
+                    <td><strong>每次 API 调用前</strong></td>
+                    <td>根据当前用户消息召回相关上下文</td>
+                </tr>
+                <tr>
+                    <td><code>sync_turn(user, asst)</code></td>
+                    <td><strong>每轮对话完成后</strong></td>
+                    <td>将本轮对话持久化到外部后端</td>
+                </tr>
+                <tr>
+                    <td><code>queue_prefetch()</code></td>
+                    <td>每轮结束后</td>
+                    <td>后台预热下一轮可能用到的上下文</td>
+                </tr>
+                <tr>
+                    <td><code>on_session_end()</code></td>
+                    <td>会话退出（/reset、CLI 退出）</td>
+                    <td>最终提取、压缩、flush</td>
+                </tr>
+                <tr>
+                    <td><code>on_memory_write()</code></td>
+                    <td>内置记忆工具写入时</td>
+                    <td>镜像同步到外部后端</td>
+                </tr>
+            </table>
+
+            <h3>预取缓存策略（Prefetch Cache）</h3>
+            <p>在 <code>agent/conversation_loop.py</code> 中，外部记忆的预取结果会被缓存，避免在单次用户请求涉及多次工具调用时重复查询：</p>
+
+<pre><code><span class="code-comment"># 在工具循环开始前预取一次，后续迭代复用</span>
+_ext_prefetch_cache = <span class="code-string">""</span>
+<span class="code-keyword">if</span> agent._memory_manager:
+    <span class="code-keyword">try</span>:
+        _query = original_user_message <span class="code-keyword">if</span> isinstance(original_user_message, str) <span class="code-keyword">else</span> <span class="code-string">""</span>
+        _ext_prefetch_cache = agent._memory_manager.prefetch_all(_query) <span class="code-keyword">or</span> <span class="code-string">""</span>
+    <span class="code-keyword">except</span> Exception:
+        <span class="code-keyword">pass</span></code></pre>
+
+            <h3>记忆提醒（Memory Nudge）</h3>
+            <p>每 <code>nudge_interval</code> 个用户轮次（默认 10 轮），后台线程会触发一次记忆审查，提示模型回顾当前会话并建议记忆更新：</p>
+
+<pre><code><span class="code-keyword">if</span> (agent._memory_nudge_interval &gt; <span class="code-string">0</span>
+        <span class="code-keyword">and</span> <span class="code-string">"memory"</span> <span class="code-keyword">in</span> agent.valid_tool_names
+        <span class="code-keyword">and</span> agent._memory_store):
+    agent._turns_since_memory += <span class="code-string">1</span>
+    <span class="code-keyword">if</span> agent._turns_since_memory &gt;= agent._memory_nudge_interval:
+        _should_review_memory = <span class="code-keyword">True</span>
+        agent._turns_since_memory = <span class="code-string">0</span></code></pre>
+
+            <p><span class="tag tag-warn">注意</span> 在 Gateway 模式下，每个入站消息会创建新的 AIAgent 实例，因此 <code>_turns_since_memory</code> 会从 0 开始。系统会从 <code>conversation_history</code> 中重建有效的轮次计数。</p>
+        </div>
+
+        <!-- 第六部分：上下文嵌入 -->
+        <div class="section" id="context-embed">
+            <h2><span class="icon">🧩</span> 上下文嵌入方式</h2>
+            
+            <p>Hermes 的系统提示采用<strong>三层组装架构</strong>，记忆被精确地放置在最合适的层级：</p>
+
+            <div class="flow-diagram">
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        SYSTEM PROMPT (每会话缓存)                              │
+│  ┌──────────────┐  ┌──────────────┐  ┌─────────────────────────────────────┐  │
+│  │   stable     │  │   context    │  │              volatile               │  │
+│  │   身份标识    │  │  AGENTS.md   │  │  MEMORY.md 快照                      │  │
+│  │   工具指引    │  │  .cursorrules│  │  USER.md 快照                        │  │
+│  │   Skills     │  │  系统消息     │  │  外部提供者静态信息                   │  │
+│  │              │  │              │  │  时间戳                              │  │
+│  └──────────────┘  └──────────────┘  └─────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    USER MESSAGE (API 调用时注入，仅本轮有效)                    │
+│  ┌─────────────────────────────────────────────────────────────────────────┐ │
+│  │  &lt;memory-context&gt;                                                       │ │
+│  │    [系统提示：以下是召回的记忆上下文，不是新用户输入。                     │ │
+│  │     将其视为权威参考数据——这是 Agent 的持久记忆。]                        │ │
+│  │                                                                         │ │
+│  │    {外部提供者 prefetch 返回的内容}                                     │ │
+│  │  &lt;/memory-context&gt;                                                      │ │
+│  └─────────────────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────────────┘
+            </div>
+
+            <h3>Layer 1 注入：系统提示的 Volatile 层</h3>
+            <p>在 <code>agent/system_prompt.py:274-295</code> 中，内置记忆以装饰块的形式注入：</p>
+
+<pre><code><span class="code-keyword">if</span> agent._memory_store:
+    <span class="code-keyword">if</span> agent._memory_enabled:
+        mem_block = agent._memory_store.format_for_system_prompt(<span class="code-string">"memory"</span>)
+        <span class="code-keyword">if</span> mem_block:
+            volatile_parts.append(mem_block)
+    <span class="code-keyword">if</span> agent._user_profile_enabled:
+        user_block = agent._memory_store.format_for_system_prompt(<span class="code-string">"user"</span>)
+        <span class="code-keyword">if</span> user_block:
+            volatile_parts.append(user_block)</code></pre>
+
+            <p>渲染后的效果：</p>
+<pre><code>══════════════════════════════════════════════
+MEMORY (your personal notes) [67% — 1,474/2,200 chars]
+══════════════════════════════════════════════
+User's project is a Rust web service at ~/code/myapi using Axum + SQLx
+§
+This machine runs Ubuntu 22.04, has Docker and Podman installed</code></pre>
+
+            <h3>Layer 3 注入：用户消息级的动态上下文</h3>
+            <p>外部记忆预取的内容<strong>不会进入系统提示</strong>，而是在每次 API 调用时附加到当前用户消息中（<code>agent/conversation_loop.py:823-839</code>）：</p>
+
+<pre><code><span class="code-keyword">if</span> idx == current_turn_user_idx <span class="code-keyword">and</span> msg.get(<span class="code-string">"role"</span>) == <span class="code-string">"user"</span>:
+    _injections = []
+    <span class="code-keyword">if</span> _ext_prefetch_cache:
+        _fenced = build_memory_context_block(_ext_prefetch_cache)
+        <span class="code-keyword">if</span> _fenced:
+            _injections.append(_fenced)
+    <span class="code-keyword">if</span> _injections:
+        _base = api_msg.get(<span class="code-string">"content"</span>, <span class="code-string">""</span>)
+        <span class="code-keyword">if</span> isinstance(_base, str):
+            api_msg[<span class="code-string">"content"</span>] = _base + <span class="code-string">"\n\n"</span> + <span class="code-string">"\n\n"</span>.join(_injections)</code></pre>
+
+            <p>围栏格式（<code>agent/memory_manager.py:227-241</code>）：</p>
+<pre><code>&lt;memory-context&gt;
+[System note: The following is recalled memory context, NOT new user input.
+Treat as authoritative reference data — this is the agent's persistent memory
+and should inform all responses.]
+
+{清洗后的外部记忆内容}
+&lt;/memory-context&gt;</code></pre>
+
+            <div class="highlight-box">
+                <strong>为什么 Layer 3 不放在系统提示中？</strong><br>
+                外部记忆的内容是动态变化的——每轮预取结果可能不同。如果放入系统提示，会导致 Prefix Cache 频繁失效。此外，<code>StreamingContextScrubber</code> 会确保这些围栏标签在流式输出时不会泄露到 UI，保持用户体验整洁。
+            </div>
+        </div>
+
+        <!-- 第七部分：Skill 机制 -->
+        <div class="section" id="skill-system">
+            <h2><span class="icon">🛠️</span> Skill 机制全景</h2>
+            
+            <p>Hermes 的 Skill 系统是模块化的知识/工作流注入机制，灵感来自 Anthropic 的 Claude Skills 系统，采用<strong>渐进式披露架构（Progressive Disclosure）</strong>。Skill 不是简单的提示词片段，而是带有元数据、版本控制和生命周期管理的结构化知识包。</p>
+
+            <h3>双轨制：skills/ vs optional-skills/</h3>
+            <table>
+                <tr>
+                    <th>目录</th>
+                    <th>用途</th>
+                    <th>激活方式</th>
+                </tr>
+                <tr>
+                    <td><code>skills/</code></td>
+                    <td>内置技能，随仓库发布</td>
+                    <td>启动时自动同步到 <code>~/.hermes/skills/</code>，默认加载</td>
+                </tr>
+                <tr>
+                    <td><code>optional-skills/</code></td>
+                    <td>重型/小众技能，随仓库发布但不默认激活</td>
+                    <td>需显式安装：<code>hermes skills install official/&lt;category&gt;/&lt;skill&gt;</code></td>
+                </tr>
+            </table>
+
+            <h3>Skill 目录结构</h3>
+<pre><code>skills/&lt;category&gt;/&lt;skill-name&gt;/
+├── SKILL.md              <span class="code-comment"># 主指令文件（必需）</span>
+├── references/           <span class="code-comment"># 参考文档</span>
+├── templates/            <span class="code-comment"># 输出模板</span>
+├── scripts/              <span class="code-comment"># 可执行脚本</span>
+└── assets/               <span class="code-comment"># 补充资源</span></code></pre>
+
+            <h3>渐进式披露架构</h3>
+            <p>Skill 的内容不是一次性全部塞入上下文的，而是按需分层加载：</p>
+            <table>
+                <tr>
+                    <th>层级</th>
+                    <th>内容</th>
+                    <th>何时加载</th>
+                </tr>
+                <tr>
+                    <td><strong>元数据层</strong></td>
+                    <td>名称（≤64 chars）、描述（≤1024 chars）、标签、分类</td>
+                    <td>系统提示构建时——用于生成可用技能清单</td>
+                </tr>
+                <tr>
+                    <td><strong>指令层</strong></td>
+                    <td>SKILL.md 完整内容（≤100K chars）</td>
+                    <td>Agent 调用 <code>skill_view</code> 时按需加载</td>
+                </tr>
+                <tr>
+                    <td><strong>链接层</strong></td>
+                    <td>references/、templates/、scripts/ 中的关联文件</td>
+                    <td>Agent 主动读取或模板变量替换时</td>
+                </tr>
+            </table>
+
+            <h3>系统提示中的 Skill 清单</h3>
+            <p><code>agent/prompt_builder.py</code> 中的 <code>build_skills_system_prompt()</code> 负责将已安装的技能渲染为系统提示中的 XML 片段：</p>
+
+<pre><code>&lt;available_skills&gt;
+  &lt;category name="software-development"&gt;
+    - plan: Plan mode — write markdown plan to .hermes/plans/, no exec.
+    - hermes-agent-skill-authoring: Guidelines for creating Hermes skills.
+  &lt;/category&gt;
+  &lt;category name="devops"&gt;
+    - docker-compose: Best practices for Docker Compose orchestration.
+  &lt;/category&gt;
+&lt;/available_skills&gt;</code></pre>
+
+            <p>这个清单只包含技能的<strong>元数据</strong>（名称 + 短描述），而非完整指令。当 Agent 决定使用某个 Skill 时，才会通过 <code>skill_view</code> 工具加载完整内容。</p>
+
+            <h3>自动注册为 Slash 命令</h3>
+            <p>所有已安装且平台匹配的技能会自动注册为 <code>/skill-name</code> 形式的 Slash 命令（<code>agent/skill_commands.py</code>）：</p>
+
+<pre><code><span class="code-keyword">def</span> <span class="code-func">scan_skill_commands</span>() -&gt; Dict[str, Dict[str, Any]]:
+    <span class="code-string">"""Scan ~/.hermes/skills/ and return /command -> skill info."""</span>
+    <span class="code-keyword">for</span> scan_dir <span class="code-keyword">in</span> dirs_to_scan:
+        <span class="code-keyword">for</span> skill_md <span class="code-keyword">in</span> iter_skill_index_files(scan_dir, <span class="code-string">"SKILL.md"</span>):
+            frontmatter, body = _parse_frontmatter(content)
+            <span class="code-keyword">if</span> <span class="code-keyword">not</span> skill_matches_platform(frontmatter):
+                <span class="code-keyword">continue</span>
+            cmd_name = name.lower().replace(<span class="code-string">' '</span>, <span class="code-string">'-'</span>).replace(<span class="code-string">'_'</span>, <span class="code-string">'-'</span>)
+            _skill_commands[f<span class="code-string">"/{cmd_name}"</span>] = {
+                <span class="code-string">"name"</span>: name,
+                <span class="code-string">"description"</span>: description,
+                <span class="code-string">"skill_md_path"</span>: str(skill_md),
+                <span class="code-string">"skill_dir"</span>: str(skill_md.parent),
+            }</code></pre>
+
+            <p>当用户输入 <code>/plan</code> 时，CLI 会调用 <code>build_skill_invocation_message()</code>，通过 <code>skill_view()</code> 加载 SKILL.md 内容，并将其格式化为一条带有激活提示的用户消息注入对话。</p>
+
+            <h3>技能来源适配器（Skills Hub）</h3>
+            <p>除了内置技能，Hermes 支持从多个来源安装技能（<code>tools/skills_hub.py</code>）：</p>
+            <table>
+                <tr>
+                    <th>来源</th>
+                    <th>类</th>
+                    <th>说明</th>
+                </tr>
+                <tr>
+                    <td><strong>Official</strong></td>
+                    <td><code>OptionalSkillSource</code></td>
+                    <td>仓库自带的 <code>optional-skills/</code></td>
+                </tr>
+                <tr>
+                    <td><strong>GitHub</strong></td>
+                    <td><code>GitHubSource</code></td>
+                    <td>任意 GitHub 仓库（通过 Contents API）</td>
+                </tr>
+                <tr>
+                    <td><strong>skills.sh</strong></td>
+                    <td><code>SkillsShSource</code></td>
+                    <td>skills.sh 注册中心</td>
+                </tr>
+                <tr>
+                    <td><strong>ClawHub</strong></td>
+                    <td><code>ClawHubSource</code></td>
+                    <td>clawhub.ai 社区 API</td>
+                </tr>
+                <tr>
+                    <td><strong>Well-known</strong></td>
+                    <td><code>WellKnownSkillSource</code></td>
+                    <td><code>/.well-known/skills/index.json</code> 端点</td>
+                </tr>
+                <tr>
+                    <td><strong>Direct URL</strong></td>
+                    <td><code>UrlSource</code></td>
+                    <td>直接 HTTP(S) 链接到 .md 文件</td>
+                </tr>
+            </table>
+
+            <div class="highlight-box">
+                <strong>安全机制：</strong>所有从 Hub 安装的技能都必须经过<strong>隔离 + 扫描</strong>流程。下载的文件先进入隔离区（quarantine），然后由 <code>tools/skills_guard.py</code> 进行安全扫描。扫描通过后才允许安装到 <code>~/.hermes/skills/</code>。
+            </div>
+        </div>
+
+        <!-- 第八部分：评估与更新 -->
+        <div class="section" id="skill-eval">
+            <h2><span class="icon">📊</span> Skill 评估标准与更新机制</h2>
+            
+            <h3>什么时候应该创建一个 Skill？</h3>
+            <p><code>tools/skill_manager_tool.py</code> 中的 <code>skill_manage</code> 工具 Schema 明确给出了创建条件：</p>
+
+            <div class="highlight-box">
+                <strong>创建时机：</strong>
+                <ul style="margin-top:10px;">
+                    <li>复杂任务成功完成（涉及 5+ 次工具调用）</li>
+                    <li>过程中克服了错误或异常</li>
+                    <li>用户纠正过的方法最终被证明有效</li>
+                    <li>发现了非平凡的工作流或最佳实践</li>
+                    <li>用户明确要求"记住这个流程"</li>
+                </ul>
+                <strong>更新时机：</strong>
+                <ul style="margin-top:10px;">
+                    <li>指令过时或错误</li>
+                    <li>发现 OS 特定的失败模式</li>
+                    <li>缺少步骤或在实际使用中发现陷阱</li>
+                </ul>
+                <strong>跳过时机：</strong>简单的一次性任务（one-off），不值得持久化。
+            </div>
+
+            <h3>AGENTS.md 硬性标准（Hardline Standards）</h3>
+            <p>任何新的或现代化的 Skill 必须满足以下标准，否则 PR 会被拒绝：</p>
+            <table>
+                <tr>
+                    <th>#</th>
+                    <th>标准</th>
+                    <th>说明</th>
+                </tr>
+                <tr>
+                    <td>1</td>
+                    <td><code>description ≤ 60 字符</code></td>
+                    <td>一句话，句号结尾。禁止营销词汇（"powerful"、"comprehensive"、"seamless"）。</td>
+                </tr>
+                <tr>
+                    <td>2</td>
+                    <td>工具引用规范</td>
+                    <td>必须引用原生 Hermes 工具（<code>`terminal`</code>、<code>`read_file`</code>、<code>`patch`</code>），禁止直接引用 shell 工具。</td>
+                </tr>
+                <tr>
+                    <td>3</td>
+                    <td><code>platforms:</code> 平台门控</td>
+                    <td>使用 POSIX 特有原语（fcntl、termios、osascript、apt 等）必须声明支持平台。</td>
+                </tr>
+                <tr>
+                    <td>4</td>
+                    <td>作者署名</td>
+                    <td>外部贡献者的真实姓名 + GitHub 句柄优先；"Hermes Agent" 列为次要协作者。</td>
+                </tr>
+                <tr>
+                    <td>5</td>
+                    <td>现代章节顺序</td>
+                    <td><code># 标题</code> → <code>## When to Use</code> → <code>## Prerequisites</code> → <code>## How to Run</code> → <code>## Quick Reference</code> → <code>## Procedure</code> → <code>## Pitfalls</code> → <code>## Verification</code></td>
+                </tr>
+                <tr>
+                    <td>6</td>
+                    <td>文件组织</td>
+                    <td>脚本放 <code>scripts/</code>，参考文档放 <code>references/</code>，模板放 <code>templates/</code>。</td>
+                </tr>
+            </table>
+
+            <h3>Skill 更新流程</h3>
+            
+            <h4>1. 内置技能更新（Bundled Skills）</h4>
+            <p>由 <code>tools/skills_sync.py</code> 处理，核心逻辑尊重用户修改：</p>
+
+<pre><code><span class="code-keyword">if</span> user_hash != origin_hash:
+    <span class="code-comment"># 用户修改过这个技能 —— 不覆盖他们的更改</span>
+    user_modified.append(skill_name)
+    <span class="code-keyword">continue</span>
+
+<span class="code-comment"># 用户副本与起源一致 —— 检查捆绑版是否有更新</span>
+<span class="code-keyword">if</span> bundled_hash != origin_hash:
+    shutil.copytree(skill_src, dest)
+    manifest[skill_name] = bundled_hash
+    updated.append(skill_name)</code></pre>
+
+            <p>用户可以通过以下命令恢复内置技能到仓库版本：</p>
+<pre><code>hermes skills reset &lt;name&gt; --restore</code></pre>
+
+            <h4>2. Hub 安装技能更新</h4>
+            <p>Hub 安装的技能由 <code>hermes_cli/skills_hub.py</code> 的 <code>do_update()</code> 管理：</p>
+
+<pre><code><span class="code-keyword">def</span> <span class="code-func">do_update</span>(name: Optional[str] = None, console: Optional[Console] = None) -&gt; None:
+    lock = HubLockFile()
+    updates = [entry <span class="code-keyword">for</span> entry <span class="code-keyword">in</span> check_for_skill_updates(name=name)
+               <span class="code-keyword">if</span> entry.get(<span class="code-string">"status"</span>) == <span class="code-string">"update_available"</span>]
+    <span class="code-keyword">for</span> entry <span class="code-keyword">in</span> updates:
+        do_install(entry[<span class="code-string">"identifier"</span>], category=category, force=True, console=c)</code></pre>
+
+            <h4>3. Agent 直接修改（User Skills）</h4>
+            <p>Agent 可以通过 <code>skill_manage</code> 工具的 <code>patch</code> 动作直接修改技能文件：</p>
+
+<pre><code><span class="code-keyword">def</span> <span class="code-func">_patch_skill</span>(name, old_string, new_string, file_path=None, replace_all=False):
+    <span class="code-string">"""Targeted find-and-replace within a skill file."""</span>
+    <span class="code-keyword">from</span> tools.fuzzy_match <span class="code-keyword">import</span> fuzzy_find_and_replace
+    new_content, match_count, _strategy, match_error = fuzzy_find_and_replace(
+        content, old_string, new_string, replace_all
+    )</code></pre>
+
+            <h3>SKILL.md Frontmatter 规范</h3>
+            <p>必需字段（<code>tools/skill_manager_tool.py:_validate_frontmatter</code>）：</p>
+            <ul>
+                <li><code>name</code> — 技能名称（≤64 字符）</li>
+                <li><code>description</code> — 描述（≤1024 字符，推荐 ≤60）</li>
+                <li><code>version</code> — 语义化版本</li>
+                <li><code>author</code> — 作者</li>
+                <li><code>license</code> — 许可证</li>
+                <li><code>platforms</code> — 支持平台列表（如 <code>[linux, macos, windows]</code>）</li>
+                <li><code>metadata.hermes.tags</code> — 标签数组</li>
+                <li><code>metadata.hermes.category</code> — 分类</li>
+                <li><code>metadata.hermes.related_skills</code> — 相关技能</li>
+            </ul>
+
+            <h3>尺寸限制</h3>
+            <table>
+                <tr>
+                    <th>限制项</th>
+                    <th>上限</th>
+                    <th>说明</th>
+                </tr>
+                <tr>
+                    <td>SKILL.md 内容</td>
+                    <td>100,000 字符</td>
+                    <td>约 36K tokens</td>
+                </tr>
+                <tr>
+                    <td>附属文件</td>
+                    <td>1 MiB / 文件</td>
+                    <td>references/、scripts/、templates/ 中的单个文件</td>
+                </tr>
+                <tr>
+                    <td>名称长度</td>
+                    <td>64 字符</td>
+                    <td>影响 Slash 命令长度</td>
+                </tr>
+                <tr>
+                    <td>描述长度</td>
+                    <td>1,024 字符</td>
+                    <td>硬限制，但推荐 ≤60</td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- 总结 -->
+        <div class="section">
+            <h2><span class="icon">📝</span> 总结</h2>
+            
+            <h3>记忆系统三层架构设计精要</h3>
+            <div class="layer-card">
+                <p><strong>Layer 1（内置策划记忆）</strong>是 Agent 的"短期工作记忆"——容量受限但始终在线，采用冻结快照保护 Prefix Cache，用字符而非 Token 计量以保证模型无关性。</p>
+            </div>
+            <div class="layer-card">
+                <p><strong>Layer 2（会话搜索）</strong>是 Agent 的"长期档案室"——无容量限制、按需查询、零常驻 Token 成本，FTS5 全文索引保证毫秒级响应。</p>
+            </div>
+            <div class="layer-card">
+                <p><strong>Layer 3（外部记忆）</strong>是 Agent 的"外部大脑"——可插拔的智能后端，通过 prefetch/sync 钩子实现每轮动态召回和持久化，围栏格式确保动态内容不污染系统提示缓存。</p>
+            </div>
+
+            <h3>Skill 系统核心设计</h3>
+            <ul>
+                <li><strong>渐进式披露：</strong>元数据常驻系统提示，完整指令按需加载，避免上下文膨胀。</li>
+                <li><strong>双轨制分发：</strong>内置技能默认加载，可选技能显式安装，兼顾开箱即用和按需扩展。</li>
+                <li><strong>自动命令化：</strong>每个技能自动成为 <code>/skill-name</code> Slash 命令，无需额外配置。</li>
+                <li><strong>多源生态：</strong>支持官方、GitHub、skills.sh、ClawHub、Well-known、直链六种安装来源。</li>
+                <li><strong>安全隔离：</strong>Hub 安装必须经过隔离区 + 安全扫描，防止恶意技能注入。</li>
+                <li><strong>用户修改保护：</strong>内置技能同步时检测用户修改并跳过覆盖，尊重用户定制。</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>Hermes Agent 深度技术分析 · 基于源码与文档调研</p>
+    </div>
+</div>
+</body>
+</html>
