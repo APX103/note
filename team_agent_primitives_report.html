@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>团队模式 Agent 原语与多 Agent 编排 — 深度调研报告</title>
+    <style>
+        :root {
+            --bg-primary: #fafbfc;
+            --bg-secondary: #ffffff;
+            --bg-card: #ffffff;
+            --bg-code: #f4f6f8;
+            --text-primary: #1a1a2e;
+            --text-secondary: #4a5568;
+            --text-muted: #718096;
+            --accent-blue: #2563eb;
+            --accent-cyan: #0891b2;
+            --accent-indigo: #4f46e5;
+            --accent-purple: #7c3aed;
+            --accent-green: #059669;
+            --accent-orange: #ea580c;
+            --accent-red: #dc2626;
+            --border: #e2e8f0;
+            --border-light: #edf2f7;
+            --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.04);
+            --shadow-hover: 0 4px 12px rgba(0,0,0,0.12), 0 8px 24px rgba(0,0,0,0.06);
+            --radius: 12px;
+            --radius-sm: 8px;
+            --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            --font-mono: "SF Mono", "Fira Code", "JetBrains Mono", Consolas, monospace;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: var(--font-sans);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.7;
+            font-size: 15px;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ===== Header / Hero ===== */
+        .hero {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            color: white;
+            padding: 80px 40px 60px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .hero::before {
+            content: "";
+            position: absolute;
+            top: -50%; left: -50%; right: -50%; bottom: -50%;
+            background: radial-gradient(circle at 30% 50%, rgba(37,99,235,0.15) 0%, transparent 50%),
+                        radial-gradient(circle at 70% 80%, rgba(124,58,237,0.1) 0%, transparent 50%);
+            pointer-events: none;
+        }
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.15);
+            padding: 8px 20px;
+            border-radius: 100px;
+            font-size: 13px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            margin-bottom: 24px;
+        }
+        .hero-badge .dot { width: 8px; height: 8px; border-radius: 50%; background: #34d399; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .hero h1 {
+            font-size: 42px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            margin-bottom: 16px;
+            line-height: 1.2;
+        }
+        .hero h1 .highlight { background: linear-gradient(90deg, #60a5fa, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .hero-subtitle {
+            font-size: 18px;
+            color: rgba(255,255,255,0.7);
+            max-width: 640px;
+            margin: 0 auto 32px;
+            font-weight: 400;
+        }
+        .hero-meta {
+            display: flex;
+            justify-content: center;
+            gap: 32px;
+            font-size: 13px;
+            color: rgba(255,255,255,0.5);
+            flex-wrap: wrap;
+        }
+        .hero-meta span { display: flex; align-items: center; gap: 6px; }
+
+        /* ===== Layout ===== */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+        .main-layout {
+            display: grid;
+            grid-template-columns: 260px 1fr;
+            gap: 40px;
+            padding: 40px 0;
+        }
+
+        /* ===== Sidebar / TOC ===== */
+        .sidebar {
+            position: sticky;
+            top: 24px;
+            height: calc(100vh - 48px);
+            overflow-y: auto;
+            padding-right: 8px;
+        }
+        .sidebar::-webkit-scrollbar { width: 4px; }
+        .sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+        .toc-title {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            margin-bottom: 16px;
+            padding-left: 12px;
+        }
+        .toc-list { list-style: none; }
+        .toc-list li { margin-bottom: 2px; }
+        .toc-list a {
+            display: block;
+            padding: 8px 12px;
+            border-radius: var(--radius-sm);
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+        }
+        .toc-list a:hover { background: var(--bg-secondary); color: var(--accent-blue); border-left-color: var(--accent-blue); }
+        .toc-list a.active { background: rgba(37,99,235,0.06); color: var(--accent-blue); border-left-color: var(--accent-blue); font-weight: 600; }
+        .toc-list .toc-h2 { padding-left: 24px; font-size: 12px; font-weight: 400; color: var(--text-muted); }
+        .toc-list .toc-h2:hover { color: var(--accent-blue); }
+
+        /* ===== Content ===== */
+        .content { min-width: 0; }
+        .section {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 40px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border-light);
+            transition: box-shadow 0.3s;
+        }
+        .section:hover { box-shadow: var(--shadow-hover); }
+        .section-anchor { scroll-margin-top: 80px; }
+
+        h2 {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+            letter-spacing: -0.3px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        h2 .section-num {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px; height: 36px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 800;
+            color: white;
+            flex-shrink: 0;
+        }
+        h3 {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-top: 32px;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--border-light);
+        }
+        h4 {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-top: 24px;
+            margin-bottom: 12px;
+        }
+        p { margin-bottom: 16px; color: var(--text-secondary); }
+        p strong { color: var(--text-primary); font-weight: 600; }
+
+        /* ===== Callouts ===== */
+        .callout {
+            border-radius: var(--radius-sm);
+            padding: 16px 20px;
+            margin: 20px 0;
+            border-left: 4px solid;
+            background: var(--bg-primary);
+        }
+        .callout-blue { border-left-color: var(--accent-blue); background: rgba(37,99,235,0.04); }
+        .callout-cyan { border-left-color: var(--accent-cyan); background: rgba(8,145,178,0.04); }
+        .callout-purple { border-left-color: var(--accent-purple); background: rgba(124,58,237,0.04); }
+        .callout-green { border-left-color: var(--accent-green); background: rgba(5,150,105,0.04); }
+        .callout-orange { border-left-color: var(--accent-orange); background: rgba(234,88,12,0.04); }
+        .callout-red { border-left-color: var(--accent-red); background: rgba(220,38,38,0.04); }
+        .callout-title {
+            font-weight: 700;
+            font-size: 14px;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .callout-blue .callout-title { color: var(--accent-blue); }
+        .callout-cyan .callout-title { color: var(--accent-cyan); }
+        .callout-purple .callout-title { color: var(--accent-purple); }
+        .callout-green .callout-title { color: var(--accent-green); }
+        .callout-orange .callout-title { color: var(--accent-orange); }
+        .callout-red .callout-title { color: var(--accent-red); }
+        .callout p { margin: 0; font-size: 14px; }
+
+        /* ===== Tables ===== */
+        .table-wrap { overflow-x: auto; margin: 20px 0; border-radius: var(--radius-sm); border: 1px solid var(--border); }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th {
+            background: linear-gradient(180deg, #f8fafc, #f1f5f9);
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 600;
+            color: var(--text-primary);
+            border-bottom: 2px solid var(--border);
+            white-space: nowrap;
+        }
+        td {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-light);
+            color: var(--text-secondary);
+            vertical-align: top;
+        }
+        tr:hover td { background: rgba(37,99,235,0.02); }
+        tr:last-child td { border-bottom: none; }
+
+        /* ===== Cards / Grid ===== */
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+            margin: 20px 0;
+        }
+        .card {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 20px;
+            transition: all 0.2s;
+        }
+        .card:hover { border-color: var(--accent-blue); transform: translateY(-2px); box-shadow: var(--shadow); }
+        .card-icon {
+            width: 40px; height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            margin-bottom: 12px;
+        }
+        .card h4 { margin-top: 0; font-size: 15px; }
+        .card p { font-size: 13px; margin-bottom: 0; }
+
+        /* ===== Code / Pre ===== */
+        code {
+            font-family: var(--font-mono);
+            background: var(--bg-code);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 13px;
+            color: var(--accent-indigo);
+        }
+        pre {
+            background: #1e1e2e;
+            color: #cdd6f4;
+            padding: 20px;
+            border-radius: var(--radius-sm);
+            overflow-x: auto;
+            font-size: 13px;
+            line-height: 1.6;
+            margin: 16px 0;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+
+        /* ===== Lists ===== */
+        ul, ol { margin: 12px 0 12px 20px; color: var(--text-secondary); }
+        li { margin-bottom: 8px; }
+        li::marker { color: var(--accent-blue); }
+
+        /* ===== Tags / Badges ===== */
+        .tag {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 100px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-right: 6px;
+            margin-bottom: 6px;
+        }
+        .tag-blue { background: rgba(37,99,235,0.1); color: var(--accent-blue); }
+        .tag-green { background: rgba(5,150,105,0.1); color: var(--accent-green); }
+        .tag-purple { background: rgba(124,58,237,0.1); color: var(--accent-purple); }
+        .tag-orange { background: rgba(234,88,12,0.1); color: var(--accent-orange); }
+        .tag-red { background: rgba(220,38,38,0.1); color: var(--accent-red); }
+
+        /* ===== Stats Bar ===== */
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin: 32px 0;
+        }
+        .stat-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-sm);
+            padding: 20px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 32px;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .stat-label { font-size: 12px; color: var(--text-muted); margin-top: 4px; font-weight: 500; }
+
+        /* ===== Decision Tree ===== */
+        .decision-tree {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 24px;
+            font-family: var(--font-mono);
+            font-size: 13px;
+            line-height: 2;
+            color: var(--text-secondary);
+            white-space: pre-wrap;
+            overflow-x: auto;
+        }
+
+        /* ===== Collapsible ===== */
+        .collapsible { margin: 16px 0; }
+        .collapsible-toggle {
+            width: 100%;
+            text-align: left;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 14px 18px;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.2s;
+        }
+        .collapsible-toggle:hover { background: var(--border-light); border-color: var(--accent-blue); }
+        .collapsible-toggle::after {
+            content: "▸";
+            font-size: 12px;
+            color: var(--text-muted);
+            transition: transform 0.2s;
+        }
+        .collapsible.open .collapsible-toggle::after { transform: rotate(90deg); }
+        .collapsible-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+            background: var(--bg-card);
+            border-left: 1px solid var(--border);
+            border-right: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+            border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+        }
+        .collapsible.open .collapsible-content { max-height: 2000px; padding: 20px; }
+
+        /* ===== Footer ===== */
+        .footer {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-muted);
+            font-size: 13px;
+            border-top: 1px solid var(--border);
+            margin-top: 40px;
+        }
+
+        /* ===== Responsive ===== */
+        @media (max-width: 1024px) {
+            .main-layout { grid-template-columns: 1fr; }
+            .sidebar { display: none; }
+            .hero h1 { font-size: 28px; }
+            .stats-bar { grid-template-columns: repeat(2, 1fr); }
+            .section { padding: 24px; }
+        }
+        @media (max-width: 640px) {
+            .hero { padding: 40px 20px; }
+            .stats-bar { grid-template-columns: 1fr; }
+            .card-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Hero -->
+<div class="hero">
+    <div class="hero-badge">
+        <span class="dot"></span>
+        2026 深度调研报告
+    </div>
+    <h1>团队模式 <span class="highlight">Agent 原语</span><br>与多 Agent 编排</h1>
+    <p class="hero-subtitle">从单 Agent 瓶颈到可复用构建块，从手工编排到系统化架构 —— 多智能体协作的底层原理、工程实践与前沿趋势</p>
+    <div class="hero-meta">
+        <span>📅 2026-06-01</span>
+        <span>🔬 7 大章节</span>
+        <span>📊 15+ 框架对比</span>
+        <span>🧬 3 大核心原语</span>
+    </div>
+</div>
+
+<div class="container">
+<div class="main-layout">
+
+<!-- Sidebar TOC -->
+<aside class="sidebar">
+    <div class="toc-title">目录导航</div>
+    <ul class="toc-list" id="toc">
+        <li><a href="#s1" class="toc-h1">一、为什么必须 Multi-Agent</a></li>
+        <li><a href="#s1-1" class="toc-h2">1.1 单 Agent 的硬边界</a></li>
+        <li><a href="#s1-2" class="toc-h2">1.2 多 Agent 核心优势</a></li>
+        <li><a href="#s1-3" class="toc-h2">1.3 实证数据</a></li>
+        <li><a href="#s2" class="toc-h1">二、Agent 原语设计</a></li>
+        <li><a href="#s2-1" class="toc-h2">2.1 什么是 Agent 原语</a></li>
+        <li><a href="#s2-2" class="toc-h2">2.2 三大核心原语</a></li>
+        <li><a href="#s2-3" class="toc-h2">2.3 工程实践原语</a></li>
+        <li><a href="#s2-4" class="toc-h2">2.4 潜在空间通信</a></li>
+        <li><a href="#s3" class="toc-h1">三、多 Agent 编排模式</a></li>
+        <li><a href="#s3-1" class="toc-h2">3.1 五大核心模式</a></li>
+        <li><a href="#s3-2" class="toc-h2">3.2 拓扑结构</a></li>
+        <li><a href="#s3-3" class="toc-h2">3.3 执行模式</a></li>
+        <li><a href="#s4" class="toc-h1">四、主流框架对比</a></li>
+        <li><a href="#s5" class="toc-h1">五、通信与协调机制</a></li>
+        <li><a href="#s6" class="toc-h1">六、设计原则与反模式</a></li>
+        <li><a href="#s7" class="toc-h1">七、前沿趋势</a></li>
+    </ul>
+</aside>
+
+<!-- Main Content -->
+<main class="content">
+
+<!-- Section 1 -->
+<section class="section section-anchor" id="s1">
+    <h2><span class="section-num" style="background: linear-gradient(135deg, #2563eb, #1d4ed8);">01</span>为什么必须 Multi-Agent？</h2>
+    <p>单 Agent 架构在简单任务（查日历、算数、搜索）上表现良好，但一旦涉及<strong>多工具、多步推理、跨领域验证</strong>，性能会迅速劣化。核心原因不是模型智商不足，而是<strong>上下文窗口的物理限制</strong>。</p>
+
+    <h3 id="s1-1">1.1 单 Agent 的硬边界</h3>
+    <div class="card-grid">
+        <div class="card">
+            <div class="card-icon" style="background: rgba(220,38,38,0.1); color: #dc2626;">⚠️</div>
+            <h4>上下文过载</h4>
+            <p>单 Agent 无法同时保持整个代码库、知识库在上下文中，长程任务早期目标被遗忘。</p>
+        </div>
+        <div class="card">
+            <div class="card-icon" style="background: rgba(234,88,12,0.1); color: #ea580c;">🔧</div>
+            <h4>工具路由混乱</h4>
+            <p>工具越多，路由决策越混乱，错误调用率随工具数量指数上升。</p>
+        </div>
+        <div class="card">
+            <div class="card-icon" style="background: rgba(124,58,237,0.1); color: #7c3aed;">🎭</div>
+            <h4>角色冲突</h4>
+            <p>一个 Agent 同时承担规划、执行、验证，prompt 中角色冲突导致输出质量下降。</p>
+        </div>
+        <div class="card">
+            <div class="card-icon" style="background: rgba(5,150,105,0.1); color: #059669;">📉</div>
+            <h4>长程退化</h4>
+            <p>LLM 表现随上下文膨胀而劣化，准确率随任务步骤增加呈下降趋势。</p>
+        </div>
+    </div>
+
+    <div class="callout callout-blue">
+        <div class="callout-title">💡 核心洞察</div>
+        <p>团队模式（Team Mode）的本质，是给每个 Agent <strong>狭窄、聚焦的上下文</strong>，让它们在自己的专业域内达到最佳表现。一个同时理解前端、后端、数据库和测试的 Agent，其输出质量显著低于只专注一个领域的 Agent。</p>
+    </div>
+
+    <h3 id="s1-2">1.2 多 Agent 的四大核心优势</h3>
+    <div class="table-wrap">
+        <table>
+            <tr>
+                <th style="width: 18%;">维度</th>
+                <th style="width: 41%;">单 Agent</th>
+                <th style="width: 41%;">多 Agent 团队</th>
+            </tr>
+            <tr>
+                <td><strong>问题分解</strong></td>
+                <td>线性处理，容易在复杂依赖中迷失</td>
+                <td>分布式子问题求解，每个 Agent 处理特定域</td>
+            </tr>
+            <tr>
+                <td><strong>专业化</strong></td>
+                <td>通用提示，难以深度优化</td>
+                <td>每个 Agent 有专属角色、工具集、系统提示</td>
+            </tr>
+            <tr>
+                <td><strong>可扩展性</strong></td>
+                <td>功能增加导致 prompt 膨胀</td>
+                <td>通过新增 Agent 扩展能力，模块化水平扩展</td>
+            </tr>
+            <tr>
+                <td><strong>鲁棒性</strong></td>
+                <td>单点失败即任务失败</td>
+                <td>部分 Agent 失败可由其他 Agent 补偿或重试</td>
+            </tr>
+            <tr>
+                <td><strong>视角多样性</strong></td>
+                <td>单一推理路径</td>
+                <td>多个专家从不同角度分析，减少盲区</td>
+            </tr>
+        </table>
+    </div>
+
+    <h3 id="s1-3">1.3 实证：长程任务上的碾压性优势</h3>
+    <div class="stats-bar">
+        <div class="stat-item">
+            <div class="stat-value">+26.7%</div>
+            <div class="stat-label">CAID vs 单 Agent<br>PaperBench 论文复现</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value">+14.3%</div>
+            <div class="stat-label">CAID vs 单 Agent<br>Commit0 库开发</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value">+12~16%</div>
+            <div class="stat-label">Agent Primitives<br>8 个 Benchmark 平均</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value">72%</div>
+            <div class="stat-label">企业 AI 项目<br>涉及多 Agent（2026）</div>
+        </div>
+    </div>
+    <p>CMU 的 <strong>CAID</strong>（Centralized Asynchronous Isolated Delegation）框架在论文复现任务上，相比单 Agent 基线绝对准确率提升 <strong>26.7%</strong>，在 Python 库开发任务上提升 <strong>14.3%</strong>。Agent Primitives 论文在 8 个 benchmark（数学推理、代码生成、QA）上，基于原语的多 Agent 系统比单 Agent 基线平均提升 <strong>12.0–16.5%</strong>。</p>
+</section>
+
+<!-- Section 2 -->
+<section class="section section-anchor" id="s2">
+    <h2><span class="section-num" style="background: linear-gradient(135deg, #7c3aed, #6d28d9);">02</span>Agent 原语设计</h2>
+    <p>当前主流框架（AutoGen、CrewAI、LangGraph）的共同问题是：<strong>每个新任务都需要手工设计 Agent 角色和交互协议</strong>。MetaGPT 模拟软件工程团队，给每个 Agent 分配产品经理、架构师、工程师等角色；CAMEL 设计特定的对话流程。这些方案有效，但高度任务相关，难以复用。</p>
+
+    <h3 id="s2-1">2.1 什么是 Agent 原语</h3>
+    <div class="callout callout-purple">
+        <div class="callout-title">🧬 核心类比</div>
+        <p>就像神经网络用<strong>残差块</strong>和<strong>注意力头</strong>构建复杂模型一样，多 Agent 系统也应该由少量可复用的<strong>"原语"</strong>构建。原语是对 recurring computation patterns 的封装，对外暴露标准 LLM Agent 接口，支持即插即用。</p>
+    </div>
+
+    <h3 id="s2-2">2.2 三大核心原语（Agent Primitives）</h3>
+    <p>通过对现有 MAS 设计的实证分析，学术界发现绝大多数架构可以分解为以下三种 recurring patterns：</p>
+
+    <div class="card-grid">
+        <div class="card" style="border-top: 4px solid #2563eb;">
+            <div class="card-icon" style="background: rgba(37,99,235,0.1); color: #2563eb;">🔍</div>
+            <h4>Review Primitive（评审原语）</h4>
+            <p><strong>结构：</strong>Solver Agent + Critic Agent，通过潜在反馈通道连接</p>
+            <p><strong>机制：</strong>Solver 生成 KV Cache，Critic 直接消费 latent representation 生成修正反馈，修改后的 latent state 回传 Solver 迭代 refine</p>
+            <p><strong>停止：</strong>由中间 latent state 推导自适应停止</p>
+            <p><strong>本质：</strong>将 Self-Refine、Multi-Agent Debate 抽象为可复用 latent operator</p>
+        </div>
+        <div class="card" style="border-top: 4px solid #7c3aed;">
+            <div class="card-icon" style="background: rgba(124,58,237,0.1); color: #7c3aed;">🗳️</div>
+            <h4>Voting & Selection（投票选择）</h4>
+            <p><strong>结构：</strong>N 个并行 Solver + 1 个 Selector 模块</p>
+            <p><strong>机制：</strong>每个 Solver 独立生成 KV Cache 候选，Selector 在<strong>潜在空间</strong>而非文本空间进行投票和选择</p>
+            <p><strong>优势：</strong>避免文本级多数决的信息损失，直接在语义空间融合多视角推理</p>
+            <p><strong>本质：</strong>将 Ensemble / Majority Vote 抽象为 latent aggregator</p>
+        </div>
+        <div class="card" style="border-top: 4px solid #059669;">
+            <div class="card-icon" style="background: rgba(5,150,105,0.1); color: #059669;">📋</div>
+            <h4>Planning & Execution（规划执行）</h4>
+            <p><strong>结构：</strong>Planner Agent + Executor Agent</p>
+            <p><strong>机制：</strong>Planner 生成 latent plan（KV Cache 形式的结构化步骤），Executor 消费该计划进行任务特定推理</p>
+            <p><strong>优势：</strong>计划与执行解耦，计划可复用、可验证、可回滚</p>
+            <p><strong>本质：</strong>将 ReAct / Plan-and-Solve 抽象为可复用分解算子</p>
+        </div>
+    </div>
+
+    <div class="callout callout-cyan">
+        <div class="callout-title">🔑 关键设计约束</div>
+        <p>这三个原语的核心约束是：<strong>内部协调完全通过 KV Cache 交换实现，不依赖文本级消息传递</strong>。这确保原语行为独立于自然语言协议，同时对外暴露标准 LLM Agent 接口，可以在任何多 Agent 框架中即插即用。</p>
+    </div>
+
+    <h3 id="s2-3">2.3 工程实践中的其他关键原语</h3>
+
+    <div class="collapsible open">
+        <button class="collapsible-toggle">委托（Delegation）</button>
+        <div class="collapsible-content">
+            <ul>
+                <li><code>fire-and-forget</code>：派发任务不等待结果</li>
+                <li><code>wait-for-result</code>：同步等待子 Agent 完成</li>
+                <li><code>parallel handlers</code>：并行派发多个子任务</li>
+            </ul>
+            <p>这是 OpenAI Agents SDK 中 <code>handoff</code> 机制的底层抽象，也是 Cognition Core 设计中的核心委托模式。</p>
+        </div>
+    </div>
+
+    <div class="collapsible open">
+        <button class="collapsible-toggle">身份与路由（Identity & Routing）</button>
+        <div class="collapsible-content">
+            <p>OpenClaw 中的三原语设计：</p>
+            <ul>
+                <li><code>agentId</code>：独立工作区 + 认证 + 会话存储</li>
+                <li><code>accountId</code>：渠道账号实例</li>
+                <li><code>bindings</code>：确定性消息路由规则</li>
+            </ul>
+            <p>人格、边界、团队规则沉淀在工作区文件（<code>AGENTS.md</code>、<code>SOUL.md</code>、<code>USER.md</code>）而非内联 prompt 中。</p>
+        </div>
+    </div>
+
+    <div class="collapsible open">
+        <button class="collapsible-toggle">Git 作为协调协议</button>
+        <div class="collapsible-content">
+            <p>Cursor 和 Anthropic 的 Agent Swarm 都不约而同选择 Git 而非自定义消息总线：</p>
+            <ul>
+                <li>每个 Worker 在独立 Git worktree / Docker 中工作</li>
+                <li>通过 <code>git commit</code> / <code>git merge</code> 实现结构化集成</li>
+                <li>用 lock file（<code>current_tasks/xxx.txt</code>）在 Git 层面实现任务认领的原子性</li>
+                <li><strong>最终一致性</strong>：接受临时分歧，让系统自然收敛</li>
+            </ul>
+            <p>核心洞察：<strong>Agent 不适合作为强一致性锁的持有者</strong>（它们会崩溃、会幻觉、会忘记释放锁），因此"接受临时分歧，后期协调"是更务实的模型。</p>
+        </div>
+    </div>
+
+    <h3 id="s2-4">2.4 潜在空间通信：从"说人话"到"直接传思维"</h3>
+    <p>传统多 Agent 系统用自然语言通信，存在根本性瓶颈：<strong>信息在文本编解码中逐级降级，噪声累积导致准确率衰减</strong>。</p>
+    <div class="table-wrap">
+        <table>
+            <tr><th>指标</th><th>文本通信</th><th>KV Cache 通信</th></tr>
+            <tr><td>Token 使用</td><td>基准（3–4x 开销）</td><td><strong>减少 3–4 倍</strong></td></tr>
+            <tr><td>推理延迟</td><td>高（文本生成 + 解析）</td><td><strong>显著降低</strong></td></tr>
+            <tr><td>信息保真</td><td>逐级降级</td><td><strong>多阶段保持稳定</strong></td></tr>
+            <tr><td>整体开销</td><td>单 Agent 的 3–4 倍</td><td><strong>仅 1.3–1.6 倍</strong></td></tr>
+        </table>
+    </div>
+    <p>这意味着，未来团队模式 Agent 的"内部沟通"可能不需要自然语言，而是直接在模型的 latent space 中传递 KV Cache。这对架构设计有深远影响：Agent 间的通信协议需要从"文本协议"升级为"潜在空间协议"。</p>
+</section>
+
+<!-- Section 3 -->
+<section class="section section-anchor" id="s3">
+    <h2><span class="section-num" style="background: linear-gradient(135deg, #ea580c, #c2410c);">03</span>多 Agent 编排模式</h2>
+
+    <h3 id="s3-1">3.1 五大核心编排架构</h3>
+    <div class="table-wrap">
+        <table>
+            <tr>
+                <th style="width: 16%;">模式</th>
+                <th style="width: 30%;">结构</th>
+                <th style="width: 30%;">适用场景</th>
+                <th style="width: 24%;">代表框架</th>
+            </tr>
+            <tr>
+                <td><span class="tag tag-blue">Planner-Executor</span></td>
+                <td>规划者分解 → 执行者逐步执行</td>
+                <td>需要明确步骤分解的任务</td>
+                <td>ReAct 泛化、SmolAgents</td>
+            </tr>
+            <tr>
+                <td><span class="tag tag-purple">Hierarchical</span></td>
+                <td>监督者路由到专家池，监督者不执行</td>
+                <td>复杂工作流、企业级治理</td>
+                <td>CrewAI、OpenAI Swarm</td>
+            </tr>
+            <tr>
+                <td><span class="tag tag-green">Maker-Checker</span></td>
+                <td>生成者产出 → 验证者评分/重写</td>
+                <td>高 stakes 领域（法律、医疗）</td>
+                <td>评审原语、Evaluator-Optimizer</td>
+            </tr>
+            <tr>
+                <td><span class="tag tag-orange">Pipeline</span></td>
+                <td>固定序列：A → B → C，每个转换前一个输出</td>
+                <td>确定性流程（内容发布、数据处理）</td>
+                <td>LangGraph 线性链</td>
+            </tr>
+            <tr>
+                <td><span class="tag tag-red">Network/Swarm</span></td>
+                <td>对等节点共享草稿本，自由讨论至共识</td>
+                <td>探索性任务（研究、头脑风暴）</td>
+                <td>AutoGen GroupChat、CAMEL</td>
+            </tr>
+        </table>
+    </div>
+
+    <h3 id="s3-2">3.2 拓扑结构：三种组织形态</h3>
+    <div class="card-grid">
+        <div class="card">
+            <h4>🔗 Mesh（对等网络）</h4>
+            <p>无中心节点，Agent 广播消息，分布式决策。适合容错要求高、需要分布式共识的场景。风险：O(n²) 通信复杂度，容易出现循环和冗余 chatter。</p>
+        </div>
+        <div class="card">
+            <h4>👑 Hierarchical（女王-工蜂）</h4>
+            <p>中心协调者（Queen/Lead）分解任务，派发给专业工作者。工作者可点对点通信（如前端 Agent 直接问后端 Agent API 契约），无需全部经过中心。适合明确分工的复杂项目。</p>
+        </div>
+        <div class="card">
+            <h4>🔄 Adaptive（自适应）</h4>
+            <p>根据任务复杂度动态切换拓扑：简单任务用 Pipeline，复杂任务展开为 Hierarchical，探索任务切换为 Mesh。目前主要在实验性框架中实现，但代表了未来方向。</p>
+        </div>
+    </div>
+
+    <h3 id="s3-3">3.3 执行模式：声明式 vs 自主式</h3>
+    <div class="callout callout-green">
+        <div class="callout-title">Workflow Mode（声明式）</div>
+        <p>YAML 声明 epistemic sequence：<code>retrieve → classify → investigate → deliberate → govern</code>。执行引擎按固定序列调用原语，每个步骤命名原语、指定参数、定义转移条件。适合合规要求高、流程可预见的场景。</p>
+    </div>
+    <div class="callout callout-orange">
+        <div class="callout-title">Agentic Mode（自主式）</div>
+        <p>编排器（Orchestrator）根据目标 + 累积证据自主选择轨迹。YAML 只声明可用原语词汇、硬约束（<code>must_include</code>、<code>max_steps</code>、<code>must_end_with</code>）和 goal。执行引擎在底层强制硬约束，但不干预编排器的路径选择。适合问题结构未知、需要探索的复杂任务。</p>
+    </div>
+    <p>两种模式共享同一套原语、治理模型和审计账本。</p>
+</section>
+
+<!-- Section 4 -->
+<section class="section section-anchor" id="s4">
+    <h2><span class="section-num" style="background: linear-gradient(135deg, #0891b2, #0e7490);">04</span>主流框架对比</h2>
+
+    <div class="table-wrap">
+        <table>
+            <tr>
+                <th style="width: 14%;">框架</th>
+                <th style="width: 22%;">核心抽象</th>
+                <th style="width: 22%;">编排哲学</th>
+                <th style="width: 22%;">优势</th>
+                <th style="width: 20%;">劣势</th>
+            </tr>
+            <tr>
+                <td><strong>LangGraph</strong></td>
+                <td>StateGraph + Node + Edge + Checkpoint</td>
+                <td>把多 Agent 工作流当作状态机，typed state dict 在图中流动</td>
+                <td>复杂条件分支、循环、持久化、可恢复、human-in-the-loop</td>
+                <td>学习曲线陡峭，需要图论和分布式系统思维</td>
+            </tr>
+            <tr>
+                <td><strong>CrewAI</strong></td>
+                <td>Agent（role+goal+backstory）+ Task + Crew</td>
+                <td>给 Agent 赋予人类可理解的角色，让它们在"团队"中协作</td>
+                <td>直觉式 API，15 分钟搭出原型，可读性强</td>
+                <td>细粒度控制有限，大规模 Crew 调试困难</td>
+            </tr>
+            <tr>
+                <td><strong>AutoGen / MAF</strong></td>
+                <td>ConversableAgent + GroupChat + Speaker Selection</td>
+                <td>Agent 在群聊中轮流发言，通过自然语言辩论收敛到解决方案</td>
+                <td>极度灵活，适合动态问题；Human-in-the-Loop 支持好</td>
+                <td>高 token 消耗、高延迟、执行路径不可预测</td>
+            </tr>
+            <tr>
+                <td><strong>OpenAI Agents SDK</strong></td>
+                <td>Agent + Tool + Handoff + Execution Loop</td>
+                <td>最小抽象集，Agent 通过 handoff 平滑委托任务</td>
+                <td>极简、内置验证和 guardrails、原生 tracing</td>
+                <td>编排深度有限，生态锁定在 OpenAI</td>
+            </tr>
+        </table>
+    </div>
+
+    <h4>框架选型决策树</h4>
+    <div class="decision-tree">
+是否需要精确控制状态流？
+  ├─ 是 → LangGraph（生产级状态机）
+  └─ 否 → 是否需要快速原型？
+       ├─ 是 → CrewAI（角色驱动，直觉式）
+       └─ 否 → 是否需要动态对话/人机协作？
+            ├─ 是 → Microsoft Agent Framework（原 AutoGen）
+            └─ 否 → OpenAI Agents SDK（极简，OpenAI 生态内）
+    </div>
+</section>
+
+<!-- Section 5 -->
+<section class="section section-anchor" id="s5">
+    <h2><span class="section-num" style="background: linear-gradient(135deg, #059669, #047857);">05</span>通信与协调机制</h2>
+
+    <h3>5.1 通信协议层</h3>
+    <div class="callout callout-blue">
+        <div class="callout-title">结构化消息（Structured Messaging）</div>
+        <p>纯文本通信是 Agent 系统的主要 bug 来源：解析歧义、格式不一致、幻觉注入。工业界共识：使用 Pydantic 验证的强类型消息，每个消息定义明确的 schema。消息可见性基于 FSM 状态过滤，确保 Agent 只接收与其当前角色和阶段相关的消息。</p>
+    </div>
+    <p><strong>标准化协议：</strong></p>
+    <ul>
+        <li><strong>A2A（Agent2Agent）</strong>：Google 推动的开放协议，定义 Agent 能力发现、任务委托、上下文传递</li>
+        <li><strong>ACP（Agent Communication Protocol）</strong>：IBM 的提案</li>
+        <li><strong>ANP / AWCP</strong>：学术界的互操作协议探索</li>
+    </ul>
+    <p>这些协议的目标是构建"Agent 互联网"（Internet of Agents），让不同框架、不同厂商的 Agent 能够相互发现和调用。</p>
+
+    <h3>5.2 状态同步层</h3>
+    <div class="card-grid">
+        <div class="card">
+            <h4>🌿 Git 作为协调协议</h4>
+            <p>Git 提供最终一致性 out of the box。分支机制天然支持隔离工作区，合并冲突的解决流程是并发编辑的标准化解法。Lock file 利用 Git 的原子性实现任务认领。</p>
+        </div>
+        <div class="card">
+            <h4>📌 共享任务列表</h4>
+            <p>状态：pending → in-progress → completed。依赖跟踪：当依赖任务完成时，下游任务自动 unblock。类比人类团队的 Jira/Trello。</p>
+        </div>
+        <div class="card">
+            <h4>📝 黑板系统（Blackboard）</h4>
+            <p>共享知识工作空间，Agent 异步读写。适合需要累积中间发现、逐步收敛的协作任务。与消息传递的区别：黑板是"拉取"模型，消息传递是"推送"模型。</p>
+        </div>
+    </div>
+
+    <h3>5.3 隔离与执行层</h3>
+    <p><strong>隔离工作区：</strong>CAID 使用 <code>git worktree</code> 为每个 Agent 创建独立工作区；Anthropic 使用 Docker 容器隔离。目的：防止并发编辑互相干扰，支持独立验证后再集成。</p>
+    <p><strong>测试驱动的集成：</strong>CAID 的核心创新：Agent 完成任务后必须通过可执行测试验证，才能合并到主分支。这相当于给 Agent 团队设置了 CI/CD gate，避免"看起来对但跑不通"的代码合并。</p>
+</section>
+
+<!-- Section 6 -->
+<section class="section section-anchor" id="s6">
+    <h2><span class="section-num" style="background: linear-gradient(135deg, #dc2626, #b91c1c);">06</span>设计原则与反模式</h2>
+
+    <h3>6.1 何时用多 Agent，何时用单 Agent</h3>
+    <div class="callout callout-green">
+        <div class="callout-title">决策规则</div>
+        <p><strong>单 Agent</strong>：任务简单、步骤少、工具少、无需跨领域验证。<br><strong>多 Agent</strong>：任务需要专业化角色、多步推理、强验证、跨工具/工作流协调。<br><strong>混合架构</strong>（最推荐）：中央编排层根据任务复杂度路由到单 Agent 或 Agent 团队。</p>
+    </div>
+
+    <h3>6.2 关键设计决策清单</h3>
+    <div class="table-wrap">
+        <table>
+            <tr><th style="width: 8%;">#</th><th style="width: 22%;">决策项</th><th style="width: 35%;">推荐选择</th><th style="width: 35%;">理由</th></tr>
+            <tr><td>1</td><td>拓扑选择</td><td>层级式适合明确分工，网状适合探索性任务</td><td>不要为简单任务硬上 Mesh</td></tr>
+            <tr><td>2</td><td>通信粒度</td><td>结构化消息 > 自由文本</td><td>自由文本适合人机交互，不适合 Agent 间交互</td></tr>
+            <tr><td>3</td><td>状态管理</td><td>显式状态图 > 隐式对话上下文</td><td>后者在规模扩大后不可调试</td></tr>
+            <tr><td>4</td><td>一致性模型</td><td>最终一致性 > 强一致性</td><td>Agent 是不可靠的锁持有者</td></tr>
+            <tr><td>5</td><td>人机协作</td><td>设计阶段定义 handoff 点</td><td>明确"什么数据、什么格式、什么条件下转人"</td></tr>
+        </table>
+    </div>
+
+    <h3>6.3 反模式（Anti-Patterns）</h3>
+    <div class="table-wrap">
+        <table>
+            <tr><th style="width: 18%;">反模式</th><th style="width: 40%;">表现</th><th style="width: 42%;">后果</th></tr>
+            <tr><td><span class="tag tag-red">过度设计</span></td><td>简单任务硬拆 5 个 Agent</td><td>延迟和成本倍增，无质量收益</td></tr>
+            <tr><td><span class="tag tag-red">对话混乱</span></td><td>Agent 自由聊天无明确目标</td><td>循环论证、冗余 chatter、token 爆炸</td></tr>
+            <tr><td><span class="tag tag-red">状态黑洞</span></td><td>状态隐式存储在对话历史中</td><td>无法恢复、无法调试、无法审计</td></tr>
+            <tr><td><span class="tag tag-red">强一致性幻觉</span></td><td>让 Agent 持有分布式锁</td><td>锁泄漏、死锁、不一致</td></tr>
+            <tr><td><span class="tag tag-red">角色膨胀</span></td><td>一个 Agent 被赋予 3+ 不相关角色</td><td>上下文冲突，输出质量劣化</td></tr>
+        </table>
+    </div>
+</section>
+
+<!-- Section 7 -->
+<section class="section section-anchor" id="s7">
+    <h2><span class="section-num" style="background: linear-gradient(135deg, #4f46e5, #4338ca);">07</span>前沿趋势</h2>
+
+    <div class="card-grid">
+        <div class="card" style="border-top: 4px solid #7c3aed;">
+            <h4>🧠 潜在空间协作</h4>
+            <p>KV Cache 通信只是开始，未来可能出现跨模型家族的 latent interoperability，让不同架构的 Agent 在共享连续空间中协作，无需文本翻译。</p>
+        </div>
+        <div class="card" style="border-top: 4px solid #2563eb;">
+            <h4>🤖 自动系统构建</h4>
+            <p>Agent Primitives 中的 Organizer + Knowledge Pool 展示了自动选择原语组合的可能性。未来可能实现"输入任务描述，自动输出最优 Agent 团队架构"。</p>
+        </div>
+        <div class="card" style="border-top: 4px solid #059669;">
+            <h4>📡 标准化协议战争</h4>
+            <p>A2A、ACP、ANP、AWCP 等协议正在竞争成为"Agent 互联网"的 TCP/IP。对架构师来说，<strong>协议层抽象</strong>比框架选择更重要。</p>
+        </div>
+        <div class="card" style="border-top: 4px solid #ea580c;">
+            <h4>🔍 可观测性成为瓶颈</h4>
+            <p>调研显示，<strong>可观测性是生产 adoption 的 #1 障碍</strong>。团队模式 Agent 需要 span 语义、分布式链路追踪、Agent 级指标监控。</p>
+        </div>
+        <div class="card" style="border-top: 4px solid #dc2626;">
+            <h4>🛡️ Agent 互联网安全</h4>
+            <p>随着 Agent 跨平台互操作，注册、发现、资源审查、治理成为新的安全边界。必须<strong>与能力协同设计</strong>的架构原则。</p>
+        </div>
+    </div>
+</section>
+
+<!-- Summary -->
+<section class="section" style="background: linear-gradient(135deg, #1a1a2e, #16213e); color: white; border: none;">
+    <h2 style="color: white;"><span class="section-num" style="background: linear-gradient(135deg, #60a5fa, #c084fc);">∑</span>总结</h2>
+    <p style="color: rgba(255,255,255,0.8);">团队模式的 Agent 原语与多 Agent 编排，本质上是在解决<strong>"如何让多个有限上下文的专业 Agent，像人类团队一样协作完成超出现有 LLM 上下文窗口的复杂任务"</strong>。</p>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-top: 24px;">
+        <div style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 16px;">
+            <div style="font-size: 13px; color: rgba(255,255,255,0.5); margin-bottom: 6px;">必要性</div>
+            <div style="font-size: 14px; color: rgba(255,255,255,0.9);">单 Agent 在长程、跨域、高验证任务上存在物理瓶颈，多 Agent 优势已获实证验证。</div>
+        </div>
+        <div style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 16px;">
+            <div style="font-size: 13px; color: rgba(255,255,255,0.5); margin-bottom: 6px;">原语</div>
+            <div style="font-size: 14px; color: rgba(255,255,255,0.9);">Review、Voting/Selection、Planning/Execution 三种原语 + 委托/路由/消息/Git 等工程抽象。</div>
+        </div>
+        <div style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 16px;">
+            <div style="font-size: 13px; color: rgba(255,255,255,0.5); margin-bottom: 6px;">编排</div>
+            <div style="font-size: 14px; color: rgba(255,255,255,0.9);">状态机、角色驱动、对话驱动三种哲学各有适用域，生产系统趋向"混合架构"。</div>
+        </div>
+        <div style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 16px;">
+            <div style="font-size: 13px; color: rgba(255,255,255,0.5); margin-bottom: 6px;">通信</div>
+            <div style="font-size: 14px; color: rgba(255,255,255,0.9);">从自然语言文本 → 结构化消息 → 潜在空间 KV Cache，通信效率和稳定性持续提升。</div>
+        </div>
+    </div>
+</section>
+
+</main>
+</div>
+</div>
+
+<div class="footer">
+    <p>团队模式 Agent 原语与多 Agent 编排 — 深度调研报告</p>
+    <p style="margin-top: 4px; font-size: 12px;">基于 2025–2026 学术界与工业界最新研究整理 · 2026-06-01</p>
+</div>
+
+<script>
+// TOC Active State
+const sections = document.querySelectorAll('.section-anchor');
+const tocLinks = document.querySelectorAll('.toc-list a');
+
+const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            tocLinks.forEach(link => link.classList.remove('active'));
+            const id = entry.target.getAttribute('id');
+            const activeLink = document.querySelector(`.toc-list a[href="#${id}"]`);
+            if (activeLink) activeLink.classList.add('active');
+        }
+    });
+}, { rootMargin: '-20% 0px -60% 0px' });
+
+sections.forEach(section => observer.observe(section));
+
+// Collapsible
+document.querySelectorAll('.collapsible-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const parent = btn.parentElement;
+        parent.classList.toggle('open');
+    });
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent Sandbox 工程全量 Review</title>
+    <style>
+        :root {
+            --bg: #f6f8fa;
+            --card-bg: #fff;
+            --border: #d0d7de;
+            --text: #24292f;
+            --text-secondary: #57606a;
+            --accent: #0969da;
+            --accent-light: #ddf4ff;
+            --success: #1a7f37;
+            --success-bg: #dafbe1;
+            --warn: #9a6700;
+            --warn-bg: #fff8c5;
+            --danger: #cf222e;
+            --danger-bg: #ffebe9;
+            --code-bg: #f6f8fa;
+        }
+        * { box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 32px 24px;
+        }
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 16px;
+        }
+        h2 {
+            font-size: 1.4rem;
+            margin-top: 40px;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+        h3 {
+            font-size: 1.1rem;
+            margin-top: 24px;
+            margin-bottom: 12px;
+            color: var(--text);
+        }
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            margin-bottom: 24px;
+        }
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-right: 6px;
+        }
+        .badge-primary { background: var(--accent-light); color: var(--accent); }
+        .badge-success { background: var(--success-bg); color: var(--success); }
+        .badge-warn { background: var(--warn-bg); color: var(--warn); }
+        .badge-danger { background: var(--danger-bg); color: var(--danger); }
+        .meta-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-top: 16px;
+        }
+        .meta-item dt {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 4px;
+        }
+        .meta-item dd {
+            margin: 0;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+            margin-top: 12px;
+        }
+        th, td {
+            text-align: left;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+        }
+        th {
+            background: var(--code-bg);
+            font-weight: 600;
+        }
+        code, pre {
+            font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+            font-size: 0.85em;
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        pre {
+            padding: 16px;
+            overflow-x: auto;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+        .highlight-box {
+            border-left: 4px solid var(--accent);
+            background: var(--accent-light);
+            padding: 16px 20px;
+            border-radius: 0 8px 8px 0;
+            margin: 16px 0;
+        }
+        .warn-box {
+            border-left: 4px solid var(--warn);
+            background: var(--warn-bg);
+            padding: 16px 20px;
+            border-radius: 0 8px 8px 0;
+            margin: 16px 0;
+        }
+        ul, ol {
+            padding-left: 20px;
+        }
+        li { margin-bottom: 6px; }
+        .file-tree {
+            font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+            font-size: 0.85rem;
+            background: var(--code-bg);
+            padding: 16px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            white-space: pre;
+            overflow-x: auto;
+        }
+        .flow-step {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+        .flow-num {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--accent);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+        .flow-content {
+            flex: 1;
+        }
+        .flow-content h4 {
+            margin: 0 0 4px 0;
+            font-size: 1rem;
+        }
+        .flow-content p {
+            margin: 0;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Agent Sandbox 工程全量 Review</h1>
+        <p class="subtitle">Review 日期：2026-05-28 &nbsp;|&nbsp; 基于全量文档与源码的深度分析</p>
+
+        <!-- 1. 工程概述 -->
+        <h2>一、工程概述</h2>
+        <div class="card">
+            <p>
+                <span class="badge badge-primary">Go Library</span>
+                <span class="badge badge-success">Eino ADK</span>
+                <span class="badge badge-warn">Sandbox Bridge</span>
+            </p>
+            <p style="margin-top: 12px;">
+                <strong>agent-sandbox</strong> 是一个 Go 语言模块库（<code>gitlab.pjlab.org.cn/cloud/agent-sandbox</code>），
+                核心定位是为 <strong>CloudWego Eino ADK</strong> 提供<strong>远端 Sandbox 能力桥接</strong>。
+                它不直接对外暴露 HTTP/gRPC 服务，而是作为第三方依赖被集成到 AI Agent 项目中，
+                使 Agent 具备安全可控的<strong>文件操作</strong>与<strong>命令执行</strong>能力。
+            </p>
+            <div class="meta-grid">
+                <div class="meta-item">
+                    <dt>模块路径</dt>
+                    <dd>gitlab.pjlab.org.cn/cloud/agent-sandbox</dd>
+                </div>
+                <div class="meta-item">
+                    <dt>Go 版本</dt>
+                    <dd>1.24.7</dd>
+                </div>
+                <div class="meta-item">
+                    <dt>核心依赖</dt>
+                    <dd>sandbox-sdk-go / eino / eino-ext</dd>
+                </div>
+                <div class="meta-item">
+                    <dt>仓库托管</dt>
+                    <dd>GitLab (gitlab.pjlab.org.cn)</dd>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. 目录结构 -->
+        <h2>二、目录结构与文件清单</h2>
+        <div class="card">
+            <div class="file-tree">agent-sandbox/
+├── backend/
+│   └── backend.go          ← 核心实现（444 行）
+├── values/
+│   ├── dev.yml             ← 开发环境 K8s 配置
+│   ├── prod.yml            ← 生产环境 K8s 配置
+│   └── release.yml         ← 预发布环境 K8s 配置
+├── .gitignore              ← 忽略 test.go
+├── .gitlab-ci.yml          ← GitLab CI/CD 配置
+├── Dockerfile              ← 容器镜像构建
+├── README.md               ← 使用说明与快速接入
+├── go.mod                  ← Go 模块定义
+└── go.sum                  ← 依赖校验和</div>
+        </div>
+
+        <!-- 3. 核心设计 -->
+        <h2>三、核心设计</h2>
+
+        <h3>3.1 架构定位：适配器模式（Adapter）</h3>
+        <div class="card">
+            <p>
+                本工程的本质是一个<strong>适配器层</strong>，将远端 Sandbox 的 REST API 能力翻译为 Eino ADK 的
+                <code>filesystem</code> 接口方言，让基于 Eino 构建的 Agent 无需关心底层 Sandbox 的通信细节。
+            </p>
+            <div class="highlight-box">
+                <strong>设计模式：</strong>Adapter（适配器模式）+ Facade（门面模式）<br>
+                <strong>核心抽象：</strong><code>Backend</code> 结构体统一封装文件操作与流式命令执行
+            </div>
+            <table>
+                <tr>
+                    <th>Eino 接口</th>
+                    <th>sandbox-sdk-go API</th>
+                    <th>说明</th>
+                </tr>
+                <tr>
+                    <td><code>LsInfo</code></td>
+                    <td><code>client.File.ListPath</code></td>
+                    <td>列出目录内容</td>
+                </tr>
+                <tr>
+                    <td><code>Read</code></td>
+                    <td><code>client.File.ReadFile</code></td>
+                    <td>按行范围读取文件（默认 1-2000 行）</td>
+                </tr>
+                <tr>
+                    <td><code>Write</code></td>
+                    <td><code>client.File.WriteFile</code></td>
+                    <td>写入/覆盖文件</td>
+                </tr>
+                <tr>
+                    <td><code>Edit</code></td>
+                    <td><code>ReplaceInFile</code> / <code>Read+Write</code></td>
+                    <td>单处替换或全局替换（replace_all）</td>
+                </tr>
+                <tr>
+                    <td><code>GrepRaw</code></td>
+                    <td><code>client.File.GrepFiles</code></td>
+                    <td>文件内容搜索，支持多行/上下文</td>
+                </tr>
+                <tr>
+                    <td><code>GlobInfo</code></td>
+                    <td><code>client.File.GlobFiles</code></td>
+                    <td>通配符批量匹配</td>
+                </tr>
+                <tr>
+                    <td><code>ExecuteStreaming</code></td>
+                    <td><code>client.Shell.ExecCommand</code></td>
+                    <td>流式命令执行（实际为一次性结果转流）</td>
+                </tr>
+            </table>
+        </div>
+
+        <h3>3.2 安全模型：纯目录隔离</h3>
+        <div class="card">
+            <p>
+                系统采用<strong>纯目录级别隔离</strong>，不创建 Linux 用户、不依赖 sudo、不使用容器特权：
+            </p>
+            <ul>
+                <li><strong>工作目录基线：</strong>默认 <code>/home/gem</code>，可通过 <code>DefaultWorkDir</code> 配置</li>
+                <li><strong>用户子目录：</strong><code>/home/gem/&lt;UserID&gt;/</code>，UserID 必须符合 <code>^[a-z_][a-z0-9_-]*[$]?$</code></li>
+                <li><strong>路径沙箱化：</strong><code>~</code>、<code>.</code>、空路径、绝对路径溢出都会被重映射到用户目录内</li>
+                <li><strong>标记文件：</strong>首次初始化时写入 <code>.sandbox</code> 标记文件，触发服务端自动创建父目录</li>
+            </ul>
+            <div class="warn-box">
+                <strong>注意：</strong>当前实现对于溢出绝对路径使用 <code>filepath.Base</code> 截断，这可能丢失深层目录结构。
+                例如请求 <code>/etc/passwd</code> 会被映射到 <code>/home/gem/&lt;user&gt;/passwd</code>。
+            </div>
+        </div>
+
+        <h3>3.3 配置模型</h3>
+        <div class="card">
+            <table>
+                <tr>
+                    <th>配置项</th>
+                    <th>类型</th>
+                    <th>必填</th>
+                    <th>默认值</th>
+                    <th>说明</th>
+                </tr>
+                <tr>
+                    <td><code>BaseURL</code></td>
+                    <td>string</td>
+                    <td>是</td>
+                    <td>-</td>
+                    <td>Sandbox 服务地址，自动去除末尾 <code>/</code></td>
+                </tr>
+                <tr>
+                    <td><code>UserID</code></td>
+                    <td>string</td>
+                    <td>是</td>
+                    <td>-</td>
+                    <td>目录隔离标识，正则校验</td>
+                </tr>
+                <tr>
+                    <td><code>DefaultWorkDir</code></td>
+                    <td>string</td>
+                    <td>否</td>
+                    <td><code>/home/gem</code></td>
+                    <td>必须为绝对路径</td>
+                </tr>
+                <tr>
+                    <td><code>ValidateCommand</code></td>
+                    <td>func(string) error</td>
+                    <td>否</td>
+                    <td>nil</td>
+                    <td>命令执行前自定义校验钩子</td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- 4. 关键实现细节 -->
+        <h2>四、关键实现细节</h2>
+
+        <h3>4.1 路径解析（resolvePath）</h3>
+        <div class="card">
+            <pre>func (b *Backend) resolvePath(path string) string {
+    home := b.userHome()
+    switch path {
+    case "", ".", "~", "/":
+        return home
+    }
+    if strings.HasPrefix(path, "~/") {
+        return filepath.Join(home, path[2:])
+    }
+    cleaned := filepath.Clean(path)
+    if strings.HasPrefix(cleaned, home+"/") || cleaned == home {
+        return cleaned
+    }
+    // 外部路径 → 重映射为用户目录下的相对路径
+    return filepath.Join(home, filepath.Base(cleaned))
+}</pre>
+            <p>
+                路径解析策略简单直接，优先保证安全性（任何越界路径都被拉回用户目录），
+                但存在语义损失：外部绝对路径仅保留 basename，深层路径信息被截断。
+            </p>
+        </div>
+
+        <h3>4.2 Edit 操作的双重策略</h3>
+        <div class="card">
+            <ul>
+                <li><strong>ReplaceAll=false（默认）：</strong>调用远端 <code>ReplaceInFile</code> API，由服务端执行精确单行/单处替换</li>
+                <li><strong>ReplaceAll=true：</strong>先 <code>ReadFile</code> 全量读取，本地 <code>strings.ReplaceAll</code>，再 <code>WriteFile</code> 回写。替换次数为 0 时报错</li>
+            </ul>
+            <div class="warn-box">
+                <strong>风险点：</strong>ReplaceAll 策略存在竞态条件（Read-Modify-Write），并发写同一文件可能丢失更新。
+                另外 Edit 要求 <code>old_string != ""</code> 且 <code>old_string != new_string</code>，空旧字符串被显式拒绝。
+            </div>
+        </div>
+
+        <h3>4.3 ExecuteStreaming 的流式模拟</h3>
+        <div class="card">
+            <p>
+                虽然接口名为 <code>ExecuteStreaming</code>，但底层 <code>sandbox-sdk-go</code> 的 <code>ExecCommand</code>
+                实际为同步一次性执行。当前实现通过 <code>schema.Pipe</code> 将同步结果包装为流式 Reader，
+                在 goroutine 中一次性发送完整输出后关闭管道。
+            </p>
+            <div class="highlight-box">
+                这是一个<strong>伪流式</strong>实现：对调用方暴露 StreamReader 接口，但内部并无逐字节/逐行推流，
+                所有输出一次性到达。后续若服务端支持真流式，只需替换 goroutine 内部逻辑即可，接口无需改动。
+            </div>
+        </div>
+
+        <h3>4.4 初始化与目录探测</h3>
+        <div class="card">
+            <p>
+                <code>NewBackend</code> 初始化时会调用 <code>ensureHomeDir</code>：
+            </p>
+            <ol>
+                <li>先尝试 <code>ListPath</code> 探测用户目录是否存在</li>
+                <li>若报错（目录不存在），则写入标记文件 <code>.sandbox</code>，利用服务端"自动创建父目录"特性完成目录初始化</li>
+            </ol>
+            <p>
+                该设计<strong>零权限依赖</strong>，不需要 mkdir 权限，完全依赖远端 Sandbox 服务的自动创建行为。
+            </p>
+        </div>
+
+        <!-- 5. 构建与部署 -->
+        <h2>五、构建与部署</h2>
+
+        <h3>5.1 Dockerfile</h3>
+        <div class="card">
+            <ul>
+                <li><strong>基础镜像：</strong><code>eng-center-registry-vpc.cn-shanghai.cr.aliyuncs.com/public/all-in-one-sandbox:latest</code></li>
+                <li>当前 Dockerfile 大部分内容为注释掉的扩展安装（glab CLI、sudo、Node.js 等），实际为<strong>无定制直接引用基础镜像</strong></li>
+                <li>基础镜像本身已包含完整的 sandbox 运行时环境</li>
+            </ul>
+        </div>
+
+        <h3>5.2 K8s 部署配置（Helm Values）</h3>
+        <div class="card">
+            <table>
+                <tr>
+                    <th>环境</th>
+                    <th>域名</th>
+                    <th>资源 Request</th>
+                    <th>资源 Limit</th>
+                    <th>Ingress</th>
+                </tr>
+                <tr>
+                    <td><span class="badge badge-primary">dev</span></td>
+                    <td>agent-sandbox-dev.intern-ai.org.cn</td>
+                    <td>0.5 CPU / 1 Gi / 1Gi 临时盘</td>
+                    <td>2 CPU / 4 Gi / 5Gi 临时盘</td>
+                    <td>Nginx / HTTPS</td>
+                </tr>
+                <tr>
+                    <td><span class="badge badge-warn">release</span></td>
+                    <td>agent-sandbox-staging.intern-ai.org.cn</td>
+                    <td>同上</td>
+                    <td>同上</td>
+                    <td>Nginx / HTTPS</td>
+                </tr>
+                <tr>
+                    <td><span class="badge badge-success">prod</span></td>
+                    <td>agent-sandbox.intern-ai.org.cn</td>
+                    <td>同上</td>
+                    <td>同上</td>
+                    <td>Nginx / HTTPS</td>
+                </tr>
+            </table>
+            <p style="margin-top: 12px; font-size: 0.9rem; color: var(--text-secondary);">
+                三环境配置结构完全一致，仅域名区分。Ingress 启用了 300 秒的超时，适配长时间命令执行场景。
+                TLS 证书复用同一 secret：<code>generic-intern-ai.org.cn</code>。
+            </p>
+        </div>
+
+        <!-- 6. CI/CD 流程 -->
+        <h2>六、CI/CD 流程</h2>
+        <div class="card">
+            <h3>6.1 GitLab CI 配置</h3>
+            <p>
+                <code>.gitlab-ci.yml</code> 采用<strong>模板引用</strong>模式，未定义显式 stages/jobs，
+                全部依赖 <code>devops/ci-templates</code> 项目中的共享模板：
+            </p>
+            <ul>
+                <li><code>/templates/aliyun-aigc.yml</code> — 阿里云 AIGC 构建/发布流程</li>
+                <li><code>/templates/merge.yml</code> — Merge Request 质量门禁</li>
+                <li><code>/templates/aliyun-ai4s-v2.yml</code> — AI4S v2 部署流程</li>
+            </ul>
+            <h3>6.2 关键变量</h3>
+            <table>
+                <tr>
+                    <th>变量</th>
+                    <th>值</th>
+                    <th>说明</th>
+                </tr>
+                <tr>
+                    <td><code>SERVICE_NAME</code></td>
+                    <td>agent-sandbox</td>
+                    <td>服务名</td>
+                </tr>
+                <tr>
+                    <td><code>IMAGE_PULL_SECRET</code></td>
+                    <td>regcred-vpc</td>
+                    <td>阿里云 VPC 镜像拉取凭证</td>
+                </tr>
+                <tr>
+                    <td><code>RUNNER_TAG</code></td>
+                    <td>ecs</td>
+                    <td>GitLab Runner 标签</td>
+                </tr>
+                <tr>
+                    <td><code>GOPROXY</code></td>
+                    <td>http://192.168.72.197:3333, https://goproxy.cn, direct</td>
+                    <td>私有模块走内网代理，公网模块走 goproxy.cn</td>
+                </tr>
+                <tr>
+                    <td><code>timeout</code></td>
+                    <td>5h</td>
+                    <td>默认作业超时极长</td>
+                </tr>
+            </table>
+            <div class="warn-box">
+                <strong>注意：</strong><code>GOPROXY</code> 变量被重复定义了两次（第 10 行和第 12 行），
+                虽然 YAML 解析后后者覆盖前者，内容相同无实际影响，但属于代码异味。
+            </div>
+        </div>
+
+        <!-- 7. 依赖分析 -->
+        <h2>七、依赖分析</h2>
+        <div class="card">
+            <h3>7.1 直接依赖（4 个）</h3>
+            <table>
+                <tr>
+                    <th>模块</th>
+                    <th>版本</th>
+                    <th>作用</th>
+                </tr>
+                <tr>
+                    <td><code>github.com/agent-infra/sandbox-sdk-go</code></td>
+                    <td>v0.0.5</td>
+                    <td>远端 Sandbox 客户端 SDK，提供 File + Shell API</td>
+                </tr>
+                <tr>
+                    <td><code>github.com/cloudwego/eino</code></td>
+                    <td>v0.8.11</td>
+                    <td>CloudWeGo AI 开发框架核心</td>
+                </tr>
+                <tr>
+                    <td><code>github.com/cloudwego/eino-examples</code></td>
+                    <td>v0.0.0-...</td>
+                    <td>示例代码（可能用于测试或类型引用）</td>
+                </tr>
+                <tr>
+                    <td><code>github.com/cloudwego/eino-ext/components/model/openai</code></td>
+                    <td>v0.1.13</td>
+                    <td>OpenAI 模型接入组件（README 示例用）</td>
+                </tr>
+            </table>
+            <h3>7.2 关键间接依赖</h3>
+            <ul>
+                <li><strong>bytedance/sonic</strong> — 高性能 JSON 序列化（eino 生态默认）</li>
+                <li><strong>json-iterator/go</strong> — 反射型 JSON 处理</li>
+                <li><strong>mailru/easyjson</strong> — 代码生成式 JSON 优化</li>
+                <li><strong>sirupsen/logrus</strong> — 日志框架</li>
+                <li><strong>google/uuid</strong> — UUID 生成</li>
+            </ul>
+            <div class="highlight-box">
+                依赖总量精简，无数据库 ORM、无 Web 框架、无消息队列，符合<strong>纯客户端 SDK 库</strong>的定位。
+            </div>
+        </div>
+
+        <!-- 8. 总结与评价 -->
+        <h2>八、总结与评价</h2>
+        <div class="card">
+            <h3>8.1 设计亮点</h3>
+            <ul>
+                <li><strong>职责单一：</strong>只做一件事——桥接 Eino 与 Sandbox，不掺杂业务逻辑</li>
+                <li><strong>安全优先：</strong>纯目录隔离、路径沙箱化、命令校验钩子，多层防御</li>
+                <li><strong>零权限部署：</strong>不依赖 sudo、不创建系统用户，降低运维复杂度</li>
+                <li><strong>接口解耦：</strong>暴露 StreamReader 接口，为将来真流式预留升级空间</li>
+                <li><strong>环境一致性：</strong>dev/release/prod 配置结构完全一致，降低环境差异风险</li>
+            </ul>
+
+            <h3>8.2 潜在改进点</h3>
+            <ul>
+                <li><strong>路径语义：</strong>当前 <code>resolvePath</code> 对外部绝对路径仅保留 basename，可考虑改为拒绝或更明确的安全策略</li>
+                <li><strong>竞态条件：</strong><code>Edit</code> 的 ReplaceAll 分支存在 RMW 竞态，建议增加乐观锁或走服务端原子操作</li>
+                <li><strong>流式升级：</strong>当前为伪流式，长命令大输出时会占用内存缓冲，建议跟进服务端 SSE/WebSocket 真流式</li>
+                <li><strong>代码规范：</strong><code>.gitlab-ci.yml</code> 中 <code>GOPROXY</code> 重复定义；<code>Dockerfile</code> 大量注释代码建议清理或说明保留原因</li>
+                <li><strong>测试覆盖：</strong>未在仓库中发现单元测试文件（<code>.gitignore</code> 忽略了 <code>test.go</code>），建议补充核心路径解析与边界条件测试</li>
+            </ul>
+
+            <h3>8.3 适用场景</h3>
+            <p>
+                本工程适合需要为 AI Agent（基于 Eino ADK）赋予<strong>安全沙箱化代码执行与文件操作</strong>能力的场景，
+                例如：自动化代码审查、AI 辅助编程、Agent 自动修复 Bug、远程实验环境等。
+                由于采用目录级隔离而非容器级隔离，适用于<strong>可信多租户</strong>或<strong>单租户多会话</strong>场景，
+                不建议用于完全不可信的多租户强隔离场景。
+            </p>
+        </div>
+
+        <div style="text-align: center; color: var(--text-secondary); margin-top: 48px; padding-bottom: 32px; font-size: 0.85rem;">
+            Review 完成 &nbsp;·&nbsp; 由 AI Agent 自动生成
+        </div>
+    </div>
+</body>
+</html>
