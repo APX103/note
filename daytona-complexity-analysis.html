@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daytona 自托管部署复杂度分析</title>
+    <style>
+        :root {
+            --bg: #f6f8fa;
+            --surface: #ffffff;
+            --surface-alt: #f1f5f9;
+            --text: #1e293b;
+            --text-muted: #475569;
+            --border: #e2e8f0;
+            --green: #16a34a;
+            --green-bg: #dcfce7;
+            --yellow: #ca8a04;
+            --yellow-bg: #fef9c3;
+            --red: #dc2626;
+            --red-bg: #fee2e2;
+            --blue: #2563eb;
+            --blue-bg: #dbeafe;
+            --blue-light: #3b82f6;
+            --purple: #7c3aed;
+            --purple-bg: #ede9fe;
+            --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.04);
+            --shadow-hover: 0 4px 12px rgba(0,0,0,0.08), 0 12px 32px rgba(0,0,0,0.06);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            padding: 2rem;
+        }
+        .container { max-width: 1100px; margin: 0 auto; }
+
+        h1 { font-size: 2.2rem; font-weight: 700; margin-bottom: 0.4rem; letter-spacing: -0.02em; }
+        h2 { font-size: 1.4rem; color: var(--blue); margin: 2.8rem 0 1rem; border-bottom: 2px solid var(--border); padding-bottom: 0.5rem; font-weight: 600; }
+        h3 { font-size: 1.1rem; color: var(--purple); margin: 1.8rem 0 0.6rem; font-weight: 600; }
+        p { color: var(--text-muted); margin-bottom: 1rem; }
+        .subtitle { color: var(--text-muted); margin-bottom: 2.5rem; font-size: 0.95rem; }
+
+        /* Summary cards */
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 1.4rem;
+            text-align: center;
+            box-shadow: var(--shadow);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-hover);
+        }
+        .stat-card .number { font-size: 2.2rem; font-weight: 800; letter-spacing: -0.03em; }
+        .stat-card .label { color: var(--text-muted); font-size: 0.85rem; margin-top: 0.4rem; font-weight: 500; }
+        .stat-green .number { color: var(--green); }
+        .stat-yellow .number { color: var(--yellow); }
+        .stat-red .number { color: var(--red); }
+        .stat-blue .number { color: var(--blue); }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin: 1.2rem 0;
+            font-size: 0.88rem;
+            background: var(--surface);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+        }
+        th, td { border-bottom: 1px solid var(--border); padding: 0.7rem 0.9rem; text-align: left; }
+        th {
+            background: var(--surface-alt);
+            color: var(--text);
+            font-weight: 600;
+            font-size: 0.82rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        tbody tr:last-child td { border-bottom: none; }
+        td { color: var(--text-muted); }
+        tr { transition: background 0.15s ease; }
+        tr:hover td { background: #f8fafc; }
+
+        /* Tags */
+        .tag {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 6px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            border: 1px solid transparent;
+        }
+        .tag-core { background: var(--blue-bg); color: var(--blue); border-color: #bfdbfe; }
+        .tag-infra { background: var(--green-bg); color: var(--green); border-color: #bbf7d0; }
+        .tag-optional { background: var(--yellow-bg); color: var(--yellow); border-color: #fde047; }
+        .tag-healthy { background: var(--green-bg); color: var(--green); border-color: #bbf7d0; }
+        .tag-issue { background: var(--red-bg); color: var(--red); border-color: #fecaca; }
+
+        /* Complexity meter */
+        .meter-container { margin: 1.2rem 0 2rem; }
+        .meter-bar {
+            height: 28px;
+            background: var(--surface-alt);
+            border-radius: 14px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            position: relative;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.04);
+        }
+        .meter-fill {
+            height: 100%;
+            border-radius: 14px;
+            transition: width 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+            position: relative;
+        }
+        .meter-fill::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(90deg, rgba(255,255,255,0.2), transparent 60%);
+        }
+        .meter-label {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 0.4rem;
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        /* Pros/Cons */
+        .pros-cons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin: 1.5rem 0;
+        }
+        .pros, .cons {
+            background: var(--surface);
+            border-radius: 14px;
+            padding: 1.4rem;
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+        }
+        .pros h4 { color: var(--green); margin-bottom: 0.9rem; font-size: 1rem; display: flex; align-items: center; gap: 0.4rem; }
+        .pros h4::before { content: '✓'; font-weight: 800; }
+        .cons h4 { color: var(--red); margin-bottom: 0.9rem; font-size: 1rem; display: flex; align-items: center; gap: 0.4rem; }
+        .cons h4::before { content: '✕'; font-weight: 800; }
+        .pros li, .cons li { color: var(--text-muted); margin-bottom: 0.55rem; padding-left: 0.3rem; font-size: 0.9rem; line-height: 1.55; }
+        ul { padding-left: 1.3rem; }
+
+        /* Steps */
+        .steps {
+            background: var(--surface);
+            border-radius: 14px;
+            padding: 1.6rem;
+            margin: 1.2rem 0;
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+        }
+        .step { display: flex; gap: 1rem; margin-bottom: 1.1rem; align-items: flex-start; }
+        .step:last-child { margin-bottom: 0; }
+        .step-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-top: 0.55rem;
+            flex-shrink: 0;
+            box-shadow: 0 0 0 3px rgba(0,0,0,0.04);
+        }
+        .step-text { color: var(--text-muted); font-size: 0.92rem; line-height: 1.6; }
+        .step-text strong { color: var(--text); font-weight: 600; }
+
+        /* Verdict */
+        .verdict {
+            background: linear-gradient(135deg, #faf5ff, #f5f3ff);
+            border: 1px solid #ddd6fe;
+            border-radius: 16px;
+            padding: 1.8rem;
+            margin: 2rem 0;
+            box-shadow: var(--shadow);
+        }
+        .verdict h3 { color: var(--purple); margin-top: 0; margin-bottom: 1rem; font-size: 1.15rem; }
+        .verdict p { margin-bottom: 0.6rem; color: var(--text-muted); }
+        .verdict ul { color: var(--text-muted); padding-left: 1.5rem; margin-top: 0.5rem; }
+        .verdict ul li { margin-bottom: 0.4rem; }
+        .verdict strong { color: var(--text); }
+
+        code {
+            background: var(--surface-alt);
+            padding: 0.15rem 0.45rem;
+            border-radius: 5px;
+            font-size: 0.84em;
+            font-family: 'JetBrains Mono', 'SF Mono', Monaco, Consolas, monospace;
+            color: var(--purple);
+            border: 1px solid var(--border);
+        }
+        .note {
+            background: var(--purple-bg);
+            border-left: 4px solid var(--purple);
+            padding: 1rem 1.2rem;
+            border-radius: 0 10px 10px 0;
+            margin: 1.2rem 0;
+            box-shadow: var(--shadow);
+        }
+        .note p { color: #5b21b6; margin: 0; font-size: 0.92rem; font-weight: 500; }
+        .note strong { color: var(--purple); }
+
+        .footer-note {
+            margin-top: 3rem;
+            padding-top: 1.2rem;
+            border-top: 1px solid var(--border);
+            text-align: center;
+        }
+        .footer-note p {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        @media (max-width: 768px) {
+            .pros-cons { grid-template-columns: 1fr; }
+            .summary-grid { grid-template-columns: repeat(2, 1fr); }
+            body { padding: 1.2rem; }
+            h1 { font-size: 1.7rem; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+
+<h1>Daytona 自托管部署 — 复杂度分析</h1>
+<p class="subtitle">基于实际部署经验的可维护性评估 | 2026-06-01</p>
+
+<h2>总体规模</h2>
+<div class="summary-grid">
+    <div class="stat-card stat-red">
+        <div class="number">14</div>
+        <div class="label">Docker 容器</div>
+    </div>
+    <div class="stat-card stat-yellow">
+        <div class="number">~9.9 GB</div>
+        <div class="label">镜像总大小</div>
+    </div>
+    <div class="stat-card stat-blue">
+        <div class="number">10+</div>
+        <div class="label">暴露端口</div>
+    </div>
+    <div class="stat-card stat-green">
+        <div class="number">1</div>
+        <div class="label">docker-compose.yaml</div>
+    </div>
+</div>
+
+<h2>容器清单</h2>
+<table>
+    <thead>
+        <tr>
+            <th>容器</th>
+            <th>镜像</th>
+            <th>大小</th>
+            <th>角色</th>
+            <th>类别</th>
+            <th>状态</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><strong>daytona-api</strong></td>
+            <td>daytonaio/daytona-api</td>
+            <td>6.13 GB</td>
+            <td>主 API 服务 + Dashboard（内嵌前端 SPA）</td>
+            <td><span class="tag tag-core">核心</span></td>
+            <td><span class="tag tag-healthy">Healthy</span></td>
+        </tr>
+        <tr>
+            <td><strong>daytona-runner</strong></td>
+            <td>daytonaio/daytona-runner</td>
+            <td>804 MB</td>
+            <td>沙盒执行宿主（Docker-in-Docker）</td>
+            <td><span class="tag tag-core">核心</span></td>
+            <td><span class="tag tag-healthy">Healthy</span></td>
+        </tr>
+        <tr>
+            <td><strong>daytona-proxy</strong></td>
+            <td>daytonaio/daytona-proxy</td>
+            <td>82 MB</td>
+            <td>沙盒端口转发 / Preview URL 路由</td>
+            <td><span class="tag tag-core">核心</span></td>
+            <td><span class="tag tag-healthy">Healthy</span></td>
+        </tr>
+        <tr>
+            <td><strong>daytona-ssh-gateway</strong></td>
+            <td>daytonaio/daytona-ssh-gateway</td>
+            <td>31 MB</td>
+            <td>SSH 接入沙盒</td>
+            <td><span class="tag tag-core">核心</span></td>
+            <td><span class="tag tag-issue">Restarting</span></td>
+        </tr>
+        <tr>
+            <td><strong>daytona-db</strong></td>
+            <td>postgres:16</td>
+            <td>650 MB</td>
+            <td>数据持久化（用户、沙盒、快照元数据）</td>
+            <td><span class="tag tag-infra">基础设施</span></td>
+            <td><span class="tag tag-healthy">Running</span></td>
+        </tr>
+        <tr>
+            <td><strong>daytona-redis</strong></td>
+            <td>redis:latest</td>
+            <td>208 MB</td>
+            <td>缓存 / 会话</td>
+            <td><span class="tag tag-infra">基础设施</span></td>
+            <td><span class="tag tag-healthy">Running</span></td>
+        </tr>
+        <tr>
+            <td><strong>daytona-dex</strong></td>
+            <td>dexidp/dex:v2.42.0</td>
+            <td>175 MB</td>
+            <td>OIDC 身份认证</td>
+            <td><span class="tag tag-infra">基础设施</span></td>
+            <td><span class="tag tag-healthy">Healthy</span></td>
+        </tr>
+        <tr>
+            <td><strong>daytona-minio</strong></td>
+            <td>minio/minio:latest</td>
+            <td>241 MB</td>
+            <td>S3 对象存储（快照、文件）</td>
+            <td><span class="tag tag-infra">基础设施</span></td>
+            <td><span class="tag tag-healthy">Running</span></td>
+        </tr>
+        <tr>
+            <td><strong>daytona-registry</strong></td>
+            <td>registry:2.8.2</td>
+            <td>35 MB</td>
+            <td>内部 Docker 镜像仓库</td>
+            <td><span class="tag tag-infra">基础设施</span></td>
+            <td><span class="tag tag-healthy">Running</span></td>
+        </tr>
+        <tr>
+            <td><strong>daytona-maildev</strong></td>
+            <td>maildev/maildev</td>
+            <td>264 MB</td>
+            <td>邮件测试服务</td>
+            <td><span class="tag tag-optional">可选</span></td>
+            <td><span class="tag tag-healthy">Healthy</span></td>
+        </tr>
+        <tr>
+            <td><strong>daytona-jaeger</strong></td>
+            <td>jaegertracing/all-in-one:1.67.0</td>
+            <td>119 MB</td>
+            <td>分布式追踪</td>
+            <td><span class="tag tag-optional">可选</span></td>
+            <td><span class="tag tag-healthy">Running</span></td>
+        </tr>
+        <tr>
+            <td><strong>daytona-otel-collector</strong></td>
+            <td>otel/opentelemetry-collector-contrib:0.138.0</td>
+            <td>437 MB</td>
+            <td>遥测数据收集</td>
+            <td><span class="tag tag-optional">可选</span></td>
+            <td><span class="tag tag-healthy">Running</span></td>
+        </tr>
+        <tr>
+            <td><strong>daytona-pgadmin</strong></td>
+            <td>dpage/pgadmin4:9.2.0</td>
+            <td>774 MB</td>
+            <td>数据库管理 UI</td>
+            <td><span class="tag tag-optional">可选</span></td>
+            <td><span class="tag tag-healthy">Running</span></td>
+        </tr>
+        <tr>
+            <td><strong>daytona-registry-ui</strong></td>
+            <td>joxit/docker-registry-ui:main</td>
+            <td>35 MB</td>
+            <td>镜像仓库 UI</td>
+            <td><span class="tag tag-optional">可选</span></td>
+            <td><span class="tag tag-healthy">Running</span></td>
+        </tr>
+    </tbody>
+</table>
+
+<div class="note">
+    <p><strong>注意：</strong>API 镜像 6.13 GB 异常大（内嵌了前端 SPA + Node.js 运行时 + 所有依赖），这是主要的磁盘开销来源。</p>
+</div>
+
+<h2>复杂度评估</h2>
+
+<h3>部署复杂度</h3>
+<div class="meter-container">
+    <div class="meter-bar">
+        <div class="meter-fill" style="width: 65%; background: linear-gradient(90deg, #fbbf24, #f87171);"></div>
+    </div>
+    <div class="meter-label"><span>简单</span><span>65/100 — 中高复杂度</span><span>极复杂</span></div>
+</div>
+
+<h3>运维复杂度</h3>
+<div class="meter-container">
+    <div class="meter-bar">
+        <div class="meter-fill" style="width: 70%; background: linear-gradient(90deg, #fbbf24, #ef4444);"></div>
+    </div>
+    <div class="meter-label"><span>简单</span><span>70/100 — 高复杂度</span><span>极复杂</span></div>
+</div>
+
+<h3>与 E2B 自托管对比</h3>
+<div class="meter-container">
+    <div class="meter-bar">
+        <div class="meter-fill" style="width: 55%; background: linear-gradient(90deg, #4ade80, #fbbf24);"></div>
+    </div>
+    <div class="meter-label"><span>比 E2B 简单</span><span>55/100 — 略简单（E2B 需要 Firecracker + 内核编译）</span><span>比 E2B 复杂</span></div>
+</div>
+
+<h2>安装中遇到的问题</h2>
+<div class="steps">
+    <div class="step">
+        <div class="step-dot" style="background: var(--red);"></div>
+        <div class="step-text"><strong>端口冲突</strong> — API 默认用 3000 端口，Runner 用 3003，与宿主机已有服务冲突，需要手动改映射</div>
+    </div>
+    <div class="step">
+        <div class="step-dot" style="background: var(--red);"></div>
+        <div class="step-text"><strong>启动顺序竞态</strong> — Runner 在 API 就绪前启动，导致连接失败。Runner 不会自动重试（需手动 restart）</div>
+    </div>
+    <div class="step">
+        <div class="step-dot" style="background: var(--red);"></div>
+        <div class="step-text"><strong>快照初始化失败</strong> — SnapshotManager 持续报 "No available runners"，需要手动操作数据库修复（设置 state=active，插入 snapshot_runner 记录，插入 region_quota）</div>
+    </div>
+    <div class="step">
+        <div class="step-dot" style="background: var(--yellow);"></div>
+        <div class="step-text"><strong>API Key 无法通过 UI 创建</strong> — 需要先完成 OIDC 登录流程；我直接操作数据库插入了 API Key</div>
+    </div>
+    <div class="step">
+        <div class="step-dot" style="background: var(--yellow);"></div>
+        <div class="step-text"><strong>SSH Gateway 持续重启</strong> — 不影响核心功能（代码执行），但说明组件间耦合紧密</div>
+    </div>
+    <div class="step">
+        <div class="step-dot" style="background: var(--yellow);"></div>
+        <div class="step-text"><strong>SDK api_url 配置不直观</strong> — 需要加 <code>/api</code> 后缀，文档未明确说明自托管场景</div>
+    </div>
+    <div class="step">
+        <div class="step-dot" style="background: var(--yellow);"></div>
+        <div class="step-text"><strong>DNS 配置要求</strong> — Proxy 需要通配符子域名解析（<code>*.proxy.localhost</code>），生产部署需配置 dnsmasq</div>
+    </div>
+</div>
+
+<h2>可维护性分析</h2>
+
+<div class="pros-cons">
+    <div class="pros">
+        <h4>优势</h4>
+        <ul>
+            <li>单个 docker-compose.yaml 一键启停</li>
+            <li>所有组件都是标准 Docker 镜像，升级方便</li>
+            <li>无需编译内核或 Firecracker（比 E2B 简单）</li>
+            <li>Python/TS/Go/Ruby/Java 多语言 SDK</li>
+            <li>沙盒隔离度高（独立内核和网络栈）</li>
+            <li>支持 pip install / 网络访问 / 文件操作</li>
+            <li>开源项目活跃（GitHub star 多、迭代快）</li>
+        </ul>
+    </div>
+    <div class="cons">
+        <h4>风险</h4>
+        <ul>
+            <li><strong>组件多</strong> — 14 个容器，任一故障需排查</li>
+            <li><strong>Runner 需要 privileged 模式</strong> — 安全风险</li>
+            <li><strong>自托管文档不完善</strong> — 很多细节只能靠源码/数据库推断</li>
+            <li><strong>快照机制脆弱</strong> — 初始化依赖多个表配合</li>
+            <li><strong>API 镜像过大</strong> — 6GB+，拉取和升级慢</li>
+            <li><strong>无内置监控告警</strong> — 需要自建</li>
+            <li><strong>版本迭代快</strong> — 数据库 schema 可能频繁变更</li>
+            <li><strong>生产部署额外依赖</strong> — 通配符 TLS、Caddy、DNS</li>
+        </ul>
+    </div>
+</div>
+
+<h2>最小化部署方案（精简版）</h2>
+<p>如果只需要代码执行能力，可以去掉可选组件，最少需要 <strong>9 个容器</strong>：</p>
+
+<table>
+    <thead><tr><th>必须保留</th><th>可以去掉</th></tr></thead>
+    <tbody>
+        <tr>
+            <td>
+                API、Runner、Proxy、SSH Gateway<br>
+                PostgreSQL、Redis、Dex、MinIO、Registry
+            </td>
+            <td>
+                PgAdmin（管理 UI）<br>
+                Registry UI（镜像 UI）<br>
+                Jaeger（追踪）<br>
+                OTel Collector（遥测）<br>
+                MailDev（邮件测试）
+            </td>
+        </tr>
+        <tr>
+            <td>~8.3 GB 镜像</td>
+            <td>节省 ~1.6 GB</td>
+        </tr>
+    </tbody>
+</table>
+
+<h2>与替代方案对比</h2>
+<table>
+    <thead>
+        <tr><th>维度</th><th>Daytona 自托管</th><th>E2B 自托管</th><th>直接用 Docker API</th></tr>
+    </thead>
+    <tbody>
+        <tr><td>容器数</td><td>14 (最少 9)</td><td>5 + Firecracker</td><td>1 (仅 Docker daemon)</td></tr>
+        <tr><td>隔离级别</td><td>容器级（独立内核）</td><td>MicroVM 级</td><td>容器级（共享内核）</td></tr>
+        <tr><td>启动速度</td><td>&lt;90ms（官方宣称）</td><td>&lt;100ms</td><td>1-3s</td></tr>
+        <tr><td>SDK 质量</td><td>较好，多语言</td><td>好，多语言</td><td>需自己封装</td></tr>
+        <tr><td>依赖安装</td><td>支持 pip/apt</td><td>支持 pip/apt</td><td>支持</td></tr>
+        <tr><td>维护难度</td><td>中高</td><td>高（需编译内核）</td><td>低</td></tr>
+        <tr><td>磁盘占用</td><td>~10 GB</td><td>~5 GB</td><td>&lt;1 GB</td></tr>
+        <tr><td>文档完善度</td><td>一般（自托管部分弱）</td><td>一般</td><td>N/A</td></tr>
+    </tbody>
+</table>
+
+<div class="verdict">
+    <h3>结论与建议</h3>
+    <p><strong>Daytona 自托管可用，但维护成本不低。</strong></p>
+    <p>适合场景：需要多租户隔离、完整 SDK 体验、不想处理底层容器编排的团队。</p>
+    <p>不适合场景：只需要简单跑代码片段的场景 — 直接用 Docker SDK + 容器池会简单 10 倍。</p>
+    <p style="margin-top: 1rem; color: var(--yellow);"><strong>如果团队只有 1-2 个人维护基础设施，建议：</strong></p>
+    <ul>
+        <li>短期用 Daytona Cloud（免运维），等项目稳定了再考虑自托管</li>
+        <li>或者直接用 Docker SDK + 预构建镜像实现轻量沙盒（放弃 Daytona 的 SDK 生态）</li>
+        <li>如果决定自托管，务必写好自动化脚本处理快照初始化、健康检查、自动重启等问题</li>
+    </ul>
+</div>
+
+<div class="footer-note">
+    <p>基于 2026-06-01 实际部署经验 | Daytona SDK v0.183.0 | daytonaio/sandbox:0.5.0-slim</p>
+</div>
+
+</div>
+</body>
+</html>
