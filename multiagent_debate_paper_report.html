@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>论文精读：通过多智能体辩论提升语言模型的事实性与推理能力</title>
+<style>
+  :root {
+    --bg: #f8f9fa;
+    --card: #ffffff;
+    --text: #1a1a2e;
+    --text2: #4a5568;
+    --muted: #718096;
+    --accent: #2563eb;
+    --accent2: #7c3aed;
+    --accent3: #059669;
+    --accent4: #ea580c;
+    --border: #e2e8f0;
+    --shadow: 0 4px 20px rgba(0,0,0,0.06);
+    --radius: 16px;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif; background:var(--bg); color:var(--text); line-height:1.75; font-size:15px; }
+
+  /* Hero */
+  .hero {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 40%, #0f3460 100%);
+    color: white;
+    padding: 80px 40px 60px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: "";
+    position: absolute; top: -50%; left: -50%; right: -50%; bottom: -50%;
+    background: radial-gradient(circle at 30% 50%, rgba(37,99,235,0.12) 0%, transparent 50%),
+                radial-gradient(circle at 70% 80%, rgba(124,58,237,0.08) 0%, transparent 50%);
+    pointer-events: none;
+  }
+  .hero-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(255,255,255,0.1); backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.15); padding: 8px 20px;
+    border-radius: 100px; font-size: 13px; font-weight: 500; letter-spacing: 0.5px;
+    margin-bottom: 24px; color: rgba(255,255,255,0.8);
+  }
+  .hero-badge .dot { width: 8px; height: 8px; border-radius: 50%; background: #34d399; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .hero h1 { font-size: 38px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 16px; line-height: 1.2; position: relative; z-index: 1; }
+  .hero h1 .hl { background: linear-gradient(90deg, #60a5fa, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .hero-sub { font-size: 17px; color: rgba(255,255,255,0.7); max-width: 700px; margin: 0 auto 32px; position: relative; z-index: 1; }
+  .hero-meta { display: flex; justify-content: center; gap: 32px; font-size: 13px; color: rgba(255,255,255,0.5); flex-wrap: wrap; position: relative; z-index: 1; }
+  .hero-meta span { display: flex; align-items: center; gap: 6px; }
+
+  /* Layout */
+  .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+  .layout { display: grid; grid-template-columns: 240px 1fr; gap: 40px; padding: 40px 0; }
+
+  /* Sidebar */
+  .sidebar { position: sticky; top: 24px; height: calc(100vh - 48px); overflow-y: auto; padding-right: 8px; }
+  .sidebar::-webkit-scrollbar { width: 4px; }
+  .sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  .toc-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 16px; padding-left: 12px; }
+  .toc { list-style: none; }
+  .toc li { margin-bottom: 2px; }
+  .toc a { display: block; padding: 8px 12px; border-radius: 8px; color: var(--text2); text-decoration: none; font-size: 13px; font-weight: 500; transition: all 0.2s; border-left: 3px solid transparent; }
+  .toc a:hover { background: var(--card); color: var(--accent); border-left-color: var(--accent); }
+  .toc a.active { background: rgba(37,99,235,0.06); color: var(--accent); border-left-color: var(--accent); font-weight: 600; }
+  .toc .sub { padding-left: 24px; font-size: 12px; font-weight: 400; color: var(--muted); }
+  .toc .sub:hover { color: var(--accent); }
+
+  /* Content */
+  .content { min-width: 0; }
+  .section {
+    background: var(--card); border-radius: var(--radius); padding: 40px;
+    margin-bottom: 24px; box-shadow: var(--shadow); border: 1px solid var(--border);
+    transition: box-shadow 0.3s; scroll-margin-top: 80px;
+  }
+  .section:hover { box-shadow: 0 8px 30px rgba(0,0,0,0.1); }
+  h2 { font-size: 26px; font-weight: 700; color: var(--text); margin-bottom: 8px; letter-spacing: -0.3px; display: flex; align-items: center; gap: 12px; }
+  h2 .num { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 10px; font-size: 16px; font-weight: 800; color: white; flex-shrink: 0; }
+  h3 { font-size: 20px; font-weight: 600; color: var(--text); margin-top: 32px; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid var(--border); }
+  h4 { font-size: 16px; font-weight: 600; color: var(--text2); margin-top: 24px; margin-bottom: 12px; }
+  p { margin-bottom: 16px; color: var(--text2); }
+  p strong { color: var(--text); font-weight: 600; }
+
+  /* Callouts */
+  .callout { border-radius: 12px; padding: 16px 20px; margin: 20px 0; border-left: 4px solid; background: var(--bg); }
+  .callout-blue { border-left-color: var(--accent); background: rgba(37,99,235,0.04); }
+  .callout-purple { border-left-color: var(--accent2); background: rgba(124,58,237,0.04); }
+  .callout-green { border-left-color: var(--accent3); background: rgba(5,150,105,0.04); }
+  .callout-orange { border-left-color: var(--accent4); background: rgba(234,88,12,0.04); }
+  .callout-title { font-weight: 700; font-size: 14px; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+  .callout-blue .callout-title { color: var(--accent); }
+  .callout-purple .callout-title { color: var(--accent2); }
+  .callout-green .callout-title { color: var(--accent3); }
+  .callout-orange .callout-title { color: var(--accent4); }
+  .callout p { margin: 0; font-size: 14px; }
+
+  /* Images */
+  .img-wrap { margin: 24px 0; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); background: var(--card); }
+  .img-wrap img { width: 100%; display: block; }
+  .img-caption { padding: 12px 16px; font-size: 13px; color: var(--muted); text-align: center; border-top: 1px solid var(--border); background: var(--bg); }
+
+  /* Tables */
+  .table-wrap { overflow-x: auto; margin: 20px 0; border-radius: 12px; border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { background: linear-gradient(180deg, #f8fafc, #f1f5f9); padding: 12px 16px; text-align: left; font-weight: 600; color: var(--text); border-bottom: 2px solid var(--border); white-space: nowrap; }
+  td { padding: 12px 16px; border-bottom: 1px solid var(--border); color: var(--text2); vertical-align: top; }
+  tr:hover td { background: rgba(37,99,235,0.02); }
+  tr:last-child td { border-bottom: none; }
+
+  /* Cards */
+  .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin: 20px 0; }
+  .card { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px; transition: all 0.2s; }
+  .card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: var(--shadow); }
+  .card-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; margin-bottom: 12px; }
+  .card h4 { margin-top: 0; font-size: 15px; }
+  .card p { font-size: 13px; margin-bottom: 0; }
+
+  /* Tags */
+  .tag { display: inline-block; padding: 3px 10px; border-radius: 100px; font-size: 12px; font-weight: 600; margin-right: 6px; margin-bottom: 6px; }
+  .tag-blue { background: rgba(37,99,235,0.1); color: var(--accent); }
+  .tag-purple { background: rgba(124,58,237,0.1); color: var(--accent2); }
+  .tag-green { background: rgba(5,150,105,0.1); color: var(--accent3); }
+  .tag-orange { background: rgba(234,88,12,0.1); color: var(--accent4); }
+  .tag-red { background: rgba(220,38,38,0.1); color: #dc2626; }
+
+  /* Stats */
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 24px 0; }
+  .stat { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px; text-align: center; }
+  .stat-val { font-size: 28px; font-weight: 800; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .stat-label { font-size: 12px; color: var(--muted); margin-top: 4px; font-weight: 500; }
+
+  /* Flow diagram */
+  .flow { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; margin: 24px 0; padding: 24px; background: var(--bg); border-radius: 12px; border: 1px solid var(--border); }
+  .flow-box { background: var(--card); border: 2px solid var(--accent); border-radius: 10px; padding: 14px 20px; font-size: 14px; font-weight: 600; color: var(--accent); text-align: center; min-width: 120px; }
+  .flow-box2 { background: var(--card); border: 2px solid var(--accent2); border-radius: 10px; padding: 14px 20px; font-size: 14px; font-weight: 600; color: var(--accent2); text-align: center; min-width: 120px; }
+  .flow-box3 { background: var(--card); border: 2px solid var(--accent3); border-radius: 10px; padding: 14px 20px; font-size: 14px; font-weight: 600; color: var(--accent3); text-align: center; min-width: 120px; }
+  .flow-arrow { font-size: 20px; color: var(--muted); }
+  .flow-loop { display: flex; align-items: center; gap: 8px; background: rgba(234,88,12,0.08); border: 1px dashed var(--accent4); border-radius: 10px; padding: 10px 16px; font-size: 13px; color: var(--accent4); font-weight: 600; }
+
+  /* Footer */
+  .footer { text-align: center; padding: 40px; color: var(--muted); font-size: 13px; border-top: 1px solid var(--border); margin-top: 40px; }
+
+  /* Responsive */
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+    .sidebar { display: none; }
+    .hero h1 { font-size: 26px; }
+    .stats { grid-template-columns: 1fr; }
+    .section { padding: 24px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Hero -->
+<div class="hero">
+  <div class="hero-badge"><span class="dot"></span>arXiv:2305.14325 · NeurIPS 2023</div>
+  <h1>通过<span class="hl">多智能体辩论</span><br>提升语言模型的事实性与推理能力</h1>
+  <p class="hero-sub">Improving Factuality and Reasoning in Language Models through Multiagent Debate<br>MIT CSAIL & Google Brain · 2023</p>
+  <div class="hero-meta">
+    <span>📅 2023年5月</span>
+    <span>🔬 6项基准测试</span>
+    <span>🧠 多Agent辩论</span>
+    <span>📊 3大核心发现</span>
+  </div>
+</div>
+
+<div class="container">
+<div class="layout">
+
+<!-- Sidebar -->
+<aside class="sidebar">
+  <div class="toc-title">目录导航</div>
+  <ul class="toc" id="toc">
+    <li><a href="#s1">一、论文概览</a></li>
+    <li><a href="#s2" class="sub">1.1 作者与机构</a></li>
+    <li><a href="#s3" class="sub">1.2 核心动机</a></li>
+    <li><a href="#s4">二、多智能体辩论方法</a></li>
+    <li><a href="#s5" class="sub">2.1 辩论流程</a></li>
+    <li><a href="#s6" class="sub">2.2 与现有方法的关系</a></li>
+    <li><a href="#s7">三、实验结果</a></li>
+    <li><a href="#s8" class="sub">3.1 推理能力提升</a></li>
+    <li><a href="#s9" class="sub">3.2 事实性提升</a></li>
+    <li><a href="#s10" class="sub">3.3 与思维链的协同</a></li>
+    <li><a href="#s11">四、深入分析</a></li>
+    <li><a href="#s12" class="sub">4.1 Agent数量与轮数</a></li>
+    <li><a href="#s13" class="sub">4.2 提示策略</a></li>
+    <li><a href="#s14" class="sub">4.3 跨模型辩论</a></li>
+    <li><a href="#s15">五、局限性与讨论</a></li>
+    <li><a href="#s16">六、总结</a></li>
+  </ul>
+</aside>
+
+<!-- Main Content -->
+<main class="content">
+
+<!-- Section 1 -->
+<section class="section" id="s1">
+  <h2><span class="num" style="background: linear-gradient(135deg, #2563eb, #1d4ed8);">01</span>论文概览</h2>
+
+  <div class="img-wrap">
+    <img src="https://kimi-web-img.moonshot.cn/img/cdn-thumbnails.huggingface.co/6f6be4da4eae182e222764bccc3483838a2cc160.png" alt="论文封面">
+    <div class="img-caption">论文封面：Improving Factuality and Reasoning in Language Models through Multiagent Debate</div>
+  </div>
+
+  <h3 id="s2">1.1 作者与机构</h3>
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-icon" style="background: rgba(37,99,235,0.1); color: #2563eb;">🏛️</div>
+      <h4>MIT CSAIL</h4>
+      <p>Yilun Du · Shuang Li · Antonio Torralba · Joshua B. Tenenbaum</p>
+    </div>
+    <div class="card">
+      <div class="card-icon" style="background: rgba(234,88,12,0.1); color: #ea580c;">🧠</div>
+      <h4>Google Brain</h4>
+      <p>Igor Mordatch</p>
+    </div>
+    <div class="card">
+      <div class="card-icon" style="background: rgba(5,150,105,0.1); color: #059669;">📅</div>
+      <h4>发表时间</h4>
+      <p>2023年5月23日 · arXiv:2305.14325</p>
+    </div>
+  </div>
+
+  <h3 id="s3">1.2 核心动机</h3>
+  <p>大型语言模型（LLM）在语言生成、理解和少样本学习方面展现了 remarkable 的能力。然而，这些模型在海量互联网文本上训练，<strong>文本质量和准确性无法保证</strong>。因此，当前模型存在 confidently 幻觉事实或在推理链中做出不合理跳跃的问题。</p>
+
+  <div class="callout callout-blue">
+    <div class="callout-title">💡 核心洞察</div>
+    <p>现有改进方法（思维链、验证、自一致性、草稿板）都应用于<strong>单个模型实例</strong>。本文提出一种互补方法：受《心智社会》（Society of Mind）和多智能体系统启发，让<strong>多个语言模型实例分别提出回答，通过多轮辩论共同达成一致的最终答案</strong>。</p>
+  </div>
+</section>
+
+<!-- Section 2 -->
+<section class="section" id="s4">
+  <h2><span class="num" style="background: linear-gradient(135deg, #7c3aed, #6d28d9);">02</span>多智能体辩论方法</h2>
+
+  <h3 id="s5">2.1 辩论流程</h3>
+  <p>给定一个问题，多个 Agent（同一 LLM 的多个实例）首先<strong>独立生成各自的候选答案</strong>。然后，每个模型实例阅读并批评其他模型的回答，并基于这些内容<strong>更新自己的答案</strong>。这一过程在多个轮次中重复进行。</p>
+
+  <div class="flow">
+    <div class="flow-box">用户提问</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box2">Agent 1<br>独立回答</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box2">Agent 2<br>独立回答</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box2">Agent 3<br>独立回答</div>
+  </div>
+  <div style="text-align: center; margin: -8px 0 16px; color: var(--muted); font-size: 13px;">↓ 多轮辩论循环</div>
+  <div class="flow">
+    <div class="flow-box3">阅读其他<br>Agent回答</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box3">批评与<br>验证</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box3">更新<br>自身答案</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-loop">🔁 重复 T 轮</div>
+  </div>
+  <div style="text-align: center; margin: 16px 0 0; color: var(--muted); font-size: 13px;">↓ 收敛到共识</div>
+  <div class="flow">
+    <div class="flow-box" style="border-color: #059669; color: #059669;">最终一致答案</div>
+  </div>
+
+  <div class="img-wrap">
+    <img src="https://kimi-web-img.moonshot.cn/img/miro.medium.com/34d00c9150bc34d11a49e572ddf8d77b97e03956.png" alt="辩论过程示例">
+    <div class="img-caption">Figure 2：数学问题辩论过程示例。Agent 1 初始错误（225），Agent 2 初始正确（595）。经过多轮辩论，Agent 1 修正错误，最终两者达成一致正确答案 595。</div>
+  </div>
+
+  <div class="callout callout-purple">
+    <div class="callout-title">🎯 关键机制</div>
+    <p>每个语言 Agent 同时承担两个职责：<strong>验证其他 Agent 的回答集合</strong>，以及<strong>基于其他 Agent 的回答 refine 自己的回答</strong>。通过迭代重复这一辩论过程，模型群体几乎总是会收敛到一个单一且更准确的共同答案。</p>
+  </div>
+
+  <h3 id="s6">2.2 与现有方法的关系</h3>
+  <p>本文方法与其他提示技术<strong>正交</strong>（orthogonal）：</p>
+  <ul>
+    <li>可以直接应用于现有的<strong>黑盒模型</strong>，无需模型内部信息（如概率或梯度）</li>
+    <li>可以与<strong>零样本思维链（Zero-shot Chain-of-Thought）</strong>结合使用，产生协同效应</li>
+    <li>可以与<strong>检索增强（RAG）</strong>或提示工程结合</li>
+    <li>辩论过程虽然计算成本更高，但可以用于生成额外的模型训练数据，形成<strong>模型自我改进循环</strong></li>
+  </ul>
+</section>
+
+<!-- Section 3 -->
+<section class="section" id="s7">
+  <h2><span class="num" style="background: linear-gradient(135deg, #ea580c, #c2410c);">03</span>实验结果</h2>
+  <p>作者在 <strong>6 个不同的推理、事实性和问答任务</strong>上评估了多智能体辩论方法，涵盖数学推理、事实知识、国际象棋策略等多个领域。</p>
+
+  <h3 id="s8">3.1 推理能力提升</h3>
+  <p>推理任务包含三个难度递增的子任务：</p>
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-icon" style="background: rgba(37,99,235,0.1); color: #2563eb;">➕</div>
+      <h4>算术（Arithmetic）</h4>
+      <p>计算包含加减乘的六位两位数算术表达式，例如：12+15*21+0-3*27=?</p>
+    </div>
+    <div class="card">
+      <div class="card-icon" style="background: rgba(124,58,237,0.1); color: #7c3aed;">📐</div>
+      <h4>小学数学（GSM8K）</h4>
+      <p>使用 GSM8K 数据集，要求模型正确解决小学级别的数学推理问题。</p>
+    </div>
+    <div class="card">
+      <div class="card-icon" style="background: rgba(5,150,105,0.1); color: #059669;">♟️</div>
+      <h4>国际象棋走子预测</h4>
+      <p>给定两位国际象棋大师前14步的 PGN 记谱，预测最佳下一步走法。</p>
+    </div>
+  </div>
+
+  <div class="img-wrap">
+    <img src="https://kimi-web-img.moonshot.cn/img/composable-models.github.io/fb5e5e4df1c1231df41b2dd857d0d2abc9895662.png" alt="6个基准测试对比">
+    <div class="img-caption">Figure 1：多智能体辩论在6个基准测试上均显著优于单 Agent 基线。蓝色=单 Agent，红色=多 Agent 辩论。</div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <tr><th>方法</th><th>算术 ↑</th><th>小学数学 ↑</th><th>国际象棋 (ΔPS) ↑</th></tr>
+      <tr><td>单 Agent</td><td>67.0 ± 4.7</td><td>77.0 ± 4.2</td><td>94 ± 10.6</td></tr>
+      <tr><td>单 Agent（反思）</td><td>72.1 ± 4.5</td><td>75.0 ± 4.3</td><td>102.1 ± 11.9</td></tr>
+      <tr><td>多 Agent（多数投票）</td><td>69.0 ± 4.6</td><td>81.0 ± 3.9</td><td>102.2 ± 6.2</td></tr>
+      <tr style="background: rgba(37,99,235,0.04);"><td><strong>多 Agent（辩论）</strong></td><td><strong>81.8 ± 2.3</strong></td><td><strong>85.0 ± 3.5</strong></td><td><strong>122.9 ± 7.6</strong></td></tr>
+    </table>
+  </div>
+  <p>多 Agent 辩论在三个推理任务上均大幅超越所有基线。值得注意的是，<strong>反思（Reflection）在小学数学任务上反而降低了性能</strong>（77.0% → 75.0%），而辩论方法 consistently 提升。</p>
+
+  <h3 id="s9">3.2 事实性提升</h3>
+  <p>事实性任务包含三个子任务：</p>
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-icon" style="background: rgba(234,88,12,0.1); color: #ea580c;">👤</div>
+      <h4>传记生成（新基准）</h4>
+      <p>作者引入了一个新基准：为 524 位著名计算机科学家生成准确的要点式传记。现有模型在此任务上幻觉严重。</p>
+    </div>
+    <div class="card">
+      <div class="card-icon" style="background: rgba(37,99,235,0.1); color: #2563eb;">📚</div>
+      <h4>MMLU</h4>
+      <p>评估模型回答不同学科考试级别事实知识问题的准确性。</p>
+    </div>
+    <div class="card">
+      <div class="card-icon" style="background: rgba(5,150,105,0.1); color: #059669;">♟️</div>
+      <h4>国际象棋走子有效性</h4>
+      <p>测量模型在国际象棋中给出的走法是否符合规则（检测幻觉）。</p>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <tr><th>方法</th><th>传记 ↑</th><th>MMLU ↑</th><th>走子有效性 ↑</th></tr>
+      <tr><td>单 Agent</td><td>66.0 ± 2.2</td><td>63.9 ± 4.8</td><td>39.3 ± 2.6</td></tr>
+      <tr><td>单 Agent（反思）</td><td>68.3 ± 2.9</td><td>57.7 ± 5.0</td><td>38.8 ± 2.9</td></tr>
+      <tr style="background: rgba(37,99,235,0.04);"><td><strong>多 Agent（辩论）</strong></td><td><strong>74.0 ± 2.5</strong></td><td><strong>71.1 ± 3.5</strong></td><td><strong>45.0 ± 2.8</strong></td></tr>
+    </table>
+  </div>
+
+  <div class="callout callout-green">
+    <div class="callout-title">🧬 关键发现：辩论减少幻觉</div>
+    <p>辩论结果更少包含模型内部不确定的错误事实。因为随着辩论进行，单个模型实例倾向于对<strong>不确定的事实产生分歧</strong>，并最终在答案中<strong>省略这些内容</strong>。当模型对某个事实有信心时（多个实例给出相同答案），很难说服 Agent 改变观点——这提示<strong>"说服难度"可作为评估事实置信度的方法</strong>。</p>
+  </div>
+
+  <h3 id="s10">3.3 与思维链的协同效应</h3>
+  <div class="img-wrap">
+    <img src="https://kimi-web-img.moonshot.cn/img/ar5iv.labs.arxiv.org/d4597a97b9e9e204f58d144369da89bcdc26134a.png" alt="Chain-of-Thought协同">
+    <div class="img-caption">Figure 6：辩论与思维链的协同效应。无论是否使用思维链，多 Agent 辩论都能带来提升；两者结合时效果最佳（85%）。</div>
+  </div>
+  <p>在 GSM8K 任务上，不使用思维链时：单 Agent 74% → 辩论 77%。使用思维链时：单 Agent 77% → 辩论 <strong>85%</strong>。这表明辩论方法与思维链<strong>正交且互补</strong>。</p>
+</section>
+
+<!-- Section 4 -->
+<section class="section" id="s11">
+  <h2><span class="num" style="background: linear-gradient(135deg, #059669, #047857);">04</span>深入分析</h2>
+
+  <h3 id="s12">4.1 Agent 数量与辩论轮数</h3>
+  <div class="img-wrap">
+    <img src="https://kimi-web-img.moonshot.cn/img/ar5iv.labs.arxiv.org/12d62ed94f8781db376eeb50e5489732303ff77a.png" alt="Agent数量与轮数影响">
+    <div class="img-caption">Figure 10：(a) 数学准确率随辩论 Agent 数量增加而单调提升；(b) 数学准确率随辩论轮数增加而提升，但超过4轮后收益递减。</div>
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-val">+12%</div>
+      <div class="stat-label">1个Agent → 7个Agent<br>算术准确率提升</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val">+25%</div>
+      <div class="stat-label">1轮 → 4轮辩论<br>算术准确率提升</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val">4轮</div>
+      <div class="stat-label">最佳辩论轮数<br>超过后收益递减</div>
+    </div>
+  </div>
+
+  <p>当 Agent 数量超过 5 个时，由于上下文长度限制，作者使用 ChatGPT 先对所有 Agent 回答进行<strong>总结（Summarization）</strong>，再作为上下文输入。实验发现总结策略反而<strong>进一步提升了辩论性能</strong>。</p>
+
+  <h3 id="s13">4.2 提示策略：长辩论 vs 短辩论</h3>
+  <p>作者发现可以通过不同的共识提示来控制辩论时长：</p>
+  <ul>
+    <li><strong>短提示</strong>：鼓励 Agent 更快适应其他 Agent 的意见，收敛更快</li>
+    <li><strong>长提示</strong>：鼓励 Agent 基于自己的解决方案更加"固执"，辩论时间更长，但最终共识答案更准确</li>
+  </ul>
+  <div class="callout callout-orange">
+    <div class="callout-title">⚠️ 观察</div>
+    <p>语言模型 Agent 相对"容易同意"（agreeable），可能是指令微调或 RLHF 的结果。通过设计更"固执"的提示，可以诱导更长的辩论和更好的最终解决方案。</p>
+  </div>
+
+  <h3 id="s14">4.3 跨模型辩论：ChatGPT vs Bard</h3>
+  <div class="img-wrap">
+    <img src="https://kimi-web-img.moonshot.cn/img/composable-models.github.io/4cd9c50bd100144205e7d50e7b85cbf0687826c7.png" alt="ChatGPT vs Bard辩论">
+    <div class="img-caption">Figure 11：ChatGPT 与 Bard 之间的跨模型辩论示例。两个模型初始都给出错误答案，但通过辩论最终收敛到正确答案。</div>
+  </div>
+  <p>在 20 个 GSM8K 数学问题上测试：</p>
+  <div class="table-wrap">
+    <table>
+      <tr><th>模型</th><th>正确解题数 / 20</th></tr>
+      <tr><td>Bard 单独</td><td>11</td></tr>
+      <tr><td>ChatGPT 单独</td><td>14</td></tr>
+      <tr style="background: rgba(37,99,235,0.04);"><td><strong>ChatGPT + Bard 辩论</strong></td><td><strong>17</strong></td></tr>
+    </table>
+  </div>
+  <p>跨模型辩论不仅提升了两个模型各自的性能，还产生了<strong>1+1 > 2</strong>的协同效应。有趣的是，ChatGPT 能够利用 Bard 给出的错误回答来生成最终正确答案。</p>
+
+  <h4>不同初始化提示（角色扮演）</h4>
+  <p>当给不同 Agent 分配不同角色（教授、医生、数学家）时，MMLU 性能从 71.1 提升到 <strong>74.2</strong>，说明多样化的初始化可以进一步增强辩论效果。</p>
+</section>
+
+<!-- Section 5 -->
+<section class="section" id="s15">
+  <h2><span class="num" style="background: linear-gradient(135deg, #dc2626, #b91c1c);">05</span>局限性与讨论</h2>
+
+  <div class="card-grid">
+    <div class="card" style="border-top: 3px solid #dc2626;">
+      <div class="card-icon" style="background: rgba(220,38,38,0.1); color: #dc2626;">💰</div>
+      <h4>计算成本</h4>
+      <p>相比其他提示技术，多 Agent 辩论需要多次语言生成和辩论过程，计算成本更高。但作者认为这可以视为生成额外训练数据的方法，蒸馏后可自我改进基础模型。</p>
+    </div>
+    <div class="card" style="border-top: 3px solid #ea580c;">
+      <div class="card-icon" style="background: rgba(234,88,12,0.1); color: #ea580c;">📏</div>
+      <h4>上下文长度限制</h4>
+      <p>随着辩论轮数增加，当前语言模型有时难以处理整个辩论输入，通常只关注最近生成的内容。作者认为更长上下文和更好的模型可以缓解这一问题，或通过总结早期辩论内容。</p>
+    </div>
+    <div class="card" style="border-top: 3px solid #7c3aed;">
+      <div class="card-icon" style="background: rgba(124,58,237,0.1); color: #7c3aed;">❌</div>
+      <h4>错误共识</h4>
+      <p>虽然辩论通常收敛到单一最终答案，但这些答案不一定正确。尽管答案错误，语言模型仍会自信地断言其正确且与其他 Agent 一致。这部分是因为 LLM 无法正确表达不确定性。</p>
+    </div>
+  </div>
+</section>
+
+<!-- Section 6 -->
+<section class="section" id="s16">
+  <h2><span class="num" style="background: linear-gradient(135deg, #4f46e5, #4338ca);">06</span>总结</h2>
+
+  <div class="callout callout-blue">
+    <div class="callout-title">📌 核心贡献</div>
+    <p><strong>1.</strong> 提出了一种新颖的多 Agent 辩论方法，通过模型间的辩论过程提升事实正确性和推理准确性。<br><strong>2.</strong> 引入了一个新的传记事实性基准，当代语言模型在此任务上表现很差。<br><strong>3.</strong> 在6个不同任务上系统评估了辩论过程，分析了 Agent 数量、辩论轮数和提示策略的影响。</p>
+  </div>
+
+  <div class="callout callout-green">
+    <div class="callout-title">🎯 关键结论</div>
+    <p>• 多 Agent 辩论在<strong>所有6个任务</strong>上均优于单模型基线<br>• 使用<strong>多个 Agent</strong>和<strong>多轮辩论</strong>对实现最佳性能都至关重要<br>• 辩论不仅放大正确答案，还能让<strong>全部初始错误的模型最终得出正确答案</strong><br>• 辩论方法与思维链、检索等方法<strong>正交</strong>，可以结合使用<br>• 跨模型辩论（ChatGPT + Bard）产生<strong>1+1 > 2</strong>的协同效应<br>• "说服难度"可作为评估模型<strong>事实置信度</strong>的指标</p>
+  </div>
+
+  <p style="text-align: center; margin-top: 32px; color: var(--muted); font-size: 14px;">
+    📄 论文原文：<a href="https://arxiv.org/abs/2305.14325" style="color: var(--accent); text-decoration: none;">arXiv:2305.14325</a> · 
+    🌐 项目主页：<a href="https://composable-models.github.io/llm_debate/" style="color: var(--accent); text-decoration: none;">composable-models.github.io/llm_debate</a>
+  </p>
+</section>
+
+</main>
+</div>
+</div>
+
+<div class="footer">
+  <p>论文精读报告：通过多智能体辩论提升语言模型的事实性与推理能力</p>
+  <p style="margin-top: 4px;">arXiv:2305.14325 · MIT CSAIL & Google Brain · 2023</p>
+</div>
+
+<script>
+// TOC active state
+const sections = document.querySelectorAll('.section');
+const tocLinks = document.querySelectorAll('.toc a');
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      tocLinks.forEach(link => link.classList.remove('active'));
+      const id = entry.target.getAttribute('id');
+      const activeLink = document.querySelector(`.toc a[href="#${id}"]`);
+      if (activeLink) activeLink.classList.add('active');
+    }
+  });
+}, { rootMargin: '-20% 0px -60% 0px' });
+sections.forEach(section => observer.observe(section));
+</script>
+
+</body>
+</html>
