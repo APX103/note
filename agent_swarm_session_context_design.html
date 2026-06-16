@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent Swarm 全量会话上下文存储设计</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans SC', system-ui, -apple-system, sans-serif;
+            background: #f8fafc;
+        }
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .gradient-text {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+        .card-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.12);
+        }
+        .toc-link.active {
+            color: #4f46e5;
+            border-left-color: #4f46e5;
+            background: linear-gradient(90deg, rgba(79, 70, 229, 0.08) 0%, transparent 100%);
+        }
+        .scroll-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #4f46e5 0%, #7c3aed 100%);
+            z-index: 1000;
+            transition: width 0.1s;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #c7c7c7;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #a0a0a0;
+        }
+        .section-divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent 0%, #e5e7eb 20%, #e5e7eb 80%, transparent 100%);
+        }
+        .tag {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            letter-spacing: 0.025em;
+        }
+        .risk-high { background: #fee2e2; color: #991b1b; }
+        .risk-mid { background: #fef3c7; color: #92400e; }
+        .risk-low { background: #d1fae5; color: #065f46; }
+    </style>
+</head>
+<body class="text-slate-800">
+    <div class="scroll-indicator" id="scrollIndicator"></div>
+
+    <div class="max-w-5xl mx-auto px-6 py-16">
+        <!-- Header -->
+        <header class="mb-16">
+            <div class="flex items-center gap-3 mb-4">
+                <span class="tag bg-indigo-100 text-indigo-700">架构设计</span>
+                <span class="tag bg-slate-100 text-slate-600">2026-06-15</span>
+            </div>
+            <h1 class="text-4xl md:text-5xl font-bold mb-6 gradient-text">Agent Swarm 全量会话上下文存储设计</h1>
+            <p class="text-xl text-slate-500 leading-relaxed max-w-3xl">
+                参考 Google ADK 的 Session / Event 设计思路，为 Agent Swarm 设计一套能够完整保存<strong>人与 Agent、Agent 与 Agent 之间对话</strong>的上下文存储方案，并支持事后复现现场。
+            </p>
+        </header>
+
+        <!-- Executive Summary -->
+        <section class="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 mb-12 card-hover">
+            <h2 class="text-2xl font-bold mb-4 flex items-center gap-3">
+                <span class="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center text-sm">📋</span>
+                设计结论
+            </h2>
+            <div class="prose prose-slate max-w-none">
+                <p class="text-slate-600 leading-relaxed mb-4">
+                    建议引入<strong>事件优先（Event-First）</strong>的会话模型：把每一次用户输入、编排器思考、工具调用、工具结果、Agent 进度、状态变更都记录为不可变的 <code class="font-mono bg-slate-100 px-2 py-1 rounded">Event</code>。Session 由"事件日志 + 状态表 + 产物元数据"组成，通过 <code class="font-mono bg-slate-100 px-2 py-1 rounded">SessionService</code> 抽象层持久化到内存（开发）或 Redis（生产）。
+                </p>
+                <p class="text-slate-600 leading-relaxed">
+                    这套设计与 Google ADK 的核心思路一致：用 <code class="font-mono bg-slate-100 px-2 py-1 rounded">Event</code> 作为统一信息单元，用 <code class="font-mono bg-slate-100 px-2 py-1 rounded">author</code> 区分说话者，用 <code class="font-mono bg-slate-100 px-2 py-1 rounded">invocation_id</code> 区分一次完整请求周期，用 <code class="font-mono bg-slate-100 px-2 py-1 rounded">branch</code> 隔离子 Agent 的私有上下文。
+                </p>
+            </div>
+        </section>
+
+        <!-- Table of Contents -->
+        <section class="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 mb-12">
+            <h2 class="text-xl font-bold mb-6">目录</h2>
+            <nav class="grid md:grid-cols-2 gap-3">
+                <a href="#background" class="toc-link block px-4 py-3 rounded-lg border-l-2 border-transparent hover:bg-slate-50 transition">1. 背景与问题</a>
+                <a href="#adk" class="toc-link block px-4 py-3 rounded-lg border-l-2 border-transparent hover:bg-slate-50 transition">2. Google ADK 的设计启示</a>
+                <a href="#goals" class="toc-link block px-4 py-3 rounded-lg border-l-2 border-transparent hover:bg-slate-50 transition">3. 设计目标</a>
+                <a href="#concepts" class="toc-link block px-4 py-3 rounded-lg border-l-2 border-transparent hover:bg-slate-50 transition">4. 核心概念设计</a>
+                <a href="#integration" class="toc-link block px-4 py-3 rounded-lg border-l-2 border-transparent hover:bg-slate-50 transition">5. Agent Swarm 集成方案</a>
+                <a href="#storage" class="toc-link block px-4 py-3 rounded-lg border-l-2 border-transparent hover:bg-slate-50 transition">6. 存储选型</a>
+                <a href="#api" class="toc-link block px-4 py-3 rounded-lg border-l-2 border-transparent hover:bg-slate-50 transition">7. 对外接口</a>
+                <a href="#roadmap" class="toc-link block px-4 py-3 rounded-lg border-l-2 border-transparent hover:bg-slate-50 transition">8. 实现路线图</a>
+            </nav>
+        </section>
+
+        <!-- 1. Background -->
+        <section id="background" class="mb-16">
+            <h2 class="text-3xl font-bold mb-8 flex items-center gap-3">
+                <span class="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">01</span>
+                背景与问题
+            </h2>
+
+            <div class="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 mb-8 card-hover">
+                <h3 class="text-xl font-semibold mb-4">当前 SessionManager 的能力边界</h3>
+                <p class="text-slate-600 leading-relaxed mb-4">
+                    目前 <code class="font-mono bg-slate-100 px-2 py-1 rounded">src/session/manager.py</code> 中的 <code class="font-mono bg-slate-100 px-2 py-1 rounded">SessionState</code> 只保存了：
+                </p>
+                <ul class="list-disc list-inside text-slate-600 space-y-2 mb-4">
+                    <li><code class="font-mono bg-slate-100 px-1 rounded">session_id</code>、<code class="font-mono bg-slate-100 px-1 rounded">tenant_id</code></li>
+                    <li><code class="font-mono bg-slate-100 px-1 rounded">work_dir</code>（产物目录）</li>
+                    <li><code class="font-mono bg-slate-100 px-1 rounded">messages</code>（编排器 LLM 的对话历史）</li>
+                    <li><code class="font-mono bg-slate-100 px-1 rounded">shared_context</code>（plan_task 生成的计划）</li>
+                </ul>
+                <p class="text-slate-600 leading-relaxed">
+                    它解决的是"多轮对话复用 work folder 和历史"，但缺失了中间过程的完整记录：编排器什么时候调用了哪个工具、参数是什么、Worker 返回了什么、Agent 之间如何互相调用、状态何时变化。这些信息一旦丢失，事后无法复现现场。
+                </p>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <h3 class="text-lg font-semibold mb-3 text-rose-700">缺失的人-Agent 对话记录</h3>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        当前只保存了最终进入编排器 LLM 的 <code class="font-mono bg-slate-100 px-1 rounded">messages</code>。用户原始请求、WebSocket 事件、取消信号、API 层面的输入输出都没有被结构化保存。
+                    </p>
+                </div>
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <h3 class="text-lg font-semibold mb-3 text-rose-700">缺失的 Agent-Agent 对话记录</h3>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        编排器与 Worker 之间的 <code class="font-mono bg-slate-100 px-1 rounded">dispatch_agent</code>、<code class="font-mono bg-slate-100 px-1 rounded">check_agent_status</code>、<code class="font-mono bg-slate-100 px-1 rounded">read_artifacts</code> 调用，以及 Worker 内部的 LLM 思考过程，都没有被记录为可回放的事件。
+                    </p>
+                </div>
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <h3 class="text-lg font-semibold mb-3 text-rose-700">无法复现现场</h3>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        当某个任务结果不符合预期时，开发者只能看日志文件，无法像翻聊天记录一样按时间线查看"谁说了什么、谁调了谁、返回了什么"。
+                    </p>
+                </div>
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <h3 class="text-lg font-semibold mb-3 text-rose-700">状态变更无审计</h3>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        <code class="font-mono bg-slate-100 px-1 rounded">shared_context</code> 何时被更新、由哪个工具更新、更新前后的值是什么，没有可追溯的记录。
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <div class="section-divider mb-16"></div>
+
+        <!-- 2. ADK Inspiration -->
+        <section id="adk" class="mb-16">
+            <h2 class="text-3xl font-bold mb-8 flex items-center gap-3">
+                <span class="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">02</span>
+                Google ADK 的设计启示
+            </h2>
+
+            <div class="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 mb-8 card-hover">
+                <p class="text-slate-600 leading-relaxed mb-6">
+                    Google ADK 把会话管理拆成三个层次，每层职责单一：
+                </p>
+                <div class="grid md:grid-cols-3 gap-4 mb-6">
+                    <div class="bg-slate-50 rounded-xl p-5 border border-slate-200">
+                        <div class="text-lg font-semibold text-slate-800 mb-2">Agent 层</div>
+                        <div class="text-sm text-slate-600">业务逻辑所在，决定如何使用上下文和记忆。</div>
+                    </div>
+                    <div class="bg-slate-50 rounded-xl p-5 border border-slate-200">
+                        <div class="text-lg font-semibold text-slate-800 mb-2">Runtime 层</div>
+                        <div class="text-sm text-slate-600">Runner 负责创建/销毁 Session，跟踪执行每一步。</div>
+                    </div>
+                    <div class="bg-slate-50 rounded-xl p-5 border border-slate-200">
+                        <div class="text-lg font-semibold text-slate-800 mb-2">Service 层</div>
+                        <div class="text-sm text-slate-600">SessionService 负责与外部存储（内存/DB/Vertex）交互。</div>
+                    </div>
+                </div>
+                <p class="text-slate-600 leading-relaxed">
+                    其中最值得借鉴的是 <strong>Event 作为统一信息单元</strong>：用户消息、Agent 回复、工具调用、工具结果、状态变更、控制信号都被封装成 <code class="font-mono bg-slate-100 px-2 py-1 rounded">Event</code>，按时间顺序追加到 <code class="font-mono bg-slate-100 px-2 py-1 rounded">Session.events</code>。这让"复现现场"变成了按顺序回放事件列表。
+                </p>
+            </div>
+
+            <div class="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 mb-8 card-hover">
+                <h3 class="text-xl font-semibold mb-6">ADK Event 核心字段</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-slate-50 border-b border-slate-200">
+                            <tr>
+                                <th class="px-4 py-3 text-left font-semibold text-slate-700">字段</th>
+                                <th class="px-4 py-3 text-left font-semibold text-slate-700">含义</th>
+                                <th class="px-4 py-3 text-left font-semibold text-slate-700">Agent Swarm 映射</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            <tr>
+                                <td class="px-4 py-3 font-mono text-slate-800">id</td>
+                                <td class="px-4 py-3 text-slate-600">事件唯一 ID</td>
+                                <td class="px-4 py-3 text-slate-600">每个工具调用、每次 Agent 回复都有唯一 ID</td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-3 font-mono text-slate-800">invocation_id</td>
+                                <td class="px-4 py-3 text-slate-600">一次完整请求周期的 ID</td>
+                                <td class="px-4 py-3 text-slate-600">对应一次 <code class="font-mono bg-slate-100 px-1 rounded">POST /api/chat</code></td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-3 font-mono text-slate-800">author</td>
+                                <td class="px-4 py-3 text-slate-600">事件产生者</td>
+                                <td class="px-4 py-3 text-slate-600"><code class="font-mono bg-slate-100 px-1 rounded">user</code> / <code class="font-mono bg-slate-100 px-1 rounded">orchestrator</code> / <code class="font-mono bg-slate-100 px-1 rounded">frontend-ux-pro</code> / <code class="font-mono bg-slate-100 px-1 rounded">backend-engineer</code> 等</td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-3 font-mono text-slate-800">content</td>
+                                <td class="px-4 py-3 text-slate-600">消息/调用/结果内容</td>
+                                <td class="px-4 py-3 text-slate-600">文本、function_call、function_response、progress</td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-3 font-mono text-slate-800">actions.state_delta</td>
+                                <td class="px-4 py-3 text-slate-600">状态变更增量</td>
+                                <td class="px-4 py-3 text-slate-600"><code class="font-mono bg-slate-100 px-1 rounded">shared_context</code> 更新、session state 更新</td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-3 font-mono text-slate-800">branch</td>
+                                <td class="px-4 py-3 text-slate-600">层级路径</td>
+                                <td class="px-4 py-3 text-slate-600">多 Agent 嵌套时的上下文隔离，如 <code class="font-mono bg-slate-100 px-1 rounded">orchestrator.frontend</code></td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-3 font-mono text-slate-800">timestamp</td>
+                                <td class="px-4 py-3 text-slate-600">事件发生时间</td>
+                                <td class="px-4 py-3 text-slate-600">用于按时间线回放</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 card-hover">
+                <h3 class="text-xl font-semibold mb-4">为什么这套思路适合 Agent Swarm</h3>
+                <ul class="space-y-3 text-slate-600">
+                    <li class="flex items-start gap-2"><span class="text-emerald-500 mt-1">✓</span> <strong>不可变追加</strong>：Event 一旦写入不修改，天然适合审计和回放。</li>
+                    <li class="flex items-start gap-2"><span class="text-emerald-500 mt-1">✓</span> <strong>说话者清晰</strong>：<code class="font-mono bg-slate-100 px-1 rounded">author</code> 字段能区分 user、orchestrator、各个 Worker Agent。</li>
+                    <li class="flex items-start gap-2"><span class="text-emerald-500 mt-1">✓</span> <strong>层级隔离</strong>：<code class="font-mono bg-slate-100 px-1 rounded">branch</code> 让子 Agent 看不到兄弟 Agent 的内部思考，只看到需要共享的结果。</li>
+                    <li class="flex items-start gap-2"><span class="text-emerald-500 mt-1">✓</span> <strong>状态变更可审计</strong>：所有 state 更新通过 <code class="font-mono bg-slate-100 px-1 rounded">state_delta</code> 事件体现，可追溯。</li>
+                    <li class="flex items-start gap-2"><span class="text-emerald-500 mt-1">✓</span> <strong>存储可插拔</strong>：<code class="font-mono bg-slate-100 px-1 rounded">SessionService</code> 抽象允许开发用内存、生产用 Redis/DB。</li>
+                </ul>
+            </div>
+        </section>
+
+        <div class="section-divider mb-16"></div>
+
+        <!-- 3. Goals -->
+        <section id="goals" class="mb-16">
+            <h2 class="text-3xl font-bold mb-8 flex items-center gap-3">
+                <span class="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">03</span>
+                设计目标
+            </h2>
+
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <h3 class="text-lg font-semibold mb-3">G1: 全量记录</h3>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        记录一次 <code class="font-mono bg-slate-100 px-1 rounded">POST /api/chat</code> 周期内所有有意义的交互：用户输入、编排器 LLM 请求/响应、每一次工具调用与结果、Worker 进度、产物读取、状态变更、错误与取消。
+                    </p>
+                </div>
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <h3 class="text-lg font-semibold mb-3">G2: 可复现现场</h3>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        给定 <code class="font-mono bg-slate-100 px-1 rounded">session_id</code>，能够按时间线完整回放事件流；开发者可以像看聊天记录一样查看谁说了什么、调了什么、返回了什么。
+                    </p>
+                </div>
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <h3 class="text-lg font-semibold mb-3">G3: 支持多进程</h3>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        默认实现从 in-memory 升级到可持久化的 Redis 后端，解决当前 SessionManager 只能单进程使用的问题。
+                    </p>
+                </div>
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <h3 class="text-lg font-semibold mb-3">G4: 向后兼容</h3>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        现有 API 签名和调用方式不变；新设计以新增模块和可选注入的方式引入，老代码逐步迁移而非一次性重写。
+                    </p>
+                </div>
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <h3 class="text-lg font-semibold mb-3">G5: 上下文可控</h3>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        支持按 <code class="font-mono bg-slate-100 px-1 rounded">author</code>、<code class="font-mono bg-slate-100 px-1 rounded">event_type</code>、<code class="font-mono bg-slate-100 px-1 rounded">branch</code> 过滤事件，用于构建不同 Agent 可见的上下文窗口。
+                    </p>
+                </div>
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <h3 class="text-lg font-semibold mb-3">G6: 可扩展</h3>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        新增事件类型和存储后端不需要修改核心模型，通过 Pydantic 联合类型和 SessionService Protocol 扩展。
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <div class="section-divider mb-16"></div>
+
+        <!-- 4. Core Concepts -->
+        <section id="concepts" class="mb-16">
+            <h2 class="text-3xl font-bold mb-8 flex items-center gap-3">
+                <span class="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">04</span>
+                核心概念设计
+            </h2>
+
+            <div class="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 mb-8 card-hover">
+                <h3 class="text-xl font-semibold mb-6">Event 数据模型</h3>
+                <div class="bg-slate-900 rounded-xl p-6 overflow-x-auto">
+                    <pre class="font-mono text-sm text-slate-300 leading-relaxed">
+class Event(BaseModel):
+    id: str                    # 事件唯一 ID (uuid)
+    invocation_id: str         # 一次 /api/chat 请求周期 ID
+    session_id: str
+    tenant_id: str
+
+    timestamp: float           # 创建时间
+    author: str                # user / orchestrator / frontend-ux-pro / backend-engineer / dispatcher / system
+    role: Literal["user", "assistant", "tool", "system"]
+    event_type: str            # 见下方事件类型枚举
+
+    branch: str = ""           # 层级路径，如 orchestrator / orchestrator.frontend
+    parent_id: Optional[str]   # 父事件 ID，用于 tool_result → tool_call 关联
+
+    content: Optional[dict]    # 文本/调用/结果的实际内容
+    actions: EventActions      # 副作用：状态增量、产物增量、transfer 等
+
+    metadata: dict             # 扩展字段：task_id, dispatch_id, agent_type, retry 等
+
+class EventActions(BaseModel):
+    state_delta: dict = {}          # session state 变更（类似 ADK）
+    artifact_delta: dict = {}       # 产物变更：{path, action: created|updated|deleted}
+    transfer_to_agent: Optional[str] = None  # 控制信号：转交给某个 Agent
+    escalate: bool = False          # 是否需要人工介入
+                    </pre>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 mb-8 card-hover">
+                <h3 class="text-xl font-semibold mb-6">事件类型枚举</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-slate-50 border-b border-slate-200">
+                            <tr>
+                                <th class="px-4 py-3 text-left font-semibold text-slate-700">event_type</th>
+                                <th class="px-4 py-3 text-left font-semibold text-slate-700">触发场景</th>
+                                <th class="px-4 py-3 text-left font-semibold text-slate-700">author 示例</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            <tr><td class="px-4 py-3 font-mono text-slate-800">user_message</td><td class="px-4 py-3 text-slate-600">用户发送 <code class="font-mono bg-slate-100 px-1 rounded">/api/chat</code></td><td class="px-4 py-3 text-slate-600">user</td></tr>
+                            <tr><td class="px-4 py-3 font-mono text-slate-800">orchestrator_thinking</td><td class="px-4 py-3 text-slate-600">编排器开始新一轮 tool-calling</td><td class="px-4 py-3 text-slate-600">orchestrator</td></tr>
+                            <tr><td class="px-4 py-3 font-mono text-slate-800">llm_request</td><td class="px-4 py-3 text-slate-600">编排器调用 LLM</td><td class="px-4 py-3 text-slate-600">orchestrator</td></tr>
+                            <tr><td class="px-4 py-3 font-mono text-slate-800">llm_response</td><td class="px-4 py-3 text-slate-600">LLM 返回内容或 tool_calls</td><td class="px-4 py-3 text-slate-600">orchestrator</td></tr>
+                            <tr><td class="px-4 py-3 font-mono text-slate-800">tool_call</td><td class="px-4 py-3 text-slate-600">编排器决定调用工具</td><td class="px-4 py-3 text-slate-600">orchestrator</td></tr>
+                            <tr><td class="px-4 py-3 font-mono text-slate-800">tool_result</td><td class="px-4 py-3 text-slate-600">工具执行完成</td><td class="px-4 py-3 text-slate-600">orchestrator / 工具名</td></tr>
+                            <tr><td class="px-4 py-3 font-mono text-slate-800">dispatch_request</td><td class="px-4 py-3 text-slate-600">Dispatcher 收到请求</td><td class="px-4 py-3 text-slate-600">dispatcher</td></tr>
+                            <tr><td class="px-4 py-3 font-mono text-slate-800">dispatch_attempt</td><td class="px-4 py-3 text-slate-600">Dispatcher 尝试一个候选</td><td class="px-4 py-3 text-slate-600">dispatcher</td></tr>
+                            <tr><td class="px-4 py-3 font-mono text-slate-800">agent_progress</td><td class="px-4 py-3 text-slate-600">Worker 上报进度</td><td class="px-4 py-3 text-slate-600">frontend-ux-pro / backend-engineer</td></tr>
+                            <tr><td class="px-4 py-3 font-mono text-slate-800">agent_response</td><td class="px-4 py-3 text-slate-600">Worker 返回最终结果</td><td class="px-4 py-3 text-slate-600">frontend-ux-pro / backend-engineer</td></tr>
+                            <tr><td class="px-4 py-3 font-mono text-slate-800">artifact_read</td><td class="px-4 py-3 text-slate-600">编排器读取产物</td><td class="px-4 py-3 text-slate-600">orchestrator</td></tr>
+                            <tr><td class="px-4 py-3 font-mono text-slate-800">artifact_list</td><td class="px-4 py-3 text-slate-600">编排器列出产物</td><td class="px-4 py-3 text-slate-600">orchestrator</td></tr>
+                            <tr><td class="px-4 py-3 font-mono text-slate-800">state_delta</td><td class="px-4 py-3 text-slate-600">session state 变更</td><td class="px-4 py-3 text-slate-600">system</td></tr>
+                            <tr><td class="px-4 py-3 font-mono text-slate-800">finalize</td><td class="px-4 py-3 text-slate-600">任务 finalize</td><td class="px-4 py-3 text-slate-600">orchestrator</td></tr>
+                            <tr><td class="px-4 py-3 font-mono text-slate-800">error</td><td class="px-4 py-3 text-slate-600">任何异常</td><td class="px-4 py-3 text-slate-600">system</td></tr>
+                            <tr><td class="px-4 py-3 font-mono text-slate-800">cancel</td><td class="px-4 py-3 text-slate-600">用户取消任务</td><td class="px-4 py-3 text-slate-600">user</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 mb-8 card-hover">
+                <h3 class="text-xl font-semibold mb-6">Session 数据模型</h3>
+                <div class="bg-slate-900 rounded-xl p-6 overflow-x-auto">
+                    <pre class="font-mono text-sm text-slate-300 leading-relaxed">
+class Session(BaseModel):
+    id: str
+    app_name: str = "agent-swarm"      # 兼容 ADK 概念
+    user_id: str = "default"           # 可替换为 tenant_id
+    tenant_id: str = "default"
+
+    work_dir: str                      # 产物工作目录
+    state: dict = {}                   # key-value 会话状态表
+    events: list[Event] = []           # 事件日志（核心）
+
+    created_at: float
+    last_update_time: float
+    version: int = 0                   # 乐观锁，用于并发更新
+
+class SessionService(Protocol):
+    async def create_session(self, session_id, tenant_id, work_dir, initial_state=None) -> Session: ...
+    async def get_session(self, session_id, tenant_id) -> Optional[Session]: ...
+    async def append_event(self, session_id, tenant_id, event: Event) -> Session: ...
+    async def update_state(self, session_id, tenant_id, state_delta: dict) -> Session: ...
+    async def list_sessions(self, tenant_id, limit, offset) -> list[Session]: ...
+                    </pre>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 card-hover">
+                <h3 class="text-xl font-semibold mb-4">上下文重建策略</h3>
+                <p class="text-slate-600 leading-relaxed mb-4">
+                    编排器在每一轮对话开始时，不需要把整个 <code class="font-mono bg-slate-100 px-1 rounded">events</code> 列表都塞进 LLM。而是：
+                </p>
+                <ol class="list-decimal list-inside text-slate-600 space-y-2 mb-4">
+                    <li>按 <code class="font-mono bg-slate-100 px-1 rounded">branch</code> 过滤出 orchestrator 主分支的事件；</li>
+                    <li>把事件转换为 OpenAI messages（user_message → user，llm_response → assistant，tool_result → tool）；</li>
+                    <li>当事件过多时，对早期事件做摘要压缩，保留最近 N 轮完整记录。</li>
+                </ol>
+                <p class="text-slate-600 leading-relaxed">
+                    这样编排器既不会丢失多轮记忆，也不会被无关的 Worker 内部细节淹没。
+                </p>
+            </div>
+        </section>
+
+        <div class="section-divider mb-16"></div>
+
+        <!-- 5. Integration -->
+        <section id="integration" class="mb-16">
+            <h2 class="text-3xl font-bold mb-8 flex items-center gap-3">
+                <span class="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">05</span>
+                Agent Swarm 集成方案
+            </h2>
+
+            <div class="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 mb-8 card-hover">
+                <h3 class="text-xl font-semibold mb-6">事件埋点位置</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-slate-50 border-b border-slate-200">
+                            <tr>
+                                <th class="px-4 py-3 text-left font-semibold text-slate-700">代码位置</th>
+                                <th class="px-4 py-3 text-left font-semibold text-slate-700">应记录的事件</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            <tr>
+                                <td class="px-4 py-3 font-mono text-slate-800">src/api/routes.py::chat</td>
+                                <td class="px-4 py-3 text-slate-600">user_message, cancel</td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-3 font-mono text-slate-800">src/orchestrator/orchestrator.py</td>
+                                <td class="px-4 py-3 text-slate-600">orchestrator_thinking, llm_request, llm_response, tool_call, tool_result, artifact_read/list, finalize, error</td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-3 font-mono text-slate-800">src/dispatcher/dispatcher.py</td>
+                                <td class="px-4 py-3 text-slate-600">dispatch_request, dispatch_attempt（含成功/失败/降级）</td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-3 font-mono text-slate-800">src/dispatcher/backends.py</td>
+                                <td class="px-4 py-3 text-slate-600">agent_progress（透传 Worker 进度）, agent_response</td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-3 font-mono text-slate-800">src/agents/worker.py</td>
+                                <td class="px-4 py-3 text-slate-600">agent_progress, agent_response, error（从 Worker 视角）</td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-3 font-mono text-slate-800">src/common/a2a_client.py</td>
+                                <td class="px-4 py-3 text-slate-600">a2a_request, a2a_response</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 mb-8 card-hover">
+                <h3 class="text-xl font-semibold mb-6">一次 /api/chat 的事件流示例</h3>
+                <div class="bg-slate-900 rounded-xl p-6 overflow-x-auto">
+                    <pre class="font-mono text-sm text-slate-300 leading-relaxed">
+invocation_id: inv-20260615-001
+session_id: sess-abc
+
+[00:00] user_message       author=user       "写一个前后端分离的 TODO 应用"
+[00:01] orchestrator_thinking  author=orchestrator  iteration=0
+[00:02] llm_request        author=orchestrator  messages=[...]
+[00:03] llm_response       author=orchestrator  tool_calls=[plan_task]
+[00:04] tool_call          author=orchestrator  name=plan_task
+[00:05] state_delta        author=system      shared_context=...  ← actions.state_delta
+[00:06] tool_result        author=orchestrator  name=plan_task
+[00:07] llm_request        author=orchestrator
+[00:08] llm_response       author=orchestrator  tool_calls=[dispatch_agents_parallel]
+[00:09] tool_call          author=orchestrator  name=dispatch_agents_parallel
+[00:10] dispatch_request   author=dispatcher  agent_type=backend-engineer
+[00:11] dispatch_attempt   author=dispatcher  target=swarm-worker-0
+[00:12] agent_progress     author=backend-engineer  "开始生成 FastAPI 后端..."
+[00:13] agent_progress     author=frontend-ux-pro   "开始生成 HTML 前端..."
+[00:14] agent_response     author=backend-engineer  "后端已完成"
+[00:15] agent_response     author=frontend-ux-pro   "前端已完成"
+[00:16] tool_result        author=orchestrator  dispatch 完成
+[00:17] tool_call          author=orchestrator  name=read_artifacts
+[00:18] tool_result        author=orchestrator  content=...
+[00:19] tool_call          author=orchestrator  name=finalize
+[00:20] finalize           author=orchestrator  summary="已完成"
+                    </pre>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 mb-8 card-hover">
+                <h3 class="text-xl font-semibold mb-4">Agent-Agent 对话如何记录</h3>
+                <p class="text-slate-600 leading-relaxed mb-4">
+                    Agent Swarm 中 Agent-Agent 的"对话"本质上是编排器对 Worker 的调用链。建议按以下方式建模：
+                </p>
+                <ul class="space-y-3 text-slate-600">
+                    <li class="flex items-start gap-2"><span class="text-indigo-500 mt-1">●</span> <strong>父调用</strong>：<code class="font-mono bg-slate-100 px-1 rounded">tool_call</code> 事件，author=<code class="font-mono bg-slate-100 px-1 rounded">orchestrator</code>，content 含目标 agent_type 和任务。</li>
+                    <li class="flex items-start gap-2"><span class="text-indigo-500 mt-1">●</span> <strong>子执行</strong>：<code class="font-mono bg-slate-100 px-1 rounded">agent_progress</code> 和 <code class="font-mono bg-slate-100 px-1 rounded">agent_response</code> 事件，author=具体的 Worker Agent ID，<code class="font-mono bg-slate-100 px-1 rounded">parent_id</code> 指向前面的 <code class="font-mono bg-slate-100 px-1 rounded">tool_call</code> 事件。</li>
+                    <li class="flex items-start gap-2"><span class="text-indigo-500 mt-1">●</span> <strong>分支隔离</strong>：Worker 内部产生的 <code class="font-mono bg-slate-100 px-1 rounded">llm_request/llm_response/tool_call</code> 等事件使用 <code class="font-mono bg-slate-100 px-1 rounded">branch="orchestrator.{agent_type}"</code>，默认不向 orchestrator 主上下文暴露。</li>
+                </ul>
+                <p class="text-slate-600 leading-relaxed mt-4">
+                    这样，事后查看某次 dispatch 时，可以通过 <code class="font-mono bg-slate-100 px-1 rounded">parent_id</code> 找到完整的请求-响应链条。
+                </p>
+            </div>
+
+            <div class="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 card-hover">
+                <h3 class="text-xl font-semibold mb-4">与现有 SessionManager 的兼容</h3>
+                <p class="text-slate-600 leading-relaxed mb-4">
+                    推荐采用"新增模块、逐步替换"的策略：
+                </p>
+                <ol class="list-decimal list-inside text-slate-600 space-y-2">
+                    <li>保留 <code class="font-mono bg-slate-100 px-1 rounded">SessionState</code> 作为内存中的运行时缓存，但把它升级为 <code class="font-mono bg-slate-100 px-1 rounded">Session</code> 的本地视图。</li>
+                    <li>新增 <code class="font-mono bg-slate-100 px-1 rounded">src/session/service.py</code> 提供 <code class="font-mono bg-slate-100 px-1 rounded">SessionService</code> 抽象及 InMemory/Redis 实现。</li>
+                    <li>新增 <code class="font-mono bg-slate-100 px-1 rounded">src/session/events.py</code> 定义 <code class="font-mono bg-slate-100 px-1 rounded">Event</code> 和 <code class="font-mono bg-slate-100 px-1 rounded">EventActions</code>。</li>
+                    <li>新增 <code class="font-mono bg-slate-100 px-1 rounded">src/session/recorder.py</code> 作为统一事件记录器，被 orchestrator、dispatcher、worker 调用。</li>
+                    <li>原有 <code class="font-mono bg-slate-100 px-1 rounded">messages</code> 和 <code class="font-mono bg-slate-100 px-1 rounded">shared_context</code> 继续保留，但改为从 events/state 派生，保证过渡期间不破坏现有逻辑。</li>
+                </ol>
+            </div>
+        </section>
+
+        <div class="section-divider mb-16"></div>
+
+        <!-- 6. Storage -->
+        <section id="storage" class="mb-16">
+            <h2 class="text-3xl font-bold mb-8 flex items-center gap-3">
+                <span class="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">06</span>
+                存储选型
+            </h2>
+
+            <div class="grid md:grid-cols-2 gap-6 mb-8">
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <h3 class="text-lg font-semibold mb-3 text-indigo-700">阶段一：内存实现（开发/测试）</h3>
+                    <p class="text-slate-600 text-sm leading-relaxed mb-3">
+                        <code class="font-mono bg-slate-100 px-1 rounded">InMemorySessionService</code> 用 dict 保存 session，适合当前单进程开发和跑测试。它保持与现有 <code class="font-mono bg-slate-100 px-1 rounded">SessionManager</code> 相似的语义，但接口统一为 <code class="font-mono bg-slate-100 px-1 rounded">SessionService</code>。
+                    </p>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        优点：零依赖、实现快、测试简单。缺点：进程重启丢失、无法水平扩展。
+                    </p>
+                </div>
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <h3 class="text-lg font-semibold mb-3 text-indigo-700">阶段二：Redis 实现（生产）</h3>
+                    <p class="text-slate-600 text-sm leading-relaxed mb-3">
+                        <code class="font-mono bg-slate-100 px-1 rounded">RedisSessionService</code> 把 session 和 events 序列化后存到 Redis。可用 Hash 存 session 元数据，用 List 或 Sorted Set 存 events（按 timestamp 排序）。
+                    </p>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        优点：项目已依赖 redis、支持多进程、速度快。缺点：事件列表过大时读取性能下降，可定期归档或分片。
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 card-hover">
+                <h3 class="text-xl font-semibold mb-6">Redis 存储结构建议</h3>
+                <div class="bg-slate-900 rounded-xl p-6 overflow-x-auto">
+                    <pre class="font-mono text-sm text-slate-300 leading-relaxed">
+# Session 元数据
+HSET swarm:session:{tenant_id}:{session_id}
+  work_dir /abs/path
+  state       {json}
+  created_at  1234567890
+  version     5
+
+# 事件列表（按时间追加）
+LPUSH swarm:events:{tenant_id}:{session_id} {event_json}
+# 或按 score = timestamp 的 Sorted Set，便于范围查询
+ZADD swarm:events:{tenant_id}:{session_id} {timestamp} {event_json}
+
+# 索引：最近更新的 session（用于管理后台列表）
+ZADD swarm:sessions:{tenant_id} {last_update_time} {session_id}
+                    </pre>
+                </div>
+                <p class="text-slate-600 leading-relaxed mt-4">
+                    由于事件是追加-only 的，Redis List 天然合适。如果事件量很大，可以按 invocation_id 分 key，或者定期把老事件迁移到对象存储/SQLite。
+                </p>
+            </div>
+        </section>
+
+        <div class="section-divider mb-16"></div>
+
+        <!-- 7. API -->
+        <section id="api" class="mb-16">
+            <h2 class="text-3xl font-bold mb-8 flex items-center gap-3">
+                <span class="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">07</span>
+                对外接口设计
+            </h2>
+
+            <div class="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 mb-8 card-hover">
+                <h3 class="text-xl font-semibold mb-6">新增 REST API</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-slate-50 border-b border-slate-200">
+                            <tr>
+                                <th class="px-4 py-3 text-left font-semibold text-slate-700">方法</th>
+                                <th class="px-4 py-3 text-left font-semibold text-slate-700">路径</th>
+                                <th class="px-4 py-3 text-left font-semibold text-slate-700">说明</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            <tr>
+                                <td class="px-4 py-3 font-mono text-slate-800">GET</td>
+                                <td class="px-4 py-3 font-mono text-slate-800">/api/sessions</td>
+                                <td class="px-4 py-3 text-slate-600">列出会话（分页）</td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-3 font-mono text-slate-800">GET</td>
+                                <td class="px-4 py-3 font-mono text-slate-800">/api/sessions/{id}</td>
+                                <td class="px-4 py-3 text-slate-600">获取会话元数据和最近事件摘要</td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-3 font-mono text-slate-800">GET</td>
+                                <td class="px-4 py-3 font-mono text-slate-800">/api/sessions/{id}/events</td>
+                                <td class="px-4 py-3 text-slate-600">获取完整事件流（支持 after/timestamp、filter）</td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-3 font-mono text-slate-800">GET</td>
+                                <td class="px-4 py-3 font-mono text-slate-800">/api/sessions/{id}/replay</td>
+                                <td class="px-4 py-3 text-slate-600">以时间线形式回放事件（复现现场）</td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-3 font-mono text-slate-800">GET</td>
+                                <td class="px-4 py-3 font-mono text-slate-800">/api/sessions/{id}/timeline</td>
+                                <td class="px-4 py-3 text-slate-600">获取按 invocation_id 聚合的时间线</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 card-hover">
+                <h3 class="text-xl font-semibold mb-6">事件查询参数示例</h3>
+                <div class="bg-slate-900 rounded-xl p-6 overflow-x-auto">
+                    <pre class="font-mono text-sm text-slate-300 leading-relaxed">
+# 获取某个 session 中 orchestrator 相关的所有工具调用
+GET /api/sessions/sess-abc/events?author=orchestrator&event_type=tool_call
+
+# 获取某次 /api/chat 请求周期内的所有事件
+GET /api/sessions/sess-abc/events?invocation_id=inv-20260615-001
+
+# 获取某个 Worker 的所有进度事件
+GET /api/sessions/sess-abc/events?author=frontend-ux-pro&event_type=agent_progress
+
+# 获取时间线（按 invocation 聚合）
+GET /api/sessions/sess-abc/timeline
+                    </pre>
+                </div>
+            </div>
+        </section>
+
+        <div class="section-divider mb-16"></div>
+
+        <!-- 8. Roadmap -->
+        <section id="roadmap" class="mb-16">
+            <h2 class="text-3xl font-bold mb-8 flex items-center gap-3">
+                <span class="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">08</span>
+                实现路线图
+            </h2>
+
+            <div class="space-y-6">
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center flex-shrink-0">1</div>
+                        <div>
+                            <h3 class="text-lg font-semibold mb-2">Wave 1：事件模型 + InMemorySessionService</h3>
+                            <p class="text-slate-600 text-sm leading-relaxed">
+                                新增 <code class="font-mono bg-slate-100 px-1 rounded">src/session/events.py</code>、<code class="font-mono bg-slate-100 px-1 rounded">service.py</code>、<code class="font-mono bg-slate-100 px-1 rounded">recorder.py</code>。在 orchestrator 的关键路径（tool_call/tool_result/finalize）埋点。保持现有 API 不变。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center flex-shrink-0">2</div>
+                        <div>
+                            <h3 class="text-lg font-semibold mb-2">Wave 2：Dispatcher / Worker 埋点</h3>
+                            <p class="text-slate-600 text-sm leading-relaxed">
+                                在 dispatcher 记录 dispatch_request/attempt，在 Worker 侧记录 agent_progress/agent_response。让 Agent-Agent 调用链可追踪。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center flex-shrink-0">3</div>
+                        <div>
+                            <h3 class="text-lg font-semibold mb-2">Wave 3：RedisSessionService + 多进程安全</h3>
+                            <p class="text-slate-600 text-sm leading-relaxed">
+                                实现 Redis 后端，替换当前的 in-memory SessionManager。引入 version 乐观锁，解决并发更新问题。同时把原有 in-memory 的幂等索引、死信等逐步 Redis 化。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center flex-shrink-0">4</div>
+                        <div>
+                            <h3 class="text-lg font-semibold mb-2">Wave 4：查询 / 回放 API</h3>
+                            <p class="text-slate-600 text-sm leading-relaxed">
+                                实现 <code class="font-mono bg-slate-100 px-1 rounded">/api/sessions/{id}/events</code>、<code class="font-mono bg-slate-100 px-1 rounded">/api/sessions/{id}/replay</code>、<code class="font-mono bg-slate-100 px-1 rounded">/api/sessions/{id}/timeline</code>，让开发者可以在浏览器或 CLI 中复现现场。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center flex-shrink-0">5</div>
+                        <div>
+                            <h3 class="text-lg font-semibold mb-2">Wave 5：上下文压缩与分支隔离</h3>
+                            <p class="text-slate-600 text-sm leading-relaxed">
+                                基于 events 实现编排器的上下文重建：按 branch 过滤、早期事件摘要、保留最近 N 轮。让多轮对话既能记住历史，又不会超出 LLM 上下文窗口。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="section-divider mb-16"></div>
+
+        <!-- Conclusion -->
+        <section class="mb-16">
+            <h2 class="text-3xl font-bold mb-8 flex items-center gap-3">
+                <span class="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">09</span>
+                设计要点回顾
+            </h2>
+
+            <div class="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 card-hover">
+                <ul class="space-y-3 text-slate-600">
+                    <li class="flex items-start gap-2"><span class="text-emerald-500 mt-1">✓</span> 用 <strong>Event-First</strong> 模型替代当前的 <code class="font-mono bg-slate-100 px-1 rounded">messages</code> 列表，把所有交互变成不可变事件。</li>
+                    <li class="flex items-start gap-2"><span class="text-emerald-500 mt-1">✓</span> 用 <code class="font-mono bg-slate-100 px-1 rounded">author</code> 区分 user/orchestrator/Worker，用 <code class="font-mono bg-slate-100 px-1 rounded">invocation_id</code> 区分一次请求周期，用 <code class="font-mono bg-slate-100 px-1 rounded">branch</code> 隔离子 Agent 上下文。</li>
+                    <li class="flex items-start gap-2"><span class="text-emerald-500 mt-1">✓</span> 用 <code class="font-mono bg-slate-100 px-1 rounded">SessionService</code> 抽象层隔离存储，开发用内存，生产用 Redis。</li>
+                    <li class="flex items-start gap-2"><span class="text-emerald-500 mt-1">✓</span> 在 orchestrator、dispatcher、worker 关键路径埋点，形成完整的人-Agent 和 Agent-Agent 对话记录。</li>
+                    <li class="flex items-start gap-2"><span class="text-emerald-500 mt-1">✓</span> 提供 events/replay/timeline API，支持事后复现现场。</li>
+                    <li class="flex items-start gap-2"><span class="text-emerald-500 mt-1">✓</span> 保持向后兼容，新增模块逐步替换，不一次性重写现有 API。</li>
+                </ul>
+            </div>
+        </section>
+
+        <footer class="text-center text-slate-400 text-sm pt-8 border-t border-slate-200">
+            <p>架构设计文档 · 生成于 2026-06-15 · 参考 Google ADK Session/Event 设计</p>
+        </footer>
+    </div>
+
+    <script>
+        window.addEventListener('scroll', () => {
+            const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+            const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            const scrolled = (winScroll / height) * 100;
+            document.getElementById('scrollIndicator').style.width = scrolled + '%';
+        });
+
+        const sections = document.querySelectorAll('section[id]');
+        const tocLinks = document.querySelectorAll('.toc-link');
+        window.addEventListener('scroll', () => {
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                if (scrollY >= sectionTop - 200) {
+                    current = section.getAttribute('id');
+                }
+            });
+            tocLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === '#' + current) {
+                    link.classList.add('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

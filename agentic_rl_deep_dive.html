@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agentic RL 深度调研 — 智能体强化学习全景</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --bg: #f7f8fc;
+        --surface: #ffffff;
+        --surface-2: #f1f3f9;
+        --text: #1e2233;
+        --text-2: #5b6275;
+        --text-3: #8a91a5;
+        --indigo: #4f46e5;
+        --indigo-soft: #eef0ff;
+        --violet: #7c3aed;
+        --violet-soft: #f3edff;
+        --emerald: #059669;
+        --emerald-soft: #e7f6f0;
+        --amber: #d97706;
+        --amber-soft: #fdf3e3;
+        --rose: #e11d48;
+        --rose-soft: #fdeaf0;
+        --cyan: #0891b2;
+        --cyan-soft: #e3f6fb;
+        --border: #e6e8f0;
+        --border-strong: #d4d7e3;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+        font-family: 'Noto Sans SC', system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.75;
+        -webkit-font-smoothing: antialiased;
+    }
+    .font-mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+
+    /* ---- Decorative background ---- */
+    .bg-decor {
+        position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden;
+    }
+    .blob {
+        position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.5;
+    }
+    .blob-1 { width: 480px; height: 480px; background: #c7d2fe; top: -120px; right: -100px; }
+    .blob-2 { width: 420px; height: 420px; background: #ddd6fe; top: 40%; left: -160px; }
+    .blob-3 { width: 380px; height: 380px; background: #a7f3d0; bottom: -120px; right: 10%; }
+
+    .grid-bg {
+        position: absolute; inset: 0;
+        background-image:
+            linear-gradient(rgba(99,102,241,0.05) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(99,102,241,0.05) 1px, transparent 1px);
+        background-size: 44px 44px;
+        mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, #000 30%, transparent 75%);
+    }
+
+    /* ---- Scroll progress ---- */
+    .scroll-indicator {
+        position: fixed; top: 0; left: 0; height: 3px; width: 0%;
+        background: linear-gradient(90deg, var(--indigo), var(--violet), var(--emerald));
+        z-index: 100; transition: width 0.08s;
+    }
+
+    /* ---- Hero ---- */
+    .hero-grad {
+        background: linear-gradient(135deg, var(--text) 0%, var(--indigo) 45%, var(--violet) 100%);
+        -webkit-background-clip: text; background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
+    /* ---- Cards ---- */
+    .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        transition: transform .3s ease, box-shadow .3s ease, border-color .3s ease;
+    }
+    .card-hover:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 22px 45px -18px rgba(79,70,229,0.22);
+        border-color: var(--border-strong);
+    }
+    .soft { background: var(--surface-2); }
+
+    /* ---- Chips / tags ---- */
+    .chip {
+        display: inline-flex; align-items: center; gap: 6px;
+        font-size: 12px; font-weight: 600;
+        padding: 4px 11px; border-radius: 999px;
+        border: 1px solid var(--border);
+        background: var(--surface);
+        color: var(--text-2);
+    }
+    .chip-indigo { background: var(--indigo-soft); color: var(--indigo); border-color: transparent; }
+    .chip-violet { background: var(--violet-soft); color: var(--violet); border-color: transparent; }
+    .chip-emerald { background: var(--emerald-soft); color: var(--emerald); border-color: transparent; }
+    .chip-amber { background: var(--amber-soft); color: var(--amber); border-color: transparent; }
+    .chip-rose { background: var(--rose-soft); color: var(--rose); border-color: transparent; }
+    .chip-cyan { background: var(--cyan-soft); color: var(--cyan); border-color: transparent; }
+
+    /* ---- Section heading ---- */
+    .section-eyebrow {
+        display: inline-flex; align-items: center; gap: 8px;
+        font-size: 12.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+        color: var(--indigo);
+    }
+    .section-eyebrow::before {
+        content: ""; width: 22px; height: 2px; background: var(--indigo); border-radius: 2px;
+    }
+    h2.title { font-size: 30px; font-weight: 800; letter-spacing: -.02em; color: var(--text); }
+    h3.subtitle { font-size: 20px; font-weight: 700; color: var(--text); }
+
+    /* ---- TOC sidebar ---- */
+    .toc-link {
+        display: block; padding: 7px 12px 7px 16px; font-size: 13.5px; color: var(--text-3);
+        border-left: 2px solid transparent; border-radius: 0 8px 8px 0; transition: all .2s;
+    }
+    .toc-link:hover { color: var(--text); background: var(--surface-2); }
+    .toc-link.active {
+        color: var(--indigo); border-left-color: var(--indigo); font-weight: 600;
+        background: linear-gradient(90deg, var(--indigo-soft) 0%, transparent 100%);
+    }
+
+    /* ---- Code ---- */
+    pre.code {
+        background: #0f1322; color: #e6e9f2; border-radius: 14px; padding: 18px 20px;
+        overflow-x: auto; font-size: 13px; line-height: 1.6;
+        border: 1px solid #1f2540;
+    }
+    pre.code .tok-kw { color: #c4b5fd; }
+    pre.code .tok-fn { color: #93c5fd; }
+    pre.code .tok-str { color: #86efac; }
+    pre.code .tok-num { color: #fcd34d; }
+    pre.code .tok-cmt { color: #6b7280; font-style: italic; }
+
+    /* ---- Math-ish block ---- */
+    .formula {
+        background: var(--surface); border: 1px dashed var(--border-strong);
+        border-radius: 12px; padding: 14px 18px; font-family: 'JetBrains Mono', monospace;
+        font-size: 13.5px; color: var(--text); overflow-x: auto;
+    }
+
+    /* ---- Timeline ---- */
+    .tl-line { position: absolute; left: 17px; top: 8px; bottom: 8px; width: 2px; background: var(--border-strong); }
+    .tl-dot {
+        width: 14px; height: 14px; border-radius: 50%; background: var(--surface);
+        border: 3px solid var(--indigo); flex-shrink: 0; position: relative; z-index: 1;
+    }
+
+    /* ---- Tables ---- */
+    table.tbl { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13.5px; }
+    table.tbl th {
+        background: var(--surface-2); color: var(--text); font-weight: 700; text-align: left;
+        padding: 11px 14px; border-bottom: 1px solid var(--border);
+    }
+    table.tbl td { padding: 11px 14px; border-bottom: 1px solid var(--border); color: var(--text-2); vertical-align: top; }
+    table.tbl tr:last-child td { border-bottom: none; }
+    table.tbl tr:hover td { background: var(--surface-2); }
+    .tbl-wrap {
+        border: 1px solid var(--border); border-radius: 14px; overflow: hidden; background: var(--surface);
+    }
+
+    /* ---- Callouts ---- */
+    .callout {
+        border-radius: 14px; padding: 16px 18px; border: 1px solid; font-size: 14px;
+    }
+    .callout-title { font-weight: 700; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+    .co-info { background: var(--indigo-soft); border-color: #d9defb; color: #3730a3; }
+    .co-warn { background: var(--amber-soft); border-color: #fbe3c2; color: #92400e; }
+    .co-tip  { background: var(--emerald-soft); border-color: #c3e9da; color: #065f46; }
+    .co-danger { background: var(--rose-soft); border-color: #f8d0db; color: #9f1239; }
+
+    /* ---- Pillars grid ---- */
+    .pillar {
+        position: relative; overflow: hidden; padding: 22px;
+    }
+    .pillar::after {
+        content: ""; position: absolute; right: -30px; top: -30px; width: 90px; height: 90px;
+        border-radius: 50%; opacity: 0.08;
+    }
+    .pillar-1::after { background: var(--indigo); }
+    .pillar-2::after { background: var(--violet); }
+    .pillar-3::after { background: var(--emerald); }
+    .pillar-4::after { background: var(--amber); }
+    .pillar-5::after { background: var(--cyan); }
+    .pillar-6::after { background: var(--rose); }
+
+    /* ---- Anchor offset ---- */
+    .anchor { scroll-margin-top: 90px; }
+
+    /* ---- Scrollbar ---- */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd0e0; border-radius: 8px; }
+    ::-webkit-scrollbar-thumb:hover { background: #aab1c8; }
+
+    .badge-num {
+        font-family: 'JetBrains Mono', monospace; font-weight: 700;
+        font-size: 11px; padding: 2px 7px; border-radius: 6px;
+        background: var(--surface-2); color: var(--text-2);
+    }
+
+    a.ref-link { color: var(--indigo); text-decoration: none; border-bottom: 1px dashed var(--indigo); }
+    a.ref-link:hover { color: var(--violet); border-bottom-color: var(--violet); }
+</style>
+</head>
+<body>
+
+<!-- Background decor -->
+<div class="bg-decor">
+    <div class="grid-bg"></div>
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+</div>
+
+<div class="scroll-indicator" id="scrollIndicator"></div>
+
+<!-- ============ HERO ============ -->
+<header class="relative z-10 overflow-hidden">
+    <div class="max-w-6xl mx-auto px-6 pt-20 pb-14">
+        <div class="flex items-center gap-3 mb-7">
+            <span class="chip chip-indigo">DEEP RESEARCH</span>
+            <span class="chip chip-violet">Reinforcement Learning</span>
+            <span class="chip chip-emerald">LLM Agents</span>
+        </div>
+        <h1 class="text-5xl md:text-6xl font-black leading-tight tracking-tight mb-6">
+            <span class="hero-grad">Agentic RL</span><br>
+            智能体强化学习全景调研
+        </h1>
+        <p class="text-lg text-[color:var(--text-2)] max-w-2xl mb-8">
+            当强化学习走出"单步预测"的舒适区，进入多轮、多工具、长时程的真实智能体世界——这是 2024–2026 年 AI 最热的范式跃迁。本文从定义、算法、训练范式、框架、基准到开放挑战，做一次完整拆解。
+        </p>
+        <div class="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-[color:var(--text-3)] font-mono">
+            <span>📅 2026-06-16</span>
+            <span>📚 综述 500+ 论文</span>
+            <span>🏷️ v1.0</span>
+            <span>⏱️ 阅读约 25 min</span>
+        </div>
+    </div>
+</header>
+
+<!-- ============ MAIN LAYOUT ============ -->
+<div class="relative z-10 max-w-6xl mx-auto px-6 pb-28 flex gap-10">
+
+    <!-- TOC Sidebar -->
+    <aside class="hidden xl:block w-56 flex-shrink-0">
+        <nav class="sticky top-8">
+            <div class="text-xs font-bold uppercase tracking-wider text-[color:var(--text-3)] mb-3 px-3">目录</div>
+            <a href="#overview" class="toc-link active">01 · 什么是 Agentic RL</a>
+            <a href="#vs-llmrl" class="toc-link">02 · 与传统 LLM-RL 的差异</a>
+            <a href="#tax" class="toc-link">03 · 六大能力维度</a>
+            <a href="#algo" class="toc-link">04 · 核心算法族</a>
+            <a href="#advantage" class="toc-link">05 · Advantage 谱系</a>
+            <a href="#reward" class="toc-link">06 · 奖励设计</a>
+            <a href="#paradigm" class="toc-link">07 · 训练范式</a>
+            <a href="#loop" class="toc-link">08 · 多轮交互循环</a>
+            <a href="#self" class="toc-link">09 · 自我改进</a>
+            <a href="#framework" class="toc-link">10 · 训练框架</a>
+            <a href="#bench" class="toc-link">11 · 基准评测</a>
+            <a href="#case" class="toc-link">12 · 标志性案例</a>
+            <a href="#challenge" class="toc-link">13 · 开放挑战</a>
+            <a href="#future" class="toc-link">14 · 趋势展望</a>
+            <a href="#refs" class="toc-link">15 · 参考文献</a>
+        </nav>
+    </aside>
+
+    <!-- Content -->
+    <main class="flex-1 min-w-0 space-y-20">
+
+        <!-- ====== 1. OVERVIEW ====== -->
+        <section id="overview" class="anchor">
+            <div class="section-eyebrow mb-3">Part 01</div>
+            <h2 class="title mb-5">什么是 Agentic RL</h2>
+
+            <p class="text-[15px] text-[color:var(--text-2)] mb-6">
+                <strong>Agentic RL（智能体强化学习）</strong>是指用强化学习训练 LLM，使其不仅能"生成文本"，还能在<strong>多轮、多工具、与环境交互</strong>的任务中自主决策、规划与反思。它把 LLM 从一个被动的"接 prompt、吐答案"函数，升级为一个具备<strong>感知—决策—行动—反馈</strong>闭环的智能体（agent）。
+            </p>
+
+            <div class="card p-6 mb-6">
+                <div class="callout co-info">
+                    <div class="callout-title">📌 一句话定义</div>
+                    Agentic RL = 把 RL 的"试错—奖励—改进"机制，应用到 LLM 智能体的<strong>完整行为轨迹（trajectory）</strong>上，而不仅仅是单次生成。
+                </div>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-4">
+                <div class="card card-hover p-5">
+                    <div class="text-2xl mb-2">🧠</div>
+                    <h4 class="font-bold mb-1">认知能力</h4>
+                    <p class="text-sm text-[color:var(--text-2)]">推理、规划、记忆、工具调用、反思——不是单一框架，而是复合能力。</p>
+                </div>
+                <div class="card card-hover p-5">
+                    <div class="text-2xl mb-2">🔁</div>
+                    <h4 class="font-bold mb-1">交互闭环</h4>
+                    <p class="text-sm text-[color:var(--text-2)]">观察环境 → 输出动作（含工具调用）→ 接收观测 → 更新策略，多轮迭代。</p>
+                </div>
+                <div class="card card-hover p-5">
+                    <div class="text-2xl mb-2">🎯</div>
+                    <h4 class="font-bold mb-1">目标驱动</h4>
+                    <p class="text-sm text-[color:var(--text-2)]">面向任务完成的最终奖励（而非 token 概率）优化整个行为序列。</p>
+                </div>
+            </div>
+
+            <div class="mt-6">
+                <div class="formula text-center">
+                    Agentic RL = LLM &nbsp;×&nbsp; RL &nbsp;×&nbsp; (Environment + Tools + Memory + Multi-turn)
+                </div>
+            </div>
+        </section>
+
+        <!-- ====== 2. VS LLM-RL ====== -->
+        <section id="vs-llmrl" class="anchor">
+            <div class="section-eyebrow mb-3">Part 02</div>
+            <h2 class="title mb-5">与传统 LLM-RL 的关键差异</h2>
+            <p class="text-[15px] text-[color:var(--text-2)] mb-6">
+                经典 RLHF/RLVR 训练的是"单步 MDP"——给一个问题，模型生成一段答案，给一个奖励。Agentic RL 训练的是"<strong>POMDP（部分可观测马尔可夫决策过程）</strong>"——智能体要在多轮中探索、调用工具、面对不完整信息。
+            </p>
+
+            <div class="tbl-wrap">
+                <table class="tbl">
+                    <thead>
+                        <tr>
+                            <th style="width:22%">维度</th>
+                            <th>传统 LLM-RL（RLHF/RLVR）</th>
+                            <th>Agentic RL</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><strong>决策过程</strong></td><td>单步 MDP：一问一答</td><td>多步 POMDP：多轮交互、长时程</td></tr>
+                        <tr><td><strong>动作空间</strong></td><td>token / 单条回答</td><td>文本 + 工具调用 + 子任务规划</td></tr>
+                        <tr><td><strong>奖励信号</strong></td><td>每条回答一个标量</td><td>轨迹级奖励，常稀疏、延迟</td></tr>
+                        <tr><td><strong>环境</strong></td><td>无（纯生成）</td><td>有：浏览器、代码解释器、DB、API、模拟世界</td></tr>
+                        <tr><td><strong>上下文</strong></td><td>静态 prompt</td><td>动态累积：工具返回、历史观测、记忆</td></tr>
+                        <tr><td><strong>失败模式</strong></td><td>答案错误</td><td>幻觉、陷入循环、工具误用、中途放弃</td></tr>
+                        <tr><td><strong>信用分配</strong></td><td>简单（单步）</td><td>困难：哪一步动作导致最终失败？</td></tr>
+                        <tr><td><strong>训练成本</strong></td><td>高</td><td>更高（rollout 需真实环境交互）</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="callout co-warn mt-6">
+                <div class="callout-title">⚠️ 关键转变</div>
+                从"<strong>奖励一个回答</strong>"变为"<strong>奖励一段行为</strong>"。这使得采样（rollout）变得昂贵——每次更新都要让智能体在真实/模拟环境里跑完整条轨迹。
+            </div>
+        </section>
+
+        <!-- ====== 3. TAXONOMY ====== -->
+        <section id="tax" class="anchor">
+            <div class="section-eyebrow mb-3">Part 03</div>
+            <h2 class="title mb-2">智能体的六大核心能力维度</h2>
+            <p class="text-[15px] text-[color:var(--text-2)] mb-6">
+                arXiv 2509.02547 综述提出：一个真正强大的 agent 是多种<strong>认知能力</strong>的复合体，而非单一框架。
+            </p>
+
+            <div class="grid md:grid-cols-2 gap-4">
+                <div class="card pillar pillar-1 card-hover">
+                    <div class="flex items-center gap-3 mb-2">
+                        <span class="text-2xl">🧩</span><h3 class="subtitle">推理与规划</h3>
+                    </div>
+                    <p class="text-sm text-[color:var(--text-2)]">CoT、ToT、任务分解、子目标生成。DeepSeek-R1 展示了纯 RL 可涌现 "aha moment"。</p>
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        <span class="chip">CoT</span><span class="chip">ReAct</span><span class="chip">Tree-of-Thought</span>
+                    </div>
+                </div>
+
+                <div class="card pillar pillar-2 card-hover">
+                    <div class="flex items-center gap-3 mb-2">
+                        <span class="text-2xl">🛠️</span><h3 class="subtitle">工具使用</h3>
+                    </div>
+                    <p class="text-sm text-[color:var(--text-2)]">学习何时调用、调用哪个工具、如何组合。SEARCH-R1 让模型学会多轮检索-推理交错。</p>
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        <span class="chip">Tool-calling</span><span class="chip">Code interp</span><span class="chip">Browser</span>
+                    </div>
+                </div>
+
+                <div class="card pillar pillar-3 card-hover">
+                    <div class="flex items-center gap-3 mb-2">
+                        <span class="text-2xl">💾</span><h3 class="subtitle">记忆与上下文</h3>
+                    </div>
+                    <p class="text-sm text-[color:var(--text-2)]">短期工作记忆 + 长期向量记忆。RL 教模型<strong>何时写、何时读、何时遗忘</strong>。</p>
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        <span class="chip">Episodic</span><span class="chip">Semantic</span><span class="chip">RAG</span>
+                    </div>
+                </div>
+
+                <div class="card pillar pillar-4 card-hover">
+                    <div class="flex items-center gap-3 mb-2">
+                        <span class="text-2xl">🪞</span><h3 class="subtitle">反思与自我修正</h3>
+                    </div>
+                    <p class="text-sm text-[color:var(--text-2)]">失败后重试、自我批评、错误归因。Reflexion、Self-Refine 是 RL 训练的天然目标。</p>
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        <span class="chip">Reflexion</span><span class="chip">Self-critique</span>
+                    </div>
+                </div>
+
+                <div class="card pillar pillar-5 card-hover">
+                    <div class="flex items-center gap-3 mb-2">
+                        <span class="text-2xl">🌐</span><h3 class="subtitle">多智能体协作</h3>
+                    </div>
+                    <p class="text-sm text-[color:var(--text-2)]">辩论、分工、角色扮演。MARL 思想引入 LLM agent team。</p>
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        <span class="chip">Debate</span><span class="chip">Role-play</span><span class="chip">MARL</span>
+                    </div>
+                </div>
+
+                <div class="card pillar pillar-6 card-hover">
+                    <div class="flex items-center gap-3 mb-2">
+                        <span class="text-2xl">🚀</span><h3 class="subtitle">自我演化</h3>
+                    </div>
+                    <p class="text-sm text-[color:var(--text-2)]">课程学习、自我蒸馏、teacher-student。ASL、Agent0 走向"零数据自进化"。</p>
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        <span class="chip">Self-play</span><span class="chip">Curriculum</span><span class="chip">Distillation</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ====== 4. ALGORITHM FAMILY ====== -->
+        <section id="algo" class="anchor">
+            <div class="section-eyebrow mb-3">Part 04</div>
+            <h2 class="title mb-5">核心算法族：从 Policy Gradient 到现代优化器</h2>
+
+            <p class="text-[15px] text-[color:var(--text-2)] mb-6">
+                所有现代 LLM RL 算法都源于<strong>策略梯度（Policy Gradient）</strong>这个根。差异在于如何估计 <em>baseline</em>、如何降低方差、如何约束更新幅度。
+            </p>
+
+            <div class="card p-6 mb-6">
+                <h3 class="subtitle mb-3">🌳 算法演化树</h3>
+                <pre class="code"><span class="tok-cmt"># 从最朴素的 REINFORCE 到当代的 DAPO / GSPO</span>
+REINFORCE (1992)
+   │
+   ├── + Baseline ──────────────────────► REINFORCE-with-baseline
+   │
+   ├── + Trust Region (KL / Clip) ──────► PPO (2017) ──────► GSPO (sequence-level PPO)
+   │        │
+   │        └── + Critic-free group mean ► GRPO (DeepSeek, 2024) ──► DAPO / Dr.GRPO
+   │
+   ├── + Leave-One-Out mean ────────────► RLOO (2024)
+   ├── + Greedy-decode baseline ────────► ReMax (2024)
+   └── + Global batch mean + KL token ──► REINFORCE++ (2025)
+
+<span class="tok-cmt"># Agentic 专属扩展</span>
+GTPO   = GRPO + turn-level credit assignment   (多轮工具轨迹)
+AgentRL = 多轮 × 多任务 RL 框架
+RLAR   = 每条轨迹动态分配奖励函数</pre>
+            </div>
+
+            <!-- PPO -->
+            <div class="card p-6 mb-5">
+                <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+                    <h3 class="subtitle flex items-center gap-2"><span class="badge-num">PPO</span> Proximal Policy Optimization</h3>
+                    <span class="chip chip-amber">需 Critic · 经典成熟</span>
+                </div>
+                <p class="text-sm text-[color:var(--text-2)] mb-3">
+                    OpenAI InstructGPT / GPT-3.5 时代的标准 RLHF 算法。维护 <strong>4 个模型</strong>：Actor（策略）、Critic（价值）、Reward、Reference。用 clip 比率限制每步更新，保证稳定。
+                </p>
+                <div class="formula mb-3">
+                    L<sup>PPO</sup> = 𝔼[ min( r<sub>t</sub>(θ)·A<sub>t</sub>, clip(r<sub>t</sub>, 1±ε)·A<sub>t</sub> ) ] − β·KL(π‖π<sub>ref</sub>)
+                </div>
+                <div class="grid sm:grid-cols-2 gap-3 text-sm">
+                    <div class="soft p-3 rounded-lg"><strong class="text-[color:var(--emerald)]">✓ 优点</strong>：理论成熟、收敛稳。</div>
+                    <div class="soft p-3 rounded-lg"><strong class="text:var(--rose)">✗ 缺点</strong>：Critic 占显存、超参敏感、4 模型同步难。</div>
+                </div>
+            </div>
+
+            <!-- GRPO -->
+            <div class="card p-6 mb-5">
+                <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+                    <h3 class="subtitle flex items-center gap-2"><span class="badge-num">GRPO</span> Group Relative Policy Optimization</h3>
+                    <span class="chip chip-emerald">无 Critic · DeepSeek-R1 核心</span>
+                </div>
+                <p class="text-sm text-[color:var(--text-2)] mb-3">
+                    对同一 prompt 采样 <strong>G 条轨迹</strong>，用组内均值/标准差归一化奖励作为 advantage，<strong>彻底去掉价值模型</strong>。DeepSeek-R1 / Qwen2 的主力算法，把 RL 训练资源砍掉一大块。
+                </p>
+                <div class="formula mb-3">
+                    A<sub>i</sub> = (r<sub>i</sub> − mean(r<sub>1..G</sub>)) / std(r<sub>1..G</sub>)
+                </div>
+                <div class="grid sm:grid-cols-2 gap-3 text-sm">
+                    <div class="soft p-3 rounded-lg"><strong class="text-[color:var(--emerald)]">✓ 优点</strong>：省 Critic、稳定、适合 RLVR。</div>
+                    <div class="soft p-3 rounded-lg"><strong class="text:var(--rose)">✗ 缺点</strong>：每 prompt 需多采样，rollout 成本仍在。</div>
+                </div>
+            </div>
+
+            <!-- RLOO / ReMax / REINFORCE++ -->
+            <div class="grid md:grid-cols-3 gap-4 mb-5">
+                <div class="card card-hover p-5">
+                    <h3 class="subtitle text-base mb-2">RLOO</h3>
+                    <p class="text-sm text-[color:var(--text-2)] mb-2">Leave-One-Out 均值做 baseline，方差比标准法低约 <strong>27%</strong>。</p>
+                    <span class="chip chip-cyan text-[11px]">critic-free</span>
+                </div>
+                <div class="card card-hover p-5">
+                    <h3 class="subtitle text-base mb-2">ReMax</h3>
+                    <p class="text-sm text-[color:var(--text-2)] mb-2">用<strong>贪心解码</strong>轨迹的奖励做 baseline，单样本梯度即可更新。</p>
+                    <span class="chip chip-cyan text-[11px]">greedy baseline</span>
+                </div>
+                <div class="card card-hover p-5">
+                    <h3 class="subtitle text-base mb-2">REINFORCE++</h3>
+                    <p class="text-sm text-[color:var(--text-2)] mb-2">融合 RLOO + ReMax，加 token 级 KL 与 trust region，鲁棒性最强。</p>
+                    <span class="chip chip-cyan text-[11px]">unified</span>
+                </div>
+            </div>
+
+            <div class="callout co-tip">
+                <div class="callout-title">💡 趋势共识</div>
+                LLM RL 正全面转向 <strong>critic-free、低方差</strong> 的 REINFORCE 变体。PPO 的价值模型在 LLM 时代性价比越来越低——这是 GRPO 成为 2025 主流的根本原因。
+            </div>
+        </section>
+
+        <!-- ====== 5. ADVANTAGE ====== -->
+        <section id="advantage" class="anchor">
+            <div class="section-eyebrow mb-3">Part 05</div>
+            <h2 class="title mb-5">Advantage 谱系对比：baseline 决定一切</h2>
+            <p class="text-[15px] text-[color:var(--text-2)] mb-6">
+                所有这些算法本质都在回答一个问题：<strong>"比平均好多少？"</strong>。Advantage = 实际回报 − baseline。baseline 选得好，方差就低，训练就稳。
+            </p>
+
+            <div class="tbl-wrap">
+                <table class="tbl">
+                    <thead>
+                        <tr>
+                            <th>算法</th>
+                            <th>Baseline 策略</th>
+                            <th>需要 Critic?</th>
+                            <th>核心思想</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><strong>REINFORCE</strong></td><td>无</td><td>❌</td><td>纯策略梯度，方差最高</td></tr>
+                        <tr><td><strong>PPO</strong></td><td>学习 Value 网络 V(s)</td><td>✅</td><td>clip + KL，经典工业级</td></tr>
+                        <tr><td><strong>RLOO</strong></td><td>组内留一均值</td><td>❌</td><td>多采样降方差 27%</td></tr>
+                        <tr><td><strong>ReMax</strong></td><td>贪心解码轨迹奖励</td><td>❌</td><td>单样本即可更新</td></tr>
+                        <tr><td><strong>GRPO</strong></td><td>组内均值+标准差归一</td><td>❌</td><td>DeepSeek 主力，省 Critic</td></tr>
+                        <tr><td><strong>REINFORCE++</strong></td><td>全局 batch 均值</td><td>❌</td><td>+ token KL + trust region</td></tr>
+                        <tr><td><strong>DAPO</strong></td><td>group + 动态采样</td><td>❌</td><td>解决 GRPO 序列长度偏置</td></tr>
+                        <tr><td><strong>GTPO</strong></td><td>turn-level group</td><td>❌</td><td>多轮工具轨迹的信用分配</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ====== 6. REWARD ====== -->
+        <section id="reward" class="anchor">
+            <div class="section-eyebrow mb-3">Part 06</div>
+            <h2 class="title mb-5">奖励设计：Agentic RL 最难的环节</h2>
+            <p class="text-[15px] text-[color:var(--text-2)] mb-6">
+                在 agentic 场景，奖励不再是"答案对不对"那么简单。它要刻画<strong>整条轨迹的质量</strong>，还要面对稀疏、延迟、可 hacking 的难题。
+            </p>
+
+            <div class="grid md:grid-cols-2 gap-4 mb-6">
+                <div class="card p-5 card-hover">
+                    <span class="chip chip-emerald mb-2">外部奖励</span>
+                    <h3 class="subtitle text-base mb-2">可验证奖励（Verifiable）</h3>
+                    <p class="text-sm text-[color:var(--text-2)]">数学题对错、代码通过测试、SQL 查询返回正确结果。<strong>客观、可自动化</strong>，是 RLVR 的基础。</p>
+                </div>
+                <div class="card p-5 card-hover">
+                    <span class="chip chip-violet mb-2">学习奖励</span>
+                    <h3 class="subtitle text-base mb-2">模型奖励（Reward Model）</h3>
+                    <p class="text-sm text-[color:var(--text-2)]">训练 RM 打分（RLHF）或用强模型当裁判（RLAIF）。主观任务必备，但易被 hack。</p>
+                </div>
+                <div class="card p-5 card-hover">
+                    <span class="chip chip-amber mb-2">过程奖励</span>
+                    <h3 class="subtitle text-base mb-2">过程奖励（PRM）</h3>
+                    <p class="text-sm text-[color:var(--text-2)]">对推理每一步打分，缓解稀疏。PRM800K 是代表，但标注成本极高。</p>
+                </div>
+                <div class="card p-5 card-hover">
+                    <span class="chip chip-rose mb-2">塑造奖励</span>
+                    <h3 class="subtitle text-base mb-2">Reward Shaping</h3>
+                    <p class="text-sm text-[color:var(--text-2)]">加入工具调用效率、步骤数惩罚、格式奖励等<strong>启发式信号</strong>，让小模型也能学。</p>
+                </div>
+            </div>
+
+            <div class="callout co-danger">
+                <div class="callout-title">🚨 Reward Hacking 陷阱</div>
+                模型会钻奖励漏洞：例如把答案塞进工具输出、绕过验证、生成冗长但无意义的内容来增加"步骤奖励"。Agentic RL 中 reward hacking 比 RLHF 更隐蔽——因为整条轨迹都可以被"优化"掉。
+            </div>
+
+            <div class="mt-5 card p-5">
+                <h3 class="subtitle text-base mb-3">🏆 DeepSeek-R1 的极简奖励哲学</h3>
+                <p class="text-sm text-[color:var(--text-2)]">
+                    R1-Zero <strong>只用最终答案正确性</strong>做奖励，<strong>不加任何中间过程奖励或 RM</strong>，却涌现出反思、自我验证、"aha moment"。证明：在可验证任务上，<strong>简洁的稀疏奖励 + 足够大的模型</strong>，反而能避免 reward hacking，让模型自己学会"怎么想"。
+                </p>
+            </div>
+        </section>
+
+        <!-- ====== 7. PARADIGM ====== -->
+        <section id="paradigm" class="anchor">
+            <div class="section-eyebrow mb-3">Part 07</div>
+            <h2 class="title mb-5">四种训练范式</h2>
+
+            <div class="grid md:grid-cols-2 gap-4">
+                <div class="card p-6 card-hover">
+                    <div class="text-3xl mb-3">📚</div>
+                    <h3 class="subtitle text-lg mb-2">SFT → RL</h3>
+                    <p class="text-sm text-[color:var(--text-2)] mb-3">先用监督数据"冷启动"教格式，再用 RL 强化。主流路径，稳定可靠。</p>
+                    <span class="chip">DeepSeek-R1 · Qwen2.5</span>
+                </div>
+                <div class="card p-6 card-hover">
+                    <div class="text-3xl mb-3">🚀</div>
+                    <h3 class="subtitle text-lg mb-2">Pure RL（Zero）</h3>
+                    <p class="text-sm text-[color:var(--text-2)] mb-3">直接在 base model 上跑 RL，无 SFT。R1-Zero 证明可行，但输出格式难控。</p>
+                    <span class="chip">DeepSeek-R1-Zero</span>
+                </div>
+                <div class="card p-6 card-hover">
+                    <div class="text-3xl mb-3">🎯</div>
+                    <h3 class="subtitle text-lg mb-2">Offline / Imitation → RL</h3>
+                    <p class="text-sm text-[color:var(--text-2)] mb-3">先从专家轨迹模仿学习（DPO 等），再在线 RL 微调。数据高效。</p>
+                    <span class="chip">DPO · KTO · iterative DPO</span>
+                </div>
+                <div class="card p-6 card-hover">
+                    <div class="text-3xl mb-3">♻️</div>
+                    <h3 class="subtitle text-lg mb-2">Self-Play / Curriculum</h3>
+                    <p class="text-sm text-[color:var(--text-2)] mb-3">模型自我对弈、自我生成课程，持续提升。通往"自进化 agent"。</p>
+                    <span class="chip">SPIN · SPPO · Agent0</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- ====== 8. MULTI-TURN LOOP ====== -->
+        <section id="loop" class="anchor">
+            <div class="section-eyebrow mb-3">Part 08</div>
+            <h2 class="title mb-5">多轮交互训练循环</h2>
+            <p class="text-[15px] text-[color:var(--text-2)] mb-6">
+                Agentic RL 的工程核心是这个<strong>多轮 rollout 循环</strong>。每个训练 step 都要：让 agent 在环境里跑完一条轨迹 → 收集奖励 → 算 advantage → 更新策略。
+            </p>
+
+            <div class="card p-6 mb-6">
+                <pre class="code"><span class="tok-kw">def</span> <span class="tok-fn">agentic_rl_step</span>(policy, env, prompt_batch):
+    trajectories = []
+    <span class="tok-kw">for</span> prompt <span class="tok-kw">in</span> prompt_batch:
+        obs, tools = env.reset(prompt)
+        traj = {<span class="tok-str">"obs"</span>: [], <span class="tok-str">"actions"</span>: [], <span class="tok-str">"reward"</span>: <span class="tok-num">0</span>}
+
+        <span class="tok-kw">for</span> turn <span class="tok-kw">in</span> range(MAX_TURNS):          <span class="tok-cmt"># 多轮交互</span>
+            action = policy.generate(obs, tools)   <span class="tok-cmt"># 含思维链 + 工具调用</span>
+            obs, reward, done = env.step(action)   <span class="tok-cmt"># 真实环境反馈</span>
+            traj[<span class="tok-str">"obs"</span>].append(obs)
+            traj[<span class="tok-str">"actions"</span>].append(action)
+            <span class="tok-kw">if</span> done: <span class="tok-kw">break</span>
+
+        traj[<span class="tok-str">"reward"</span>] = env.final_reward(prompt)   <span class="tok-cmt"># 轨迹级奖励（常稀疏）</span>
+        trajectories.append(traj)
+
+    advantages = <span class="tok-fn">compute_group_advantage</span>(trajectories)  <span class="tok-cmt"># GRPO 式归一</span>
+    loss = <span class="tok-fn">ppo_or_grpo_loss</span>(policy, trajectories, advantages)
+    loss.backward(); optimizer.step()
+    <span class="tok-kw">return</span> loss</pre>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-4">
+                <div class="card p-5">
+                    <span class="chip chip-indigo mb-2">挑战 1</span>
+                    <h4 class="font-bold mb-1">环境吞吐</h4>
+                    <p class="text-sm text-[color:var(--text-2)]">真实环境（浏览器、API）慢且贵，成为训练瓶颈。需异步/并行 rollout。</p>
+                </div>
+                <div class="card p-5">
+                    <span class="chip chip-indigo mb-2">挑战 2</span>
+                    <h4 class="font-bold mb-1">变长轨迹</h4>
+                    <p class="text-sm text-[color:var(--text-2)]">不同 prompt 轨迹长度差异巨大，batch padding 浪费严重。DAPO 用动态采样解决。</p>
+                </div>
+                <div class="card p-5">
+                    <span class="chip chip-indigo mb-2">挑战 3</span>
+                    <h4 class="font-bold mb-1">错误恢复</h4>
+                    <p class="text-sm text-[color:var(--text-2)]">工具返回报错时，agent 要学会重试/换工具——这恰是 RL 最有价值的能力。</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ====== 9. SELF-IMPROVEMENT ====== -->
+        <section id="self" class="anchor">
+            <div class="section-eyebrow mb-3">Part 09</div>
+            <h2 class="title mb-5">自我改进：通往自进化智能体</h2>
+            <p class="text-[15px] text-[color:var(--text-2)] mb-6">
+                最前沿的方向是让 agent <strong>自己教自己</strong>——生成数据、自我评估、迭代更新。这是递归自我改进（RSI）的雏形。
+            </p>
+
+            <div class="card p-6 mb-5">
+                <h3 class="subtitle text-lg mb-4">🔄 自我改进的三种机制</h3>
+                <div class="space-y-4">
+                    <div class="flex gap-4">
+                        <div class="flex-shrink-0 w-9 h-9 rounded-lg bg-[color:var(--indigo-soft)] text-[color:var(--indigo)] flex items-center justify-center font-bold">1</div>
+                        <div>
+                            <h4 class="font-bold">Self-Play（自我对弈）</h4>
+                            <p class="text-sm text-[color:var(--text-2)]">模型与自己或过去版本对弈，胜者轨迹作为训练数据。SPPO、AlphaGo 式思想迁移到 LLM。</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-4">
+                        <div class="flex-shrink-0 w-9 h-9 rounded-lg bg-[color:var(--violet-soft)] text-[color:var(--violet)] flex items-center justify-center font-bold">2</div>
+                        <div>
+                            <h4 class="font-bold">RLAIF（AI 反馈强化学习）</h4>
+                            <p class="text-sm text-[color:var(--text-2)]">用强模型（如 GPT-4）当裁判给轨迹打分，替代人类标注。<strong>但社区反馈：真实边缘 case 上很脆弱</strong>。</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-4">
+                        <div class="flex-shrink-0 w-9 h-9 rounded-lg bg-[color:var(--emerald-soft)] text-[color:var(--emerald)] flex items-center justify-center font-bold">3</div>
+                        <div>
+                            <h4 class="font-bold">Reflection + Curriculum（反思+课程）</h4>
+                            <p class="text-sm text-[color:var(--text-2)]">失败后生成反思，自动调整任务难度。ARTIST、ASL 框架把推理与自我改进紧耦合。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="callout co-warn">
+                <div class="callout-title">⚠️ 现实冷思考</div>
+                Reddit/LLMDevs 社区共识：真正的<strong>递归自我改进</strong>短期内难实现。模型无法可靠评估自己"不懂的领域"，容易陷入"自我强化偏见"。ICLR 2026 RSI Workshop 的论文仍在探索 contextual drift 等基础问题。
+            </div>
+        </section>
+
+        <!-- ====== 10. FRAMEWORKS ====== -->
+        <section id="framework" class="anchor">
+            <div class="section-eyebrow mb-3">Part 10</div>
+            <h2 class="title mb-5">主流训练框架对比</h2>
+
+            <div class="grid md:grid-cols-2 gap-4 mb-5">
+                <div class="card p-6 card-hover">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="subtitle">verl (HybridFlow)</h3>
+                        <span class="chip chip-emerald">推荐</span>
+                    </div>
+                    <p class="text-sm text-[color:var(--text-2)] mb-3">字节跳动出品。灵活、高效、生产级。几行代码构建 GRPO/PPO/DAPO 数据流，Qwen 官方集成。</p>
+                    <div class="flex flex-wrap gap-2 text-xs">
+                        <span class="chip">Ray + FSDP/Megatron</span><span class="chip">vLLM rollout</span>
+                    </div>
+                </div>
+                <div class="card p-6 card-hover">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="subtitle">OpenRLHF</h3>
+                        <span class="chip chip-emerald">推荐</span>
+                    </div>
+                    <p class="text-sm text-[color:var(--text-2)] mb-3">最早的高性能开源 RLHF 框架。Ray + vLLM 架构，支持 70B+ 全参微调与多 agent RL。速度比 verl 快 1.22–1.68×。</p>
+                    <div class="flex flex-wrap gap-2 text-xs">
+                        <span class="chip">生产就绪</span><span class="chip">大规模</span>
+                    </div>
+                </div>
+                <div class="card p-6 card-hover">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="subtitle">TRL (HuggingFace)</h3>
+                        <span class="chip chip-cyan">易用</span>
+                    </div>
+                    <p class="text-sm text-[color:var(--text-2)] mb-3">HuggingFace 全栈库。SFT/GRPO/DPO/PPO 开箱即用，与 HF 生态深度集成，<strong>最适合原型</strong>。</p>
+                    <div class="flex flex-wrap gap-2 text-xs">
+                        <span class="chip">入门友好</span><span class="chip">HF 原生</span>
+                    </div>
+                </div>
+                <div class="card p-6 card-hover">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="subtitle">AReaL / Slime / ART</h3>
+                        <span class="chip chip-violet">新兴</span>
+                    </div>
+                    <p class="text-sm text-[color:var(--text-2)] mb-3">AReaL 异步 RL、Slime 轻量、Agent Reinforcement Trainer 专注多步 agent 训练。各有侧重。</p>
+                    <div class="flex flex-wrap gap-2 text-xs">
+                        <span class="chip">异步</span><span class="chip">多步 agent</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="callout co-info">
+                <div class="callout-title">📊 选型建议</div>
+                <strong>研究/大规模</strong> → verl 或 OpenRLHF &nbsp;|&nbsp; <strong>快速原型/HF 生态</strong> → TRL &nbsp;|&nbsp; <strong>多步 agent 专项</strong> → ART / AgentRL。Anyscale 与 Sebastian Raschka 的评测都指向：GRPO + RLVR 是 2025 的事实标准。
+            </div>
+        </section>
+
+        <!-- ====== 11. BENCHMARKS ====== -->
+        <section id="bench" class="anchor">
+            <div class="section-eyebrow mb-3">Part 11</div>
+            <h2 class="title mb-5">基准评测：怎么衡量一个 agent？</h2>
+            <p class="text-[15px] text-[color:var(--text-2)] mb-6">
+                评测 agentic 能力比评测问答难得多——要看<strong>多轮成功率、步骤效率、工具使用准确率、恢复能力</strong>，而不只是最终答案。
+            </p>
+
+            <div class="tbl-wrap mb-5">
+                <table class="tbl">
+                    <thead>
+                        <tr><th>基准</th><th>类型</th><th>核心评价</th><th>亮点</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><strong>AgentBench</strong> (THUDM)</td><td>综合</td><td>8 种环境 LLM-as-Agent</td><td>首个全面多维度 agent 基准</td></tr>
+                        <tr><td><strong>AgentBoard</strong> (HKUST)</td><td>多轮分析</td><td>9 任务（含 WebShop/ALFWorld）</td><td><strong>步骤级</strong>指标，超越成功率</td></tr>
+                        <tr><td><strong>WebShop</strong></td><td>网页购物</td><td>指令遵循 + 网页导航</td><td>真实电商任务完成</td></tr>
+                        <tr><td><strong>ALFWorld</strong></td><td>具身文本</td><td>6 类家务任务</td><td>文本化具身推理</td></tr>
+                        <tr><td><strong>GAIA</strong></td><td>通用助手</td><td>多步推理 + 工具</td><td>真实世界复杂度</td></tr>
+                        <tr><td><strong>SWE-bench</strong></td><td>软件工程</td><td>真实 GitHub issue 修复</td><td>代码 agent 金标准</td></tr>
+                        <tr><td><strong>τ-bench</strong></td><td>工具使用</td><td>多轮工具调用策略</td><td>专门测工具策略</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="callout co-tip">
+                <div class="callout-title">✅ AgentBoard 的启示</div>
+                单看"最终成功率"会<strong>严重高估</strong> agent 能力。一个勉强成功的 agent 可能绕了 20 步、调用错 5 次工具。步骤级细粒度分析（每一步是否合理、工具是否有效）才是 agentic 评测的正解。
+            </div>
+        </section>
+
+        <!-- ====== 12. CASE STUDIES ====== -->
+        <section id="case" class="anchor">
+            <div class="section-eyebrow mb-3">Part 12</div>
+            <h2 class="title mb-5">标志性案例</h2>
+
+            <div class="space-y-4">
+                <div class="card p-6 card-hover">
+                    <div class="flex items-center gap-3 mb-3 flex-wrap">
+                        <span class="text-2xl">🐉</span>
+                        <h3 class="subtitle">DeepSeek-R1：纯 RL 涌现推理</h3>
+                        <span class="chip chip-emerald">里程碑</span>
+                    </div>
+                    <p class="text-sm text-[color:var(--text-2)] mb-3">
+                        R1-Zero 在 base model 上直接跑 <strong>GRPO + 答案正确性奖励</strong>，无 SFT、无 RM、无过程奖励。结果：模型自发学会<strong>反思、自我验证、长思维链</strong>，出现著名的"aha moment"。多阶段管线（cold-start SFT → RL → rejection sampling → RL）最终输出 R1，性能对标 OpenAI o1。
+                    </p>
+                    <div class="flex flex-wrap gap-2"><span class="chip chip-emerald">GRPO</span><span class="chip">RLVR</span><span class="chip">emergent reasoning</span></div>
+                </div>
+
+                <div class="card p-6 card-hover">
+                    <div class="flex items-center gap-3 mb-3 flex-wrap">
+                        <span class="text-2xl">🔍</span>
+                        <h3 class="subtitle">SEARCH-R1：多轮检索-推理交错</h3>
+                        <span class="chip chip-indigo">工具使用</span>
+                    </div>
+                    <p class="text-sm text-[color:var(--text-2)] mb-3">
+                        让 LLM 学会在推理过程中<strong>主动发起多轮网页检索</strong>，把 RAG 从"检索一次"升级为"推理-检索交错循环"。RL 训练后，Qwen3-14B 在复杂问答上从 53% 跃升——证明 RL 是释放工具使用能力的关键。
+                    </p>
+                    <div class="flex flex-wrap gap-2"><span class="chip chip-indigo">multi-turn</span><span class="chip">retrieval</span><span class="chip">interleaved</span></div>
+                </div>
+
+                <div class="card p-6 card-hover">
+                    <div class="flex items-center gap-3 mb-3 flex-wrap">
+                        <span class="text-2xl">🤖</span>
+                        <h3 class="subtitle">GTPO / AgentRL：多轮工具轨迹优化</h3>
+                        <span class="chip chip-violet">agentic 专属</span>
+                    </div>
+                    <p class="text-sm text-[color:var(--text-2)] mb-3">
+                        GTPO 把 GRPO 的 group advantage <strong>细化到 turn 级</strong>，解决多轮工具轨迹的信用分配难题。AgentRL 支持多轮 × 多任务统一训练。这是真正面向 agent 的 RL 算法，而非把 RLHF 硬套到 agent 上。
+                    </p>
+                    <div class="flex flex-wrap gap-2"><span class="chip chip-violet">turn-level credit</span><span class="chip">multi-task</span></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ====== 13. CHALLENGES ====== -->
+        <section id="challenge" class="anchor">
+            <div class="section-eyebrow mb-3">Part 13</div>
+            <h2 class="title mb-5">开放挑战（尚未解决）</h2>
+
+            <div class="grid md:grid-cols-2 gap-4">
+                <div class="card p-5">
+                    <span class="chip chip-rose mb-2">挑战 1</span>
+                    <h3 class="subtitle text-base mb-2">稀疏 + 长时程奖励</h3>
+                    <p class="text-sm text-[color:var(--text-2)]">轨迹几十步，只有最后一步有奖励。信用分配极难，梯度噪声大。<br><span class="text-[color:var(--text-3)]">→ 解法：层次化 RL、子目标、PRM、课程学习</span></p>
+                </div>
+                <div class="card p-5">
+                    <span class="chip chip-rose mb-2">挑战 2</span>
+                    <h3 class="subtitle text-base mb-2">探索不足</h3>
+                    <p class="text-sm text-[color:var(--text-2)]">LLM 采样温度有限，很难"跳出"已知的动作模式。<br><span class="text-[color:var(--text-3)]">→ 解法：好奇心驱动、动态分支（Spark）、count-based</span></p>
+                </div>
+                <div class="card p-5">
+                    <span class="chip chip-rose mb-2">挑战 3</span>
+                    <h3 class="subtitle text-base mb-2">幻觉 × POMDP</h3>
+                    <p class="text-sm text-[color:var(--text-2)]">部分可观测下，模型会"编造"工具返回结果，进入自我欺骗循环。<br><span class="text-[color:var(--text-3)]">→ 解法：工具 grounding、验证步骤、负样本训练</span></p>
+                </div>
+                <div class="card p-5">
+                    <span class="chip chip-rose mb-2">挑战 4</span>
+                    <h3 class="subtitle text-base mb-2">训练不稳定</h3>
+                    <p class="text-sm text-[color:var(--text-2)]">长轨迹 × 多模型 × 动态环境，loss 震荡、模式崩溃频发。<br><span class="text-[color:var(--text-3)]">→ 解法：trust region、KL 约束、reward 归一</span></p>
+                </div>
+                <div class="card p-5">
+                    <span class="chip chip-rose mb-2">挑战 5</span>
+                    <h3 class="subtitle text-base mb-2">Rollout 成本爆炸</h3>
+                    <p class="text-sm text-[color:var(--text-2)]">每次更新都要在真实环境跑完整轨迹。浏览器/DB/API 慢且贵。<br><span class="text-[color:var(--text-3)]">→ 解法：异步 rollout、环境模拟、off-policy 修正</span></p>
+                </div>
+                <div class="card p-5">
+                    <span class="chip chip-rose mb-2">挑战 6</span>
+                    <h3 class="subtitle text-base mb-2">评测失真</h3>
+                    <p class="text-sm text-[color:var(--text-2)]">Demo 上漂亮，真实边缘 case 崩溃。"sparse reward trap"。<br><span class="text-[color:var(--text-3)]">→ 解法：步骤级评测、对抗性 case、分布外测试</span></p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ====== 14. FUTURE ====== -->
+        <section id="future" class="anchor">
+            <div class="section-eyebrow mb-3">Part 14</div>
+            <h2 class="title mb-5">趋势展望（2026 →）</h2>
+
+            <div class="relative pl-10">
+                <div class="tl-line"></div>
+                <div class="space-y-7">
+                    <div class="flex gap-6 items-start">
+                        <div class="tl-dot mt-1.5"></div>
+                        <div>
+                            <h4 class="font-bold mb-1">Critic-free 成为默认</h4>
+                            <p class="text-sm text-[color:var(--text-2)]">GRPO 系全面取代 PPO。价值模型在 LLM 时代性价比不再。</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-6 items-start">
+                        <div class="tl-dot mt-1.5"></div>
+                        <div>
+                            <h4 class="font-bold mb-1">Turn / Step 级信用分配成熟</h4>
+                            <p class="text-sm text-[color:var(--text-2)]">GTPO 这类算法让多轮轨迹的每一步都可被精细化训练。</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-6 items-start">
+                        <div class="tl-dot mt-1.5"></div>
+                        <div>
+                            <h4 class="font-bold mb-1">异步 + 异构 rollout 基础设施</h4>
+                            <p class="text-sm text-[color:var(--text-2)]">AReaL、verl 的异步架构成为标配，支撑真实环境交互。</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-6 items-start">
+                        <div class="tl-dot mt-1.5"></div>
+                        <div>
+                            <h4 class="font-bold mb-1">自进化 agent（受控 RSI）</h4>
+                            <p class="text-sm text-[color:var(--text-2)]">ASL、Agent0 探索零数据自进化，但需解决评估可靠性与漂移。</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-6 items-start">
+                        <div class="tl-dot mt-1.5"></div>
+                        <div>
+                            <h4 class="font-bold mb-1">安全 × 对齐的 RL 新范式</h4>
+                            <p class="text-sm text-[color:var(--text-2)]">Constitutional AI、安全约束 RL，防止 agent 在真实环境中失控。</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-6 items-start">
+                        <div class="tl-dot mt-1.5"></div>
+                        <div>
+                            <h4 class="font-bold mb-1">多智能体 RL × Agent 协作</h4>
+                            <p class="text-sm text-[color:var(--text-2)]">MARLLM：多个 agent 通过 RL 学会分工、辩论、监督。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ====== 15. REFERENCES ====== -->
+        <section id="refs" class="anchor">
+            <div class="section-eyebrow mb-3">Part 15</div>
+            <h2 class="title mb-5">参考文献与延伸阅读</h2>
+
+            <div class="card p-6">
+                <h3 class="subtitle text-base mb-3">📄 综述与核心论文</h3>
+                <ul class="space-y-2 text-sm text-[color:var(--text-2)]">
+                    <li>• <a class="ref-link" href="https://arxiv.org/abs/2509.02547" target="_blank" rel="noopener">The Landscape of Agentic RL for LLMs: A Survey</a> — arXiv 2509.02547 (500+ 论文综述)</li>
+                    <li>• <a class="ref-link" href="https://arxiv.org/abs/2307.04964" target="_blank" rel="noopener">Secrets of RLHF in LLMs Part I: PPO</a></li>
+                    <li>• <a class="ref-link" href="https://aclanthology.org/2024.acl-long.662.pdf" target="_blank" rel="noopener">Revisiting REINFORCE-Style Optimization (RLOO)</a> — ACL 2024</li>
+                    <li>• <a class="ref-link" href="https://arxiv.org/html/2501.03262v3" target="_blank" rel="noopener">REINFORCE++: Efficient RLHF</a></li>
+                    <li>• <a class="ref-link" href="https://arxiv.org/html/2511.14846v2" target="_blank" rel="noopener">GTPO: Multi-Turn Tool-Integrated Agentic Reasoning</a></li>
+                    <li>• <a class="ref-link" href="https://huggingface.co/papers/2510.01132" target="_blank" rel="noopener">A Practitioner's Guide to Multi-turn Agentic RL</a></li>
+                    <li>• <a class="ref-link" href="https://arxiv.org/html/2509.25779v2" target="_blank" rel="noopener">Reward Shaping Enables Efficient Agentic RL with Smaller LLMs</a></li>
+                    <li>• <a class="ref-link" href="https://arxiv.org/html/2510.14253v2" target="_blank" rel="noopener">Agentic Self-Learning (ASL) Framework</a></li>
+                </ul>
+
+                <h3 class="subtitle text-base mb-3 mt-6">🛠️ 框架与工具</h3>
+                <ul class="space-y-2 text-sm text-[color:var(--text-2)]">
+                    <li>• <a class="ref-link" href="https://github.com/verl-project/verl" target="_blank" rel="noopener">verl (HybridFlow)</a> — 灵活高效的生产级 RL 库</li>
+                    <li>• <a class="ref-link" href="https://github.com/openrlhf/openrlhf" target="_blank" rel="noopener">OpenRLHF</a> — Ray + vLLM 高性能框架</li>
+                    <li>• <a class="ref-link" href="https://huggingface.co/docs/trl/en/index" target="_blank" rel="noopener">TRL (HuggingFace)</a> — 易用全栈训练库</li>
+                    <li>• <a class="ref-link" href="https://www.hanifleo.com/anatomy-of-rl-frameworks/" target="_blank" rel="noopener">Anatomy of RL Frameworks</a> — verl/OpenRLHF/Slime/AReaL 横评</li>
+                </ul>
+
+                <h3 class="subtitle text-base mb-3 mt-6">📊 基准</h3>
+                <ul class="space-y-2 text-sm text-[color:var(--text-2)]">
+                    <li>• <a class="ref-link" href="https://github.com/THUDM/AgentBench" target="_blank" rel="noopener">AgentBench</a> · <a class="ref-link" href="https://hkust-nlp.github.io/agentboard/" target="_blank" rel="noopener">AgentBoard</a></li>
+                    <li>• <a class="ref-link" href="https://magazine.sebastianraschka.com/p/the-state-of-llm-reasoning-model-training" target="_blank" rel="noopener">The State of RL for LLM Reasoning</a> — Sebastian Raschka</li>
+                    <li>• <a class="ref-link" href="https://rlhfbook.com/c/06-policy-gradients" target="_blank" rel="noopener">Policy Gradient Methods for RLHF</a> — Nathan Lambert</li>
+                </ul>
+
+                <h3 class="subtitle text-base mb-3 mt-6">🗂️ 资源合集</h3>
+                <ul class="space-y-2 text-sm text-[color:var(--text-2)]">
+                    <li>• <a class="ref-link" href="https://github.com/xhyumiracle/Awesome-AgenticLLM-RL-Papers" target="_blank" rel="noopener">Awesome Agentic LLM RL Papers</a></li>
+                    <li>• <a class="ref-link" href="https://github.com/opendilab/awesome-exploration-rl" target="_blank" rel="noopener">Awesome Exploration RL</a></li>
+                    <li>• <a class="ref-link" href="https://walkinglabs.github.io/hands-on-modern-rl/chapter10_agentic_rl/intro" target="_blank" rel="noopener">Hands-on Modern RL — Ch.10 Agentic RL</a></li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="pt-10 border-t border-[color:var(--border)]">
+            <div class="flex flex-wrap items-center justify-between gap-4 text-sm text-[color:var(--text-3)]">
+                <div>
+                    <strong class="text-[color:var(--text)]">Agentic RL 深度调研</strong> · 2026-06-16
+                </div>
+                <div class="font-mono text-xs">
+                    Generated by ZCode · Light Theme
+                </div>
+            </div>
+            <p class="mt-3 text-xs text-[color:var(--text-3)]">
+                本文综合 arXiv 2509.02547 综述及 30+ 一手资料整理。算法细节以原始论文为准，本文做知识压缩与结构化呈现。
+            </p>
+        </footer>
+
+    </main>
+</div>
+
+<script>
+    // Scroll progress
+    const indicator = document.getElementById('scrollIndicator');
+    window.addEventListener('scroll', () => {
+        const h = document.documentElement;
+        const pct = (h.scrollTop / (h.scrollHeight - h.clientHeight)) * 100;
+        indicator.style.width = pct + '%';
+    });
+
+    // TOC active highlight
+    const links = document.querySelectorAll('.toc-link');
+    const sections = Array.from(links).map(l => document.querySelector(l.getAttribute('href'))).filter(Boolean);
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const id = '#' + entry.target.id;
+                links.forEach(l => {
+                    l.classList.toggle('active', l.getAttribute('href') === id);
+                });
+            }
+        });
+    }, { rootMargin: '-20% 0px -70% 0px' });
+    sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

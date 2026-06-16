@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent Swarm Session 上下文方案 vs Google ADK 对比分析</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans SC', system-ui, -apple-system, sans-serif;
+            background: #f8fafc;
+        }
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .gradient-text {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+        .card-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.12);
+        }
+        .toc-link.active {
+            color: #4f46e5;
+            border-left-color: #4f46e5;
+            background: linear-gradient(90deg, rgba(79, 70, 229, 0.08) 0%, transparent 100%);
+        }
+        .scroll-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #4f46e5 0%, #7c3aed 100%);
+            z-index: 1000;
+            transition: width 0.1s;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #c7c7c7;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #a0a0a0;
+        }
+        .section-divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent 0%, #e5e7eb 20%, #e5e7eb 80%, transparent 100%);
+        }
+        .tag {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            letter-spacing: 0.025em;
+        }
+        .status-good { background: #d1fae5; color: #065f46; }
+        .status-mid { background: #fef3c7; color: #92400e; }
+        .status-gap { background: #fee2e2; color: #991b1b; }
+    </style>
+</head>
+<body class="text-slate-800">
+    <div class="scroll-indicator" id="scrollIndicator"></div>
+
+    <div class="max-w-5xl mx-auto px-6 py-16">
+        <!-- Header -->
+        <header class="mb-16">
+            <div class="flex items-center gap-3 mb-4">
+                <span class="tag bg-indigo-100 text-indigo-700">对比分析</span>
+                <span class="tag bg-slate-100 text-slate-600">2026-06-15</span>
+            </div>
+            <h1 class="text-4xl md:text-5xl font-bold mb-6 gradient-text">Agent Swarm Session 上下文方案 vs Google ADK 对比分析</h1>
+            <p class="text-xl text-slate-500 leading-relaxed max-w-3xl">
+                在 GLM 新增了 session disk persistence 和多轮对话能力之后，重新评估 Agent Swarm 的上下文存储设计与 Google ADK 的异同，找出可以相互借鉴的地方，以及更合理的演进方向。
+            </p>
+        </header>
+
+        <!-- Executive Summary -->
+        <section class="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 mb-12 card-hover">
+            <h2 class="text-2xl font-bold mb-4 flex items-center gap-3">
+                <span class="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center text-sm">📋</span>
+                结论先行
+            </h2>
+            <div class="prose prose-slate max-w-none">
+                <p class="text-slate-600 leading-relaxed mb-4">
+                    GLM 最新改动把 SessionManager 从纯内存升级为<strong>磁盘持久化</strong>（<code class="font-mono bg-slate-100 px-2 py-1 rounded">_session/context.json</code>），实现了进程重启后仍能恢复对话历史和工作目录。这是一个重要进步，已经初步具备 ADK 中 <code class="font-mono bg-slate-100 px-2 py-1 rounded">Session</code> 的"持久化会话"概念。
+                </p>
+                <p class="text-slate-600 leading-relaxed mb-4">
+                    但当前方案仍停留在<strong>"保存 LLM 消息列表"</strong>层面，而 ADK 的核心是<strong>"Event-First"</strong>：把用户输入、Agent 回复、工具调用、工具结果、状态变更、进度事件都记录为结构化事件。后者才能支撑"复现现场"、"审计状态变更"、"Agent-Agent 对话追溯"等高级能力。
+                </p>
+                <p class="text-slate-600 leading-relaxed">
+                    因此最合理的演进路径是：<strong>保留当前的 disk persistence 作为运行时视图，在其旁新增 Event 日志层</strong>，逐步从"消息列表"过渡到"事件流"。
+                </p>
+            </div>
+        </section>
+
+        <!-- Table of Contents -->
+        <section class="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 mb-12">
+            <h2 class="text-xl font-bold mb-6">目录</h2>
+            <nav class="grid md:grid-cols-2 gap-3">
+                <a href="#current" class="toc-link block px-4 py-3 rounded-lg border-l-2 border-transparent hover:bg-slate-50 transition">1. 当前实现速览</a>
+                <a href="#adk" class="toc-link block px-4 py-3 rounded-lg border-l-2 border-transparent hover:bg-slate-50 transition">2. ADK 设计速览</a>
+                <a href="#compare" class="toc-link block px-4 py-3 rounded-lg border-l-2 border-transparent hover:bg-slate-50 transition">3. 多维度对比</a>
+                <a href="#aligned" class="toc-link block px-4 py-3 rounded-lg border-l-2 border-transparent hover:bg-slate-50 transition">4. 已对齐 ADK 的地方</a>
+                <a href="#gaps" class="toc-link block px-4 py-3 rounded-lg border-l-2 border-transparent hover:bg-slate-50 transition">5. 与 ADK 的差距</a>
+                <a href="#learn" class="toc-link block px-4 py-3 rounded-lg border-l-2 border-transparent hover:bg-slate-50 transition">6. 值得借鉴 ADK 的点</a>
+                <a href="#better" class="toc-link block px-4 py-3 rounded-lg border-l-2 border-transparent hover:bg-slate-50 transition">7. Agent Swarm 更合理的地方</a>
+                <a href="#roadmap" class="toc-link block px-4 py-3 rounded-lg border-l-2 border-transparent hover:bg-slate-50 transition">8. 推荐演进路径</a>
+            </nav>
+        </section>
+
+        <!-- 1. Current Implementation -->
+        <section id="current" class="mb-16">
+            <h2 class="text-3xl font-bold mb-8 flex items-center gap-3">
+                <span class="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">01</span>
+                当前实现速览
+            </h2>
+
+            <div class="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 mb-8 card-hover">
+                <h3 class="text-xl font-semibold mb-4">GLM 最近改动带来的变化</h3>
+                <p class="text-slate-600 leading-relaxed mb-4">
+                    从最新 commit（<code class="font-mono bg-slate-100 px-2 py-1 rounded">f600077</code> 和 <code class="font-mono bg-slate-100 px-2 py-1 rounded">d6b6b93</code>）可以看到，<code class="font-mono bg-slate-100 px-2 py-1 rounded">src/session/manager.py</code> 已经变成磁盘持久化的 SessionManager：
+                </p>
+                <ul class="list-disc list-inside text-slate-600 space-y-2 mb-4">
+                    <li><code class="font-mono bg-slate-100 px-1 rounded">SessionState</code> 保存 <code class="font-mono bg-slate-100 px-1 rounded">messages</code>、<code class="font-mono bg-slate-100 px-1 rounded">shared_context</code>、<code class="font-mono bg-slate-100 px-1 rounded">work_dir</code></li>
+                    <li>新增 <code class="font-mono bg-slate-100 px-1 rounded">save()</code> 方法，把 <code class="font-mono bg-slate-100 px-1 rounded">messages</code> 和 <code class="font-mono bg-slate-100 px-1 rounded">shared_context</code> 写入 <code class="font-mono bg-slate-100 px-1 rounded">_session/context.json</code></li>
+                    <li><code class="font-mono bg-slate-100 px-1 rounded">get_or_create()</code> 支持从磁盘恢复 session</li>
+                    <li><code class="font-mono bg-slate-100 px-1 rounded">ChatRequest</code> 增加 <code class="font-mono bg-slate-100 px-1 rounded">session_id</code> 字段</li>
+                    <li><code class="font-mono bg-slate-100 px-1 rounded">/api/chat</code> 在编排结束后调用 <code class="font-mono bg-slate-100 px-1 rounded">session_manager.save(sess)</code></li>
+                </ul>
+                <p class="text-slate-600 leading-relaxed">
+                    测试也覆盖了 save/restore 场景，说明这是一个经过验证的基础能力。
+                </p>
+            </div>
+
+            <div class="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 card-hover">
+                <h3 class="text-xl font-semibold mb-6">当前持久化结构</h3>
+                <div class="bg-slate-900 rounded-xl p-6 overflow-x-auto">
+                    <pre class="font-mono text-sm text-slate-300 leading-relaxed">
+shared_output/tenants/{tenant}/sessions/{session_id}/
+├── _session/
+│   └── context.json          # {messages, shared_context, created_at}
+├── _plan/project_plan.md
+├── frontend/
+├── backend/
+└── _final/
+                    </pre>
+                </div>
+                <p class="text-slate-600 leading-relaxed mt-4">
+                    <code class="font-mono bg-slate-100 px-2 py-1 rounded">context.json</code> 里的 <code class="font-mono bg-slate-100 px-1 rounded">messages</code> 是 OpenAI 格式的消息列表（system/user/assistant/tool），直接被编排器复用为 LLM 上下文。这很务实，但也限制了可观测性和可复现性。
+                </p>
+            </div>
+        </section>
+
+        <div class="section-divider mb-16"></div>
+
+        <!-- 2. ADK Design -->
+        <section id="adk" class="mb-16">
+            <h2 class="text-3xl font-bold mb-8 flex items-center gap-3">
+                <span class="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">02</span>
+                ADK 设计速览
+            </h2>
+
+            <div class="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 mb-8 card-hover">
+                <h3 class="text-xl font-semibold mb-4">ADK 的三层职责</h3>
+                <div class="grid md:grid-cols-3 gap-4 mb-6">
+                    <div class="bg-slate-50 rounded-xl p-5 border border-slate-200">
+                        <div class="text-lg font-semibold text-slate-800 mb-2">Agent 层</div>
+                        <div class="text-sm text-slate-600">业务逻辑，决定如何生成响应、使用工具。</div>
+                    </div>
+                    <div class="bg-slate-50 rounded-xl p-5 border border-slate-200">
+                        <div class="text-lg font-semibold text-slate-800 mb-2">Runner / Runtime 层</div>
+                        <div class="text-sm text-slate-600">负责执行 Agent，在关键节点生成 Event 并交给 SessionService。</div>
+                    </div>
+                    <div class="bg-slate-50 rounded-xl p-5 border border-slate-200">
+                        <div class="text-lg font-semibold text-slate-800 mb-2">SessionService 层</div>
+                        <div class="text-sm text-slate-600">负责持久化 Session 和 Events（内存/数据库/Vertex AI）。</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 mb-8 card-hover">
+                <h3 class="text-xl font-semibold mb-4">ADK Session 的组成</h3>
+                <ul class="list-disc list-inside text-slate-600 space-y-2">
+                    <li><strong>id / app_name / user_id</strong>：会话标识。</li>
+                    <li><strong>events</strong>：按时间顺序排列的事件日志，是核心。</li>
+                    <li><strong>state</strong>：key-value 会话状态表，通过 Event 的 <code class="font-mono bg-slate-100 px-1 rounded">state_delta</code> 更新。</li>
+                    <li><strong>last_update_time</strong>：最后更新时间。</li>
+                </ul>
+            </div>
+
+            <div class="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 card-hover">
+                <h3 class="text-xl font-semibold mb-4">ADK Event 的关键字段</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-slate-50 border-b border-slate-200">
+                            <tr>
+                                <th class="px-4 py-3 text-left font-semibold text-slate-700">字段</th>
+                                <th class="px-4 py-3 text-left font-semibold text-slate-700">作用</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            <tr><td class="px-4 py-3 font-mono text-slate-800">id</td><td class="px-4 py-3 text-slate-600">事件唯一 ID</td></tr>
+                            <tr><td class="px-4 py-3 font-mono text-slate-800">invocation_id</td><td class="px-4 py-3 text-slate-600">一次完整用户请求周期</td></tr>
+                            <tr><td class="px-4 py-3 font-mono text-slate-800">author</td><td class="px-4 py-3 text-slate-600">事件产生者：user / agent 名 / tool</td></tr>
+                            <tr><td class="px-4 py-3 font-mono text-slate-800">content</td><td class="px-4 py-3 text-slate-600">消息/调用/结果内容</td></tr>
+                            <tr><td class="px-4 py-3 font-mono text-slate-800">actions.state_delta</td><td class="px-4 py-3 text-slate-600">状态变更增量</td></tr>
+                            <tr><td class="px-4 py-3 font-mono text-slate-800">actions.artifact_delta</td><td class="px-4 py-3 text-slate-600">产物变更记录</td></tr>
+                            <tr><td class="px-4 py-3 font-mono text-slate-800">branch</td><td class="px-4 py-3 text-slate-600">层级路径，用于多 Agent 隔离</td></tr>
+                            <tr><td class="px-4 py-3 font-mono text-slate-800">timestamp</td><td class="px-4 py-3 text-slate-600">事件发生时间</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <div class="section-divider mb-16"></div>
+
+        <!-- 3. Comparison -->
+        <section id="compare" class="mb-16">
+            <h2 class="text-3xl font-bold mb-8 flex items-center gap-3">
+                <span class="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">03</span>
+                多维度对比
+            </h2>
+
+            <div class="overflow-x-auto">
+                <table class="w-full bg-white rounded-2xl shadow-sm border border-slate-200">
+                    <thead class="bg-slate-50 border-b border-slate-200">
+                        <tr>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-slate-700">维度</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-slate-700">Agent Swarm 当前</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-slate-700">Google ADK</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        <tr>
+                            <td class="px-6 py-4 font-medium text-slate-800">持久化</td>
+                            <td class="px-6 py-4 text-slate-600">磁盘文件 <code class="font-mono bg-slate-100 px-1 rounded">_session/context.json</code></td>
+                            <td class="px-6 py-4 text-slate-600">可插拔：InMemory / Database / VertexAI</td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 font-medium text-slate-800">存储单元</td>
+                            <td class="px-6 py-4 text-slate-600"><code class="font-mono bg-slate-100 px-1 rounded">messages</code> 列表 + <code class="font-mono bg-slate-100 px-1 rounded">shared_context</code></td>
+                            <td class="px-6 py-4 text-slate-600"><code class="font-mono bg-slate-100 px-1 rounded">events</code> 列表 + <code class="font-mono bg-slate-100 px-1 rounded">state</code></td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 font-medium text-slate-800">事件类型</td>
+                            <td class="px-6 py-4 text-slate-600">无显式事件类型，只有 role（system/user/assistant/tool）</td>
+                            <td class="px-6 py-4 text-slate-600">丰富的 event_type：tool_call、tool_result、agent_progress、state_delta 等</td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 font-medium text-slate-800">说话者标识</td>
+                            <td class="px-6 py-4 text-slate-600">只有 role，无法区分具体哪个 Agent</td>
+                            <td class="px-6 py-4 text-slate-600"><code class="font-mono bg-slate-100 px-1 rounded">author</code> 字段：user / orchestrator / frontend-ux-pro 等</td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 font-medium text-slate-800">请求周期</td>
+                            <td class="px-6 py-4 text-slate-600">无 <code class="font-mono bg-slate-100 px-1 rounded">invocation_id</code>，按 session 维度聚合</td>
+                            <td class="px-6 py-4 text-slate-600"><code class="font-mono bg-slate-100 px-1 rounded">invocation_id</code> 区分一次完整请求周期</td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 font-medium text-slate-800">Agent-Agent 追溯</td>
+                            <td class="px-6 py-4 text-slate-600">只能从 messages 中推测，无 parent/branch 关联</td>
+                            <td class="px-6 py-4 text-slate-600"><code class="font-mono bg-slate-100 px-1 rounded">parent_id</code> + <code class="font-mono bg-slate-100 px-1 rounded">branch</code> 可完整追溯调用链</td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 font-medium text-slate-800">状态变更审计</td>
+                            <td class="px-6 py-4 text-slate-600"><code class="font-mono bg-slate-100 px-1 rounded">shared_context</code> 更新无记录</td>
+                            <td class="px-6 py-4 text-slate-600">每次 state 变更都通过 <code class="font-mono bg-slate-100 px-1 rounded">state_delta</code> 事件记录</td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 font-medium text-slate-800">复现现场</td>
+                            <td class="px-6 py-4 text-slate-600">只能看 messages 和日志，无法按时间线回放</td>
+                            <td class="px-6 py-4 text-slate-600">按 events 顺序回放，可复现完整执行过程</td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 font-medium text-slate-800">上下文重建</td>
+                            <td class="px-6 py-4 text-slate-600">直接复用 messages 列表</td>
+                            <td class="px-6 py-4 text-slate-600">从 events 过滤/摘要生成 LLM 上下文</td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 font-medium text-slate-800">查询 API</td>
+                            <td class="px-6 py-4 text-slate-600">无 session events 查询接口</td>
+                            <td class="px-6 py-4 text-slate-600">可通过 SessionService 查询事件流</td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 font-medium text-slate-800">多进程安全</td>
+                            <td class="px-6 py-4 text-slate-600">文件读写无并发控制，多 uvicorn worker 可能冲突</td>
+                            <td class="px-6 py-4 text-slate-600">数据库后端支持并发和乐观锁</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <div class="section-divider mb-16"></div>
+
+        <!-- 4. Aligned -->
+        <section id="aligned" class="mb-16">
+            <h2 class="text-3xl font-bold mb-8 flex items-center gap-3">
+                <span class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center">04</span>
+                已对齐 ADK 的地方
+            </h2>
+
+            <div class="space-y-6">
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center flex-shrink-0">1</div>
+                        <div>
+                            <h3 class="text-lg font-semibold mb-2">Session 持久化概念已落地</h3>
+                            <p class="text-slate-600 leading-relaxed">
+                                ADK 的核心价值之一是让会话跨请求/重启存活。GLM 改动后，Agent Swarm 已经通过磁盘文件实现了这一点，这是从"一次性任务"到"可持续对话"的关键跨越。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center flex-shrink-0">2</div>
+                        <div>
+                            <h3 class="text-lg font-semibold mb-2">work folder 与会话绑定</h3>
+                            <p class="text-slate-600 leading-relaxed">
+                                ADK 用 ArtifactService 管理文件产物，Agent Swarm 直接用文件系统目录绑定 session。对于"生成可运行工程"这个场景，后者更直接、更高效。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center flex-shrink-0">3</div>
+                        <div>
+                            <h3 class="text-lg font-semibold mb-2">编排器已能恢复历史</h3>
+                            <p class="text-slate-600 leading-relaxed">
+                                <code class="font-mono bg-slate-100 px-1 rounded">orchestrator.execute()</code> 已经支持从 <code class="font-mono bg-slate-100 px-1 rounded">session.messages</code> 恢复上下文，并追加新消息。这与 ADK Runner 从 Session 加载历史的行为一致。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="section-divider mb-16"></div>
+
+        <!-- 5. Gaps -->
+        <section id="gaps" class="mb-16">
+            <h2 class="text-3xl font-bold mb-8 flex items-center gap-3">
+                <span class="w-10 h-10 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center">05</span>
+                与 ADK 的差距
+            </h2>
+
+            <div class="space-y-6">
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center flex-shrink-0">1</div>
+                        <div>
+                            <h3 class="text-lg font-semibold mb-2">没有 Event 抽象，只有消息列表</h3>
+                            <p class="text-slate-600 leading-relaxed">
+                                当前保存的是 OpenAI 格式的 <code class="font-mono bg-slate-100 px-1 rounded">messages</code>，它丢失了"这是哪一次工具调用"、"这个工具结果对应哪个调用"、"这是哪个 Agent 说的"等元数据。ADK 的 Event 模型能保留这些关键信息。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center flex-shrink-0">2</div>
+                        <div>
+                            <h3 class="text-lg font-semibold mb-2">无法区分 Agent-Agent 对话</h3>
+                            <p class="text-slate-600 leading-relaxed">
+                                编排器和 Worker 的交互被折叠进 <code class="font-mono bg-slate-100 px-1 rounded">tool_result</code> 消息里，看不到中间的 <code class="font-mono bg-slate-100 px-1 rounded">agent_progress</code>、dispatch 尝试、失败重试等信息。ADK 的 <code class="font-mono bg-slate-100 px-1 rounded">author</code> + <code class="font-mono bg-slate-100 px-1 rounded">branch</code> 可以清晰区分这些参与者。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center flex-shrink-0">3</div>
+                        <div>
+                            <h3 class="text-lg font-semibold mb-2">状态变更无审计</h3>
+                            <p class="text-slate-600 leading-relaxed">
+                                <code class="font-mono bg-slate-100 px-1 rounded">shared_context</code> 在 <code class="font-mono bg-slate-100 px-1 rounded">plan_task</code> 时被设置、在后续可能被修改，但没有记录"何时、由谁、从什么改成什么"。ADK 要求所有 state 变更都通过 Event 的 <code class="font-mono bg-slate-100 px-1 rounded">state_delta</code> 进行。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center flex-shrink-0">4</div>
+                        <div>
+                            <h3 class="text-lg font-semibold mb-2">无法按请求周期回放</h3>
+                            <p class="text-slate-600 leading-relaxed">
+                                当前所有消息混在一个列表里，无法区分"哪几条消息属于某一次 /api/chat 调用"。ADK 的 <code class="font-mono bg-slate-100 px-1 rounded">invocation_id</code> 可以精确划分一次完整请求周期内的事件。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center flex-shrink-0">5</div>
+                        <div>
+                            <h3 class="text-lg font-semibold mb-2">缺少 SessionService 抽象</h3>
+                            <p class="text-slate-600 leading-relaxed">
+                                当前 <code class="font-mono bg-slate-100 px-1 rounded">SessionManager</code> 直接操作文件系统，没有抽象层。未来要切换到 Redis 或数据库时需要重写。ADK 的 <code class="font-mono bg-slate-100 px-1 rounded">SessionService</code> 协议让存储后端可插拔。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="section-divider mb-16"></div>
+
+        <!-- 6. Learn from ADK -->
+        <section id="learn" class="mb-16">
+            <h2 class="text-3xl font-bold mb-8 flex items-center gap-3">
+                <span class="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center">06</span>
+                值得借鉴 ADK 的点
+            </h2>
+
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <h3 class="text-lg font-semibold mb-3 text-indigo-700">引入 Event 模型</h3>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        不要只存 messages，而是把"用户输入、LLM 响应、工具调用、工具结果、Agent 进度、状态变更"都存为结构化 Event。这是实现可复现现场的基础。
+                    </p>
+                </div>
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <h3 class="text-lg font-semibold mb-3 text-indigo-700">author + invocation_id + branch</h3>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        这三个字段能解决 Agent Swarm 里"谁在说话"、"属于哪次请求"、"子 Agent 上下文隔离"的问题。
+                    </p>
+                </div>
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <h3 class="text-lg font-semibold mb-3 text-indigo-700">state_delta 机制</h3>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        把 <code class="font-mono bg-slate-100 px-1 rounded">shared_context</code> 的变更变成事件化的增量，而不是直接修改状态。这样可以审计每次变更的来龙去脉。
+                    </p>
+                </div>
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <h3 class="text-lg font-semibold mb-3 text-indigo-700">SessionService 抽象</h3>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        把存储逻辑从 <code class="font-mono bg-slate-100 px-1 rounded">SessionManager</code> 里拆出来，定义 <code class="font-mono bg-slate-100 px-1 rounded">SessionService</code> 协议。当前磁盘实现可作为 <code class="font-mono bg-slate-100 px-1 rounded">FileSessionService</code>，未来加 RedisSessionService。
+                    </p>
+                </div>
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <h3 class="text-lg font-semibold mb-3 text-indigo-700">从 Events 派生 Messages</h3>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        不要直接把 events 全部喂给 LLM。而是按 branch 过滤、早期摘要、保留最近 N 轮，再生成 messages。这样既有完整记录，又控制好上下文长度。
+                    </p>
+                </div>
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <h3 class="text-lg font-semibold mb-3 text-indigo-700">Event 查询/回放 API</h3>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        提供 <code class="font-mono bg-slate-100 px-1 rounded">/api/sessions/{id}/events</code> 和 <code class="font-mono bg-slate-100 px-1 rounded">/api/sessions/{id}/replay</code>，让开发者可以按时间线查看完整交互过程。
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <div class="section-divider mb-16"></div>
+
+        <!-- 7. Swarm's Better Points -->
+        <section id="better" class="mb-16">
+            <h2 class="text-3xl font-bold mb-8 flex items-center gap-3">
+                <span class="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">07</span>
+                Agent Swarm 更合理的地方
+            </h2>
+
+            <div class="space-y-6">
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center flex-shrink-0">1</div>
+                        <div>
+                            <h3 class="text-lg font-semibold mb-2">文件系统持久化更简单</h3>
+                            <p class="text-slate-600 leading-relaxed">
+                                对于"生成代码工程"这个核心场景，产物天然就是文件。把 session context 也存到同一份文件系统里，比引入数据库更简单、更直观。ADK 的 DatabaseSessionService 对当前项目来说反而过重。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center flex-shrink-0">2</div>
+                        <div>
+                            <h3 class="text-lg font-semibold mb-2">work_dir 与产物目录一体化</h3>
+                            <p class="text-slate-600 leading-relaxed">
+                                Agent Swarm 把 session work folder 直接作为 Agent 产物目录，多轮对话产生的代码自然累积。ADK 的 ArtifactService 需要额外配置存储后端，而这里直接用本地文件系统即可。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center flex-shrink-0">3</div>
+                        <div>
+                            <h3 class="text-lg font-semibold mb-2">没有框架绑定</h3>
+                            <p class="text-slate-600 leading-relaxed">
+                                Agent Swarm 不依赖 LangChain/LangGraph/ADK 等框架，自定义的 orchestrator 和 dispatcher 更贴近项目需求。引入 ADK 全套概念会带来不必要的复杂度。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center flex-shrink-0">4</div>
+                        <div>
+                            <h3 class="text-lg font-semibold mb-2">messages 直接复用更高效</h3>
+                            <p class="text-slate-600 leading-relaxed">
+                                当前直接把 messages 存成 OpenAI 格式，恢复时无需转换即可喂给 LLM。ADK 需要从 events 重建 messages，多了一个转换层。对于当前以 OpenAI SDK 为主的调用路径，直接存 messages 是合理优化。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="section-divider mb-16"></div>
+
+        <!-- 8. Roadmap -->
+        <section id="roadmap" class="mb-16">
+            <h2 class="text-3xl font-bold mb-8 flex items-center gap-3">
+                <span class="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">08</span>
+                推荐演进路径
+            </h2>
+
+            <div class="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 mb-8 card-hover">
+                <h3 class="text-xl font-semibold mb-4">核心原则：不替换，只叠加</h3>
+                <p class="text-slate-600 leading-relaxed">
+                    当前的 disk persistence + messages 机制运行良好，不应被替换。建议在其旁边新增一个 <strong>Event Log</strong> 层，让系统同时有两份记录：
+                </p>
+                <ul class="list-disc list-inside text-slate-600 space-y-2 mt-4 mb-4">
+                    <li><strong>messages + shared_context</strong>：给 LLM 用的运行时上下文，保持当前格式。</li>
+                    <li><strong>events</strong>：给人和调试工具用的完整审计日志，借鉴 ADK 设计。</li>
+                </ul>
+                <p class="text-slate-600 leading-relaxed">
+                    这样既保留了当前的高效路径，又逐步获得 ADK 式的可观测性。
+                </p>
+            </div>
+
+            <div class="space-y-6">
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center flex-shrink-0">1</div>
+                        <div>
+                            <h3 class="text-lg font-semibold mb-2">Step 1：新增 Event 模型和事件文件</h3>
+                            <p class="text-slate-600 text-sm leading-relaxed">
+                                在 <code class="font-mono bg-slate-100 px-1 rounded">src/session/</code> 下新增 <code class="font-mono bg-slate-100 px-1 rounded">events.py</code>，定义 <code class="font-mono bg-slate-100 px-1 rounded">Event</code>、<code class="font-mono bg-slate-100 px-1 rounded">EventActions</code>。新增 <code class="font-mono bg-slate-100 px-1 rounded">_session/events.jsonl</code>，按行追加事件。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center flex-shrink-0">2</div>
+                        <div>
+                            <h3 class="text-lg font-semibold mb-2">Step 2：在编排器关键路径埋点</h3>
+                            <p class="text-slate-600 text-sm leading-relaxed">
+                                记录 user_message、tool_call、tool_result、finalize、error。每个事件带 <code class="font-mono bg-slate-100 px-1 rounded">invocation_id</code>（本次 task_id 或单独生成）和 <code class="font-mono bg-slate-100 px-1 rounded">author=orchestrator</code>。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center flex-shrink-0">3</div>
+                        <div>
+                            <h3 class="text-lg font-semibold mb-2">Step 3：记录 Agent-Agent 交互</h3>
+                            <p class="text-slate-600 text-sm leading-relaxed">
+                                在 Dispatcher 记录 dispatch_request/attempt，在 Worker 侧记录 agent_progress/agent_response。用 <code class="font-mono bg-slate-100 px-1 rounded">parent_id</code> 把 tool_call 和 agent_response 关联起来。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center flex-shrink-0">4</div>
+                        <div>
+                            <h3 class="text-lg font-semibold mb-2">Step 4：SessionService 抽象 + 查询 API</h3>
+                            <p class="text-slate-600 text-sm leading-relaxed">
+                                把文件操作封装成 <code class="font-mono bg-slate-100 px-1 rounded">FileSessionService</code>，实现 <code class="font-mono bg-slate-100 px-1 rounded">SessionService</code> 协议。新增 <code class="font-mono bg-slate-100 px-1 rounded">/api/sessions/{id}/events</code> 和 <code class="font-mono bg-slate-100 px-1 rounded">/api/sessions/{id}/timeline</code>。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center flex-shrink-0">5</div>
+                        <div>
+                            <h3 class="text-lg font-semibold mb-2">Step 5：可选迁移到 Redis</h3>
+                            <p class="text-slate-600 text-sm leading-relaxed">
+                                当需要多进程部署时，实现 <code class="font-mono bg-slate-100 px-1 rounded">RedisSessionService</code>。由于有 SessionService 抽象，切换成本很低。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="section-divider mb-16"></div>
+
+        <!-- Summary -->
+        <section class="mb-16">
+            <h2 class="text-3xl font-bold mb-8 flex items-center gap-3">
+                <span class="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">09</span>
+                总结
+            </h2>
+
+            <div class="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 card-hover">
+                <p class="text-slate-600 leading-relaxed mb-4">
+                    GLM 的改动让 Agent Swarm 在 Session 持久化方面已经<strong>初步对齐了 ADK 的 Session 概念</strong>：会话可跨请求、跨重启存活，工作目录和对话历史都能恢复。这是很大的进步，我之前的调研里"单进程状态"和"session 无持久化"的批评已经部分过时。
+                </p>
+                <p class="text-slate-600 leading-relaxed mb-4">
+                    但当前方案仍未达到 ADK 的 Event-First 高度。<strong>主要差距在于：它只保存了 LLM 消息列表，没有保存结构化事件</strong>，因此无法清晰追溯 Agent-Agent 对话、无法审计状态变更、无法按请求周期回放。
+                </p>
+                <p class="text-slate-600 leading-relaxed">
+                    最务实的下一步不是推翻现有设计，而是<strong>叠加 Event 日志层</strong>：保留 messages 给 LLM 用，同时记录 events 给人和调试工具用。这样既发挥了 Agent Swarm 文件系统持久化的简洁优势，又吸收了 ADK 可观测性的核心思想。
+                </p>
+            </div>
+        </section>
+
+        <footer class="text-center text-slate-400 text-sm pt-8 border-t border-slate-200">
+            <p>对比分析报告 · 生成于 2026-06-15 · 基于 Agent Swarm 最新 session disk persistence 改动</p>
+        </footer>
+    </div>
+
+    <script>
+        window.addEventListener('scroll', () => {
+            const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+            const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            const scrolled = (winScroll / height) * 100;
+            document.getElementById('scrollIndicator').style.width = scrolled + '%';
+        });
+
+        const sections = document.querySelectorAll('section[id]');
+        const tocLinks = document.querySelectorAll('.toc-link');
+        window.addEventListener('scroll', () => {
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                if (scrollY >= sectionTop - 200) {
+                    current = section.getAttribute('id');
+                }
+            });
+            tocLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === '#' + current) {
+                    link.classList.add('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

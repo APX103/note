@@ -1,0 +1,8 @@
+{
+  "cssTheme": "Minimal",
+  "textFontFamily": "Monaco",
+  "monospaceFontFamily": "Monaco",
+  "interfaceFontFamily": "Monaco",
+  "baseFontSize": 18,
+  "baseFontSizeAction": false
+}

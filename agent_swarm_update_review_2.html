@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent Swarm 更新后 Review 2：Cancel 传播 + DispatcherConfig 外置</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans SC', system-ui, -apple-system, sans-serif;
+            background: #f8fafc;
+        }
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .gradient-text {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+        .card-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.12);
+        }
+        .toc-link.active {
+            color: #4f46e5;
+            border-left-color: #4f46e5;
+            background: linear-gradient(90deg, rgba(79, 70, 229, 0.08) 0%, transparent 100%);
+        }
+        .scroll-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #4f46e5 0%, #7c3aed 100%);
+            z-index: 1000;
+            transition: width 0.1s;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #c7c7c7;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #a0a0a0;
+        }
+        .section-divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent 0%, #e5e7eb 20%, #e5e7eb 80%, transparent 100%);
+        }
+        .tag {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            letter-spacing: 0.025em;
+        }
+        .status-good { background: #d1fae5; color: #065f46; }
+        .status-mid { background: #fef3c7; color: #92400e; }
+        .status-bad { background: #fee2e2; color: #991b1b; }
+    </style>
+</head>
+<body class="text-slate-800">
+    <div class="scroll-indicator" id="scrollIndicator"></div>
+
+    <div class="max-w-5xl mx-auto px-6 py-16">
+        <!-- Header -->
+        <header class="mb-16">
+            <div class="flex items-center gap-3 mb-4">
+                <span class="tag bg-indigo-100 text-indigo-700">更新 Review</span>
+                <span class="tag bg-slate-100 text-slate-600">2026-06-15</span>
+            </div>
+            <h1 class="text-4xl md:text-5xl font-bold mb-6 gradient-text">Agent Swarm 更新后 Review 2</h1>
+            <p class="text-2xl text-slate-500 mb-4">Cancel 传播到 Worker + DispatcherConfig 外置 + 技术债清理</p>
+            <p class="text-xl text-slate-500 leading-relaxed max-w-3xl">
+                针对最新 commit（<code class="font-mono bg-slate-100 px-2 py-1 rounded">1397d3a</code> 之前）的 cancel propagation、DispatcherConfig YAML 化、shared_context 清理再次 review。
+            </p>
+        </header>
+
+        <!-- Executive Summary -->
+        <section class="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 mb-12 card-hover">
+            <h2 class="text-2xl font-bold mb-4 flex items-center gap-3">
+                <span class="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center text-sm">📋</span>
+                总体评价
+            </h2>
+            <div class="prose prose-slate max-w-none">
+                <p class="text-slate-600 leading-relaxed mb-4">
+                    这一波更新继续推进生产化：
+                </p>
+                <ul class="list-disc list-inside text-slate-600 space-y-2 mb-4">
+                    <li><strong>Cancel 传播到 Worker</strong>：解决了之前调研里标为 P2.4 的"取消不传播、继续烧 token"问题。</li>
+                    <li><strong>DispatcherConfig 外置到 YAML</strong>：解决了 P2.5"配置硬编码"问题。</li>
+                    <li><strong>清理 dead shared_context 字段</strong>：解决了 P3.9 技术债。</li>
+                </ul>
+                <p class="text-slate-600 leading-relaxed mb-4">
+                    设计思路清晰，改动范围控制得很好，没有引入破坏性变更。但 cancel propagation 目前<strong>缺少集成测试</strong>，External Agent 路径也还没有传播 cancel。
+                </p>
+                <p class="text-slate-600 leading-relaxed">
+                    全量测试 <strong>295 passed</strong>，工程纪律保持得很好。
+                </p>
+            </div>
+        </section>
+
+        <!-- Table of Contents -->
+        <section class="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 mb-12">
+            <h2 class="text-xl font-bold mb-6">目录</h2>
+            <nav class="grid md:grid-cols-2 gap-3">
+                <a href="#cancel" class="toc-link block px-4 py-3 rounded-lg border-l-2 border-transparent hover:bg-slate-50 transition">1. Cancel 传播 Review</a>
+                <a href="#config" class="toc-link block px-4 py-3 rounded-lg border-l-2 border-transparent hover:bg-slate-50 transition">2. DispatcherConfig 外置 Review</a>
+                <a href="#cleanup" class="toc-link block px-4 py-3 rounded-lg border-l-2 border-transparent hover:bg-slate-50 transition">3. 技术债清理</a>
+                <a href="#resolved" class="toc-link block px-4 py-3 rounded-lg border-l-2 border-transparent hover:bg-slate-50 transition">4. 路线图推进情况</a>
+                <a href="#gaps" class="toc-link block px-4 py-3 rounded-lg border-l-2 border-transparent hover:bg-slate-50 transition">5. 仍然存在的缺口</a>
+                <a href="#next" class="toc-link block px-4 py-3 rounded-lg border-l-2 border-transparent hover:bg-slate-50 transition">6. 下一步建议</a>
+            </nav>
+        </section>
+
+        <!-- 1. Cancel Propagation -->
+        <section id="cancel" class="mb-16">
+            <h2 class="text-3xl font-bold mb-8 flex items-center gap-3">
+                <span class="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">01</span>
+                Cancel 传播 Review
+            </h2>
+
+            <div class="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 mb-8 card-hover">
+                <h3 class="text-xl font-semibold mb-4">实现链路</h3>
+                <p class="text-slate-600 leading-relaxed mb-4">
+                    Cancel 传播涉及三个层次的配合：
+                </p>
+                <ol class="list-decimal list-inside text-slate-600 space-y-2 mb-4">
+                    <li><strong>API 层</strong>：WebSocket 收到 <code class="font-mono bg-slate-100 px-1 rounded">action=cancel</code> 后，调用 <code class="font-mono bg-slate-100 px-1 rounded">cancel_running(task_id)</code>，取消编排器侧的 asyncio 任务。</li>
+                    <li><strong>Dispatcher 层</strong>：<code class="font-mono bg-slate-100 px-1 rounded">DockerBackend.invoke()</code> 捕获 <code class="font-mono bg-slate-100 px-1 rounded">asyncio.CancelledError</code>，然后调用 <code class="font-mono bg-slate-100 px-1 rounded">A2AClient.cancel_task(worker_task_id)</code>。</li>
+                    <li><strong>Worker 层</strong>：Worker 的 <code class="font-mono bg-slate-100 px-1 rounded">handle_cancel_task</code> 取消后台 <code class="font-mono bg-slate-100 px-1 rounded">_run()</code> 任务，从而停止 LLM 调用。</li>
+                </ol>
+                <div class="bg-slate-900 rounded-xl p-6 overflow-x-auto">
+                    <pre class="font-mono text-sm text-slate-300 leading-relaxed">
+用户 WS cancel
+    → cancel_running(task_id)  # src/api/routes.py
+    → orchestrator task cancelled
+    → DockerBackend.invoke catches CancelledError
+    → A2AClient.cancel_task(worker_task_id)
+    → POST / (tasks/cancel) to worker
+    → handle_cancel_task cancels _bg_tasks[task_id]
+    → _run() raises CancelledError, llm_call stops
+                    </pre>
+                </div>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-6 mb-8">
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <h3 class="text-lg font-semibold mb-3 text-emerald-700">亮点</h3>
+                    <ul class="space-y-3 text-slate-600 text-sm">
+                        <li class="flex items-start gap-2"><span class="text-emerald-500 mt-1">✓</span> <strong>端到端闭环</strong>：从用户 WS 一直传到 Worker 内部的后台任务，真正避免继续烧 token。</li>
+                        <li class="flex items-start gap-2"><span class="text-emerald-500 mt-1">✓</span> <strong>遵循 A2A 语义</strong>：Worker 新增 <code class="font-mono bg-slate-100 px-1 rounded">tasks/cancel</code> 端点，符合 A2A 协议扩展。</li>
+                        <li class="flex items-start gap-2"><span class="text-emerald-500 mt-1">✓</span> <strong>异常处理稳健</strong>：cancel 传播失败只打日志，不影响主取消流程继续抛出 <code class="font-mono bg-slate-100 px-1 rounded">CancelledError</code>。</li>
+                        <li class="flex items-start gap-2"><span class="text-emerald-500 mt-1">✓</span> <strong>poll_task 识别 canceled</strong>：<code class="font-mono bg-slate-100 px-1 rounded">A2APoll</code> 的 terminal 状态包含 <code class="font-mono bg-slate-100 px-1 rounded">canceled</code>，编排器能正确感知 Worker 已取消。</li>
+                    </ul>
+                </div>
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <h3 class="text-lg font-semibold mb-3 text-amber-700">可优化 / 风险</h3>
+                    <ul class="space-y-3 text-slate-600 text-sm">
+                        <li class="flex items-start gap-2"><span class="text-amber-500 mt-1">!</span> <strong>缺少测试</strong>：没有针对 Worker cancel 或 cancel 传播的集成测试。</li>
+                        <li class="flex items-start gap-2"><span class="text-amber-500 mt-1">!</span> <strong>External Agent 未传播</strong>：只有 <code class="font-mono bg-slate-100 px-1 rounded">DockerBackend</code> 处理 CancelledError，<code class="font-mono bg-slate-100 px-1 rounded">ExternalAgentBackend</code> 没有。</li>
+                        <li class="flex items-start gap-2"><span class="text-amber-500 mt-1">!</span> <strong>同步工具不可中断</strong>：如果取消时 Worker 正在执行同步的 <code class="font-mono bg-slate-100 px-1 rounded">execute_tool</code>，会等工具返回后才退出。</li>
+                        <li class="flex items-start gap-2"><span class="text-amber-500 mt-1">!</span> <strong>取消后任务状态未持久化</strong>：Worker 内存中的 task 状态不会自动变成 canceled；SQLite 中的 task 状态也不会更新。</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 card-hover">
+                <h3 class="text-xl font-semibold mb-4">代码片段点评</h3>
+                <p class="text-slate-600 leading-relaxed mb-4">
+                    <code class="font-mono bg-slate-100 px-2 py-1 rounded">src/dispatcher/backends.py</code> 中的处理很到位：
+                </p>
+                <div class="bg-slate-900 rounded-xl p-6 overflow-x-auto">
+                    <pre class="font-mono text-sm text-slate-300 leading-relaxed">
+except asyncio.CancelledError:
+    logger.info("Dispatch cancelled; propagating cancel to worker %s", target.agent_type)
+    try:
+        if a2a_task is not None and a2a_task.task_id:
+            await client.cancel_task(a2a_task.task_id)
+    except Exception:
+        logger.warning("Failed to propagate cancel to worker", exc_info=True)
+    raise
+                    </pre>
+                </div>
+                <p class="text-slate-600 leading-relaxed mt-4">
+                    这里的关键是：只有非阻塞 dispatch（streaming 模式）才会创建后台 task，也才需要 cancel。阻塞模式下 <code class="font-mono bg-slate-100 px-1 rounded">a2a_task</code> 是同步完成的，Cancel 发生时可能已经完成了。这个边界处理得合理。
+                </p>
+            </div>
+        </section>
+
+        <div class="section-divider mb-16"></div>
+
+        <!-- 2. DispatcherConfig Externalization -->
+        <section id="config" class="mb-16">
+            <h2 class="text-3xl font-bold mb-8 flex items-center gap-3">
+                <span class="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">02</span>
+                DispatcherConfig 外置 Review
+            </h2>
+
+            <div class="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 mb-8 card-hover">
+                <h3 class="text-xl font-semibold mb-4">实现概览</h3>
+                <p class="text-slate-600 leading-relaxed mb-4">
+                    <code class="font-mono bg-slate-100 px-2 py-1 rounded">src/config.py</code> 的 <code class="font-mono bg-slate-100 px-1 rounded">Settings</code> 新增 <code class="font-mono bg-slate-100 px-1 rounded">dispatcher: dict</code>，<code class="font-mono bg-slate-100 px-2 py-1 rounded">config/default.yaml.example</code> 新增 <code class="font-mono bg-slate-100 px-1 rounded">dispatcher:</code> 段：
+                </p>
+                <div class="bg-slate-900 rounded-xl p-6 overflow-x-auto">
+                    <pre class="font-mono text-sm text-slate-300 leading-relaxed">
+dispatcher:
+  max_retries: 2
+  dispatch_timeout: 300
+  max_concurrent: 8
+  health_precheck: true
+                    </pre>
+                </div>
+                <p class="text-slate-600 leading-relaxed mt-4">
+                    <code class="font-mono bg-slate-100 px-2 py-1 rounded">src/main.py</code> 启动时从 <code class="font-mono bg-slate-100 px-1 rounded">settings.dispatcher</code> 读取并注入 <code class="font-mono bg-slate-100 px-1 rounded">DispatcherConfig</code>。
+                </p>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <h3 class="text-lg font-semibold mb-3 text-emerald-700">亮点</h3>
+                    <ul class="space-y-3 text-slate-600 text-sm">
+                        <li class="flex items-start gap-2"><span class="text-emerald-500 mt-1">✓</span> 彻底解决了 DispatcherConfig 硬编码问题。</li>
+                        <li class="flex items-start gap-2"><span class="text-emerald-500 mt-1">✓</span> <code class="font-mono bg-slate-100 px-1 rounded">default.yaml.example</code> 注释清晰，新用户知道每个参数含义。</li>
+                        <li class="flex items-start gap-2"><span class="text-emerald-500 mt-1">✓</span> 默认值保留，不配置也能正常运行。</li>
+                        <li class="flex items-start gap-2"><span class="text-emerald-500 mt-1">✓</span> 为后续其他配置外置提供了统一模式。</li>
+                    </ul>
+                </div>
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <h3 class="text-lg font-semibold mb-3 text-amber-700">可优化</h3>
+                    <ul class="space-y-3 text-slate-600 text-sm">
+                        <li class="flex items-start gap-2"><span class="text-amber-500 mt-1">!</span> <code class="font-mono bg-slate-100 px-1 rounded">Settings.dispatcher</code> 用的是裸 <code class="font-mono bg-slate-100 px-1 rounded">dict</code>，建议改成 <code class="font-mono bg-slate-100 px-1 rounded">DispatcherConfig</code> dataclass，类型更安全。</li>
+                        <li class="flex items-start gap-2"><span class="text-amber-500 mt-1">!</span> 缺少配置校验：如果 YAML 里写错类型（如 <code class="font-mono bg-slate-100 px-1 rounded">max_retries: "two"</code>），启动时会抛不太友好的异常。</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <div class="section-divider mb-16"></div>
+
+        <!-- 3. Tech Debt Cleanup -->
+        <section id="cleanup" class="mb-16">
+            <h2 class="text-3xl font-bold mb-8 flex items-center gap-3">
+                <span class="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">03</span>
+                技术债清理
+            </h2>
+
+            <div class="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 card-hover">
+                <h3 class="text-xl font-semibold mb-4">移除 dead shared_context 字段</h3>
+                <p class="text-slate-600 leading-relaxed mb-4">
+                    <code class="font-mono bg-slate-100 px-2 py-1 rounded">src/dispatcher/base.py</code> 中的 <code class="font-mono bg-slate-100 px-1 rounded">DispatchRequest.shared_context</code> 字段被移除。原因是编排器已经把共享上下文折进 <code class="font-mono bg-slate-100 px-1 rounded">task</code> 字符串里，这个字段一直没被使用。
+                </p>
+                <p class="text-slate-600 leading-relaxed">
+                    这是好的清理：减少歧义，降低维护成本。移除后相关测试也同步更新，没有残留引用。
+                </p>
+            </div>
+        </section>
+
+        <div class="section-divider mb-16"></div>
+
+        <!-- 4. Roadmap Progress -->
+        <section id="resolved" class="mb-16">
+            <h2 class="text-3xl font-bold mb-8 flex items-center gap-3">
+                <span class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center">04</span>
+                路线图推进情况
+            </h2>
+
+            <div class="overflow-x-auto">
+                <table class="w-full bg-white rounded-2xl shadow-sm border border-slate-200">
+                    <thead class="bg-slate-50 border-b border-slate-200">
+                        <tr>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-slate-700">原 NEXT-STEPS 项</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-slate-700">状态</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-slate-700">说明</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        <tr>
+                            <td class="px-6 py-4 font-medium text-slate-800">P1.0 Session 持久化与多轮对话</td>
+                            <td class="px-6 py-4"><span class="tag status-good">✅ 完成</span></td>
+                            <td class="px-6 py-4 text-slate-600">SQLite + work folder 绑定。</td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 font-medium text-slate-800">P1.1 可观测性·指标</td>
+                            <td class="px-6 py-4"><span class="tag status-mid">部分完成</span></td>
+                            <td class="px-6 py-4 text-slate-600">全局 dispatch metrics 已落地，缺 per-agent 维度。</td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 font-medium text-slate-800">P2.4 取消传播到 worker</td>
+                            <td class="px-6 py-4"><span class="tag status-good">✅ 完成</span></td>
+                            <td class="px-6 py-4 text-slate-600">Docker Worker 路径已实现。</td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 font-medium text-slate-800">P2.5 配置外置</td>
+                            <td class="px-6 py-4"><span class="tag status-good">✅ 完成</span></td>
+                            <td class="px-6 py-4 text-slate-600">DispatcherConfig 已进 YAML。</td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 font-medium text-slate-800">P3.9 死字段清理</td>
+                            <td class="px-6 py-4"><span class="tag status-good">✅ 完成</span></td>
+                            <td class="px-6 py-4 text-slate-600">shared_context 已移除。</td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 font-medium text-slate-800">P1.2 Redis 持久化</td>
+                            <td class="px-6 py-4"><span class="tag status-bad">未开始</span></td>
+                            <td class="px-6 py-4 text-slate-600">幂等、缓存、熔断、死信仍 in-memory。</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <div class="section-divider mb-16"></div>
+
+        <!-- 5. Remaining Gaps -->
+        <section id="gaps" class="mb-16">
+            <h2 class="text-3xl font-bold mb-8 flex items-center gap-3">
+                <span class="w-10 h-10 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center">05</span>
+                仍然存在的缺口
+            </h2>
+
+            <div class="space-y-6">
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center flex-shrink-0">1</div>
+                        <div>
+                            <h3 class="text-lg font-semibold mb-2"><span class="tag status-bad">测试缺口</span> Cancel 传播缺少集成测试</h3>
+                            <p class="text-slate-600 leading-relaxed text-sm">
+                                目前 cancel 传播只通过代码路径走通，没有自动化测试覆盖。建议加一个 mock Worker 的测试：验证当 orchestrator task 被取消时，<code class="font-mono bg-slate-100 px-1 rounded">A2AClient.cancel_task</code> 被调用。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center flex-shrink-0">2</div>
+                        <div>
+                            <h3 class="text-lg font-semibold mb-2">External Agent 未传播 Cancel</h3>
+                            <p class="text-slate-600 leading-relaxed text-sm">
+                                <code class="font-mono bg-slate-100 px-1 rounded">ExternalAgentBackend.invoke()</code> 没有捕获 <code class="font-mono bg-slate-100 px-1 rounded">CancelledError</code>，也没有调用外部 Agent 的 cancel。如果外部 Agent 是长耗时调用，取消后它仍会继续执行。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center flex-shrink-0">3</div>
+                        <div>
+                            <h3 class="text-lg font-semibold mb-2">取消后 Task 状态未持久化</h3>
+                            <p class="text-slate-600 leading-relaxed text-sm">
+                                用户取消后，<code class="font-mono bg-slate-100 px-1 rounded">task_manager</code> 的状态在内存中变为 CANCELLED，但没有调用 <code class="font-mono bg-slate-100 px-1 rounded">save_task</code> 落库。进程重启后，这个任务在 SQLite 中仍可能是 RUNNING。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center flex-shrink-0">4</div>
+                        <div>
+                            <h3 class="text-lg font-semibold mb-2">Redis 持久化仍是最大生产化瓶颈</h3>
+                            <p class="text-slate-600 leading-relaxed text-sm">
+                                幂等索引、per-tenant 信号量、结果缓存、熔断器、死信存储仍是 in-memory。多 worker 部署前必须完成 P1.2。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center flex-shrink-0">5</div>
+                        <div>
+                            <h3 class="text-lg font-semibold mb-2">Event-First 上下文仍未引入</h3>
+                            <p class="text-slate-600 leading-relaxed text-sm">
+                                这是之前 ADK 对比里反复强调的。当前持久化只保存 messages/state，工具调用链、Agent-Agent 对话、状态变更审计仍未结构化。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="section-divider mb-16"></div>
+
+        <!-- 6. Next Steps -->
+        <section id="next" class="mb-16">
+            <h2 class="text-3xl font-bold mb-8 flex items-center gap-3">
+                <span class="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">06</span>
+                下一步建议
+            </h2>
+
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-center gap-3 mb-4">
+                        <span class="tag status-mid">P1</span>
+                        <h3 class="text-lg font-semibold">补 cancel propagation 集成测试</h3>
+                    </div>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        用 respx mock Worker 的 <code class="font-mono bg-slate-100 px-1 rounded">tasks/cancel</code> 端点，验证取消编排器任务时会发起 cancel 请求。
+                    </p>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-center gap-3 mb-4">
+                        <span class="tag status-mid">P1</span>
+                        <h3 class="text-lg font-semibold">取消后持久化 task 状态</h3>
+                    </div>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        在 <code class="font-mono bg-slate-100 px-1 rounded">cancel_running</code> 或编排器异常处理中，调用 <code class="font-mono bg-slate-100 px-1 rounded">task_manager.fail_task/update_status + save_task</code>，让 SQLite 中的状态也变为 CANCELLED。
+                    </p>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-center gap-3 mb-4">
+                        <span class="tag status-mid">P2</span>
+                        <h3 class="text-lg font-semibold">External Agent 传播 Cancel</h3>
+                    </div>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        在 <code class="font-mono bg-slate-100 px-1 rounded">ExternalAgentBackend.invoke()</code> 中捕获 <code class="font-mono bg-slate-100 px-1 rounded">CancelledError</code>，并调用 adapter 的 cancel（如果协议支持）。
+                    </p>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-center gap-3 mb-4">
+                        <span class="tag status-mid">P2</span>
+                        <h3 class="text-lg font-semibold">Settings.dispatcher 类型化</h3>
+                    </div>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        把 <code class="font-mono bg-slate-100 px-1 rounded">dispatcher: dict</code> 改成 <code class="font-mono bg-slate-100 px-1 rounded">DispatcherConfig</code> dataclass，提升类型安全和 IDE 提示。
+                    </p>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-center gap-3 mb-4">
+                        <span class="tag status-bad">P2</span>
+                        <h3 class="text-lg font-semibold">Redis 化核心状态</h3>
+                    </div>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        按 NEXT-STEPS P1.2 推进：幂等索引 > 死信 > 结果缓存 > 熔断。这是真正多 worker 部署的前提。
+                    </p>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-center gap-3 mb-4">
+                        <span class="tag status-bad">P2</span>
+                        <h3 class="text-lg font-semibold">引入 Event 日志层</h3>
+                    </div>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        记录 tool_call/tool_result/dispatch/cancel 等事件，实现"复现现场"。
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <div class="section-divider mb-16"></div>
+
+        <!-- Summary -->
+        <section class="mb-16">
+            <h2 class="text-3xl font-bold mb-8 flex items-center gap-3">
+                <span class="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">07</span>
+                总结
+            </h2>
+
+            <div class="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 card-hover">
+                <p class="text-slate-600 leading-relaxed mb-4">
+                    这一波更新非常值得肯定：Cancel 传播、配置外置、技术债清理三项工作都做得很扎实，几乎把 P2 阶段的关键问题清空了。代码改动克制、测试通过率高（295 passed）、文档也同步更新。
+                </p>
+                <p class="text-slate-600 leading-relaxed mb-4">
+                    当前最紧迫的缺口是<strong>取消后的状态持久化</strong>和<strong>cancel 传播的测试覆盖</strong>。这两个修好后，取消功能才算真正闭环。
+                </p>
+                <p class="text-slate-600 leading-relaxed">
+                    从路线图上，P1（Session、Metrics）和 P2（Cancel、Config）已经大部分完成。接下来应该把重心放到 <strong>P1.2 Redis 持久化</strong>和<strong>Event-First 上下文</strong>上，这两个是系统从"单进程可用"进化到"多进程生产部署"和"可复现现场"的关键。
+                </p>
+            </div>
+        </section>
+
+        <footer class="text-center text-slate-400 text-sm pt-8 border-t border-slate-200">
+            <p>更新后 Review 2 · 生成于 2026-06-15 · 基于 Agent Swarm cancel propagation + DispatcherConfig 外置改动</p>
+        </footer>
+    </div>
+
+    <script>
+        window.addEventListener('scroll', () => {
+            const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+            const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            const scrolled = (winScroll / height) * 100;
+            document.getElementById('scrollIndicator').style.width = scrolled + '%';
+        });
+
+        const sections = document.querySelectorAll('section[id]');
+        const tocLinks = document.querySelectorAll('.toc-link');
+        window.addEventListener('scroll', () => {
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                if (scrollY >= sectionTop - 200) {
+                    current = section.getAttribute('id');
+                }
+            });
+            tocLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === '#' + current) {
+                    link.classList.add('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

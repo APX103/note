@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>推理系统优化：技术细节手册</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --fg: #c9d1d9;
+    --accent: #58a6ff;
+    --accent2: #f0883e;
+    --border: #30363d;
+    --code-bg: #161b22;
+    --warn: #d29922;
+    --danger: #f85149;
+    --success: #3fb950;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 0;
+    background: var(--bg); color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans SC", sans-serif;
+    line-height: 1.7;
+    font-size: 15px;
+  }
+  .container { max-width: 960px; margin: 0 auto; padding: 40px 20px; }
+  h1 { font-size: 2.2rem; border-bottom: 2px solid var(--accent); padding-bottom: 12px; margin-bottom: 30px; }
+  h2 { font-size: 1.5rem; color: var(--accent); margin-top: 40px; border-left: 4px solid var(--accent); padding-left: 14px; }
+  h3 { font-size: 1.15rem; color: var(--accent2); margin-top: 28px; }
+  h4 { font-size: 1rem; color: #8b949e; margin-top: 20px; }
+  code {
+    background: var(--code-bg); padding: 2px 6px; border-radius: 4px;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 0.9em; color: #e6edf3;
+    border: 1px solid var(--border);
+  }
+  pre {
+    background: var(--code-bg); padding: 16px; border-radius: 8px;
+    overflow-x: auto; border: 1px solid var(--border);
+    font-size: 0.85em; line-height: 1.5;
+  }
+  pre code { background: none; padding: 0; border: none; }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 0.9em; }
+  th, td { border: 1px solid var(--border); padding: 10px 12px; text-align: left; }
+  th { background: var(--code-bg); color: var(--accent); font-weight: 600; }
+  tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+  .tag {
+    display: inline-block; padding: 2px 8px; border-radius: 12px;
+    font-size: 0.75em; font-weight: 600; margin-right: 6px;
+  }
+  .tag-core { background: rgba(88,166,255,0.15); color: var(--accent); }
+  .tag-perf { background: rgba(63,185,80,0.15); color: var(--success); }
+  .tag-warn { background: rgba(210,153,34,0.15); color: var(--warn); }
+  .tag-danger { background: rgba(248,81,73,0.15); color: var(--danger); }
+  .note {
+    background: rgba(88,166,255,0.08); border-left: 3px solid var(--accent);
+    padding: 12px 16px; margin: 16px 0; border-radius: 0 6px 6px 0;
+  }
+  .warn-box {
+    background: rgba(210,153,34,0.08); border-left: 3px solid var(--warn);
+    padding: 12px 16px; margin: 16px 0; border-radius: 0 6px 6px 0;
+  }
+  .formula {
+    background: var(--code-bg); padding: 12px 16px; border-radius: 6px;
+    font-family: "Times New Roman", serif; font-style: italic;
+    margin: 12px 0; border: 1px solid var(--border);
+  }
+  ul { padding-left: 22px; }
+  li { margin: 6px 0; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .toc {
+    position: fixed; right: 20px; top: 80px; width: 220px;
+    background: var(--code-bg); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px; font-size: 0.82em;
+    max-height: 80vh; overflow-y: auto; display: none;
+  }
+  .toc a { display: block; padding: 4px 0; color: #8b949e; }
+  .toc a:hover { color: var(--accent); }
+  @media (min-width: 1300px) { .toc { display: block; } }
+  .section-meta { color: #8b949e; font-size: 0.85em; margin-bottom: 12px; }
+</style>
+</head>
+<body>
+
+<div class="toc">
+  <strong style="color:var(--accent)">目录</strong>
+  <a href="#kv-cache">1. KV Cache 显存管理</a>
+  <a href="#pd">2. PD 分离架构</a>
+  <a href="#attention">3. Attention 算子优化</a>
+  <a href="#quant">4. 量化与压缩</a>
+  <a href="#batching">5. Batching & 调度</a>
+  <a href="#moe">6. MoE 推理（你需要补的）</a>
+  <a href="#deploy">7. 部署与平台</a>
+  <a href="#profile">8. 性能分析</a>
+</div>
+
+<div class="container">
+
+<h1>推理系统优化：技术细节手册</h1>
+<p class="section-meta">面向有分布式训练、K8s、网络管理背景，精通 C++/Python，熟悉 Transformer 但尚未深入 MoE 的工程师。</p>
+
+<!-- ===================== 1. KV Cache ===================== -->
+<h2 id="kv-cache">1. KV Cache 显存管理</h2>
+
+<h3>1.1 显存占用公式</h3>
+<div class="formula">
+  KV Cache (bytes) = 2 × num_layers × num_heads × head_dim × seq_len × batch_size × sizeof(dtype)
+</div>
+<p>以 Llama-3-70B 为例：80 层、64 头、128 dim、FP16、batch=32、seq=4096 → 约 <strong>34 GB</strong>。权重本身约 140 GB（FP16），KV Cache 在长序列下会反超权重。</p>
+
+<h3>1.2 PagedAttention 的 Block Table 机制</h3>
+<p>vLLM 的核心创新不是 Attention 算法，而是<strong>显存分配器</strong>。它把 KV Cache 从连续内存改为分页管理：</p>
+<ul>
+  <li><strong>Block</strong>：固定大小（通常为 16 tokens），存储对应 token 的 K/V 张量。</li>
+  <li><strong>Block Table</strong>：每个序列维护一个逻辑到物理 block 的映射表，类似 OS 页表。</li>
+  <li><strong>物理块不连续</strong>：通过映射表保持逻辑连续性，显存利用率从 ~60% 提升到 ~90%。</li>
+</ul>
+
+<pre><code>// vLLM 核心数据结构简化示意
+struct BlockTable {
+    std::vector&lt;int&gt; physical_blocks;  // 逻辑 block i -> 物理 block id
+    int num_tokens;                    // 当前序列实际长度
+};
+
+// 分配策略：按需分配，而非预分配 max_seq_len
+// 当序列生成新 token 时，若当前逻辑 block 已满，申请新的物理 block
+</code></pre>
+
+<h3>1.3 Copy-on-Write & Prefix Caching</h3>
+<p>vLLM v0.3+ 引入的<strong>Prefix Caching</strong>（又称 RadixAttention）：</p>
+<ul>
+  <li>系统维护一个 Radix Tree，缓存已计算过的 KV Cache block。</li>
+  <li>新请求若前缀匹配缓存 block，直接引用，引用计数 +1。</li>
+  <li>当某个序列需要修改共享 block（如继续生成 diverge），触发 <strong>Copy-on-Write</strong>，复制该 block 到新的物理块，原 block 引用计数 -1。</li>
+</ul>
+<p>这对多轮对话、RAG（大量重复 system prompt）场景提升巨大，TTFT 可降低 50% 以上。</p>
+
+<h3>1.4 多级 KV Cache 存储</h3>
+<table>
+  <tr><th>层级</th><th>容量</th><th>带宽</th><th>策略</th></tr>
+  <tr><td>GPU HBM</td><td>40-80 GB</td><td>1-2 TB/s</td><td>活跃序列、热前缀</td></tr>
+  <tr><td>CPU DRAM</td><td>512 GB-2 TB</td><td>50-100 GB/s</td><td>换出（swapping）低优先级序列</td></tr>
+  <tr><td>SSD / NVMe</td><td>数 TB</td><td>3-7 GB/s</td><td>Checkpoint、超长上下文归档</td></tr>
+  <tr><td>Remote Storage</td><td>∞</td><td>网络带宽</td><td>模型权重、冷数据</td></tr>
+</table>
+<p>vLLM 的 <code>swap_out</code> / <code>swap_in</code> 机制通过 <code>cudaMemcpyAsync</code> + pinned memory 实现 GPU↔CPU 异步传输。PD 分离场景下，Decode 节点 HBM 不足时，可将整序列 KV 换出到 CPU，而非直接 kill。</p>
+
+<!-- ===================== 2. PD 分离 ===================== -->
+<h2 id="pd">2. Prefill-Decode 分离架构</h2>
+
+<h3>2.1 为什么必须分离</h3>
+<table>
+  <tr><th>维度</th><th>Prefill</th><th>Decode</th></tr>
+  <tr><td>计算模式</td><td>矩阵-矩阵乘法 (GEMM)</td><td>矩阵-向量乘法 (GEMV)</td></tr>
+  <tr><td>瓶颈</td><td>计算密集 (Compute-bound)</td><td>访存密集 (Memory-bound)</td></tr>
+  <tr><td>GPU 利用率</td><td>高（Tensor Core 饱和）</td><td>低（SM 空闲等待 HBM）</td></tr>
+  <tr><td>关键指标</td><td>TTFT (Time To First Token)</td><td>TPOT (Time Per Output Token)</td></tr>
+  <tr><td>Batch 策略</td><td>合并长 prompt，增大 batch</td><td>保持大 batch，摊销权重读取</td></tr>
+</table>
+<p>混部时，一个长 prompt 的 Prefill 会抢占 Decode 的 SM 和带宽，导致 TPOT 抖动（P99 延迟飙升）。分离后，两类节点可按各自瓶颈独立扩缩容。</p>
+
+<h3>2.2 KV Cache 传输：零拷贝与 RDMA</h3>
+<p>Prefill 节点完成计算后，需将 KV Cache 传输到 Decode 节点。传输量：</p>
+<div class="formula">
+  Transfer = 2 × layers × heads × head_dim × seq_len × sizeof(dtype)
+</div>
+<p>以 70B 模型、4K 序列、FP16 为例：约 4.2 GB。若走 TCP/IP，延迟不可接受。工业级方案：</p>
+<ul>
+  <li><strong>GPUDirect RDMA</strong>：网卡直接读写 GPU HBM，绕过 CPU 和系统内存，延迟 ~5-10 μs。</li>
+  <li><strong>NVLink / NVSwitch</strong>：同节点内 GPU 间 P2P，带宽 900 GB/s，用于 TP 组内传输。</li>
+  <li><strong>零拷贝序列化</strong>：避免 PyTorch tensor → numpy → protobuf 的拷贝，直接发送 GPU 内存指针。</li>
+</ul>
+
+<div class="note">
+  <strong>网络管理员视角</strong>：InfiniBand 的 Adaptive Routing 对 LLM 推理不利。Prefill→Decode 的 KV 传输是大消息流，应配置 <strong>Fixed Path Routing</strong> 避免乱序，并开启 <strong>DCQCN</strong> 拥塞控制。RoCEv2 需关注 PFC/ECN 配置，防止 RDMA 拥塞导致的 NIC 性能断崖。
+</div>
+
+<h3>2.3 Chunked Prefill：不纯粹的分离</h3>
+<p>纯 PD 分离的问题：Prefill 节点在高负载下 TTFT 积压，Decode 节点空闲。Chunked Prefill 将长 prompt 切成多个 chunk，在 Decode 节点上穿插执行：</p>
+<ul>
+  <li>每个 chunk 当作一个 "mini-prefill"，复用 Decode 节点的空闲算力。</li>
+  <li>chunk 间通过 KV Cache 增量传递，避免重复计算。</li>
+  <li>调度器需维护 <code>num_new_tokens</code> 预算，确保 Decode 的 TPOT SLO 不被破坏。</li>
+</ul>
+
+<h3>2.4 异构 PD 分离</h3>
+<p>Prefill 节点可用 H100（高算力），Decode 节点用 A100 或 L40S（高显存、低成本）。甚至 Decode 用 CPU（llama.cpp）处理小模型。挑战：</p>
+<ul>
+  <li>KV Cache 格式对齐（不同架构的 tensor layout 可能不同）。</li>
+  <li>精度一致性（Prefill FP16，Decode INT8 需校准）。</li>
+  <li>负载均衡：Prefill 是突发流量，Decode 是稳态流量，需独立 autoscaler。</li>
+</ul>
+
+<!-- ===================== 3. Attention ===================== -->
+<h2 id="attention">3. Attention 算子优化</h2>
+
+<h3>3.1 FlashAttention 演进</h3>
+<table>
+  <tr><th>版本</th><th>核心改进</th><th>适用场景</th></tr>
+  <tr><td>FlashAttention-1</td><td>Softmax Tiling + Online 重计算，减少 HBM 读写</td><td>训练 & Prefill</td></tr>
+  <tr><td>FlashAttention-2</td><td>减少 non-matmul FLOPs，更好的 Warp 划分，无需 split KV</td><td>训练 & Prefill</td></tr>
+  <tr><td>FlashAttention-3</td><td>异步 WGMMA + FP8 支持，Hopper 架构专用</td><td>H100/B200 训练</td></tr>
+  <tr><td>FlashDecoding</td><td>在 KV 序列维度并行化，解决 decode 阶段 GPU 利用率低</td><td>Decode 长上下文</td></tr>
+  <tr><td>FlashDecoding++</td><td>异步 Softmax（统一 max 值）、Flat GEMM 双缓冲</td><td>Decode 通用</td></tr>
+</table>
+
+<h3>3.2 FlashDecoding 的数学细节</h3>
+<p>Decode 阶段 Q 长度为 1，FlashAttention 仅在 (batch, query_block) 维度并行化，若 batch < SM 数（A100 有 108 SM），大量 SM 空闲。</p>
+<p>FlashDecoding 引入第三并行维度：<strong>KV 序列分块</strong>。</p>
+<pre><code>// FlashDecoding 三步法
+// 1. 将 KV 分成 chunks（如每 chunk 1024 tokens）
+// 2. 每个 chunk 独立计算 attention，输出 partial softmax 结果 + log-sum-exp (lse)
+// 3. 全局归约：根据 lse 加权合并各 chunk 输出
+
+// Kernel 1: 并行处理所有 chunk（占满 SM）
+// Kernel 2: 轻量级归约（每个 token 一个 warp）
+</code></pre>
+<p>关键：Softmax 的归约性质允许分块计算后合并。设某 chunk 的局部 max 为 m_i，sum 为 l_i，则全局归约：</p>
+<div class="formula">
+  m_global = max(m_i), &nbsp;&nbsp; l_global = Σ l_i · exp(m_i - m_global)
+</div>
+
+<h3>3.3 FlashDecoding++：异步 Softmax</h3>
+<p>FlashDecoding 的瓶颈：分块间的 softmax 同步更新（需等待全局 max）导致 ~20% 开销。FlashDecoding++ 的核心洞察：</p>
+<ul>
+  <li>Softmax 的缩放因子可以是任意常数 φ，不一定要用 max(x)。</li>
+  <li>对 LLM 的注意力分数统计：99.99% 的值落在固定区间（如 Llama2-7B 为 [-16.8, 6.5]）。</li>
+  <li>选取一个保守的 φ（如 -20），各 chunk 可完全独立计算，无需同步。</li>
+  <li>溢出保护：若实际值超出 φ 范围，fallback 到标准 FlashAttention 重计算（发生频率 < 0.5%）。</li>
+</ul>
+<p>效果：Decode 阶段比 FlashDecoding 快 up to 2.02×，Prefill 阶段比 FlashAttention-2 快 1.19×。</p>
+
+<h3>3.4 Flat GEMM 优化</h3>
+<p>Decode 阶段的线性投影（Q/K/V/O/FFN）输入是扁平矩阵（M=1 或 M=batch_size，很小）。cuBLAS 对此优化不佳。FlashDecoding++ 采用：</p>
+<ul>
+  <li><strong>Double Buffering</strong>：利用 Shared Memory 双缓冲隐藏数据加载延迟。</li>
+  <li><strong>Warp-level 特化</strong>：当 M=1 时，一个 warp 处理一个输出列，避免 block-level 同步。</li>
+  <li>对 A100 平均提升 7%，对 RTX 3090 提升 up to 52%。</li>
+</ul>
+
+<h3>3.5 算子融合趋势：MegaKernel</h3>
+<p>2025-2026 年的方向：将整个 Transformer Layer 融合为单个 CUDA Kernel，消除 kernel launch 和中间结果 HBM 读写：</p>
+<ul>
+  <li><strong>FlashInfer</strong>：vLLM/SGLang 的底层 kernel 库，提供 fused attention + sampling。</li>
+  <li><strong>Stanford MegaKernel</strong>：单 kernel 完成整个 layer，通过 DAG 离线搜索最优融合路径。</li>
+  <li><strong>Ada-MK</strong>（百度）：工业级 MegaKernel 部署，证明在广告系统可行。</li>
+</ul>
+<div class="warn-box">
+  <strong>注意</strong>：MegaKernel 的代价是编译时间极长（小时级），且对动态 shape（变长序列）支持有限。目前更适合固定 batch size 的推荐/广告场景，对话场景仍需 Progressive Lowering。
+</div>
+
+<!-- ===================== 4. 量化 ===================== -->
+<h2 id="quant">4. 量化与压缩</h2>
+
+<h3>4.1 权重量化方案对比</h3>
+<table>
+  <tr><th>方法</th><th>位宽</th><th>核心思想</th><th>精度损失</th><th>适用</th></tr>
+  <tr><td>RTN</td><td>W8/W4</td><td>逐层 min/max 量化</td><td>高</td><td>快速实验</td></tr>
+  <tr><td>GPTQ</td><td>W4/W3</td><td>逐层 OBS 优化，补偿误差</td><td>中</td><td>静态部署</td></tr>
+  <tr><td>AWQ</td><td>W4</td><td>激活感知：保护 salient weight 通道</td><td>低</td><td>通用推荐</td></tr>
+  <tr><td>SmoothQuant</td><td>W8A8</td><td>将量化难度从激活迁移到权重</td><td>低</td><td>INT8 推理</td></tr>
+  <tr><td>FP8 (E4M3/E5M2)</td><td>W8A8</td><td>利用 H100/B200 原生 FP8 Tensor Core</td><td>极低</td><td>Hopper+</td></tr>
+</table>
+
+<h3>4.2 KV Cache 量化</h3>
+<p>KV Cache 比权重更敏感，因为量化误差会随自回归累积。常用策略：</p>
+<ul>
+  <li><strong>Per-channel / Per-token</strong>：对 K 按 head 维度、对 V 按 token 维度分别找缩放因子。</li>
+  <li><strong>Dynamic INT8</strong>：每轮 decode 在线计算 max/min，实时量化。开销极小（< 1%）。</li>
+  <li><strong>FP8 KV Cache</strong>：H100 上直接存储 FP8，无需反量化，带宽减半，精度损失 < 1%（perplexity）。</li>
+</ul>
+
+<h3>4.3 量化与 PD 分离的交互</h3>
+<p>Prefill 节点可用 FP16 保证首字精度，传输到 Decode 节点后转为 INT8/FP8。需注意：</p>
+<ul>
+  <li>缩放因子（scale）需随 KV Cache 一并传输，增加少量 metadata。</li>
+  <li>若 Decode 节点用 FP8，Prefill 节点的 FP16→FP8 转换应在 GPU 内完成，避免 CPU 中转。</li>
+</ul>
+
+<!-- ===================== 5. Batching ===================== -->
+<h2 id="batching">5. Batching & 调度</h2>
+
+<h3>5.1 Continuous Batching (In-flight Batching)</h3>
+<p>传统 Static Batching：等一个 batch 内所有序列完成才释放资源，短序列被长序列阻塞。Continuous Batching 允许：</p>
+<ul>
+  <li>每轮 forward 后，已完成序列退出，新序列加入。</li>
+  <li>通过 <code>batch_token_budget</code> 控制每轮处理的 token 总数（而非序列数）。</li>
+  <li>vLLM 的 <code>Scheduler</code> 维护 <code>running</code>、<code>swapped</code>、<code>waiting</code> 三个队列。</li>
+</ul>
+
+<pre><code>// vLLM Scheduler 核心逻辑（极度简化）
+class Scheduler {
+    std::deque&lt;SequenceGroup*&gt; waiting;   // 新请求
+    std::deque&lt;SequenceGroup*&gt; running;   // 当前执行中
+    std::deque&lt;SequenceGroup*&gt; swapped;   // 已换出到 CPU
+
+    void schedule_step() {
+        // 1. 尝试将 waiting 中请求加入 running（检查显存）
+        // 2. 若显存不足，将 running 中低优先级序列 swap_out
+        // 3. 若 swapped 中有高优先级序列，swap_in（需带宽预算）
+        // 4. 返回本次 step 的 batch 配置
+    }
+};
+</code></pre>
+
+<h3>5.2 Splitwise：PD 分离的调度抽象</h3>
+<p>Splitwise（OSDI'24）将请求生命周期分为三段：</p>
+<ul>
+  <li><strong>P-phase</strong>：在 Prefill 节点执行，输出 KV Cache。</li>
+  <li><strong>D-phase</strong>：在 Decode 节点执行，自回归生成。</li>
+  <li><strong>Transfer-phase</strong>：KV Cache 通过网络迁移。</li>
+</ul>
+<p>调度器需同时管理三类资源：Prefill 算力、Decode 算力、网络带宽。采用 <strong>Water-filling</strong> 算法：优先将请求路由到负载最轻的 Prefill 节点，并预分配 Decode 槽位。</p>
+
+<h3>5.3 抢占策略</h3>
+<table>
+  <tr><th>策略</th><th>机制</th><th>代价</th><th>适用</th></tr>
+  <tr><td>Swapping</td><td>将 KV Cache 换出到 CPU DRAM</td><td>带宽占用，恢复时需 swap_in</td><td>长对话、低优先级后台任务</td></tr>
+  <tr><td>Recomputation</td><td>丢弃 KV Cache，恢复时重新 Prefill</td><td>计算浪费，但无带宽压力</td><td>短序列、网络拥塞时</td></tr>
+  <tr><td>Abort</td><td>直接终止请求</td><td>用户体验差</td><td>严重过载、超出 SLO</td></tr>
+</table>
+
+<!-- ===================== 6. MoE ===================== -->
+<h2 id="moe">6. MoE 推理（你需要补的）</h2>
+
+<h3>6.1 核心差异：稀疏激活</h3>
+<p>MoE（Mixture of Experts）在推理时的关键特征：每个 token 只激活 <strong>Top-K</strong> 个专家（通常 K=1~8），而非全部参数。例如 DeepSeek-V3 有 256 个专家，每 token 激活 8 个，实际参数量 671B，激活量仅 37B。</p>
+
+<h3>6.2 推理瓶颈：All-to-All 通信</h3>
+<p>MoE 的 FFN 前向传播需经过 Router 分发 token 到不同专家：</p>
+<ul>
+  <li><strong>Dispatch</strong>：将 token 发送到持有目标专家的 GPU（All-to-All）。</li>
+  <li><strong>Combine</strong>：专家计算后将结果回传（All-to-All）。</li>
+</ul>
+<p>All-to-All 的通信量与 batch size × hidden_dim × num_experts_per_token 成正比。在 EP（Expert Parallelism）组内，这成为主要瓶颈。优化手段：</p>
+<ul>
+  <li><strong>EP + TP 混合</strong>：EP 跨节点分布专家，TP 在节点内张量并行。如 64 卡：8 路 EP × 8 路 TP。</li>
+  <li><strong>All-to-All 与计算重叠</strong>：在专家计算时预取下一批 token 的 dispatch。</li>
+  <li><strong>负载均衡约束</strong>：训练时用 aux loss 强制均衡，推理时若某专家过载，需动态 overflow 到备用专家。</li>
+</ul>
+
+<h3>6.3 DeepSeekMoE 的推理特点</h3>
+<ul>
+  <li><strong>共享专家</strong>：所有 token 必过 1 个共享专家 + K 个 routed 专家，共享专家的 KV Cache 可全局缓存。</li>
+  <li><strong>细粒度专家</strong>：专家数量多（256+），单个专家参数量小，适合 EP 细粒度分布。</li>
+  <li><strong>MLA</strong>：DeepSeek-V2/V3 使用 Multi-head Latent Attention，KV Cache 压缩比 MHA 降低 5-10×，缓解 MoE 的显存压力。</li>
+</ul>
+<div class="note">
+  <strong>MLA 简要原理</strong>：将 K/V 通过低秩矩阵压缩为 latent vector（维度远小于 num_heads × head_dim），推理时只缓存 latent vector，计算时在线展开。这是 DeepSeek 能在单节点跑 128K 上下文的关键。
+</div>
+
+<!-- ===================== 7. 部署 ===================== -->
+<h2 id="deploy">7. 部署与平台</h2>
+
+<h3>7.1 推理引擎对比</h3>
+<table>
+  <tr><th>引擎</th><th>语言</th><th>核心优势</th><th>劣势</th></tr>
+  <tr><td>vLLM</td><td>Python/C++</td><td>PagedAttention、生态最全、社区活跃</td><td>Python 调度 overhead、多模态支持弱</td></tr>
+  <tr><td>TensorRT-LLM</td><td>C++/Python</td><td>NVIDIA 官方、极致性能、FP8 支持好</td><td>闭源部分多、编译慢、灵活性差</td></tr>
+  <tr><td>SGLang</td><td>Python</td><td>Structured Generation、Mooncake PD 分离</td><td>生态较新、文档不完善</td></tr>
+  <tr><td>TGI</td><td>Rust/Python</td><td>HuggingFace 官方、安全沙箱、量化工具链全</td><td>性能中等、功能保守</td></tr>
+  <tr><td>llama.cpp</td><td>C/C++</td><td>端侧/CPU 推理、量化极致、无依赖</td><td>不支持大 batch、分布式弱</td></tr>
+</table>
+
+<h3>7.2 K8s 部署要点</h3>
+<p>基于你的 K8s 背景，直接列生产级 checklist：</p>
+<ul>
+  <li><strong>GPU 调度</strong>：使用 <code>NVIDIA device plugin</code> + <code>GPU Operator</code>，开启 MIG（A100/H100）或 MPS（共享上下文）提高利用率。</li>
+  <li><strong>拓扑感知</strong>：通过 <code>TopologyManager</code> + <code>NUMANode</code> 绑定，确保 Pod 分配的 GPU 在同一 NVSwitch 域内，降低 NCCL 通信延迟。</li>
+  <li><strong>弹性伸缩</strong>：HPA 基于 GPU 利用率（非 CPU）触发。自定义 metrics：queue_length（等待请求数）、ttft_p99、tpot_p99。</li>
+  <li><strong>Pod 隔离</strong>：推理 Pod 需 <code> Guaranteed QoS</code>，避免被驱逐。Prefill 和 Decode 用不同 <code>PriorityClass</code>。</li>
+  <li><strong>网络策略</strong>：PD 分离节点间开放 RDMA 端口（默认 4791 for RoCEv2），限制跨 namespace 访问。</li>
+</ul>
+
+<h3>7.3 模型加载与热更新</h3>
+<ul>
+  <li><strong>分层加载</strong>：权重从对象存储（S3/OSS）→ CPU DRAM → GPU HBM。大模型（70B+）加载需 10-30 秒，用 <strong>parallel loading</strong>（多流 cudaMemcpy）加速。</li>
+  <li><strong>模型缓存</strong>：节点本地 SSD 缓存热门模型，避免重复拉取。</li>
+  <li><strong>热更新</strong>：滚动更新时，新 Pod 先加载权重，再切流量，避免冷启动 TTFT 飙升。K8s 可用 <code>preStop</code> + <code>readinessProbe</code> 控制。</li>
+</ul>
+
+<!-- ===================== 8. Profile ===================== -->
+<h2 id="profile">8. 性能分析</h2>
+
+<h3>8.1 Roofline Model 在推理中的应用</h3>
+<p>快速定位瓶颈类型：</p>
+<ul>
+  <li><strong>Compute-bound</strong>：Prefill 阶段、大 batch decode、MoE 的 All-to-All 前计算。</li>
+  <li><strong>Memory-bound</strong>：小 batch decode、长上下文 KV Cache 读取、权重读取。</li>
+  <li><strong>Communication-bound</strong>：TP/EP 的 AllReduce/All-to-All、PD 分离的 KV 传输。</li>
+</ul>
+<div class="formula">
+  算术强度 = FLOPs / Bytes &nbsp;（单位：FLOP/Byte）<br>
+  A100 HBM 带宽 2039 GB/s，FP16 Tensor Core 312 TFLOPS → 屋顶线拐点 ≈ 153 FLOP/Byte
+</div>
+<p>Decode 阶段 GEMV 的算术强度通常 < 10，远低于拐点，故绝对内存 bound。</p>
+
+<h3>8.2 工具链</h3>
+<table>
+  <tr><th>工具</th><th>用途</th><th>关键指标</th></tr>
+  <tr><td>Nsight Systems</td><td>Timeline 分析，看 kernel launch gap、通信重叠</td><td>GPU idle %, cudaMemcpy 占比</td></tr>
+  <tr><td>Nsight Compute</td><td>单 kernel 微架构分析</td><td>Memory throughput, Tensor Core 利用率, Warp Stall</td></tr>
+  <tr><td>PyTorch Profiler</td><td>Python 层算子耗时</td><td>Op-level latency, memory allocation</td></tr>
+  <tr><td>nvidia-smi dmon</td><td>实时监控</td><td>GPU util, memory, temp, power</td></tr>
+  <tr><td>iperf/ib_write_bw</td><td>网络带宽基线</td><td>RDMA 实际带宽 vs 理论带宽</td></tr>
+</table>
+
+<h3>8.3 一个典型 Decode 瓶颈分析案例</h3>
+<ol>
+  <li>用 Nsight Systems 发现 GPU 利用率仅 30%，但 HBM 带宽 1800 GB/s（接近上限）。</li>
+  <li>确认内存 bound：FlashDecoding 的 KV chunk 读取占 85% 时间。</li>
+  <li>尝试增大 batch size：显存不足（KV Cache 占满）。</li>
+  <li>启用 KV Cache INT8 量化：显存减半，batch size 翻倍，TPOT 降低 40%。</li>
+  <li>但精度下降，改用 FP8（H100）：速度比 INT8 快 15%，精度无损。</li>
+</ol>
+
+<div class="warn-box">
+  <strong>最后提醒</strong>：推理优化没有银弹。长上下文场景优先优化 KV Cache 管理和 Attention 算子；高并发场景优先优化 Batching 和调度；MoE 场景优先优化 All-to-All 通信。先 profile，再优化，避免盲目上量化或 PD 分离。
+</div>
+
+</div>
+</body>
+</html>

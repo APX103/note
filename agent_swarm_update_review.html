@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent Swarm 更新后 Review：SQLite 持久化 + Metrics 落地</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans SC', system-ui, -apple-system, sans-serif;
+            background: #f8fafc;
+        }
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .gradient-text {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+        .card-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.12);
+        }
+        .toc-link.active {
+            color: #4f46e5;
+            border-left-color: #4f46e5;
+            background: linear-gradient(90deg, rgba(79, 70, 229, 0.08) 0%, transparent 100%);
+        }
+        .scroll-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #4f46e5 0%, #7c3aed 100%);
+            z-index: 1000;
+            transition: width 0.1s;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #c7c7c7;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #a0a0a0;
+        }
+        .section-divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent 0%, #e5e7eb 20%, #e5e7eb 80%, transparent 100%);
+        }
+        .tag {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            letter-spacing: 0.025em;
+        }
+        .status-good { background: #d1fae5; color: #065f46; }
+        .status-mid { background: #fef3c7; color: #92400e; }
+        .status-bad { background: #fee2e2; color: #991b1b; }
+    </style>
+</head>
+<body class="text-slate-800">
+    <div class="scroll-indicator" id="scrollIndicator"></div>
+
+    <div class="max-w-5xl mx-auto px-6 py-16">
+        <!-- Header -->
+        <header class="mb-16">
+            <div class="flex items-center gap-3 mb-4">
+                <span class="tag bg-indigo-100 text-indigo-700">更新 Review</span>
+                <span class="tag bg-slate-100 text-slate-600">2026-06-15</span>
+            </div>
+            <h1 class="text-4xl md:text-5xl font-bold mb-6 gradient-text">Agent Swarm 更新后 Review</h1>
+            <p class="text-2xl text-slate-500 mb-4">SQLite 持久化 + Metrics 落地评估</p>
+            <p class="text-xl text-slate-500 leading-relaxed max-w-3xl">
+                针对最新 commit（<code class="font-mono bg-slate-100 px-2 py-1 rounded">c7758e0</code> 之前的一系列改动）重新 review。这次更新确实把多个关键生产化能力往前推进了一大步。
+            </p>
+        </header>
+
+        <!-- Executive Summary -->
+        <section class="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 mb-12 card-hover">
+            <h2 class="text-2xl font-bold mb-4 flex items-center gap-3">
+                <span class="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center text-sm">📋</span>
+                总体评价
+            </h2>
+            <div class="prose prose-slate max-w-none">
+                <p class="text-slate-600 leading-relaxed mb-4">
+                    这次更新<strong>非常关键</strong>：从"单进程内存状态"进化为"SQLite 持久化任务 + 会话 + 进程重启恢复"，并补齐了 dispatch 指标可观测性。这些正是之前研究报告里标为 P0/P1 的高优先级项。
+                </p>
+                <p class="text-slate-600 leading-relaxed mb-4">
+                    实现质量较高：Write-through cache、WAL 模式、零额外依赖、可选注入、保持现有 API 不变。测试也覆盖了 save/restore 和多实例恢复场景。
+                </p>
+                <p class="text-slate-600 leading-relaxed">
+                    但仍有一个<strong>功能性缺口</strong>需要注意：<code class="font-mono bg-slate-100 px-2 py-1 rounded">TaskManager.list_tasks()</code> 重启后不会从 SQLite 加载历史任务列表。以及之前讨论的 <strong>Event-First 全量上下文</strong>仍未引入。
+                </p>
+            </div>
+        </section>
+
+        <!-- Table of Contents -->
+        <section class="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 mb-12">
+            <h2 class="text-xl font-bold mb-6">目录</h2>
+            <nav class="grid md:grid-cols-2 gap-3">
+                <a href="#sqlite" class="toc-link block px-4 py-3 rounded-lg border-l-2 border-transparent hover:bg-slate-50 transition">1. SQLite 持久化 Review</a>
+                <a href="#metrics" class="toc-link block px-4 py-3 rounded-lg border-l-2 border-transparent hover:bg-slate-50 transition">2. Metrics 实现 Review</a>
+                <a href="#resolved" class="toc-link block px-4 py-3 rounded-lg border-l-2 border-transparent hover:bg-slate-50 transition">3. 之前的问题哪些已解决</a>
+                <a href="#remaining" class="toc-link block px-4 py-3 rounded-lg border-l-2 border-transparent hover:bg-slate-50 transition">4. 仍存在的问题</a>
+                <a href="#adk" class="toc-link block px-4 py-3 rounded-lg border-l-2 border-transparent hover:bg-slate-50 transition">5. ADK 对比更新</a>
+                <a href="#next" class="toc-link block px-4 py-3 rounded-lg border-l-2 border-transparent hover:bg-slate-50 transition">6. 下一步建议</a>
+            </nav>
+        </section>
+
+        <!-- 1. SQLite Persistence -->
+        <section id="sqlite" class="mb-16">
+            <h2 class="text-3xl font-bold mb-8 flex items-center gap-3">
+                <span class="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">01</span>
+                SQLite 持久化 Review
+            </h2>
+
+            <div class="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 mb-8 card-hover">
+                <h3 class="text-xl font-semibold mb-4">实现概览</h3>
+                <p class="text-slate-600 leading-relaxed mb-4">
+                    新增 <code class="font-mono bg-slate-100 px-2 py-1 rounded">src/storage/sqlite_store.py</code>，内置两张表：
+                </p>
+                <ul class="list-disc list-inside text-slate-600 space-y-2 mb-4">
+                    <li><code class="font-mono bg-slate-100 px-1 rounded">tasks</code>：持久化任务元数据（status、result、artifacts、work_dir、session_id 等）。</li>
+                    <li><code class="font-mono bg-slate-100 px-1 rounded">sessions</code>：持久化会话上下文（messages、shared_context、work_dir）。</li>
+                </ul>
+                <p class="text-slate-600 leading-relaxed">
+                    <code class="font-mono bg-slate-100 px-2 py-1 rounded">main.py</code> 在启动时创建 <code class="font-mono bg-slate-100 px-1 rounded">SQLiteStore</code>，并注入到 <code class="font-mono bg-slate-100 px-1 rounded">TaskManager</code> 和 <code class="font-mono bg-slate-100 px-1 rounded">SessionManager</code>。两者仍然保留内存缓存，写操作时同步落库。
+                </p>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-6 mb-8">
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <h3 class="text-lg font-semibold mb-3 text-emerald-700">亮点</h3>
+                    <ul class="space-y-3 text-slate-600 text-sm">
+                        <li class="flex items-start gap-2"><span class="text-emerald-500 mt-1">✓</span> <strong>零依赖</strong>：只用 Python 内置 sqlite3，符合 CLAUDE.md "不引入新依赖" 原则。</li>
+                        <li class="flex items-start gap-2"><span class="text-emerald-500 mt-1">✓</span> <strong>WAL 模式</strong>：<code class="font-mono bg-slate-100 px-1 rounded">PRAGMA journal_mode=WAL</code> 提升并发写入性能。</li>
+                        <li class="flex items-start gap-2"><span class="text-emerald-500 mt-1">✓</span> <strong>Write-through cache</strong>：内存缓存快速读，每次变更同步写库。</li>
+                        <li class="flex items-start gap-2"><span class="text-emerald-500 mt-1">✓</span> <strong>可选注入</strong>：<code class="font-mono bg-slate-100 px-1 rounded">store=None</code> 时自动降级为文件系统，测试更灵活。</li>
+                        <li class="flex items-start gap-2"><span class="text-emerald-500 mt-1">✓</span> <strong>向后兼容</strong>：不破坏现有 API 签名。</li>
+                    </ul>
+                </div>
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <h3 class="text-lg font-semibold mb-3 text-amber-700">可优化</h3>
+                    <ul class="space-y-3 text-slate-600 text-sm">
+                        <li class="flex items-start gap-2"><span class="text-amber-500 mt-1">!</span> <strong>未复用连接</strong>：每次操作新建连接。当前写入频率不高，没问题；高并发时可以考虑连接池。</li>
+                        <li class="flex items-start gap-2"><span class="text-amber-500 mt-1">!</span> <strong>JSON 字段无 schema</strong>：<code class="font-mono bg-slate-100 px-1 rounded">messages</code>/<code class="font-mono bg-slate-100 px-1 rounded">artifacts</code> 直接 json.dumps，失去 SQL 查询能力。但当前用例不需要对 message 内容做 SQL 查询，可以接受。</li>
+                        <li class="flex items-start gap-2"><span class="text-amber-500 mt-1">!</span> <strong>DB 路径硬编码</strong>：<code class="font-mono bg-slate-100 px-1 rounded">settings.storage.shared_output_base + "/swarm.db"</code>。建议进 config。</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 card-hover">
+                <h3 class="text-xl font-semibold mb-4">SessionManager 的降级策略做得好</h3>
+                <p class="text-slate-600 leading-relaxed">
+                    <code class="font-mono bg-slate-100 px-2 py-1 rounded">SessionManager</code> 同时支持 SQLite 和文件系统 JSON：<code class="font-mono bg-slate-100 px-1 rounded">_load_persistent()</code> 优先查 store，miss 再查 <code class="font-mono bg-slate-100 px-1 rounded">_session/context.json</code>。这种"新存储优先 + 老格式兼容"的降级思路非常稳健，避免老 session 数据在升级后丢失。
+                </p>
+            </div>
+        </section>
+
+        <div class="section-divider mb-16"></div>
+
+        <!-- 2. Metrics -->
+        <section id="metrics" class="mb-16">
+            <h2 class="text-3xl font-bold mb-8 flex items-center gap-3">
+                <span class="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">02</span>
+                Metrics 实现 Review
+            </h2>
+
+            <div class="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 mb-8 card-hover">
+                <h3 class="text-xl font-semibold mb-4">实现概览</h3>
+                <p class="text-slate-600 leading-relaxed mb-4">
+                    新增 <code class="font-mono bg-slate-100 px-2 py-1 rounded">src/observability/metrics.py</code>，一个轻量级 in-memory Metrics 类：
+                </p>
+                <ul class="list-disc list-inside text-slate-600 space-y-2 mb-4">
+                    <li><code class="font-mono bg-slate-100 px-1 rounded">dispatch_total</code>：总调度次数</li>
+                    <li><code class="font-mono bg-slate-100 px-1 rounded">success</code> / <code class="font-mono bg-slate-100 px-1 rounded">failure</code>：成功/失败次数</li>
+                    <li><code class="font-mono bg-slate-100 px-1 rounded">avg_latency_ms</code>：平均延迟</li>
+                    <li><code class="font-mono bg-slate-100 px-1 rounded">failure_rate</code>：失败率</li>
+                </ul>
+                <p class="text-slate-600 leading-relaxed">
+                    Dispatcher 在 <code class="font-mono bg-slate-100 px-2 py-1 rounded">dispatch()</code> 入口统一记录耗时和结果，并通过 <code class="font-mono bg-slate-100 px-1 rounded">GET /api/v1/metrics</code> 暴露 snapshot。
+                </p>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <h3 class="text-lg font-semibold mb-3 text-emerald-700">亮点</h3>
+                    <ul class="space-y-3 text-slate-600 text-sm">
+                        <li class="flex items-start gap-2"><span class="text-emerald-500 mt-1">✓</span> <strong>线程安全</strong>：用了 <code class="font-mono bg-slate-100 px-1 rounded">threading.Lock</code>，适合 uvicorn 多线程。</li>
+                        <li class="flex items-start gap-2"><span class="text-emerald-500 mt-1">✓</span> <strong>聚合位置正确</strong>：在 Dispatcher 入口记录，覆盖所有后端（Docker + External Agent）。</li>
+                        <li class="flex items-start gap-2"><span class="text-emerald-500 mt-1">✓</span> <strong>API 简洁</strong>：一个 JSON endpoint，便于对接监控或本地调试。</li>
+                    </ul>
+                </div>
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <h3 class="text-lg font-semibold mb-3 text-amber-700">可扩展</h3>
+                    <ul class="space-y-3 text-slate-600 text-sm">
+                        <li class="flex items-start gap-2"><span class="text-amber-500 mt-1">!</span> <strong>重启归零</strong>：in-memory 指标，进程重启后丢失。对指标来说通常可接受。</li>
+                        <li class="flex items-start gap-2"><span class="text-amber-500 mt-1">!</span> <strong>缺少 per-agent 统计</strong>：目前只有全局聚合，无法看出哪个 agent_type 失败率高。</li>
+                        <li class="flex items-start gap-2"><span class="text-amber-500 mt-1">!</span> <strong>缺少候选尝试次数</strong>：重试/故障转移次数没有记录。</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <div class="section-divider mb-16"></div>
+
+        <!-- 3. Resolved Issues -->
+        <section id="resolved" class="mb-16">
+            <h2 class="text-3xl font-bold mb-8 flex items-center gap-3">
+                <span class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center">03</span>
+                之前调研标出的问题，哪些已解决
+            </h2>
+
+            <div class="overflow-x-auto">
+                <table class="w-full bg-white rounded-2xl shadow-sm border border-slate-200">
+                    <thead class="bg-slate-50 border-b border-slate-200">
+                        <tr>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-slate-700">原问题</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-slate-700">状态</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-slate-700">说明</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        <tr>
+                            <td class="px-6 py-4 font-medium text-slate-800">Session 无持久化</td>
+                            <td class="px-6 py-4"><span class="tag status-good">已解决</span></td>
+                            <td class="px-6 py-4 text-slate-600">SQLite + 文件 fallback，进程重启可恢复。</td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 font-medium text-slate-800">多轮对话无上下文记忆</td>
+                            <td class="px-6 py-4"><span class="tag status-good">已解决</span></td>
+                            <td class="px-6 py-4 text-slate-600">同一 session_id 复用 work_dir 和 messages。</td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 font-medium text-slate-800">可观测性只有日志</td>
+                            <td class="px-6 py-4"><span class="tag status-mid">部分解决</span></td>
+                            <td class="px-6 py-4 text-slate-600">已有 dispatch 全局指标，缺 per-agent/候选尝试统计。</td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 font-medium text-slate-800">任务状态重启丢失</td>
+                            <td class="px-6 py-4"><span class="tag status-good">已解决</span></td>
+                            <td class="px-6 py-4 text-slate-600">Task 元数据持久化到 SQLite，<code class="font-mono bg-slate-100 px-1 rounded">get_task</code> 可恢复。</td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 font-medium text-slate-800">SessionManager 单进程</td>
+                            <td class="px-6 py-4"><span class="tag status-mid">部分解决</span></td>
+                            <td class="px-6 py-4 text-slate-600">SQLite 让多进程可读同一份数据，但并发写入依赖 WAL，未加显式锁。</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <div class="section-divider mb-16"></div>
+
+        <!-- 4. Remaining Issues -->
+        <section id="remaining" class="mb-16">
+            <h2 class="text-3xl font-bold mb-8 flex items-center gap-3">
+                <span class="w-10 h-10 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center">04</span>
+                仍存在的问题
+            </h2>
+
+            <div class="space-y-6">
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center flex-shrink-0">1</div>
+                        <div>
+                            <h3 class="text-lg font-semibold mb-2"><span class="tag status-bad">功能缺口</span> list_tasks 重启后不查 SQLite</h3>
+                            <p class="text-slate-600 leading-relaxed text-sm mb-3">
+                                <code class="font-mono bg-slate-100 px-1 rounded">TaskManager.list_tasks()</code> 只返回 <code class="font-mono bg-slate-100 px-1 rounded">self._tasks.values()</code>，没有从 SQLite 加载历史任务。这意味着：
+                            </p>
+                            <ul class="list-disc list-inside text-slate-600 text-sm space-y-1 mb-3">
+                                <li>进程重启后，调用 <code class="font-mono bg-slate-100 px-1 rounded">GET /api/tasks</code> 返回空列表。</li>
+                                <li>只有先通过 <code class="font-mono bg-slate-100 px-1 rounded">GET /api/tasks/{task_id}</code> 把某个任务 <code class="font-mono bg-slate-100 px-1 rounded">get_task()</code> 进内存后，它才会出现在 list 里。</li>
+                            </ul>
+                            <p class="text-slate-600 leading-relaxed text-sm">
+                                修复建议：<code class="font-mono bg-slate-100 px-1 rounded">list_tasks(tenant_id)</code> 应该 merge 内存缓存和 SQLite 查询结果，去重后按 created_at 排序返回。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center flex-shrink-0">2</div>
+                        <div>
+                            <h3 class="text-lg font-semibold mb-2">其他关键状态仍 in-memory</h3>
+                            <p class="text-slate-600 leading-relaxed text-sm mb-3">
+                                虽然 task/session 已持久化，但以下状态仍是进程内存：
+                            </p>
+                            <ul class="list-disc list-inside text-slate-600 text-sm space-y-1 mb-3">
+                                <li>幂等索引 <code class="font-mono bg-slate-100 px-1 rounded">_idempotency_index</code></li>
+                                <li>per-tenant 并发信号量 <code class="font-mono bg-slate-100 px-1 rounded">_tenant_semaphores</code></li>
+                                <li>运行中编排任务映射 <code class="font-mono bg-slate-100 px-1 rounded">_running_orchestrations</code></li>
+                                <li>死信存储 <code class="font-mono bg-slate-100 px-1 rounded">DeadLetterStore</code></li>
+                                <li>结果缓存 <code class="font-mono bg-slate-100 px-1 rounded">ResultCache</code></li>
+                                <li>熔断器状态 <code class="font-mono bg-slate-100 px-1 rounded">_breakers</code></li>
+                            </ul>
+                            <p class="text-slate-600 leading-relaxed text-sm">
+                                多 uvicorn worker 部署时，这些状态仍无法共享。但优先级低于 task/session 持久化。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center flex-shrink-0">3</div>
+                        <div>
+                            <h3 class="text-lg font-semibold mb-2">Event-First 全量上下文仍未引入</h3>
+                            <p class="text-slate-600 leading-relaxed text-sm">
+                                当前 persistence 只保存了 <code class="font-mono bg-slate-100 px-1 rounded">messages</code> 和 <code class="font-mono bg-slate-100 px-1 rounded">shared_context</code>。工具调用细节、Agent-Agent 交互链、状态变更历史、取消事件等仍未结构化记录。如果目标是"复现现场"，还需要引入 ADK 式的 Event 模型。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center flex-shrink-0">4</div>
+                        <div>
+                            <h3 class="text-lg font-semibold mb-2">任务/会话并发写入安全</h3>
+                            <p class="text-slate-600 leading-relaxed text-sm">
+                                SQLite WAL 能处理并发读，但 <code class="font-mono bg-slate-100 px-1 rounded">TaskManager</code> 和 <code class="font-mono bg-slate-100 px-1 rounded">SessionManager</code> 内部没有针对同一 task/session 的显式锁。极端情况下，两个请求同时更新同一个 session 可能产生竞态。可以引入 version 乐观锁或 asyncio.Lock。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="section-divider mb-16"></div>
+
+        <!-- 5. ADK Comparison Update -->
+        <section id="adk" class="mb-16">
+            <h2 class="text-3xl font-bold mb-8 flex items-center gap-3">
+                <span class="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">05</span>
+                ADK 对比更新
+            </h2>
+
+            <div class="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 mb-8 card-hover">
+                <h3 class="text-xl font-semibold mb-4">持久化层面对齐度提升</h3>
+                <p class="text-slate-600 leading-relaxed mb-4">
+                    ADK 的 <code class="font-mono bg-slate-100 px-2 py-1 rounded">SessionService</code> 提供可插拔持久化（内存/数据库/Vertex）。Agent Swarm 现在用 <code class="font-mono bg-slate-100 px-2 py-1 rounded">SQLiteStore</code> 实现了类似效果，虽然还没抽象成协议，但已经具备"把 session 和 task 持久化到外部存储"的能力。
+                </p>
+                <p class="text-slate-600 leading-relaxed">
+                    差距主要在于：ADK 持久化的是 <strong>events</strong>，Agent Swarm 持久化的是 <strong>messages + state</strong>。前者更完整，后者更高效。
+                </p>
+            </div>
+
+            <div class="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 card-hover">
+                <h3 class="text-xl font-semibold mb-4">当前 Agent Swarm 路线 vs ADK 路线</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-slate-50 border-b border-slate-200">
+                            <tr>
+                                <th class="px-4 py-3 text-left font-semibold text-slate-700">能力</th>
+                                <th class="px-4 py-3 text-left font-semibold text-slate-700">Agent Swarm 当前</th>
+                                <th class="px-4 py-3 text-left font-semibold text-slate-700">ADK</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            <tr>
+                                <td class="px-4 py-3 font-medium text-slate-800">持久化</td>
+                                <td class="px-4 py-3 text-slate-600">SQLite 持久化 messages/state</td>
+                                <td class="px-4 py-3 text-slate-600">可插拔 SessionService，持久化 events</td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-3 font-medium text-slate-800">多轮对话</td>
+                                <td class="px-4 py-3 text-slate-600">✅ 已支持</td>
+                                <td class="px-4 py-3 text-slate-600">✅ 原生支持</td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-3 font-medium text-slate-800">Agent-Agent 追溯</td>
+                                <td class="px-4 py-3 text-slate-600">❌ 无结构化记录</td>
+                                <td class="px-4 py-3 text-slate-600">✅ 通过 author/branch/parent_id</td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-3 font-medium text-slate-800">状态变更审计</td>
+                                <td class="px-4 py-3 text-slate-600">❌ 只有最终 state</td>
+                                <td class="px-4 py-3 text-slate-600">✅ state_delta 事件链</td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-3 font-medium text-slate-800">可观测性</td>
+                                <td class="px-4 py-3 text-slate-600">✅ 基础 dispatch metrics</td>
+                                <td class="px-4 py-3 text-slate-600">✅ 更丰富的事件体系</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <div class="section-divider mb-16"></div>
+
+        <!-- 6. Next Steps -->
+        <section id="next" class="mb-16">
+            <h2 class="text-3xl font-bold mb-8 flex items-center gap-3">
+                <span class="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">06</span>
+                下一步建议
+            </h2>
+
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-center gap-3 mb-4">
+                        <span class="tag status-bad">P0</span>
+                        <h3 class="text-lg font-semibold">修复 list_tasks 的 SQLite 加载</h3>
+                    </div>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        这是当前最明显的功能缺口。重启后 <code class="font-mono bg-slate-100 px-1 rounded">GET /api/tasks</code> 应该能列出历史任务。
+                    </p>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-center gap-3 mb-4">
+                        <span class="tag status-mid">P1</span>
+                        <h3 class="text-lg font-semibold">SessionService / TaskService 抽象</h3>
+                    </div>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        把 <code class="font-mono bg-slate-100 px-1 rounded">SQLiteStore</code> 的职责拆成协议（Protocol），让 File/InMemory/SQLite/Redis 实现可以互换。这也方便未来迁移到 Redis。
+                    </p>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-center gap-3 mb-4">
+                        <span class="tag status-mid">P1</span>
+                        <h3 class="text-lg font-semibold">引入 Event 日志层</h3>
+                    </div>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        保留 messages 给 LLM，同时追加 Event 日志到 SQLite（或 JSONL）。优先记录 tool_call/tool_result、dispatch、agent_progress、error、cancel。
+                    </p>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-center gap-3 mb-4">
+                        <span class="tag status-mid">P1</span>
+                        <h3 class="text-lg font-semibold">扩展 Metrics</h3>
+                    </div>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        增加 per-agent 统计、候选尝试次数、重试次数。可以让 Metrics 按 <code class="font-mono bg-slate-100 px-1 rounded">(agent_type)</code> 维度分桶。
+                    </p>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-center gap-3 mb-4">
+                        <span class="tag status-mid">P2</span>
+                        <h3 class="text-lg font-semibold">其他状态 Redis 化</h3>
+                    </div>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        幂等索引、结果缓存、熔断器、死信存储逐步迁移到 Redis。这一步在真正需要多 worker 部署前完成即可。
+                    </p>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-center gap-3 mb-4">
+                        <span class="tag status-mid">P2</span>
+                        <h3 class="text-lg font-semibold">并发写入安全</h3>
+                    </div>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        为同一 session/task 的更新加乐观锁（version 字段）或 asyncio 锁，避免竞态覆盖。
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <div class="section-divider mb-16"></div>
+
+        <!-- Summary -->
+        <section class="mb-16">
+            <h2 class="text-3xl font-bold mb-8 flex items-center gap-3">
+                <span class="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">07</span>
+                总结
+            </h2>
+
+            <div class="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 card-hover">
+                <p class="text-slate-600 leading-relaxed mb-4">
+                    这次更新是 Agent Swarm 从"原型"走向"可用系统"的重要一步。SQLite 持久化和 Metrics 的实现质量都很高，且严格遵循了项目的工程纪律（零新依赖、保持 API 稳定、TDD）。
+                </p>
+                <p class="text-slate-600 leading-relaxed mb-4">
+                    但也引入了一个需要尽快修的小 bug：<code class="font-mono bg-slate-100 px-2 py-1 rounded">list_tasks()</code> 没有从 SQLite 恢复历史任务列表。修复后，任务/会话的持久化闭环才算完整。
+                </p>
+                <p class="text-slate-600 leading-relaxed">
+                    在 ADK 视角下，Agent Swarm 已经在"持久化"这个维度上追了上来，但在"Event-First 全量上下文"上仍有差距。考虑到项目的工程目标和复杂度，当前路线是合理的：先解决最痛的生存问题，再逐步完善可观测性。
+                </p>
+            </div>
+        </section>
+
+        <footer class="text-center text-slate-400 text-sm pt-8 border-t border-slate-200">
+            <p>更新后 Review · 生成于 2026-06-15 · 基于 Agent Swarm 最新 SQLite + Metrics 改动</p>
+        </footer>
+    </div>
+
+    <script>
+        window.addEventListener('scroll', () => {
+            const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+            const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            const scrolled = (winScroll / height) * 100;
+            document.getElementById('scrollIndicator').style.width = scrolled + '%';
+        });
+
+        const sections = document.querySelectorAll('section[id]');
+        const tocLinks = document.querySelectorAll('.toc-link');
+        window.addEventListener('scroll', () => {
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                if (scrollY >= sectionTop - 200) {
+                    current = section.getAttribute('id');
+                }
+            });
+            tocLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === '#' + current) {
+                    link.classList.add('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

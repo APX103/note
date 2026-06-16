@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent Swarm 项目深度研究报告</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans SC', system-ui, -apple-system, sans-serif;
+            background: #f8fafc;
+        }
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .gradient-text {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+        .card-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.12);
+        }
+        .toc-link.active {
+            color: #4f46e5;
+            border-left-color: #4f46e5;
+            background: linear-gradient(90deg, rgba(79, 70, 229, 0.08) 0%, transparent 100%);
+        }
+        .scroll-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #4f46e5 0%, #7c3aed 100%);
+            z-index: 1000;
+            transition: width 0.1s;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #c7c7c7;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #a0a0a0;
+        }
+        .section-divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent 0%, #e5e7eb 20%, #e5e7eb 80%, transparent 100%);
+        }
+        .tag {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            letter-spacing: 0.025em;
+        }
+        .risk-high { background: #fee2e2; color: #991b1b; }
+        .risk-mid { background: #fef3c7; color: #92400e; }
+        .risk-low { background: #d1fae5; color: #065f46; }
+        .good { background: #d1fae5; color: #065f46; }
+        .warn { background: #fef3c7; color: #92400e; }
+        .bad { background: #fee2e2; color: #991b1b; }
+    </style>
+</head>
+<body class="text-slate-800">
+    <div class="scroll-indicator" id="scrollIndicator"></div>
+
+    <div class="max-w-5xl mx-auto px-6 py-16">
+        <!-- Header -->
+        <header class="mb-16">
+            <div class="flex items-center gap-3 mb-4">
+                <span class="tag bg-indigo-100 text-indigo-700">研究报告</span>
+                <span class="tag bg-slate-100 text-slate-600">2026-06-15</span>
+            </div>
+            <h1 class="text-4xl md:text-5xl font-bold mb-6 gradient-text">Agent Swarm 项目深度研究报告</h1>
+            <p class="text-xl text-slate-500 leading-relaxed max-w-3xl">
+                对 <code class="font-mono text-sm bg-slate-100 px-2 py-1 rounded">/Users/lijialun/work/swarm</code> 的架构、实现与工程化水平进行系统性评估。报告力求客观：既总结设计亮点与已验证能力，也指出当前存在的风险与改进空间。
+            </p>
+        </header>
+
+        <!-- Executive Summary -->
+        <section class="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 mb-12 card-hover">
+            <h2 class="text-2xl font-bold mb-4 flex items-center gap-3">
+                <span class="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center text-sm">📋</span>
+                执行摘要
+            </h2>
+            <div class="prose prose-slate max-w-none">
+                <p class="text-slate-600 leading-relaxed mb-4">
+                    Agent Swarm 是一个基于 Docker 的多 Agent 协作系统，采用 A2A 协议实现 Agent 间通信。它通过 LLM tool-calling 编排器把用户请求拆解为计划，再并行调度多个 Worker Agent（前端/后端/通用）在隔离容器中执行，最终由编排器审查产物并交付结果。
+                </p>
+                <div class="grid md:grid-cols-3 gap-4 mt-6">
+                    <div class="bg-emerald-50 rounded-xl p-5 border border-emerald-100">
+                        <div class="text-2xl font-bold text-emerald-700 mb-1">280</div>
+                        <div class="text-sm text-emerald-600">测试通过数</div>
+                        <div class="text-xs text-emerald-500 mt-1">测试/代码比接近 1:1</div>
+                    </div>
+                    <div class="bg-indigo-50 rounded-xl p-5 border border-indigo-100">
+                        <div class="text-2xl font-bold text-indigo-700 mb-1">~5,300</div>
+                        <div class="text-sm text-indigo-600">Python 源代码行数</div>
+                        <div class="text-xs text-indigo-500 mt-1">结构清晰，模块职责明确</div>
+                    </div>
+                    <div class="bg-amber-50 rounded-xl p-5 border border-amber-100">
+                        <div class="text-2xl font-bold text-amber-700 mb-1">P1~P5</div>
+                        <div class="text-sm text-amber-600"> roadmap 待办</div>
+                        <div class="text-xs text-amber-500 mt-1">生产化与安全仍有缺口</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Table of Contents -->
+        <section class="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 mb-12">
+            <h2 class="text-xl font-bold mb-6">目录</h2>
+            <nav class="grid md:grid-cols-2 gap-3">
+                <a href="#overview" class="toc-link block px-4 py-3 rounded-lg border-l-2 border-transparent hover:bg-slate-50 transition">1. 项目概览与定位</a>
+                <a href="#architecture" class="toc-link block px-4 py-3 rounded-lg border-l-2 border-transparent hover:bg-slate-50 transition">2. 架构设计分析</a>
+                <a href="#strengths" class="toc-link block px-4 py-3 rounded-lg border-l-2 border-transparent hover:bg-slate-50 transition">3. 核心亮点（优点）</a>
+                <a href="#weaknesses" class="toc-link block px-4 py-3 rounded-lg border-l-2 border-transparent hover:bg-slate-50 transition">4. 问题与风险（缺点）</a>
+                <a href="#recommendations" class="toc-link block px-4 py-3 rounded-lg border-l-2 border-transparent hover:bg-slate-50 transition">5. 改进建议</a>
+                <a href="#conclusion" class="toc-link block px-4 py-3 rounded-lg border-l-2 border-transparent hover:bg-slate-50 transition">6. 总结</a>
+            </nav>
+        </section>
+
+        <!-- 1. Overview -->
+        <section id="overview" class="mb-16">
+            <h2 class="text-3xl font-bold mb-8 flex items-center gap-3">
+                <span class="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">01</span>
+                项目概览与定位
+            </h2>
+
+            <div class="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 mb-8 card-hover">
+                <h3 class="text-xl font-semibold mb-4">一句话定位</h3>
+                <p class="text-slate-600 leading-relaxed">
+                    Agent Swarm 是"一个能真正把用户一句话变成可运行工程"的多 Agent 协作运行时。它不是单纯的 Agent 框架，而是围绕<strong>计划 → 分派 → 执行 → 审查 → 交付</strong>完整闭环构建的、带有 Docker 隔离和 A2A 通信协议的生产原型。
+                </p>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-6 mb-8">
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <h3 class="text-lg font-semibold mb-4">核心能力</h3>
+                    <ul class="space-y-3 text-slate-600">
+                        <li class="flex items-start gap-2"><span class="text-emerald-500 mt-1">✓</span> 自然语言请求自动拆解为计划与 API 契约</li>
+                        <li class="flex items-start gap-2"><span class="text-emerald-500 mt-1">✓</span> 多 Agent 并行调度（前端 + 后端可并发）</li>
+                        <li class="flex items-start gap-2"><span class="text-emerald-500 mt-1">✓</span> Worker 在隔离 Docker 容器中运行</li>
+                        <li class="flex items-start gap-2"><span class="text-emerald-500 mt-1">✓</span> 编排器主动审查并对齐前后端接口</li>
+                        <li class="flex items-start gap-2"><span class="text-emerald-500 mt-1">✓</span> 外部 Agent 注册与调用（OpenAI/A2A/MCP/CLI）</li>
+                        <li class="flex items-start gap-2"><span class="text-emerald-500 mt-1">✓</span> WebSocket 实时进度流</li>
+                        <li class="flex items-start gap-2"><span class="text-emerald-500 mt-1">✓</span> 会话持久化与多轮对话（近期新增）</li>
+                    </ul>
+                </div>
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <h3 class="text-lg font-semibold mb-4">技术栈</h3>
+                    <ul class="space-y-3 text-slate-600">
+                        <li class="flex items-start gap-2"><span class="text-indigo-500 mt-1">●</span> <strong>Python 3.13</strong> + FastAPI + Uvicorn</li>
+                        <li class="flex items-start gap-2"><span class="text-indigo-500 mt-1">●</span> <strong>OpenAI SDK</strong> 调用 GLM Coding Plan（glm-4.7）</li>
+                        <li class="flex items-start gap-2"><span class="text-indigo-500 mt-1">●</span> <strong>Docker SDK</strong> 管理 warm pool 容器</li>
+                        <li class="flex items-start gap-2"><span class="text-indigo-500 mt-1">●</span> <strong>Redis</strong> 作为 Agent 注册中心</li>
+                        <li class="flex items-start gap-2"><span class="text-indigo-500 mt-1">●</span> <strong>A2A JSON-RPC</strong> over HTTP</li>
+                        <li class="flex items-start gap-2"><span class="text-indigo-500 mt-1">●</span> <strong>pytest + pytest-asyncio</strong> 测试</li>
+                        <li class="flex items-start gap-2"><span class="text-indigo-500 mt-1">●</span> <strong>Pydantic v2</strong> 模型校验</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <div class="section-divider mb-16"></div>
+
+        <!-- 2. Architecture -->
+        <section id="architecture" class="mb-16">
+            <h2 class="text-3xl font-bold mb-8 flex items-center gap-3">
+                <span class="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">02</span>
+                架构设计分析
+            </h2>
+
+            <div class="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 mb-8 card-hover">
+                <h3 class="text-xl font-semibold mb-6">高层数据流</h3>
+                <div class="bg-slate-900 rounded-xl p-6 overflow-x-auto">
+                    <pre class="font-mono text-sm text-slate-300 leading-relaxed">
+用户 → POST /api/chat
+           ↓
+    FastAPI Server (:9000)
+           ↓
+┌─────────────────────────┐
+│   Orchestrator Agent    │  LLM tool-calling 循环
+│  plan → dispatch → review → finalize
+└───────────┬─────────────┘
+            │ DispatchRequest
+            ▼
+┌──────────────────────────────────────────┐
+│  Unified Dispatcher                      │
+│  ├─ DockerBackend (warm container pool) │
+│  └─ ExternalAgentBackend (registry)     │
+└──────────────────────────────────────────┘
+            │
+    ┌───────┴───────┐
+    ▼               ▼
+Docker Worker   External Agent
+(frontend/      (OpenAI/A2A/MCP/CLI)
+ backend)
+    │
+    ▼
+shared_output/tenants/{tenant}/tasks/{task}/
+├── _plan/project_plan.md
+├── frontend/
+├── backend/
+└── _final/
+                    </pre>
+                </div>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-6 mb-8">
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <h3 class="text-lg font-semibold mb-3 text-indigo-700">编排器 Orchestrator</h3>
+                    <p class="text-slate-600 text-sm leading-relaxed mb-3">
+                        编排器本身也是一个 LLM Agent，通过 OpenAI function-calling 循环驱动。它依次调用 <code class="font-mono bg-slate-100 px-1 rounded">plan_task</code>、<code class="font-mono bg-slate-100 px-1 rounded">dispatch_agent(s)</code>、<code class="font-mono bg-slate-100 px-1 rounded">read_artifacts</code>、<code class="font-mono bg-slate-100 px-1 rounded">finalize</code> 等工具。
+                    </p>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        核心设计是"API 契约先行"：plan_task 阶段生成的前后端接口定义会被自动注入到每个 Worker 的任务描述中，显著降低联调成本。
+                    </p>
+                </div>
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <h3 class="text-lg font-semibold mb-3 text-indigo-700">统一调度器 Dispatcher</h3>
+                    <p class="text-slate-600 text-sm leading-relaxed mb-3">
+                        Dispatcher 把 Docker Worker 和外部注册 Agent 抽象为统一的 <code class="font-mono bg-slate-100 px-1 rounded">DispatchBackend</code>。Orchestrator 不感知目标到底是容器内 Worker 还是外部服务。
+                    </p>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        调度器内置候选解析、健康预检、重试故障转移、per-dispatch 超时、全局并发背压和 per-target 熔断器，具备较强的生产级路由可靠性。
+                    </p>
+                </div>
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <h3 class="text-lg font-semibold mb-3 text-indigo-700">Worker 容器池</h3>
+                    <p class="text-slate-600 text-sm leading-relaxed mb-3">
+                        <code class="font-mono bg-slate-100 px-1 rounded">ContainerPoolManager</code> 在启动时预创建 N 个 warm Docker 容器，通过 checkout/return 机制复用。每个容器绑定固定端口（宿主机 9001+），挂载共享产物目录和注入式 config.json。
+                    </p>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        Worker 容器内运行一个 FastAPI A2A Server，接收任务后调用 LLM 在后台执行，并通过轮询接口返回进度。
+                    </p>
+                </div>
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <h3 class="text-lg font-semibold mb-3 text-indigo-700">外部 Agent 网关</h3>
+                    <p class="text-slate-600 text-sm leading-relaxed mb-3">
+                        <code class="font-mono bg-slate-100 px-1 rounded">/api/v1/agents/*</code> 提供注册、心跳、注销、列表和调用能力。Agent 信息存储在 Redis，支持按 skill 发现。AdapterManager 根据协议类型自动选择 A2A/OpenAI/MCP/CLI 适配器。
+                    </p>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        这套机制让第三方 Agent 可以像内部 Worker 一样被编排器调度。
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 card-hover">
+                <h3 class="text-xl font-semibold mb-4">会话与产物模型</h3>
+                <p class="text-slate-600 leading-relaxed mb-4">
+                    每个任务对应一个产物目录 <code class="font-mono bg-slate-100 px-2 py-1 rounded">shared_output/tenants/{tenant_id}/tasks/{task_id}/</code>。近期新增的 <code class="font-mono bg-slate-100 px-2 py-1 rounded">SessionManager</code> 允许同一个 <code class="font-mono bg-slate-100 px-2 py-1 rounded">session_id</code> 跨多轮对话复用同一个 work folder 和对话历史，解决了"每次 chat 都是独立任务"的痛点。
+                </p>
+                <p class="text-slate-600 leading-relaxed">
+                    <code class="font-mono bg-slate-100 px-2 py-1 rounded">finalize</code> 工具在任务结束前会执行强制审查：每个已分派的 Agent 必须在自己的角色子目录下产出文件，否则拒绝完成并要求返工。这是一个简单但有效的质量门。
+                </p>
+            </div>
+        </section>
+
+        <div class="section-divider mb-16"></div>
+
+        <!-- 3. Strengths -->
+        <section id="strengths" class="mb-16">
+            <h2 class="text-3xl font-bold mb-8 flex items-center gap-3">
+                <span class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center">03</span>
+                核心亮点（优点）
+            </h2>
+
+            <div class="space-y-6">
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center flex-shrink-0">1</div>
+                        <div>
+                            <h3 class="text-lg font-semibold mb-2">完整的端到端闭环已被真实验证</h3>
+                            <p class="text-slate-600 leading-relaxed">
+                                项目不只是停留在设计文档，而是已经通过 Docker E2E 验证：从用户请求到生成前后端分离的 TODO 应用，再到后端 CRUD 实跑和浏览器 Headless 渲染验证。这是同类型项目中最难得的"金标准"。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center flex-shrink-0">2</div>
+                        <div>
+                            <h3 class="text-lg font-semibold mb-2">统一调度抽象降低了架构复杂度</h3>
+                            <p class="text-slate-600 leading-relaxed">
+                                Docker Worker 与外部 Agent 被抽象为同一套 <code class="font-mono bg-slate-100 px-1 rounded">DispatchBackend</code> 接口，编排器无需关心目标类型。这种抽象让外部 Agent 接入变得自然，也为未来扩展更多后端（如 Kubernetes Pod、本地进程）预留了接口。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center flex-shrink-0">3</div>
+                        <div>
+                            <h3 class="text-lg font-semibold mb-2">Dispatcher 具备生产级可靠性设计</h3>
+                            <p class="text-slate-600 leading-relaxed">
+                                健康预检、重试故障转移、超时控制、全局并发背压、per-target 熔断、结果缓存降级——这些机制叠加在一起，使调度层在面对单点故障时表现稳健。结果缓存降级更是一个贴心的"优雅失败"设计。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center flex-shrink-0">4</div>
+                        <div>
+                            <h3 class="text-lg font-semibold mb-2">可插拔编排器与外部 Agent 机制</h3>
+                            <p class="text-slate-600 leading-relaxed">
+                                通过 <code class="font-mono bg-slate-100 px-1 rounded">OrchestratorResolver</code> 支持 builtin/external 两种编排器，并在外部不可用时自动回退。这种设计保留了"换大脑"的灵活性，同时不牺牲稳定性。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center flex-shrink-0">5</div>
+                        <div>
+                            <h3 class="text-lg font-semibold mb-2">测试覆盖率高，且坚持 TDD</h3>
+                            <p class="text-slate-600 leading-relaxed">
+                                280 个测试通过，测试/代码行数比接近 1:1。关键模块如 dispatcher、orchestrator、gateway、session、幂等、取消、死信、结果缓存均有专门测试。NEXT-STEPS 显示项目按"每 wave 一 commit + TDD"的节奏推进，工程纪律较强。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center flex-shrink-0">6</div>
+                        <div>
+                            <h3 class="text-lg font-semibold mb-2">文档体系完善，踩坑经验真实</h3>
+                            <p class="text-slate-600 leading-relaxed">
+                                除了 README 外，还有 CLAUDE.md（重构宪法）、USAGE.md（实测踩坑指南）、onboarding.md、NEXT-STEPS.md、iteration-progress.md 以及多篇 HTML 调研文档。特别是 USAGE.md 里记录的 docker.io 不可达、模型名、容器名冲突等坑，都是实战积累，对团队 onboarding 价值极高。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center flex-shrink-0">7</div>
+                        <div>
+                            <h3 class="text-lg font-semibold mb-2">代码风格规范，防御式编程到位</h3>
+                            <p class="text-slate-600 leading-relaxed">
+                                CLAUDE.md 中的"重构宪法"明确禁止引入新依赖、禁止改变 API 签名、禁止删除测试等，并强调防御式编程、错误显式传播、资源管理和类型安全。实际代码中也能看到大量显式异常处理和日志记录，符合这些原则。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="section-divider mb-16"></div>
+
+        <!-- 4. Weaknesses -->
+        <section id="weaknesses" class="mb-16">
+            <h2 class="text-3xl font-bold mb-8 flex items-center gap-3">
+                <span class="w-10 h-10 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center">04</span>
+                问题与风险（缺点）
+            </h2>
+
+            <div class="overflow-x-auto mb-8">
+                <table class="w-full bg-white rounded-2xl shadow-sm border border-slate-200">
+                    <thead class="bg-slate-50 border-b border-slate-200">
+                        <tr>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-slate-700">风险项</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-slate-700">等级</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-slate-700">说明</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        <tr>
+                            <td class="px-6 py-4 text-sm font-medium text-slate-800">单进程内存状态</td>
+                            <td class="px-6 py-4"><span class="tag risk-high">高</span></td>
+                            <td class="px-6 py-4 text-sm text-slate-600">幂等索引、死信、结果缓存、熔断、per-tenant 信号量全是 in-memory，多 uvicorn worker 部署会失效。</td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 text-sm font-medium text-slate-800">取消不传播到 Worker</td>
+                            <td class="px-6 py-4"><span class="tag risk-high">高</span></td>
+                            <td class="px-6 py-4 text-sm text-slate-600"><code class="font-mono bg-slate-100 px-1 rounded">cancel_running</code> 只取消编排器侧 asyncio 任务，Docker Worker 内的 LLM 调用仍在继续烧 token。</td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 text-sm font-medium text-slate-800">/api/v1/agents/invoke 无鉴权</td>
+                            <td class="px-6 py-4"><span class="tag risk-high">高</span></td>
+                            <td class="px-6 py-4 text-sm text-slate-600">任何人都能调用已注册的外部 Agent，存在未授权调用风险。</td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 text-sm font-medium text-slate-800">Worker 任意 shell 执行</td>
+                            <td class="px-6 py-4"><span class="tag risk-mid">中</span></td>
+                            <td class="px-6 py-4 text-sm text-slate-600">Worker 中 <code class="font-mono bg-slate-100 px-1 rounded">run_command</code> 使用 <code class="font-mono bg-slate-100 px-1 rounded">subprocess(shell=True)</code>，沙箱内仍需明确信任边界或命令白名单。</td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 text-sm font-medium text-slate-800">配置硬编码</td>
+                            <td class="px-6 py-4"><span class="tag risk-mid">中</span></td>
+                            <td class="px-6 py-4 text-sm text-slate-600">DispatcherConfig、结果缓存 TTL/size、per-tenant 并发上限等参数未进配置文件，无法在线调整。</td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 text-sm font-medium text-slate-800">LLM 模型名默认值错误</td>
+                            <td class="px-6 py-4"><span class="tag risk-mid">中</span></td>
+                            <td class="px-6 py-4 text-sm text-slate-600"><code class="font-mono bg-slate-100 px-1 rounded">config.py</code> 默认 <code class="font-mono bg-slate-100 px-1 rounded">glm-coding-plan</code> 不是真实模型名，新手未改配置会直接 400（已在使用文档中反复提醒）。</td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 text-sm font-medium text-slate-800">Worker 镜像更新成本高</td>
+                            <td class="px-6 py-4"><span class="tag risk-mid">中</span></td>
+                            <td class="px-6 py-4 text-sm text-slate-600">Worker 是 baked 镜像，修改 <code class="font-mono bg-slate-100 px-1 rounded">worker.py</code> 后必须重新 build，开发迭代效率受限。</td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 text-sm font-medium text-slate-800">warm pool 容器名冲突</td>
+                            <td class="px-6 py-4"><span class="tag risk-mid">中</span></td>
+                            <td class="px-6 py-4 text-sm text-slate-600">编排器重启前必须手动清理 <code class="font-mono bg-slate-100 px-1 rounded">swarm-worker-{0..4}</code>，否则启动失败。重启体验不友好。</td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 text-sm font-medium text-slate-800">编排循环硬编码</td>
+                            <td class="px-6 py-4"><span class="tag risk-mid">中</span></td>
+                            <td class="px-6 py-4 text-sm text-slate-600">Orchestrator 的工具集合、系统提示词、最大迭代次数、审查规则都写在类内部，难以通过配置扩展新角色或新工具。</td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 text-sm font-medium text-slate-800">产物审查规则过于简单</td>
+                            <td class="px-6 py-4"><span class="tag risk-low">低</span></td>
+                            <td class="px-6 py-4 text-sm text-slate-600">当前只检查"每个 Agent 是否产出了文件"，不检查文件内容、语法、接口一致性。虽然编排器会主动联调，但审查门本身较浅。</td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 text-sm font-medium text-slate-800">外部编排器真实验证不足</td>
+                            <td class="px-6 py-4"><span class="tag risk-low">低</span></td>
+                            <td class="px-6 py-4 text-sm text-slate-600">external provider 的回退机制已测，但"真实成功的外部编排器"未端到端跑过。</td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 text-sm font-medium text-slate-800">可观测性仅停留在日志</td>
+                            <td class="px-6 py-4"><span class="tag risk-low">低</span></td>
+                            <td class="px-6 py-4 text-sm text-slate-600">只有 trace_id 串联日志，缺少延迟/失败率/队列深度/每 Agent 统计指标，不利于生产排障和容量规划。</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 card-hover">
+                <h3 class="text-xl font-semibold mb-4">需要重点展开的几项</h3>
+
+                <div class="space-y-6">
+                    <div>
+                        <h4 class="font-semibold text-slate-800 mb-2">单进程状态是最大生产化瓶颈</h4>
+                        <p class="text-slate-600 leading-relaxed text-sm">
+                            当前所有关键状态（幂等索引、死信、结果缓存、熔断器、per-tenant 信号量）都保存在 Python 进程内存中。这意味着：一旦使用多个 uvicorn worker 进程做水平扩展，状态就无法共享——同一个 Idempotency-Key 可能被重复处理，熔断状态会分裂，结果缓存只在单个进程内生效。NEXT-STEPS 已经把 Redis 持久化列为 P1.2，优先级正确。
+                        </p>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold text-slate-800 mb-2">取消机制有真实成本泄漏</h4>
+                        <p class="text-slate-600 leading-relaxed text-sm">
+                            用户通过 WebSocket 发送 cancel 后，编排器侧的任务确实会被取消，但已经 checkout 的 Docker Worker 容器内的后台任务仍在继续执行并调用 LLM。这在按 token 计费或资源紧张的场景下会造成直接经济损失。需要补 A2A <code class="font-mono bg-slate-100 px-1 rounded">tasks/cancel</code> 或容器停止信令。
+                        </p>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold text-slate-800 mb-2">安全设计尚未起步</h4>
+                        <p class="text-slate-600 leading-relaxed text-sm">
+                            外部 Agent 网关缺少鉴权，Worker 内 shell 执行缺少白名单，CORS 配置为 <code class="font-mono bg-slate-100 px-1 rounded">allow_origins=["*"]</code>。在暴露到公网或接入不可信 Agent 前，必须补齐 API key / token、命令白名单、CORS 限制。
+                        </p>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold text-slate-800 mb-2">默认配置对新用户不友好</h4>
+                        <p class="text-slate-600 leading-relaxed text-sm">
+                            <code class="font-mono bg-slate-100 px-1 rounded">config.py</code> 中的默认模型名 <code class="font-mono bg-slate-100 px-1 rounded">glm-coding-plan</code> 和默认存储路径 <code class="font-mono bg-slate-100 px-1 rounded">/home/apx103/...</code> 都是原作者环境特定的值。虽然 USAGE.md 反复提醒，但默认配置仍应使用更安全、更中性的占位符。
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="section-divider mb-16"></div>
+
+        <!-- 5. Recommendations -->
+        <section id="recommendations" class="mb-16">
+            <h2 class="text-3xl font-bold mb-8 flex items-center gap-3">
+                <span class="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center">05</span>
+                改进建议
+            </h2>
+
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-center gap-3 mb-4">
+                        <span class="tag risk-high">P0</span>
+                        <h3 class="text-lg font-semibold">Redis 持久化核心状态</h3>
+                    </div>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        把幂等索引、死信、结果缓存、熔断状态、per-tenant 信号量迁移到 Redis。每项保留 in-memory fallback，确保 Redis 故障时服务仍可降级运行。这是多进程部署的前提。
+                    </p>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-center gap-3 mb-4">
+                        <span class="tag risk-high">P0</span>
+                        <h3 class="text-lg font-semibold">补齐取消传播</h3>
+                    </div>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        在 A2A 协议中加入 <code class="font-mono bg-slate-100 px-1 rounded">tasks/cancel</code> 端点，Worker 收到后取消后台 <code class="font-mono bg-slate-100 px-1 rounded">_run</code> 任务；或直接停止对应容器。避免 cancel 后仍继续消耗 LLM token。
+                    </p>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-center gap-3 mb-4">
+                        <span class="tag risk-high">P0</span>
+                        <h3 class="text-lg font-semibold">外部 Agent 鉴权</h3>
+                    </div>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        为 <code class="font-mono bg-slate-100 px-1 rounded">/api/v1/agents/invoke</code> 增加 API key / JWT token 校验；注册接口也应考虑身份验证，防止恶意 Agent 注入。
+                    </p>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-center gap-3 mb-4">
+                        <span class="tag risk-mid">P1</span>
+                        <h3 class="text-lg font-semibold">配置外置与默认值清理</h3>
+                    </div>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        把 DispatcherConfig、结果缓存 TTL/size、per-tenant 并发上限等参数放入 <code class="font-mono bg-slate-100 px-1 rounded">default.yaml.example</code>。默认模型名改为 <code class="font-mono bg-slate-100 px-1 rounded">""</code> 或真实模型名，默认路径改为相对路径或占位符。
+                    </p>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-center gap-3 mb-4">
+                        <span class="tag risk-mid">P1</span>
+                        <h3 class="text-lg font-semibold">Worker 热更新机制</h3>
+                    </div>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        考虑通过 volume 挂载 <code class="font-mono bg-slate-100 px-1 rounded">src/agents</code> 到容器，或引入动态重载机制，避免每次修改 worker 代码都重新 build 镜像，提升开发迭代效率。
+                    </p>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-center gap-3 mb-4">
+                        <span class="tag risk-mid">P1</span>
+                        <h3 class="text-lg font-semibold">指标与可观测性</h3>
+                    </div>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        新增轻量 in-memory Metrics 模块，记录 dispatch 次数、成功率、延迟、候选尝试次数、每 Agent 统计，暴露 <code class="font-mono bg-slate-100 px-1 rounded">GET /api/v1/metrics</code>（Prometheus 格式或 JSON）。
+                    </p>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-center gap-3 mb-4">
+                        <span class="tag risk-low">P2</span>
+                        <h3 class="text-lg font-semibold">编排器配置化</h3>
+                    </div>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        把工具定义、系统提示词、最大迭代次数、审查规则从 <code class="font-mono bg-slate-100 px-1 rounded">Orchestrator</code> 类中抽出，允许通过 YAML 配置扩展新工具、新角色、新审查策略。
+                    </p>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 card-hover">
+                    <div class="flex items-center gap-3 mb-4">
+                        <span class="tag risk-low">P2</span>
+                        <h3 class="text-lg font-semibold">产物深度审查</h3>
+                    </div>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        在 finalize 审查门中增加语法检查（如 Python 编译、HTML 解析）、API 契约匹配度检查，必要时调用 LLM 做产物质量评分，减少返工次数。
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <div class="section-divider mb-16"></div>
+
+        <!-- 6. Conclusion -->
+        <section id="conclusion" class="mb-16">
+            <h2 class="text-3xl font-bold mb-8 flex items-center gap-3">
+                <span class="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">06</span>
+                总结
+            </h2>
+
+            <div class="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 card-hover">
+                <p class="text-slate-600 leading-relaxed mb-6">
+                    Agent Swarm 是一个<strong>已经完成了从 0 到 1 验证</strong>的多 Agent 协作系统，而不是停留在概念阶段的玩具。它的核心优势在于：完整的 LLM tool-calling 编排闭环、统一的 Docker/外部 Agent 调度抽象、扎实的前后端联调能力、以及高覆盖率的测试和详实的文档。
+                </p>
+                <p class="text-slate-600 leading-relaxed mb-6">
+                    但作为一个想要进入生产的系统，它还需要跨过几道坎：<strong>单进程状态持久化、取消传播、安全鉴权、配置外置</strong>是接下来最值得优先投入的四个方向。NEXT-STEPS 已经把这些识别得很清楚，剩下的就是按现有 TDD 节奏逐个落地。
+                </p>
+                <div class="bg-slate-50 rounded-xl p-6 border border-slate-200">
+                    <h3 class="font-semibold text-slate-800 mb-3">整体评分（主观）</h3>
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-slate-600">架构设计</span>
+                            <div class="flex items-center gap-2"><div class="w-32 h-2 bg-slate-200 rounded-full overflow-hidden"><div class="h-full bg-indigo-500 rounded-full" style="width: 85%"></div></div><span class="text-sm font-medium text-slate-700">8.5/10</span></div>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-slate-600">代码质量</span>
+                            <div class="flex items-center gap-2"><div class="w-32 h-2 bg-slate-200 rounded-full overflow-hidden"><div class="h-full bg-indigo-500 rounded-full" style="width: 82%"></div></div><span class="text-sm font-medium text-slate-700">8.2/10</span></div>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-slate-600">测试覆盖</span>
+                            <div class="flex items-center gap-2"><div class="w-32 h-2 bg-slate-200 rounded-full overflow-hidden"><div class="h-full bg-emerald-500 rounded-full" style="width: 90%"></div></div><span class="text-sm font-medium text-slate-700">9.0/10</span></div>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-slate-600">生产就绪度</span>
+                            <div class="flex items-center gap-2"><div class="w-32 h-2 bg-slate-200 rounded-full overflow-hidden"><div class="h-full bg-amber-500 rounded-full" style="width: 55%"></div></div><span class="text-sm font-medium text-slate-700">5.5/10</span></div>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-slate-600">文档完整度</span>
+                            <div class="flex items-center gap-2"><div class="w-32 h-2 bg-slate-200 rounded-full overflow-hidden"><div class="h-full bg-emerald-500 rounded-full" style="width: 88%"></div></div><span class="text-sm font-medium text-slate-700">8.8/10</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <footer class="text-center text-slate-400 text-sm pt-8 border-t border-slate-200">
+            <p>研究报告生成于 2026-06-15 · 基于 /Users/lijialun/work/swarm 代码分析</p>
+        </footer>
+    </div>
+
+    <script>
+        // Scroll progress indicator
+        window.addEventListener('scroll', () => {
+            const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+            const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            const scrolled = (winScroll / height) * 100;
+            document.getElementById('scrollIndicator').style.width = scrolled + '%';
+        });
+
+        // TOC active state
+        const sections = document.querySelectorAll('section[id]');
+        const tocLinks = document.querySelectorAll('.toc-link');
+        window.addEventListener('scroll', () => {
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                if (scrollY >= sectionTop - 200) {
+                    current = section.getAttribute('id');
+                }
+            });
+            tocLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === '#' + current) {
+                    link.classList.add('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
