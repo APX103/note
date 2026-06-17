@@ -1,0 +1,1055 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude Loop 模式全景 — 行业实践总结</title>
+<style>
+    :root {
+        --bg: #fafbfc;
+        --surface: #ffffff;
+        --surface-hover: #f5f6f8;
+        --text: #1a1a2e;
+        --text-secondary: #5a5a7a;
+        --accent: #6366f1;
+        --accent-2: #8b5cf6;
+        --accent-glow: rgba(99, 102, 241, 0.08);
+        --border: #e8eaef;
+        --code-bg: #f1f3f5;
+        --code-border: #e0e2e7;
+        --tag-bg: #eef0ff;
+        --tag-color: #6366f1;
+        --warn: #d97706;
+        --ok: #059669;
+        --info: #3b82f6;
+        --danger: #dc2626;
+        --shadow: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.03);
+        --shadow-lg: 0 4px 12px rgba(0,0,0,0.06);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.8;
+        -webkit-font-smoothing: antialiased;
+    }
+
+    .container {
+        max-width: 860px;
+        margin: 0 auto;
+        padding: 0 24px;
+    }
+
+    /* Hero */
+    .hero {
+        padding: 80px 0 50px;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 48px;
+    }
+
+    .hero h1 {
+        font-size: 2em;
+        font-weight: 700;
+        color: var(--text);
+        margin-bottom: 12px;
+        letter-spacing: -0.02em;
+    }
+
+    .hero h1 .accent {
+        color: var(--accent);
+    }
+
+    .hero .subtitle {
+        color: var(--text-secondary);
+        font-size: 1.05em;
+        max-width: 600px;
+    }
+
+    .hero .meta {
+        margin-top: 16px;
+        display: flex;
+        gap: 16px;
+        font-size: 0.82em;
+        color: var(--text-secondary);
+    }
+
+    .hero .meta span {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    /* TOC */
+    .toc {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 28px 32px;
+        margin-bottom: 48px;
+        box-shadow: var(--shadow);
+    }
+
+    .toc h2 {
+        font-size: 1em;
+        font-weight: 600;
+        color: var(--text-secondary);
+        margin-bottom: 16px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .toc ul {
+        list-style: none;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px 24px;
+    }
+
+    .toc a {
+        color: var(--accent);
+        text-decoration: none;
+        font-size: 0.92em;
+        padding: 4px 0;
+        display: block;
+        border-bottom: 1px solid transparent;
+        transition: border-color 0.15s;
+    }
+
+    .toc a:hover {
+        border-bottom-color: var(--border);
+    }
+
+    /* Sections */
+    .section {
+        margin-bottom: 56px;
+    }
+
+    .section h2 {
+        font-size: 1.35em;
+        font-weight: 700;
+        color: var(--text);
+        margin-bottom: 20px;
+        padding-bottom: 12px;
+        border-bottom: 2px solid var(--accent);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .section h3 {
+        font-size: 1.05em;
+        font-weight: 600;
+        color: var(--text);
+        margin: 24px 0 12px;
+    }
+
+    .section p {
+        color: var(--text-secondary);
+        margin-bottom: 12px;
+        font-size: 0.95em;
+    }
+
+    /* Code blocks */
+    pre {
+        background: var(--code-bg);
+        border: 1px solid var(--code-border);
+        border-radius: 8px;
+        padding: 18px 20px;
+        overflow-x: auto;
+        font-size: 0.85em;
+        line-height: 1.6;
+        margin: 12px 0 20px;
+        font-family: "SF Mono", "Fira Code", "Cascadia Code", "JetBrains Mono", monospace;
+        color: #24292e;
+    }
+
+    code {
+        font-family: "SF Mono", "Fira Code", "Cascadia Code", "JetBrains Mono", monospace;
+        background: var(--code-bg);
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.88em;
+        color: var(--accent);
+    }
+
+    pre code {
+        background: none;
+        padding: 0;
+        color: inherit;
+    }
+
+    /* Tags */
+    .tag {
+        display: inline-block;
+        font-size: 0.75em;
+        padding: 3px 10px;
+        border-radius: 6px;
+        background: var(--tag-bg);
+        color: var(--tag-color);
+        font-weight: 500;
+        margin-right: 6px;
+        vertical-align: middle;
+    }
+
+    .tag.ok { background: #ecfdf5; color: #059669; }
+    .tag.warn { background: #fffbeb; color: #d97706; }
+    .tag.info { background: #eff6ff; color: #2563eb; }
+    .tag.danger { background: #fef2f2; color: #dc2626; }
+
+    /* Cards / Patterns */
+    .pattern {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 24px 28px;
+        margin-bottom: 16px;
+        box-shadow: var(--shadow);
+    }
+
+    .pattern-title {
+        font-size: 1em;
+        font-weight: 600;
+        color: var(--text);
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .pattern-title .num {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        border-radius: 6px;
+        background: var(--accent);
+        color: white;
+        font-size: 0.78em;
+        font-weight: 600;
+        flex-shrink: 0;
+    }
+
+    .pattern p {
+        color: var(--text-secondary);
+        font-size: 0.92em;
+        margin-bottom: 8px;
+    }
+
+    /* Table */
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 16px 0 24px;
+        font-size: 0.88em;
+    }
+
+    th {
+        text-align: left;
+        padding: 10px 14px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        font-weight: 600;
+        color: var(--text);
+        font-size: 0.82em;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    td {
+        padding: 10px 14px;
+        border: 1px solid var(--border);
+        color: var(--text-secondary);
+        vertical-align: top;
+    }
+
+    tr:nth-child(even) td {
+        background: #fafbfc;
+    }
+
+    /* Template box */
+    .template-box {
+        background: #f8f9ff;
+        border-left: 3px solid var(--accent);
+        border-radius: 0 8px 8px 0;
+        padding: 18px 22px;
+        margin: 16px 0;
+    }
+
+    .template-box .label {
+        font-size: 0.75em;
+        font-weight: 600;
+        color: var(--accent);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin-bottom: 6px;
+    }
+
+    /* Callout */
+    .callout {
+        padding: 14px 18px;
+        border-radius: 8px;
+        margin: 16px 0;
+        font-size: 0.9em;
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+    }
+
+    .callout .icon {
+        font-size: 1.1em;
+        flex-shrink: 0;
+        margin-top: 2px;
+    }
+
+    .callout.info {
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        color: #1e40af;
+    }
+
+    .callout.warn {
+        background: #fffbeb;
+        border: 1px solid #fde68a;
+        color: #92400e;
+    }
+
+    .callout.tip {
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        color: #166534;
+    }
+
+    /* Footer */
+    .footer {
+        padding: 40px 0;
+        border-top: 1px solid var(--border);
+        text-align: center;
+        color: var(--text-secondary);
+        font-size: 0.82em;
+        margin-top: 60px;
+    }
+
+    .footer a {
+        color: var(--accent);
+        text-decoration: none;
+    }
+
+    /* Responsive */
+    @media (max-width: 640px) {
+        .hero { padding: 50px 0 36px; }
+        .hero h1 { font-size: 1.5em; }
+        .toc ul { grid-template-columns: 1fr; }
+        .pattern { padding: 18px 20px; }
+    }
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- Hero -->
+<div class="hero">
+    <h1>Claude <span class="accent">Loop</span> 模式全景</h1>
+    <p class="subtitle">行业大牛如何设计 Claude 交互循环 — 核心架构、Prompt 模板、Context Engineering 与生产级最佳实践的系统性总结</p>
+    <div class="meta">
+        <span>📅 2026-06-17</span>
+        <span>📖 调研整理</span>
+        <span>🔗 多源交叉验证</span>
+    </div>
+</div>
+
+<!-- TOC -->
+<div class="toc">
+    <h2>目录</h2>
+    <ul>
+        <li><a href="#s1">1. 核心循环架构</a></li>
+        <li><a href="#s2">2. Agent Loop 对比</a></li>
+        <li><a href="#s3">3. System Prompt 模板</a></li>
+        <li><a href="#s4">4. 12 个 Prompt 工程技巧</a></li>
+        <li><a href="#s5">5. Context Engineering</a></li>
+        <li><a href="#s6">6. 生产级安全控制</a></li>
+        <li><a href="#s7">7. Multi-Agent 模式</a></li>
+        <li><a href="#s8">8. Tool 设计原则</a></li>
+        <li><a href="#s9">9. Claude Code 实战技巧</a></li>
+        <li><a href="#s10">10. 常见陷阱与规避</a></li>
+    </ul>
+</div>
+
+<!-- ============================================ -->
+<!-- Section 1: Core Loop Architecture -->
+<!-- ============================================ -->
+<div class="section" id="s1">
+    <h2>1. 核心循环架构</h2>
+
+    <p>所有主流 Agent 框架——Claude Code、OpenAI Agents SDK、LangGraph、smolagents、Vercel AI SDK——最终收敛于同一架构。<strong>不是类似，而是完全相同</strong>：一个 while 循环，调用 LLM，检查响应是否包含 tool_calls，执行工具，直到模型停止调用工具为止。</p>
+
+    <div class="callout tip">
+        <span class="icon">💡</span>
+        <div><strong>Steve Kinney (2026) 的总结：</strong> "The loop is a solved problem. The engineering around the loop — context management, safety controls, graceful degradation, cost containment — is where all the interesting decisions live."</div>
+    </div>
+
+    <h3>1.1 最小可行 Agent（6 行伪代码）</h3>
+<pre><code>messages = [system_prompt, user_message]
+
+while True:
+    response = llm.call(messages, tools=available_tools)
+    messages.append(assistant_message(response))
+
+    if not response.has_tool_calls:
+        break  # 模型说"我完成了"
+
+    for tool_call in response.tool_calls:
+        result = execute(tool_call.name, tool_call.input)
+        messages.append(tool_result(result))</code></pre>
+
+    <h3>1.2 终止信号</h3>
+    <p><strong>Tool Call</strong> = "我还需要更多信息或需要执行动作"<br>
+    <strong>纯文本响应</strong> = "我已经有足够信息来回答了"</p>
+
+    <p>在 Anthropic API 中，检查 <code>response.stop_reason === 'end_turn'</code> 来判断循环是否应该结束。</p>
+
+    <h3>1.3 ReAct 模式基础</h3>
+    <p>Yao et al. (Princeton & Google, 2022) 的 ReAct 论文形式化了<strong>推理（Reasoning）与行动（Acting）交替进行</strong>的理念：模型思考要做什么 → 执行 → 观察结果 → 再思考。相比纯 chain-of-thought，在 ALFWorld 基准上提升了 34%。</p>
+</div>
+
+<!-- ============================================ -->
+<!-- Section 2: Framework Comparison -->
+<!-- ============================================ -->
+<div class="section" id="s2">
+    <h2>2. Agent Loop 框架对比</h2>
+
+    <p>虽然核心循环相同，但各框架在工程细节上展现了不同哲学：</p>
+
+    <table>
+        <tr>
+            <th>框架</th>
+            <th>循环实现</th>
+            <th>核心特点</th>
+            <th>适用场景</th>
+        </tr>
+        <tr>
+            <td><strong>Claude Code</strong></td>
+            <td>subprocess (NDJSON)</td>
+            <td>三层权限、自动 compaction、CLAUDE.md 持久化、Haiku 安全检查</td>
+            <td>编码 Agent、长会话</td>
+        </tr>
+        <tr>
+            <td><strong>OpenAI Agents SDK</strong></td>
+            <td>while(true) + runSingleTurn()</td>
+            <td>4 分支决策、guardrails 三层检查、transfer_to 工具实现 handoff</td>
+            <td>多 Agent 协作</td>
+        </tr>
+        <tr>
+            <td><strong>LangGraph</strong></td>
+            <td>有向循环图</td>
+            <td>检查点持久化、并行分支、中断恢复、时间旅行</td>
+            <td>复杂工作流、需要恢复</td>
+        </tr>
+        <tr>
+            <td><strong>smolagents</strong></td>
+            <td>while loop + typed steps</td>
+            <td>code-as-action、~1000 行、规划步骤、优雅降级</td>
+            <td>轻量 Agent</td>
+        </tr>
+        <tr>
+            <td><strong>Vercel AI SDK</strong></td>
+            <td>composable middleware</td>
+            <td>Agent = interface、stop conditions 可组合、prepareStep 钩子</td>
+            <td>Web 应用</td>
+        </tr>
+    </table>
+
+    <div class="callout info">
+        <span class="icon">📊</span>
+        <div><strong>Token 成本参考（Anthropic 内部数据）：</strong> 标准对话 = 1x, 单 Agent Loop ≈ 4x, Multi-Agent ≈ 15x。Multi-Agent 在内部评测上优于单 Agent 90.2%，但 token 消耗是真实的。</div>
+    </div>
+</div>
+
+<!-- ============================================ -->
+<!-- Section 3: System Prompt Templates -->
+<!-- ============================================ -->
+<div class="section" id="s3">
+    <h2>3. System Prompt 模板</h2>
+
+    <p>行业实践表明，System Prompt 应该采用<strong>分层结构</strong>，而非大段文字。以下是经过生产验证的模板：</p>
+
+    <h3>3.1 Claude Code 风格的五层结构</h3>
+    <div class="template-box">
+        <div class="label">Template: Claude Code Style System Prompt</div>
+<pre><code>&lt;background_information&gt;
+  你是谁、你的职责范围、当前任务背景
+&lt;/background_information&gt;
+
+&lt;instructions&gt;
+  核心行为规则（bullet points，每条一条指令）
+  - 永远做 X
+  - 绝不要 Y
+  - 优先 Z
+&lt;/instructions&gt;
+
+&lt;tool_guidance&gt;
+  每个工具的使用场景、参数说明
+  - tool_name: 何时使用、参数含义
+&lt;/tool_guidance&gt;
+
+&lt;output_description&gt;
+  期望的输出格式、结构要求
+&lt;/output_description&gt;
+
+&lt;examples&gt;
+  Few-shot 示例（2-4 个，覆盖正常 + 边界情况）
+&lt;/examples&gt;</code></pre>
+    </div>
+
+    <h3>3.2 通用 Agent System Prompt 五段式</h3>
+    <div class="template-box">
+        <div class="label">Template: Universal Agent System Prompt</div>
+<pre><code># Identity and Purpose
+You are [role]. Your job is to [specific task].
+Be specific about domain: "[exact scope]"
+
+# Behavioral Rules (Priority Stack)
+Priority 1 (never violate): safety, legal, privacy
+Priority 2 (strong preference): accuracy, factual correctness
+Priority 3 (default): tone, formatting, length
+Priority 4 (nice to have): personality, engagement
+
+# Response Format
+Every response includes:
+1. [element 1]
+2. [element 2]
+3. [element 3]
+Schema: {field: type, required: bool}
+
+# Edge Case Handling
+- Off-topic: [redirect strategy]
+- Uncertain: say "Unknown" + 2 verification steps
+- Conflicting instructions: later instructions win, flag trade-offs
+
+# Examples (Few-Shot)
+## Normal case
+[example interaction]
+
+## Edge case
+[example interaction]</code></pre>
+    </div>
+
+    <h3>3.3 可复用的精简骨架</h3>
+    <div class="template-box">
+        <div class="label">Template: Minimal Reusable Skeleton</div>
+<pre><code>Role: {role}. Audience: {audience}.
+Deliverable: {format, length}.
+Inputs: {files/notes}.
+Output: {JSON schema or section list}.
+
+Steps:
+1) Extract facts with citations [Doc:line].
+2) Transform into {themes/table/summary}.
+3) Premortem + mitigations.
+
+Constraints: plain language, no speculation without 'Unknown'.
+Rubric (0-5): Evidence (0-2), Actionability (0-2), Brevity (0-1).
+Checklist: [ ] audience named; [ ] numbers checked; [ ] next steps present.
+If context missing -> needs: "single question".</code></pre>
+    </div>
+
+    <h3>3.4 优先级栈（Priority Stack）</h3>
+    <p>当规则冲突时，模型需要知道哪条规则优先：</p>
+<pre><code>* Priority 1 (never violate): Safety, legal compliance, data privacy
+* Priority 2 (strong preference): Accuracy, factual correctness
+* Priority 3 (default): Tone, formatting, response length
+* Priority 4 (nice to have): Personality, humor, engagement</code></pre>
+    <p>对于 thinking 模型（Claude 3.7+, o3），优先级栈应放在 prompt 前部，因为模型在推理阶段就会权衡优先级。</p>
+</div>
+
+<!-- ============================================ -->
+<!-- Section 4: 12 Prompt Engineering Tricks -->
+<!-- ============================================ -->
+<div class="section" id="s4">
+    <h2>4. 12 个 Prompt 工程技巧</h2>
+    <p style="font-size:0.9em;color:var(--text-secondary);margin-bottom:20px;">来源：ThinkingLoop (2025)，基于 GitHub Trending #1 的 shanraisshan/claude-code-best-practice 仓库（69 条建议），含 Boris Cherny（Claude Code 构建者）输入</p>
+
+    <div class="pattern">
+        <div class="pattern-title"><span class="num">1</span> 设定职位，而非氛围</div>
+        <p>用 Role + Audience + Deliverable + Constraints 代替 "expert, concise, specific"。</p>
+<pre><code>Role: Senior technical writer.
+Audience: busy backend engineers.
+Deliverable: 400-word brief with 5 bullets + 1 risk.
+Constraints: plain language, no hype, no links.</code></pre>
+    </div>
+
+    <div class="pattern">
+        <div class="pattern-title"><span class="num">2</span> 明确输入输出契约</div>
+        <p>定义输入来源和输出格式，要求严格 JSON（如果后续需要解析）。</p>
+<pre><code>Input: product spec (markdown), support log (CSV).
+Output: JSON with keys {summary, top_issues[3], gaps, followups}.
+Only return valid JSON.</code></pre>
+    </div>
+
+    <div class="pattern">
+        <div class="pattern-title"><span class="num">3</span> 给 Rubric，不给愿望</div>
+        <p>告诉 Claude <em>如何</em> 评分，把"做得更好"变成"这是评判标准"。</p>
+<pre><code>Quality rubric (0-5):
+- Evidence-backed claims (0-2)
+- Actionability (0-2)
+- Brevity (0-1)
+Add a 'score' and 'improvements' section at the end.</code></pre>
+    </div>
+
+    <div class="pattern">
+        <div class="pattern-title"><span class="num">4</span> 用微目标分解任务</div>
+        <p>不要问 "chain-of-thought"，要结构化产物（quotes, themes）。保持透明和速度。</p>
+<pre><code>Do these steps:
+1) Extract 7 key facts (quote + source).
+2) Cluster into 3 themes.
+3) Draft a 150-word summary per theme.
+Return {quotes, themes, summaries}.</code></pre>
+    </div>
+
+    <div class="pattern">
+        <div class="pattern-title"><span class="num">5</span> 证据模式（Evidence Mode）</div>
+        <p>每条断言必须引用来源 [Doc:line] 或标记为推测。</p>
+<pre><code>Claim policy: Every assertion must cite [Doc:line]
+or be labeled speculative.</code></pre>
+    </div>
+
+    <div class="pattern">
+        <div class="pattern-title"><span class="num">6</span> 要 Delta，不要 Dump</div>
+        <p>比较版本时只输出变更，引导人类注意力。</p>
+<pre><code>Task: Compare v1 vs v2 release notes.
+Output: delta list (added/removed/modified),
+plus 'why it matters' in one sentence each.</code></pre>
+    </div>
+
+    <div class="pattern">
+        <div class="pattern-title"><span class="num">7</span> 安装 Premortem</div>
+        <p>让 Claude 在提出方案后自我批判。</p>
+<pre><code>Run a premortem: If this plan fails in 30 days,
+what are the 3 most likely causes?
+Add mitigations next to each cause.</code></pre>
+    </div>
+
+    <div class="pattern">
+        <div class="pattern-title"><span class="num">8</span> 用示例约束风格（Few-Shot 正解）</div>
+        <p>提供一个"黄金段落"来克隆语气和节奏，而非用形容词描述。</p>
+<pre><code>Mimic the rhythm of this sample (2 paragraphs).
+Keep structure and cadence, not the content.
+Sample: [insert your two-paragraph sample]
+Task: Rewrite the Summary and Risks sections in the same style.</code></pre>
+    </div>
+
+    <div class="pattern">
+        <div class="pattern-title"><span class="num">9</span> 用 Checklist 消灭漂移</div>
+        <p>在 prompt 末尾要求 Checklist 验证。</p>
+<pre><code>Checklist:
+- [ ] Audience named
+- [ ] Numbers double-checked
+- [ ] Actionable next steps included
+Return the checklist with ✓/✗ and fixes for any ✗.</code></pre>
+    </div>
+
+    <div class="pattern">
+        <div class="pattern-title"><span class="num">10</span> 两遍编辑（Two-Pass Editing）</div>
+        <p>第一遍 = 结构；第二遍 = 语气。不要混合。</p>
+<pre><code>Pass 1: Restructure into sections (no style edits).
+Pass 2: Compress to 350-400 words, cut hedging,
+keep concrete nouns/verbs.</code></pre>
+    </div>
+
+    <div class="pattern">
+        <div class="pattern-title"><span class="num">11</span> "先问后猜"护栏</div>
+        <p>给 Claude 一次机会，在关键信息缺失时提出一个简洁的澄清问题。</p>
+<pre><code>If any critical input is missing, ask exactly one
+clarifying question at top under key: needs.
+Otherwise, proceed.</code></pre>
+    </div>
+
+    <div class="pattern">
+        <div class="pattern-title"><span class="num">12</span> 教会 Claude 说"我不知道"</div>
+        <p>规范不确定性：证据不足时说 Unknown，并列出 2 种快速验证方法。</p>
+<pre><code>If uncertain beyond reasonable doubt, say 'Unknown'
+and list 2 ways to verify (fast).
+No invented details.</code></pre>
+    </div>
+</div>
+
+<!-- ============================================ -->
+<!-- Section 5: Context Engineering -->
+<!-- ============================================ -->
+<div class="section" id="s5">
+    <h2>5. Context Engineering（上下文工程）</h2>
+
+    <div class="callout info">
+        <span class="icon">🔑</span>
+        <div><strong>Anthropic 核心理念：</strong> "Prompt engineering 是关于如何写指令；Context engineering 是关于在每次推理时，什么信息配置最可能产生期望行为。" 这是 2025-2026 年的范式转变。</div>
+    </div>
+
+    <h3>5.1 四大策略（Anthropic 框架）</h3>
+
+    <div class="pattern">
+        <div class="pattern-title"><span class="tag info">Write</span> 写上下文</div>
+        <p>将信息保存在上下文窗口<em>之外</em>。Scratchpad、memory files、progress notes。模型生成后续需要的信息并持久化到工具可访问的位置，使其在 compaction 后仍能存活。</p>
+        <p><em>Claude Code 实践：</em>TodoWrite 工具、NOTES.md 文件。Manus 团队发现：agent 维护 <code>todo.md</code> 来"recite objectives into the end of context"，对抗 lost-in-the-middle 问题。</p>
+    </div>
+
+    <div class="pattern">
+        <div class="pattern-title"><span class="tag info">Select</span> 选上下文</div>
+        <p>在需要时通过工具动态拉取相关信息（grep, glob, RAG, 数据库查询）。模型不需要把所有东西都带在窗口里，只需要在需要时<em>找到</em>它们。</p>
+        <p><em>Claude Code 实践：</em>glob 和 grep 让 agent 自主导航环境、即时获取文件，绕过过期索引问题。</p>
+    </div>
+
+    <div class="pattern">
+        <div class="pattern-title"><span class="tag info">Compress</span> 压缩上下文</div>
+        <p>在不丢失关键信息的前提下减少 token 数。Claude Code 在 95% 使用时自动触发 compaction。最安全的轻量级方式是 <strong>tool result clearing</strong>——将旧的 tool 输出替换为摘要。</p>
+    </div>
+
+    <div class="pattern">
+        <div class="pattern-title"><span class="tag info">Isolate</span> 隔离上下文</div>
+        <p>使用新上下文窗口的子 Agent 处理子任务，返回压缩摘要。子 Agent 内部可能用 10,000+ tokens，但只返回 1,000-2,000 token 摘要给父 Agent。</p>
+    </div>
+
+    <h3>5.2 Context Rot 问题</h3>
+    <p>LLM 像人类一样有注意力预算。随着上下文增加，<strong>信息召回能力下降</strong>。这不是硬悬崖，而是渐降曲线。工程应对：</p>
+    <ul>
+        <li><strong>Compaction at 80%</strong>：不要等到 100% 才压缩。80% 时触发，给 compaction prompt 本身留出空间。</li>
+        <li><strong>工具结果清理</strong>：已执行的 tool call 和结果在深层历史中不再需要保留原始数据。</li>
+        <li><strong>System reminders</strong>：Claude Code 在 tool result 中嵌入固定指令（如"继续使用 TODO 列表"），比只在 system prompt 中放一次有更高的遵守率。</li>
+    </ul>
+
+    <h3>5.3 KV-Cache 优化（Manus 团队数据）</h3>
+    <div class="callout warn">
+        <span class="icon">💰</span>
+        <div><strong>关键数据：</strong>工具响应占 67.6% 总 tokens，system prompt 仅 3.4%。"优化 system prompt 的实际收益，远不如优化 tool 响应。" Cached token: $0.30/M vs  Uncached: $3/M（10x 差距）。<strong>不要在迭代中动态增删工具</strong>——这会破坏 prefix cache。</div>
+    </div>
+</div>
+
+<!-- ============================================ -->
+<!-- Section 6: Production Safety Controls -->
+<!-- ============================================ -->
+<div class="section" id="s6">
+    <h2>6. 生产级安全控制</h2>
+
+    <p>循环本身很简单。让循环<strong>不失控</strong>才是全部工作。需要多层防御，不是一层：</p>
+
+    <h3>6.1 四层防御体系</h3>
+
+    <div class="pattern">
+        <div class="pattern-title"><span class="num">1</span> Max Iterations（最大迭代）</div>
+        <p>硬上限：生产环境通常 15-25 步。到达上限后，使用 <strong>early stopping generate</strong> 模式：追加消息 "已达到最大步数，请基于已完成的工作给出最佳答案" 并以 <em>无工具</em> 模式再调用一次 LLM。这比静默停止好得多。</p>
+    </div>
+
+    <div class="pattern">
+        <div class="pattern-title"><span class="num">2</span> Wall-Clock Timeout</div>
+        <p>单次运行 300 秒上限。防护工具 hang、网络问题、模型生成长响应。</p>
+    </div>
+
+    <div class="pattern">
+        <div class="pattern-title"><span class="num">3</span> Token / Cost Budget</div>
+        <p>硬上限如 $2.00/run。监控 token 增长模式：线性增长（正常）vs 二次增长（没做 compaction，会快速击穿预算）。</p>
+    </div>
+
+    <div class="pattern">
+        <div class="pattern-title"><span class="num">4</span> Loop Fingerprinting（循环指纹）</div>
+        <p>Hash 每次迭代的 <code>(tool_name, result_preview)</code> 元组。如果连续 3 次出现相同指纹，说明 Agent 卡住了。有一个生产系统在人工介入前重复了同一答案 58 次。</p>
+<pre><code>fingerprint = hash((tool_name, result[:100]))
+if fingerprint in recent_fingerprints[-3:]:
+    raise StuckInLoop("Agent is repeating itself")</code></pre>
+    </div>
+
+    <h3>6.2 错误分类与重试</h3>
+    <table>
+        <tr>
+            <th>HTTP 状态码</th>
+            <th>策略</th>
+            <th>原因</th>
+        </tr>
+        <tr>
+            <td>429, 500, 502, 503, 504</td>
+            <td><span class="tag warn">重试</span></td>
+            <td>临时性错误，指数退避 + jitter</td>
+        </tr>
+        <tr>
+            <td>401, 403, 422</td>
+            <td><span class="tag danger">立即停止</span></td>
+            <td>根本性错误，重试不会解决</td>
+        </tr>
+    </table>
+
+    <h3>6.3 幂等性保证</h3>
+    <p>有副作用的工具（发邮件、建工单、处理付款）必须有 <strong>idempotency key</strong>。Agent 在 timeout 后重试可能导致重复操作。</p>
+</div>
+
+<!-- ============================================ -->
+<!-- Section 7: Multi-Agent Patterns -->
+<!-- ============================================ -->
+<div class="section" id="s7">
+    <h2>7. Multi-Agent 编排模式</h2>
+
+    <p>四种在生产中实际出现的 Multi-Agent 模式：</p>
+
+    <table>
+        <tr>
+            <th>模式</th>
+            <th>描述</th>
+            <th>优点</th>
+            <th>缺点</th>
+            <th>适用场景</th>
+        </tr>
+        <tr>
+            <td><strong>Pipeline</strong></td>
+            <td>Agent 按顺序执行，前一个的输出传给下一个</td>
+            <td>简单、可预测</td>
+            <td>无并行</td>
+            <td>Research → Draft → Review</td>
+        </tr>
+        <tr>
+            <td><strong>Manager</strong></td>
+            <td>一个 Orchestrator 委派给专家并综合输出</td>
+            <td>关注点分离</td>
+            <td>Manager 成瓶颈</td>
+            <td>需要专业化的复杂任务</td>
+        </tr>
+        <tr>
+            <td><strong>Handoffs</strong></td>
+            <td>Agent 直接转移控制权（OpenAI <code>transfer_to_&lt;agent&gt;</code>）</td>
+            <td>去中心化、灵活</td>
+            <td>难以调试</td>
+            <td>多步骤流程</td>
+        </tr>
+        <tr>
+            <td><strong>Fan-out</strong></td>
+            <td>多个 Agent 并行处理独立子任务，合并结果</td>
+            <td>最高吞吐</td>
+            <td>任务需可分解</td>
+            <td>独立子任务</td>
+        </tr>
+    </table>
+
+    <div class="callout warn">
+        <span class="icon">⚠️</span>
+        <div><strong>Steve Kinney 的建议：</strong>"大多数我见过的任务，一个有 good tools 的单 Agent 就能搞定。如果你选择 Multi-Agent 只是因为单 Agent '感觉太简单'，你很可能要用 15x 的 token 换边际改善。"</div>
+    </div>
+</div>
+
+<!-- ============================================ -->
+<!-- Section 8: Tool Design Principles -->
+<!-- ============================================ -->
+<div class="section" id="s8">
+    <h2>8. Tool 设计原则</h2>
+
+    <p>Anthropic 的建议非常明确：<strong>"Few thoughtful tools targeting specific high-impact workflows"</strong>。不是巨型目录，不是每个 API 端点一个工具。</p>
+
+    <h3>8.1 工具选择测试（Litmus Test）</h3>
+    <div class="callout tip">
+        <span class="icon">✅</span>
+        <div>"If a human engineer can't definitively say which tool should be used in a given situation, an AI agent can't be expected to do better."</div>
+    </div>
+
+    <h3>8.2 高阶工具优于细粒度 CRUD</h3>
+<pre><code># 不好：三个模糊重叠的工具
+list_users()    list_events()    create_event()
+
+# 好：一个任务导向的工具
+schedule_event(attendees, time, duration, agenda)</code></pre>
+
+    <h3>8.3 工具命名空间</h3>
+<pre><code># 前缀防止冲突，让模型选择更可靠
+asana_projects_search
+jira_search
+github_create_issue</code></pre>
+
+    <h3>8.4 工具返回错误字符串，而非异常</h3>
+    <p>当工具失败时，模型需要<strong>在上下文中看到错误作为文本</strong>，才能推理哪里出了问题。异常会打断循环；错误字符串让模型自我修正。</p>
+
+    <h3>8.5 Poka-yoke（防错设计）</h3>
+    <p>Anthropic 发现：要求<strong>绝对文件路径</strong>消除了一整类 SWE-bench 上的模型错误。他们花在优化工具设计上的时间，比优化整体 prompt 还多。</p>
+
+    <h3>8.6 Claude Code 的 14 个工具</h3>
+    <p>Claude Code 只用了 14 个工具就实现了完整功能：</p>
+    <ul>
+        <li>4 个命令行工具（bash, glob, grep, ls）</li>
+        <li>6 个文件交互工具（read, write, edit, multi_edit, notebook_read, notebook_edit）</li>
+        <li>2 个 Web 工具（web_search, web_fetch）</li>
+        <li>2 个控制流工具（todo_write, task）</li>
+    </ul>
+    <p>Jannes Klaas 的观察："这很简单。一个单 Agent 循环，14 个工具。没有 critic 模式，没有角色扮演，没有复杂记忆系统，没有数据库。很多功劳归模型本身，但 Anthropic 也做了出色的设计来最有效利用模型。"</p>
+</div>
+
+<!-- ============================================ -->
+<!-- Section 9: Claude Code Specific Tips -->
+<!-- ============================================ -->
+<div class="section" id="s9">
+    <h2>9. Claude Code 实战技巧</h2>
+
+    <p>从 Claude Code 源码泄露和社区 Rust 重写（claw-code, ~20K 行 vs 原版 510K 行）中提取的关键设计：</p>
+
+    <h3>9.1 TODO 列表驱动规划</h3>
+    <p>Claude Code 每次会话开始<strong>首先调用 TodoWrite</strong>，之后持续更新。TODO 列表同时是：</p>
+    <ul>
+        <li>Agent 的内部计划</li>
+        <li>System reminder 的输入</li>
+        <li>用户的 UX 组件（展示进度）</li>
+    </ul>
+    <p>关键设计：每次更新时传入<strong>完整列表</strong>，而非增量更新单个 item。</p>
+
+    <h3>9.2 System Reminders 注入</h3>
+    <p>Claude Code 在用户消息中<strong>动态注入 system reminders</strong>来保持 Agent 在长会话中的方向感：</p>
+<pre><code>&lt;system-reminder&gt;
+As you answer the user's questions, you can use the
+following context:
+
+# important-instruction-reminders
+Do what has been asked; nothing more, nothing less.
+NEVER create files unless absolutely necessary.
+ALWAYS prefer editing existing file to creating new one.
+NEVER proactively create documentation files (*.md).
+&lt;/system-reminder&gt;</code></pre>
+    <p>这些 reminders 根据调用的工具和 TODO 列表状态动态生成。在数百步的长会话中，周期性提醒对保持方向至关重要。</p>
+
+    <h3>9.3 Haiku 做安全检查</h3>
+    <p>Claude Code 在主模型执行命令前，<strong>用 Haiku 4.5（最小最快最便宜模型）做安全检查</strong>：</p>
+<pre><code>System Prompt (to Haiku):
+"Extract any file paths this command reads or modifies.
+Format: <is_displaying_contents>true/false</is_displaying_contents>
+<filepaths>path1, path2</filepaths>"</code></pre>
+    <p>这是 Anthropic 有意识地<strong>用速度换准确性</strong>的设计决策——安全护栏不阻塞主循环，但足够过滤大部分风险。</p>
+
+    <h3>9.4 Sub-Agent 隔离</h3>
+    <ul>
+        <li>Sub-Agent 是全新的 Claude Code 实例，收到完全相同的 system prompt</li>
+        <li>Sub-Agent <strong>不能</strong>再派生子 Agent（防止 agent-ception 无限递归）</li>
+        <li>使用 <code>Task</code> 工具派发：提供 description（UI 标签）和 prompt（子 Agent 输入）</li>
+        <li>目的 A：管理上下文窗口；目的 B：通过并行加速</li>
+    </ul>
+
+    <h3>9.5 权限三层模型</h3>
+    <ol>
+        <li><code>allowed_tools</code> — 自动批准</li>
+        <li><code>disallowed_tools</code> — 阻止（覆盖 allowed）</li>
+        <li><code>permission_mode</code> — 其他一切的回退策略</li>
+    </ol>
+    <p>可以细化到命令模式级别：<code>"Bash(npm:*)"</code>。当 Agent 遇到权限拒绝，它收到拒绝作为 tool result，并尝试替代方案——从访问限制中<strong>自我修复</strong>。</p>
+
+    <h3>9.6 上下文管理</h3>
+    <ul>
+        <li><strong>CLAUDE.md 文件</strong>：需要跨 compaction 保留的指令放在这里——每次请求重新注入。</li>
+        <li><strong>自动 Compaction</strong>：在 95% 上下文使用时触发，发出 <code>SystemMessage(subtype="compact_boundary")</code>。</li>
+        <li><strong>Session 可恢复</strong>：每个 ResultMessage 包含 <code>total_cost_usd</code>、token 使用、<code>num_turns</code>、<code>session_id</code>。</li>
+    </ul>
+</div>
+
+<!-- ============================================ -->
+<!-- Section 10: Common Pitfalls -->
+<!-- ============================================ -->
+<div class="section" id="s10">
+    <h2>10. Agent Loop 的六个死亡陷阱</h2>
+
+    <div class="pattern">
+        <div class="pattern-title"><span class="num">1</span> 无限循环</div>
+        <p>最常见失败。缺少终止条件、工具返回空结果模型不断重试、模型无法推理出如何脱身的状态。<strong>单一 max_iterations 不够</strong>——需要 fingerprinting + cost budget + no-progress detection 三层。</p>
+    </div>
+
+    <div class="pattern">
+        <div class="pattern-title"><span class="num">2</span> 上下文窗口溢出</div>
+        <p>对话历史每次迭代增长。工具响应是最大贡献者（67.6% tokens）。没有 compaction 或子 Agent 隔离的长运行 Agent 最终耗尽空间，模型开始丢信息，决策质量下降——但这种下降通常不明显。</p>
+    </div>
+
+    <div class="pattern">
+        <div class="pattern-title"><span class="num">3</span> 工具混淆</div>
+        <p>太多工具、重叠描述、模糊名称。Agent 选错工具，或在两个看似同样合理的工具之间振荡。修复方法永远是：<strong>更少工具、更好描述、显式命名空间</strong>。</p>
+    </div>
+
+    <div class="pattern">
+        <div class="pattern-title"><span class="num">4</span> 错误传播</div>
+        <p>"第 4 步的错误在第 18 步以自信、连贯、但完全错误的结果静默传播。" 缩短链路 + handoffs 创建验证检查点。子 Agent 隔离帮助——每个子 Agent 从头开始，不能继承被污染的上文。</p>
+    </div>
+
+    <div class="pattern">
+        <div class="pattern-title"><span class="num">5</span> 框架锁定的隐性假设</div>
+        <p>Anthropic 的建议很尖锐："确保你理解底层代码。对内部机制的错误假设是客户错误的常见来源。" 如果你的 mental model 错了，出问题时你会调试错误的层。循环足够简单，值得自己从头写一遍来理解。</p>
+    </div>
+
+    <div class="pattern">
+        <div class="pattern-title"><span class="num">6</span> Ralph Wiggum 漂移</div>
+        <p>Geoffrey Huntley 命名的问题：Agent 在会话早期看起来很高效，然后逐渐丢失隐式上下文，做出越来越脱节的决策。<strong>Agent 不知道自己正在漂移</strong>——它仍然自信、仍然生成看似合理的输出。这使其特别危险。</p>
+        <p>修复：紧范围、显式约束、确定性验证检查、硬停止条件。</p>
+    </div>
+</div>
+
+<!-- ============================================ -->
+<!-- Reference: Core Principles Summary -->
+<!-- ============================================ -->
+<div class="section" id="s11">
+    <h2>附录：核心原则速查表</h2>
+
+    <table>
+        <tr>
+            <th>原则</th>
+            <th>一句话总结</th>
+            <th>来源</th>
+        </tr>
+        <tr>
+            <td><strong>循环已定</strong></td>
+            <td>6 行 while 循环在所有框架中相同，不需要重新发明</td>
+            <td>Steve Kinney (2026)</td>
+        </tr>
+        <tr>
+            <td><strong>上下文工程 &gt; Prompt 工程</strong></td>
+            <td>每次推理时什么信息配置最有效，比初始 prompt 更重要</td>
+            <td>Anthropic Applied AI (2026)</td>
+        </tr>
+        <tr>
+            <td><strong>少工具，好工具</strong></td>
+            <td>人类工程师无法明确选择哪个工具的场景，AI 也做不到</td>
+            <td>Anthropic</td>
+        </tr>
+        <tr>
+            <td><strong>错误是反馈</strong></td>
+            <td>工具返回错误字符串而非异常，让模型在循环中自我修正</td>
+            <td>Claude Code 源码</td>
+        </tr>
+        <tr>
+            <td><strong>多层防御</strong></td>
+            <td>Max iterations + timeout + budget + fingerprinting，缺一不可</td>
+            <td>Steve Kinney (2026)</td>
+        </tr>
+        <tr>
+            <td><strong>Sub-Agent 隔离</strong></td>
+            <td>10K+ token 内部工作，返回 1K token 摘要；防止上下文污染</td>
+            <td>Anthropic</td>
+        </tr>
+        <tr>
+            <td><strong>System reminders 优于静态 prompt</strong></td>
+            <td>在 tool result 中动态注入指令，遵守率更高</td>
+            <td>Jannes Klaas (2025)</td>
+        </tr>
+        <tr>
+            <td><strong>Haiku 做护栏</strong></td>
+            <td>用最小最快模型做安全检查，不阻塞主循环</td>
+            <td>Claude Code 源码</td>
+        </tr>
+        <tr>
+            <td><strong>Tool 响应是成本大头</strong></td>
+            <td>优化 tool 返回的 token 效率，比优化 system prompt 收益大 20x</td>
+            <td>Manus 团队数据</td>
+        </tr>
+        <tr>
+            <td><strong>开始简单</strong></td>
+            <td>先写 30 行版本跑通，再加安全控制、上下文管理、可观测性</td>
+            <td>Steve Kinney (2026)</td>
+        </tr>
+    </table>
+</div>
+
+<!-- Footer -->
+<div class="footer">
+    <p>调研来源：Steve Kinney · Anthropic Engineering Blog · ThinkingLoop · Jannes Klaas · PECollective · Indie Hackers · claude-code-best-practice (GitHub Trending #1) · claw-code (Rust rewrite)</p>
+    <p style="margin-top:8px;">Generated with Claude Opus · <a href="https://github.com">swarm project</a></p>
+</div>
+
+</div>
+</body>
+</html>
