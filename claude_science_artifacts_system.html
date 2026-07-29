@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude-Science Artifacts 系统源码解析</title>
+<style>
+    :root {
+        --bg: #fafbfc;
+        --surface: #ffffff;
+        --surface-hover: #f5f6f8;
+        --text: #1a1a2e;
+        --text-secondary: #5a5a7a;
+        --accent: #6366f1;
+        --accent-2: #8b5cf6;
+        --accent-glow: rgba(99, 102, 241, 0.08);
+        --border: #e8eaef;
+        --code-bg: #f1f3f5;
+        --code-border: #e0e2e7;
+        --tag-bg: #eef0ff;
+        --tag-color: #6366f1;
+        --warn: #d97706;
+        --ok: #059669;
+        --info: #3b82f6;
+        --danger: #dc2626;
+        --shadow: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.03);
+        --shadow-lg: 0 4px 12px rgba(0,0,0,0.06);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.8;
+        -webkit-font-smoothing: antialiased;
+    }
+
+    .container { max-width: 860px; margin: 0 auto; padding: 0 24px; }
+
+    .hero {
+        padding: 80px 0 50px;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 48px;
+    }
+    .hero h1 {
+        font-size: 2em; font-weight: 700; color: var(--text);
+        margin-bottom: 12px; letter-spacing: -0.02em;
+    }
+    .hero h1 .accent { color: var(--accent); }
+    .hero .subtitle { color: var(--text-secondary); font-size: 1.05em; max-width: 640px; }
+    .hero .meta {
+        margin-top: 16px; display: flex; gap: 16px; flex-wrap: wrap;
+        font-size: 0.82em; color: var(--text-secondary);
+    }
+
+    .toc {
+        background: var(--surface); border: 1px solid var(--border);
+        border-radius: 12px; padding: 28px 32px; margin-bottom: 48px;
+        box-shadow: var(--shadow);
+    }
+    .toc h2 {
+        font-size: 1em; font-weight: 600; color: var(--text-secondary);
+        margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .toc ul { list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 24px; }
+    .toc a {
+        color: var(--accent); text-decoration: none; font-size: 0.92em;
+        padding: 4px 0; display: block; border-bottom: 1px solid transparent;
+    }
+    .toc a:hover { border-bottom-color: var(--border); }
+
+    .section { margin-bottom: 56px; }
+    .section h2 {
+        font-size: 1.35em; font-weight: 700; color: var(--text);
+        margin-bottom: 20px; padding-bottom: 12px;
+        border-bottom: 2px solid var(--accent);
+    }
+    .section h3 { font-size: 1.05em; font-weight: 600; color: var(--text); margin: 24px 0 12px; }
+    .section p { color: var(--text-secondary); margin-bottom: 12px; font-size: 0.95em; }
+    .section ul { color: var(--text-secondary); font-size: 0.95em; margin: 0 0 12px 22px; }
+    .section li { margin-bottom: 6px; }
+    .section strong { color: var(--text); }
+
+    pre {
+        background: var(--code-bg); border: 1px solid var(--code-border);
+        border-radius: 8px; padding: 18px 20px; overflow-x: auto;
+        font-size: 0.85em; line-height: 1.6; margin: 12px 0 20px;
+        font-family: "SF Mono", "Fira Code", "Cascadia Code", "JetBrains Mono", monospace;
+        color: #24292e;
+    }
+    code {
+        font-family: "SF Mono", "Fira Code", "Cascadia Code", "JetBrains Mono", monospace;
+        background: var(--code-bg); padding: 2px 6px; border-radius: 4px;
+        font-size: 0.88em; color: var(--accent);
+    }
+    pre code { background: none; padding: 0; color: inherit; }
+
+    .tag {
+        display: inline-block; font-size: 0.75em; padding: 3px 10px;
+        border-radius: 6px; background: var(--tag-bg); color: var(--tag-color);
+        font-weight: 500; margin-right: 6px; vertical-align: middle;
+    }
+    .tag.ok { background: #ecfdf5; color: #059669; }
+    .tag.warn { background: #fffbeb; color: #d97706; }
+    .tag.info { background: #eff6ff; color: #2563eb; }
+    .tag.danger { background: #fef2f2; color: #dc2626; }
+
+    .card {
+        background: var(--surface); border: 1px solid var(--border);
+        border-radius: 12px; padding: 24px 28px; margin-bottom: 16px;
+        box-shadow: var(--shadow);
+    }
+    .card-title {
+        font-size: 1em; font-weight: 600; color: var(--text);
+        margin-bottom: 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    }
+
+    .callout {
+        border-radius: 10px; padding: 16px 20px; margin: 16px 0;
+        font-size: 0.92em; display: flex; gap: 12px; line-height: 1.7;
+    }
+    .callout .icon { flex-shrink: 0; }
+    .callout.warn { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; }
+    .callout.info { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; }
+    .callout.tip { background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; }
+    .callout.danger { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+
+    table {
+        width: 100%; border-collapse: collapse; margin: 12px 0 20px;
+        font-size: 0.88em; background: var(--surface);
+        border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+    }
+    th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+    th { background: var(--code-bg); font-weight: 600; color: var(--text); font-size: 0.85em; }
+    td { color: var(--text-secondary); }
+    td code { font-size: 0.85em; }
+
+    .flow {
+        background: var(--code-bg); border: 1px solid var(--code-border);
+        border-radius: 8px; padding: 20px 24px; margin: 12px 0 20px;
+        font-family: "SF Mono", "Fira Code", monospace; font-size: 0.82em;
+        line-height: 1.9; color: #24292e; overflow-x: auto; white-space: pre;
+    }
+
+    .footer {
+        padding: 30px 0; border-top: 1px solid var(--border);
+        text-align: center; color: var(--text-secondary); font-size: 0.82em;
+    }
+    .footer a { color: var(--accent); text-decoration: none; }
+
+    @media (max-width: 600px) {
+        .hero { padding: 60px 0 40px; }
+        .hero h1 { font-size: 1.5em; }
+        .toc ul { grid-template-columns: 1fr; }
+    }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+<div class="hero">
+    <h1>Claude-Science <span class="accent">Artifacts</span> 系统源码解析</h1>
+    <p class="subtitle">从反编译 bundle 还原 operon 本地 artifact 系统 — 存储布局、数据模型、产物写回通道、查询粒度,以及"文件生成了但面板里查不到"的根因分析</p>
+    <div class="meta">
+        <span>📦 源码: claude-science-decompiled (03-decoded/, 1400+ 模块)</span>
+        <span>🔍 方法: 反编译 bundle 静态分析</span>
+        <span>🏷️ 内部代号: operon</span>
+    </div>
+</div>
+
+<div class="toc">
+    <h2>目录</h2>
+    <ul>
+        <li><a href="#s1">1. 这套系统是什么</a></li>
+        <li><a href="#s2">2. 两层存储: Workspace vs Artifact Store</a></li>
+        <li><a href="#s3">3. 数据模型 (SQLite Schema)</a></li>
+        <li><a href="#s4">4. 产物写回的三条通道</a></li>
+        <li><a href="#s5">5. 查询接口与前端面板过滤条件</a></li>
+        <li><a href="#s6">6. 为什么文件"生成了却查不到"</a></li>
+        <li><a href="#s7">7. 排查手册</a></li>
+        <li><a href="#s8">8. 附: 与 claude.ai 云端的区别</a></li>
+    </ul>
+</div>
+
+<!-- ==================== S1 ==================== -->
+<div class="section" id="s1">
+    <h2>1. 这套系统是什么</h2>
+    <p>claude-science 桌面应用(内部代号 <strong>operon</strong>)的 artifacts 不是 claude.ai 云端那套 —— bundle 中不存在 <code>create_file</code> / <code>present_files</code> / <code>wiggle</code> 等云端机制,也没有 <code>/api/organizations/.../artifacts</code> 这类端点。它是一套<strong>纯本地</strong>的 artifact 系统:</p>
+    <ul>
+        <li><strong>本地 Fastify HTTP 服务</strong>:所有 artifact 操作走 <code>/api/...</code> 路由,WebSocket <code>/api/ws</code> 推送变更事件;</li>
+        <li><strong>本地 SQLite</strong>:元数据存 <code>operon-cli.db</code>(drizzle ORM);</li>
+        <li><strong>本地磁盘目录</strong>:文件字节存 <code>&lt;数据目录&gt;/artifacts/...</code>。</li>
+    </ul>
+    <p>所以"文件在服务器上能访问"里的"服务器",就是这个内嵌的本地 API 服务。</p>
+    <div class="callout info">
+        <span class="icon">💡</span>
+        <div>数据目录定义在 <code>03-decoded/0038.js:533-534</code>:<code>db_path = &lt;dir&gt;/operon-cli.db</code>,<code>artifact_storage_path = &lt;dir&gt;/artifacts</code>。Artifact Store 实例化于 <code>03-decoded/1856.js:274</code>。</div>
+    </div>
+    <p>核心概念只有一个:<strong>frame</strong>。frame 是消息/会话单元,<code>root_frame_id</code> 就是会话(conversation)id —— bundle 里没有 <code>conversation_id</code> 这一列,<code>broadcastToConversation(root_frame_id, ...)</code> 等用法可佐证(<code>03-decoded/0871.js:1094</code>)。</p>
+</div>
+
+<!-- ==================== S2 ==================== -->
+<div class="section" id="s2">
+    <h2>2. 两层存储: Workspace vs Artifact Store</h2>
+    <p>理解整套系统的关键:生成文件会经过<strong>两个层级</strong>,只有进入第二层才会出现在 artifacts 面板。</p>
+
+    <div class="card">
+        <div class="card-title">Layer 1 — Workspace(会话临时区,不入库)<span class="tag warn">Ephemeral</span></div>
+        <p>代码执行(analysis 工具 / kernel-exec)产生的文件,先写到按 frame 隔离的 workspace 目录:</p>
+        <pre>&lt;workspaceBase&gt;/&lt;frameId&gt;/...        // 03-decoded/0183.js:130</pre>
+        <p>系统提示里写得非常直白(<code>03-decoded/0195.js:160</code>):</p>
+        <pre>"Workspace files are ephemeral. bash/python/r write to a task-scoped
+workspace ... nothing persists until save_artifacts. ... prior work is
+found in the artifact store, not by searching the filesystem —
+earlier sessions' outputs are not in your workspace."</pre>
+        <p><strong>没经过提升的文件永远不会出现在 artifacts 面板里,但它确实存在于磁盘上、也能被执行环境继续访问。</strong></p>
+    </div>
+
+    <div class="card">
+        <div class="card-title">Layer 2 — Artifact Store(持久层,入库)<span class="tag ok">Persistent</span></div>
+        <p>只有调用 <code>save_artifacts</code> 工具(或被自动提升)的文件才落到这里:</p>
+        <pre>&lt;数据目录&gt;/artifacts/&lt;projectId&gt;/&lt;artifactId&gt;/v&lt;versionId前8位&gt;_&lt;文件名&gt;</pre>
+        <ul>
+            <li>路径构造:<code>03-decoded/0187.js:9-46</code>(<code>_projectPath</code> / <code>_versionPath</code>);</li>
+            <li>文件字节在磁盘,元数据在 SQLite 的 <code>artifacts</code> / <code>artifact_versions</code> 表;</li>
+            <li>归集单位是 <strong>project</strong>(NOT NULL 外键、级联删除),conversation 只是出处记录。</li>
+        </ul>
+    </div>
+
+    <div class="flow">代码执行 (analysis / kernel-exec)
+        │
+        ▼  写入
+┌─────────────────────┐   save_artifacts / 自动提升    ┌──────────────────────┐
+│  Workspace (临时)    │ ───────────────────────────▶ │  Artifact Store (持久)│
+│  &lt;base&gt;/&lt;frameId&gt;/  │                              │  磁盘 + SQLite 元数据  │
+│  不入库、面板不可见   │ ◀── 未提升则永远停留在此       │  面板可见、版本化      │
+└─────────────────────┘                              └──────────────────────┘</div>
+</div>
+
+<!-- ==================== S3 ==================== -->
+<div class="section" id="s3">
+    <h2>3. 数据模型 (SQLite Schema)</h2>
+    <p>Drizzle schema 在 <code>03-decoded/0110.js:302-420</code>。注意 <strong>每条 artifact 同时挂在 project 和 conversation 两层之下</strong>,不是二选一:</p>
+    <pre>artifacts {
+  id, filename, created_at,
+  project_id     NOT NULL → projects.id (onDelete: cascade),  // 所有权的硬边界
+  root_frame_id  NOT NULL,        // 会话归属 (= conversation id)
+  frame_id,                       // 具体产生它的消息 frame
+  latest_version_id,
+  is_user_upload,                 // 用户上传而非 agent 生成
+  is_branch_mint,                 // 从旧会话"分支"过来的副本
+  is_ephemeral,                   // 临时产物,所有列表查询都排除
+  consumed_at, folder_id, priority, superseded_by_artifact_id
+}
+// 索引: ix_artifacts_conversation_priority (project_id, root_frame_id, priority)
+
+artifact_versions {
+  artifact_id, version_number, frame_id,
+  content_type, size_bytes, checksum (sha256), storage_path,
+  is_intermediate,                // 依赖提取自动提升的中间产物
+  producing_cell_id, cell_sources, is_checkpoint,
+  parent_version_id, agent_name, language
+}</pre>
+    <ul>
+        <li><strong>同 (project, frame) 下同名文件</strong> = 同一 artifact 的新版本(<code>findByProjectFrameAndFilename</code>,<code>0131.js:56-73</code>);跨会话同名则是独立 artifact;</li>
+        <li>还有血缘追踪:<code>artifact_versions.dependency_mappings</code> + <code>artifact_dependencies</code> 表(<code>0491.js:463-483</code>),用于跨会话追溯文件依赖;</li>
+        <li>reference artifact:不落盘、指向 host 授权路径、带 drift 检测(<code>0187.js:180-242</code>)。</li>
+    </ul>
+</div>
+
+<!-- ==================== S4 ==================== -->
+<div class="section" id="s4">
+    <h2>4. 产物写回的三条通道</h2>
+
+    <div class="card">
+        <div class="card-title">a. 显式保存 — save_artifacts 工具(主通道)<span class="tag ok">主通道</span></div>
+        <p>暴露给模型的工具(<code>03-decoded/0491.js:46-241</code>),参数 <code>files</code>(相对 workspace 或注册 local-repo root 的路径)、<code>language</code>、<code>version_of</code>、<code>checkpoints</code>。handler 逐个校验路径 containment(workspace 逃逸直接拒绝),然后:</p>
+        <ul>
+            <li>文本类 → <code>artifact_service.save_artifact(...)</code>(支持 <code>{{artifact:...}}</code> 引用重写,<code>0183.js:436-449</code>);</li>
+            <li>其余 → <code>save_artifact_from_path(...)</code>(<code>0183.js:450-477</code>);</li>
+            <li>写盘统一走 <code>_saveArtifactCommon</code>(<code>0187.js:47-169</code>)。</li>
+        </ul>
+    </div>
+
+    <div class="card">
+        <div class="card-title">b. 自动收集 — 执行后扫描 + auto-view<span class="tag info">隐式</span></div>
+        <ul>
+            <li>执行前后对 workspace 做 <code>scanWorkspace</code> + <code>diffFiles</code> 得出 <code>filesWritten</code>,写入 <code>execution_log</code>(<code>0183.js:253/295</code>,<code>0335.js:2791-2819</code>);</li>
+            <li>新生成的图片走 auto-view,作为 vision block 注入消息流(<code>0865.js:1245-1266</code>);</li>
+            <li><strong>依赖提取</strong>:代码执行中<em>读到</em>的文件被 auto-promote 为 <code>is_intermediate: true</code> 的 artifact(<code>0496.js:734-742</code>,日志前缀 <code>[dependency-extraction] auto-promote</code>)—— 入库了但默认被面板过滤,这是"查不到"的常见来源。</li>
+        </ul>
+    </div>
+
+    <div class="card">
+        <div class="card-title">c. 用户上传 — 分块上传 API<span class="tag">手动</span></div>
+        <p><code>POST /api/artifacts/upload/init → /chunk (multipart) → /finalize</code>(sha256 校验),chunk 暂存 staging,finalize 后 <code>save_user_upload_streaming</code> 入库并标 <code>is_user_upload=true</code>(路由 <code>vendor/powershell-utils/0048.js</code>,服务 <code>1855.js:108-136</code>)。</p>
+    </div>
+
+    <p>每次保存都会通过 WebSocket 广播 <code>artifact_created</code> 事件(<code>0885.js:26-49</code>),Agent 侧 <code>_processCodeArtifacts</code> 更新 session 列表、持久化 lineage、记录 cell provenance(<code>0865.js:1474-1533</code>)。另有 <code>artifact_deleted</code> / <code>renamed</code> / <code>moved</code> / <code>priority_update</code> 事件。</p>
+</div>
+
+<!-- ==================== S5 ==================== -->
+<div class="section" id="s5">
+    <h2>5. 查询接口与前端面板过滤条件</h2>
+    <p>列表查询存在<strong>两种粒度</strong>,这是理解"查不到"的关键:</p>
+    <table>
+        <tr><th>端点</th><th>粒度</th><th>实现</th></tr>
+        <tr>
+            <td><code>GET /api/projects/:pid/artifacts</code></td>
+            <td><strong>project 级</strong>,含该项目所有会话的产物</td>
+            <td><code>2457.js:129-143</code> → <code>listForProject</code>(<code>0131.js:99-110</code>)</td>
+        </tr>
+        <tr>
+            <td><code>GET /api/projects/batch/artifacts</code></td>
+            <td>多 project 批量</td>
+            <td><code>2457.js:172-184</code></td>
+        </tr>
+        <tr>
+            <td><code>GET /api/frames/:root_id/artifacts</code></td>
+            <td><strong>单会话级</strong>,按 root_frame_id 过滤</td>
+            <td><code>vendor/powershell-utils/0017.js</code> → <code>listForConversation</code>(<code>0131.js:176-181</code>)</td>
+        </tr>
+    </table>
+
+    <p>会话面板(前端 artifacts 面板的数据源)的过滤条件是:</p>
+    <pre>// 03-decoded/0131.js:176-181
+async listForConversation(projectId, rootFrameId, isUserUpload = null, opts = {}) {
+  let conds = [
+    eq(artifacts.projectId, projectId),
+    eq(artifacts.rootFrameId, rootFrameId),   // ← 按当前会话过滤
+    eq(artifacts.isEphemeral, false),
+  ];
+  if (opts.excludeIntermediateVersions)
+    conds.push(eq(artifact_versions.isIntermediate, false));  // ← 默认排除中间产物
+  ...
+}</pre>
+    <p>路由里 <code>exclude_intermediate</code> 默认 <strong>true</strong>(传 <code>?exclude_intermediate=false</code> 才能看到中间产物)。Agent SDK 侧同理:<code>host.artifacts(frame_id=…)</code> 按会话查,只传 <code>project_id</code> 按项目查,都不传则全局搜索(<code>0791.js:96-108</code>)。</p>
+</div>
+
+<!-- ==================== S6 ==================== -->
+<div class="section" id="s6">
+    <h2>6. 为什么文件"生成了却查不到"</h2>
+    <p>典型症状:在 project 的某个 session 里生成了文件,文件能访问(在磁盘/执行环境里),但 artifacts 面板里没有。按可能性排序,有三种根因:</p>
+
+    <div class="card">
+        <div class="card-title"><span class="tag danger">① 最常见</span> 文件没走 save_artifacts,一直停在 workspace</div>
+        <p>代码执行写完文件如果不显式调用 <code>save_artifacts</code>,文件就只是 workspace 里的临时态 —— <strong>没入库,任何 artifacts 接口都查不到,但磁盘上真实存在、可被后续执行读取</strong>。这完全吻合"找不到但又能访问"的现象。</p>
+    </div>
+
+    <div class="card">
+        <div class="card-title"><span class="tag warn">② 次常见</span> 被自动提升成了 intermediate,被默认过滤</div>
+        <p>依赖提取会把执行中读到的文件自动入库,但标 <code>is_intermediate: true</code>;会话面板默认 <code>exclude_intermediate=true</code> 把它们滤掉。用 <code>?exclude_intermediate=false</code> 再查一次即可验证。</p>
+    </div>
+
+    <div class="card">
+        <div class="card-title"><span class="tag info">③ 跨会话场景</span> 文件是上一个 session 产的,root_frame_id 对不上</div>
+        <p>新 conversation = 新 root frame id,旧 artifact 的 <code>root_frame_id</code> 仍指向旧会话,会话级列表自然为空。这是设计使然,不是数据丢失:</p>
+        <ul>
+            <li>旧文件仍属于 project,project 级视图(<code>/api/projects/:pid/artifacts</code>、Files 面板、batch 接口)都能看到;</li>
+            <li>新会话的 agent 可通过 <code>host.artifacts(search=…)</code> 跨会话找回,再 <code>read_file(version_id=…)</code> 读取 —— 系统提示专门教模型这么做;</li>
+            <li>要在新会话"拥有"该文件,需显式分支:<code>copy_artifact</code> 以 <code>is_branch_mint: true</code> 创建新行(<code>0885.js:225-243</code>),UI 对应 "Branch in new session"。</li>
+        </ul>
+    </div>
+</div>
+
+<!-- ==================== S7 ==================== -->
+<div class="section" id="s7">
+    <h2>7. 排查手册</h2>
+    <pre># 1. 直接看磁盘,确认文件在 workspace 还是 artifact store
+ls &lt;数据目录&gt;/artifacts/&lt;projectId&gt;/
+
+# 2. 查 SQLite,看有没有入库、标记是什么
+sqlite3 &lt;数据目录&gt;/operon-cli.db \
+  "SELECT id, filename, root_frame_id, is_ephemeral
+   FROM artifacts WHERE project_id='&lt;pid&gt;';"
+
+# 3. 带上 intermediate 再查一次会话接口
+curl "http://localhost:&lt;port&gt;/api/frames/&lt;root_id&gt;/artifacts?exclude_intermediate=false"
+
+# 4. 按 project 级查(跨所有会话)
+curl "http://localhost:&lt;port&gt;/api/projects/&lt;pid&gt;/artifacts"</pre>
+    <p>判定逻辑:</p>
+    <ul>
+        <li><code>artifacts</code> 表无对应行、磁盘 workspace 里能找到 → 情况 ①,走 <code>save_artifacts</code> 提升即可;</li>
+        <li>表里有行但 <code>is_intermediate=true</code> → 情况 ②,面板过滤问题;</li>
+        <li>表里有行但 <code>root_frame_id</code> 是旧会话 → 情况 ③,用 project 级视图或 branch。</li>
+    </ul>
+</div>
+
+<!-- ==================== S8 ==================== -->
+<div class="section" id="s8">
+    <h2>8. 附: 与 claude.ai 云端的区别</h2>
+    <table>
+        <tr><th>维度</th><th>claude.ai 云端</th><th>claude-science (operon)</th></tr>
+        <tr><td>产物工具</td><td><code>create_file</code> / <code>present_files</code></td><td><code>save_artifacts</code> + 执行后自动扫描</td></tr>
+        <tr><td>存储</td><td>云端(wiggle 等内部服务)</td><td>本地磁盘 + 本地 SQLite</td></tr>
+        <tr><td>归集维度</td><td>organization / conversation</td><td>project(硬边界)+ root_frame_id(出处)</td></tr>
+        <tr><td>API</td><td><code>/api/organizations/...</code></td><td>本地 Fastify <code>/api/projects/... /api/frames/...</code></td></tr>
+    </table>
+    <p>另外,bundle 里确实存在 Anthropic <code>/v1/files</code> API 客户端(<code>0149.js</code>,带 <code>anthropic-beta: files-api-2025-04-14</code> 头),但它只用于把 PDF/图片<strong>作为模型输入</strong>上传(<code>0490.js:130-155</code>),与产物存储完全无关。</p>
+    <div class="callout tip">
+        <span class="icon">📌</span>
+        <div><strong>一句话总结</strong>:operon 的 artifact = 本地 project 级文件仓库;workspace 是会话临时草稿区,<code>save_artifacts</code> 是把草稿"发表"进仓库的唯一显式入口;面板按 (project, root_frame_id, 非 ephemeral, 非 intermediate) 过滤展示。文件"查不到"几乎都是卡在这四个过滤条件之一上,而不是丢了。</div>
+    </div>
+</div>
+
+<div class="footer">
+    基于 claude-science 反编译 bundle 静态分析 · 引用路径均为 <code>03-decoded/</code> 下模块 · <a href="https://github.com/APX103/note">GitHub</a>
+</div>
+
+</div>
+
+</body>
+</html>
