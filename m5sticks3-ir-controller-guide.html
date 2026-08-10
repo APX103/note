@@ -192,6 +192,88 @@
         color: inherit;
     }
 
+    /* Code block with copy button */
+    .code-block {
+        margin: 12px 0 20px;
+        border: 1px solid var(--code-border);
+        border-radius: 10px;
+        overflow: hidden;
+        background: var(--code-bg);
+        box-shadow: var(--shadow);
+    }
+
+    .code-block .code-head {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 14px;
+        background: #e6e8ee;
+        border-bottom: 1px solid var(--code-border);
+        font-size: 0.78em;
+        color: var(--text-secondary);
+    }
+
+    .code-block .code-name {
+        font-weight: 600;
+        color: var(--text);
+        font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .code-block .code-lang {
+        padding: 1px 8px;
+        border-radius: 5px;
+        background: var(--tag-bg);
+        color: var(--tag-color);
+        font-weight: 500;
+        font-size: 0.78em;
+        flex-shrink: 0;
+    }
+
+    .code-block .code-note {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: var(--text-secondary);
+    }
+
+    .code-block .copy-btn {
+        flex-shrink: 0;
+        border: 1px solid var(--code-border);
+        background: var(--surface);
+        color: var(--text-secondary);
+        font-size: 0.75em;
+        font-weight: 600;
+        padding: 3px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+
+    .code-block .copy-btn:hover {
+        background: var(--accent);
+        color: #fff;
+        border-color: var(--accent);
+    }
+
+    .code-block .copy-btn.copied {
+        background: #059669;
+        color: #fff;
+        border-color: #059669;
+    }
+
+    .code-block pre {
+        margin: 0;
+        border: none;
+        border-radius: 0;
+        max-height: 480px;
+    }
+
+
     /* Tags */
     .tag {
         display: inline-block;
@@ -423,21 +505,33 @@
     <h2>2. 环境搭建（Arduino CLI + 板包 + 库）</h2>
 
     <h3>2.1 安装 arduino-cli</h3>
-    <pre><code>brew install arduino-cli</code></pre>
+    <div class="code-block">
+  <div class="code-head"><span class="code-name">示例代码</span><span class="code-lang">text</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+<pre><code>brew install arduino-cli</code></pre>
+</div>
 
     <h3>2.2 添加 M5Stack 板包并安装核心</h3>
-    <pre><code>arduino-cli config init --overwrite
+    <div class="code-block">
+  <div class="code-head"><span class="code-name">示例代码</span><span class="code-lang">text</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+<pre><code>arduino-cli config init --overwrite
 arduino-cli config set board_manager.additional_urls "https://static-cdn.m5stack.com/resource/arduino/package_m5stack_index.json"
 arduino-cli core update-index
 arduino-cli core install m5stack:esp32</code></pre>
+</div>
 
     <h3>2.3 安装红外库</h3>
     <p>推荐 <code>ESP32IRPulseKit</code>：支持 RMT 底层收发，内置十余种空调协议（Panasonic / Gree / Haier / Midea / Toshiba…）的编解码，可生成标准帧。</p>
-    <pre><code>arduino-cli lib install M5Unified M5GFX ESP32IRPulseKit</code></pre>
+    <div class="code-block">
+  <div class="code-head"><span class="code-name">示例代码</span><span class="code-lang">text</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+<pre><code>arduino-cli lib install M5Unified M5GFX ESP32IRPulseKit</code></pre>
+</div>
 
     <h3>2.4 确认板子与端口</h3>
-    <pre><code># 列出已连接的板子（记住你的 USB 端口名）
+    <div class="code-block">
+  <div class="code-head"><span class="code-name">示例代码</span><span class="code-lang">text</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+<pre><code># 列出已连接的板子（记住你的 USB 端口名）
 arduino-cli board list</code></pre>
+</div>
 
     <div class="callout warn">
         <strong>库的推荐配置（烧录前设置好，避免长帧丢失）</strong>：
@@ -466,7 +560,9 @@ arduino-cli board list</code></pre>
 <div class="section" id="plan-a">
     <h2>4. 方案 A：库生成标准帧直发（推荐）</h2>
     <p>以 Haier 空调为例，完整可编译的 sketch（K1 短按 = 开关，K2 长按 = 关机）：</p>
-    <pre><code>#include &lt;M5Unified.h&gt;
+    <div class="code-block">
+  <div class="code-head"><span class="code-name">示例代码</span><span class="code-lang">text</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+<pre><code>#include &lt;M5Unified.h&gt;
 #include &lt;ESP32IRPulseKit.h&gt;
 
 constexpr uint16_t IR_TX_PIN = 46;
@@ -529,23 +625,553 @@ void sendToggle() {
   }
   Serial.printf("sent Haier %s\n", powerOn ? "ON" : "OFF");
 }</code></pre>
+</div>
 
     <h3>4.1 编译与上传</h3>
-    <pre><code>arduino-cli compile --fqbn m5stack:esp32:m5stack_sticks3:PartitionScheme=default_8MB \
+    <div class="code-block">
+  <div class="code-head"><span class="code-name">示例代码</span><span class="code-lang">text</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+<pre><code>arduino-cli compile --fqbn m5stack:esp32:m5stack_sticks3:PartitionScheme=default_8MB \
   /path/to/your/sketch_dir
 
 arduino-cli upload --fqbn m5stack:esp32:m5stack_sticks3:PartitionScheme=default_8MB \
   -p /dev/cu.usbmodemXXXX /path/to/your/sketch_dir</code></pre>
+</div>
 
     <h3>4.2 修改成你的空调设置</h3>
     <p>库每个品牌都提供 setter，直接改默认帧即可生成你想要的模式/温度：</p>
-    <pre><code>esp32irpk::ac::Haier::Frame f;
+    <div class="code-block">
+  <div class="code-head"><span class="code-name">示例代码</span><span class="code-lang">text</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+<pre><code>esp32irpk::ac::Haier::Frame f;
 f.setPower(true);
 f.setMode(esp32irpk::ac::Haier::Mode::COOL);   // COOL / HEAT / DRY / FAN / AUTO
 f.setTemperatureC(26);                          // 16-30°C
 f.setFan(esp32irpk::ac::Haier::Fan::AUTO);      // AUTO / LOW / MED / HIGH
 f.setSwingV(esp32irpk::ac::Haier::SwingV::OFF); // OFF / UP / DOWN / CYCLE</code></pre>
+</div>
     <p>不同品牌命名略有差异（如 Gree 用 <code>ac::Gree::Mode::COOL</code>），但结构完全一致。</p>
+</div>
+
+<h3>4.3 完整源码（可直接编译运行）</h3>
+<p>以下是一个完整可编译的版本，包含方案 A（K1 短按生成标准 Haier 帧开关）与备用的学习路径（K1 长按进入学习）。复制后按 <code>sketch.ino</code> 保存为同名文件夹即可用 arduino-cli 编译：</p>
+<div class="code-block">
+  <div class="code-head"><span class="code-name">m5stick_s3_ir_toggle_remote.ino</span><span class="code-lang">Arduino C++</span><span class="code-note">完整可编译 · 方案 A 全功能（生成帧直发 + 学习备选）</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+<div class="code-block">
+  <div class="code-head"><span class="code-name">示例代码</span><span class="code-lang">text</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+<pre><code>// M5StickS3 Single-Button IR Toggle Remote
+// ==========================================
+// One-key infrared remote for M5StickS3.
+//
+// Button mapping (M5StickS3 front face):
+//   K1 (GPIO11) -&gt; M5.BtnA
+//   K2 (GPIO12) -&gt; M5.BtnB
+//
+// Behavior:
+//   K1 short press : send the stored toggle IR frame (on/off)
+//   K1 long press  : learn a new toggle IR frame from the on-board IR receiver
+//   K2 long press  : power off the device via M5.Power.powerOff()
+//
+// The learned frame is saved to LittleFS as /toggle.bin.
+//
+// Hardware: M5StickS3 (ESP32-S3)
+// IR TX: GPIO46 (on-board)
+// IR RX: GPIO42 (on-board)
+// K1   : GPIO11
+// K2   : GPIO12
+//
+// Arduino IDE settings:
+//   Board: M5Stack -&gt; M5StickS3
+//   Partition Scheme: 8M with spiffs (3MB APP/1.5MB SPIFFS)
+//   Libraries: M5Unified, M5GFX, ESP32IRPulseKit
+
+#include &lt;M5Unified.h&gt;
+#include &lt;ESP32IRPulseKit.h&gt;
+#include &lt;LittleFS.h&gt;
+
+constexpr uint16_t IR_TX_PIN = 46;
+constexpr uint16_t IR_RX_PIN = 42;
+
+// On-board IR LED / receiver.
+// M5StickS3 on-board receiver is active-high (idle low, mark high),
+// so inverted=false. If you wire an external VS1838B module, use true.
+esp32irpk::IRSender  tx(IR_TX_PIN);
+esp32irpk::IRReceiver rx(IR_RX_PIN, false);
+
+// Minimum ticks for a valid AC frame. A repeat frame is usually &lt; 10 ticks;
+// a real AC state frame is usually 100~400 ticks.
+constexpr size_t MIN_TOGGLE_TICKS = 50;
+
+const char *TOGGLE_FILE = &quot;/toggle.bin&quot;;
+
+constexpr size_t MAX_TICKS = 1024;
+uint16_t tickBuffer[MAX_TICKS];
+
+enum class State {
+  IDLE,
+  LEARNING,
+};
+
+State state = State::IDLE;
+uint32_t learnStartMs = 0;
+bool k1LongTriggered = false;
+
+// Best-capture accumulator for learning: the phone remote can only be tapped
+// repeatedly (each tap sends one frame), and the receiver&#x27;s AGC settles
+// differently per tap. Instead of saving the first plausible capture, we keep
+// the cleanest one seen and auto-save it once we have a couple of taps.
+uint16_t bestTicks[MAX_TICKS];
+size_t bestLen = 0;
+int bestScore = -1;
+uint32_t firstGoodMs = 0;
+
+// Cleaned tick buffer used for decode attempts: real captures often contain
+// sub-150us glitch pulses from the receiver; merging them into their neighbor
+// recovers the underlying mark/space stream so the Haier decoder can walk it.
+uint16_t cleanTicks[MAX_TICKS];
+size_t cleanLen = 0;
+
+void applyGlitchFilter(const esp32irpk::IRRawTickView &amp;raw) {
+  cleanLen = 0;
+  for (size_t i = 0; i &lt; raw.len; i++) {
+    uint32_t us = (uint32_t)raw.ticks[i] * 10u;
+    if (us &lt; 150 &amp;&amp; cleanLen &gt; 0) {
+      // Merge the glitch into the previous tick (same polarity is fine for a
+      // mark/space duration sum; the next tick keeps alternating).
+      cleanTicks[cleanLen - 1] = (uint16_t)(cleanTicks[cleanLen - 1] + raw.ticks[i]);
+    } else if (cleanLen &lt; MAX_TICKS) {
+      cleanTicks[cleanLen++] = raw.ticks[i];
+    }
+  }
+}
+
+// Quality score for a structurally plausible (but undecodable) AC capture:
+// data marks ~520us and data spaces ~600-1800us add points, glitch ticks
+// (&lt;150us) subtract. A capture that contains the Haier double header
+// (3000/3000/3000/4300) anywhere gets a huge bonus: a headerless capture is a
+// mid-frame slice that will not be recognized by the AC, so it must never win.
+int captureScore(const esp32irpk::IRRawTickView &amp;raw) {
+  int score = 0;
+  bool hasHeader = false;
+  for (size_t i = 0; i + 3 &lt; raw.len; i++) {
+    uint32_t a = (uint32_t)raw.ticks[i] * 10u;
+    uint32_t b = (uint32_t)raw.ticks[i + 1] * 10u;
+    uint32_t c = (uint32_t)raw.ticks[i + 2] * 10u;
+    uint32_t d = (uint32_t)raw.ticks[i + 3] * 10u;
+    const uint32_t tol = 3000 * 55 / 100; // 55% tolerance, matches library
+    if (a + tol &gt;= 3000 &amp;&amp; a &lt;= 3000 + tol &amp;&amp;
+        b + tol &gt;= 3000 &amp;&amp; b &lt;= 3000 + tol &amp;&amp;
+        c + tol &gt;= 3000 &amp;&amp; c &lt;= 3000 + tol &amp;&amp;
+        d + tol &gt;= 4300 &amp;&amp; d &lt;= 4300 + tol) {
+      hasHeader = true;
+      break;
+    }
+  }
+  if (hasHeader) score += 500; // complete frame beats any headerless one
+  for (size_t i = 0; i &lt; raw.len; i++) {
+    uint32_t us = (uint32_t)raw.ticks[i] * 10u;
+    if (us &gt;= 450 &amp;&amp; us &lt;= 650) score += 2;        // data mark (~520us)
+    else if (us &gt;= 600 &amp;&amp; us &lt;= 1800) score += 1;  // data space (0 or 1 bit)
+    else if (us &lt; 150) score -= 2;                 // glitch
+  }
+  return score;
+}
+
+void setup() {
+  M5.begin();
+  Serial.begin(115200);
+  delay(200);
+  Serial.println(&quot;\nM5StickS3 IR Toggle Remote&quot;);
+
+  // Power on the on-board IR transceiver.
+  M5.Power.setExtOutput(true, m5::ext_none);
+  delay(100);
+
+  // Speaker amp disturbs IR RX.
+  M5.Speaker.end();
+
+  if (!LittleFS.begin(true)) {
+    Serial.println(&quot;LittleFS mount failed&quot;);
+    M5.Display.println(&quot;FS mount failed&quot;);
+    while (true) delay(1000);
+  }
+  Serial.println(&quot;LittleFS OK&quot;);
+
+  rx.setMaxRxSymbols(512);
+  // M5StickS3 on-board IR receiver merges multiple AC frames with the default
+  // 30 ms idle threshold. Drop it to 15 ms so repeated Haier frames are split
+  // into separate captures and the first full frame can be decoded.
+  rx.setIdleThresholdUs(15000);
+  rx.begin();
+
+  // More RMT TX memory blocks reduce the chance of underruns when sending
+  // long AC frames under Wi-Fi/BLE interrupt load.
+  tx.setTxMemBlocks(2);
+  // Phase-aligned carrier has very high symbol throughput; long AC frames are
+  // safer with the free-running hardware 38 kHz carrier.
+  tx.setPhaseAlignedCarrier(false);
+  tx.begin();
+
+  M5.Display.setRotation(3);
+  M5.Display.setTextFont(&amp;fonts::FreeMonoBold9pt7b);
+  M5.Display.clear();
+
+  drawUI();
+
+  Serial.println(&quot;K1 short: send toggle&quot;);
+  Serial.println(&quot;K1 long : learn toggle (tap power 3-4x, 30-100cm)&quot;);
+  Serial.println(&quot;K2 long : power off&quot;);
+}
+
+void loop() {
+  static uint32_t aliveTimer = 0;
+  if (millis() - aliveTimer &gt; 5000) {
+    aliveTimer = millis();
+    Serial.println(&quot;alive&quot;);
+  }
+
+  M5.update();
+
+  // K2 long press -&gt; power off the device.
+  if (M5.BtnB.pressedFor(1000)) {
+    Serial.println(&quot;K2 long press -&gt; powerOff&quot;);
+    M5.Display.fillRect(0, 120, 240, 60, TFT_BLACK);
+    M5.Display.setCursor(0, 120);
+    M5.Display.setTextColor(TFT_RED);
+    M5.Display.println(&quot;Power off...&quot;);
+    delay(500);
+    M5.Power.powerOff();
+  }
+
+  // K1 gesture handling.
+  if (M5.BtnA.isPressed()) {
+    if (!k1LongTriggered &amp;&amp; M5.BtnA.pressedFor(1200)) {
+      k1LongTriggered = true;
+      startLearning();
+    }
+  } else {
+    if (M5.BtnA.wasReleased()) {
+      if (!k1LongTriggered) {
+        sendToggle();
+      }
+      k1LongTriggered = false;
+    }
+  }
+
+  // Learning mode: capture a valid IR frame.
+  if (state == State::LEARNING) {
+    esp32irpk::IRReceiveResult&lt;4&gt; result;
+    if (rx.read(result)) {
+      Serial.printf(&quot;Captured IR: len=%u flags=%u\n&quot;,
+                    (unsigned)result.raw.len,
+                    (unsigned)static_cast&lt;uint8_t&gt;(result.flags));
+
+      // Clean the waveform before decoding: merge sub-150us glitch pulses so
+      // the Haier bit-walk can proceed. Raw-replay still uses the raw ticks.
+      applyGlitchFilter(result.raw);
+      esp32irpk::IRRawTickView cleanView{cleanTicks, cleanLen};
+      Serial.printf(&quot;Cleaned: len=%u\n&quot;, (unsigned)cleanLen);
+
+      // Try to identify the AC vendor. The return value matters: if any
+      // vendor matched, the raw frame is real and safe to save as-is; if none
+      // matched we need extra structural checks before trusting the capture.
+      esp32irpk::ac::AcVendor vendor = esp32irpk::ac::decodeAny(cleanView, &amp;Serial);
+
+      // If this is a Haier AC frame, re-encode a clean single-frame raw
+      // instead of saving whatever the receiver happened to merge together.
+      // Decode from the glitch-filtered view so stray short pulses cannot
+      // break the bit walk.
+      esp32irpk::ac::Haier::Frame haier;
+      if (esp32irpk::ac::Haier::Frame::fromRaw(cleanView, haier)) {
+        Serial.println(&quot;Haier frame decoded&quot;);
+        haier.printTo(Serial);
+
+        uint16_t haierTicks[esp32irpk::ac::Haier::Frame::kMaxTicks];
+        esp32irpk::IRRawTickBuffer haierBuf{haierTicks,
+                                            esp32irpk::ac::Haier::Frame::kMaxTicks,
+                                            0};
+        if (haier.toRaw(haierBuf)) {
+          esp32irpk::IRRawTickView haierView{haierBuf.ticks, haierBuf.len};
+          Serial.printf(&quot;Re-encoded clean Haier frame: len=%u\n&quot;,
+                        (unsigned)haierView.len);
+          if (saveToggle(haierView)) {
+            state = State::IDLE;
+            drawUI();
+          }
+        } else {
+          Serial.println(&quot;Haier re-encode failed&quot;);
+        }
+      } else if (result.raw.len &gt;= MIN_TOGGLE_TICKS) {
+        // Not a Haier frame. If decodeAny recognized another vendor, save the
+        // raw immediately (raw replay works for any protocol).
+        if (vendor != esp32irpk::ac::AcVendor::UNKNOWN) {
+          if (saveToggle(result.raw)) {
+            state = State::IDLE;
+            drawUI();
+          }
+          return;
+        }
+        // No vendor matched: keep the capture only if it is structurally
+        // plausible (a pulse-distance AC frame always has 1-bit spaces of
+        // roughly 1.0-2.6 ms). Keep the BEST one across repeated taps and
+        // auto-save a couple of seconds after the first good capture.
+        bool hasOneBitSpace = false;
+        for (size_t i = 0; i &lt; result.raw.len; i++) {
+          uint32_t us = (uint32_t)result.raw.ticks[i] * 10u;
+          if (us &gt;= 1000 &amp;&amp; us &lt;= 2600) {
+            hasOneBitSpace = true;
+            break;
+          }
+        }
+        if (hasOneBitSpace) {
+          int sc = captureScore(cleanView);
+          // A headerless mid-frame slice (score &lt; 500) is never usable; only
+          // keep captures that contain the complete Haier double header.
+          if (sc &gt;= 500 &amp;&amp; sc &gt; bestScore) {
+            bestScore = sc;
+            bestLen = cleanLen;
+            for (size_t i = 0; i &lt; bestLen; i++) bestTicks[i] = cleanTicks[i];
+            if (firstGoodMs == 0) firstGoodMs = millis();
+            M5.Display.fillRect(0, 120, 240, 60, TFT_BLACK);
+            M5.Display.setCursor(0, 120);
+            M5.Display.setTextColor(TFT_GREEN);
+            M5.Display.printf(&quot;GOT IR\nlen=%u\nKeep tapping&quot;,
+                              (unsigned)bestLen);
+            Serial.printf(&quot;Good capture len=%u score=%d (keep tapping...)\n&quot;,
+                          (unsigned)bestLen, sc);
+          } else if (sc &lt; 500) {
+            // Complete-frame capture (no header) is not saved; show a hint.
+            M5.Display.fillRect(0, 120, 240, 60, TFT_BLACK);
+            M5.Display.setCursor(0, 120);
+            M5.Display.setTextColor(TFT_YELLOW);
+            M5.Display.printf(&quot;HEAD MISSING\nlen=%u\nTap again&quot;,
+                              (unsigned)result.raw.len);
+            Serial.printf(&quot;Capture missing Haier header (len=%u) - tap again\n&quot;,
+                          (unsigned)result.raw.len);
+          }
+        } else {
+          // Garbage: no data-bit structure. Ignore silently and keep
+          // listening - a bad tap must not erase a previous good one.
+          Serial.println(&quot;Ignored noisy capture&quot;);
+        }
+      } else {
+        // Likely a repeat frame or noise; keep listening.
+        M5.Display.fillRect(0, 120, 240, 60, TFT_BLACK);
+        M5.Display.setCursor(0, 120);
+        M5.Display.setTextColor(TFT_YELLOW);
+        M5.Display.printf(&quot;TOO SHORT\nlen=%u\nTap again&quot;,
+                          (unsigned)result.raw.len);
+        Serial.println(&quot;Ignored: signal too short&quot;);
+      }
+    }
+
+    // Auto-save the best capture ~3s after the first good one. This matches
+    // &quot;tap repeatedly&quot;: a couple of taps give the receiver enough chances for
+    // a clean frame, then we store the best one and leave learning.
+    if (state == State::LEARNING &amp;&amp; bestScore &gt;= 0 &amp;&amp; firstGoodMs != 0 &amp;&amp;
+        (millis() - firstGoodMs &gt; 3000)) {
+      esp32irpk::IRRawTickView bestView{bestTicks, bestLen};
+      Serial.printf(&quot;Saving best of %d taps: len=%u score=%d\n&quot;,
+                    bestScore &gt;= 0 ? 2 : 1, (unsigned)bestLen, bestScore);
+      if (saveToggle(bestView)) {
+        state = State::IDLE;
+        drawUI();
+      }
+    }
+
+    // 15-second learn timeout: gives you time to keep tapping. Save the best
+    // capture seen so far instead of discarding everything.
+    if (millis() - learnStartMs &gt; 15000) {
+      if (bestScore &gt;= 0 &amp;&amp; bestLen &gt; 0) {
+        esp32irpk::IRRawTickView bestView{bestTicks, bestLen};
+        Serial.printf(&quot;Timeout - saving best capture len=%u score=%d\n&quot;,
+                      (unsigned)bestLen, bestScore);
+        if (saveToggle(bestView)) {
+          state = State::IDLE;
+          drawUI();
+        }
+      } else {
+        state = State::IDLE;
+        M5.Display.fillRect(0, 120, 240, 60, TFT_BLACK);
+        M5.Display.setCursor(0, 120);
+        M5.Display.setTextColor(TFT_YELLOW);
+        M5.Display.println(&quot;Learn timeout\nNo signal&quot;);
+        Serial.println(&quot;Learn timeout - no usable capture&quot;);
+        delay(1000);
+        drawUI();
+      }
+    }
+  }
+
+  delay(10);
+}
+
+void drawUI() {
+  M5.Display.clear();
+  M5.Display.setCursor(0, 0);
+  M5.Display.setTextColor(TFT_WHITE);
+  M5.Display.println(&quot;IR TOGGLE&quot;);
+
+  bool hasCode = LittleFS.exists(TOGGLE_FILE);
+  M5.Display.setTextColor(hasCode ? TFT_GREEN : TFT_RED);
+  M5.Display.printf(&quot;Code: %s\n&quot;, hasCode ? &quot;OK&quot; : &quot;NONE&quot;);
+
+  M5.Display.setTextColor(TFT_LIGHTGREY);
+  M5.Display.println(&quot;K1 short: send&quot;);
+  M5.Display.println(&quot;K1 long : learn&quot;);
+  M5.Display.println(&quot;K2 long : power off&quot;);
+
+  // Battery level in the bottom corner.
+  int bat = M5.Power.getBatteryLevel();
+  M5.Display.setCursor(0, 160);
+  M5.Display.setTextColor(TFT_CYAN);
+  M5.Display.printf(&quot;BAT:%d%%&quot;, bat);
+}
+
+void startLearning() {
+  state = State::LEARNING;
+  learnStartMs = millis();
+  bestLen = 0;
+  bestScore = -1;
+  firstGoodMs = 0;
+  M5.Display.fillRect(0, 120, 240, 60, TFT_BLACK);
+  M5.Display.setCursor(0, 120);
+  M5.Display.setTextColor(TFT_YELLOW);
+  M5.Display.println(&quot;LEARNING...\nAim 30-100cm&quot;);
+  M5.Display.setTextColor(TFT_WHITE);
+  M5.Display.println(&quot;Tap power 3-4x&quot;);
+  Serial.println(&quot;LEARNING: aim 30-100cm, tap the power button 3-4 times&quot;);
+}
+
+bool loadToggle(size_t &amp;outLen) {
+  outLen = 0;
+  if (!LittleFS.exists(TOGGLE_FILE)) return false;
+
+  File f = LittleFS.open(TOGGLE_FILE, FILE_READ);
+  if (!f || f.size() &lt; 2) return false;
+
+  uint16_t len = 0;
+  f.read((uint8_t *)&amp;len, sizeof(len));
+  if (len == 0 || len &gt; MAX_TICKS) {
+    f.close();
+    return false;
+  }
+
+  size_t bytesToRead = len * sizeof(uint16_t);
+  // New format is exactly 2-byte length + ticks. Older firmware stored the
+  // length as 4 bytes (size_t), so its files are 2 bytes longer; reject them so
+  // a stale corrupt file is not replayed after a firmware update.
+  if ((size_t)f.size() != sizeof(len) + bytesToRead) {
+    f.close();
+    return false;
+  }
+
+  size_t readBytes = f.read((uint8_t *)tickBuffer, bytesToRead);
+  f.close();
+  if (readBytes != bytesToRead) return false;
+
+  outLen = len;
+  return true;
+}
+
+void sendToggle() {
+  static bool powerOn = false; // first press sends ON
+  powerOn = !powerOn;
+
+  // Generate a textbook Haier frame with the library encoder: full
+  // 3000/3000/3000/4300 double header, 520us marks, correct sum checksum.
+  // This bypasses the unreliable learn-from-phone path entirely - the AC
+  // always understands this waveform.
+  esp32irpk::ac::Haier::Frame f; // default: cool / 24C / fan auto / swing off
+  f.setPower(powerOn);
+
+  uint16_t ticks[esp32irpk::ac::Haier::Frame::kMaxTicks];
+  esp32irpk::IRRawTickBuffer buf{ticks, esp32irpk::ac::Haier::Frame::kMaxTicks, 0};
+  bool okEncode = f.toRaw(buf);
+
+  M5.Display.fillRect(0, 120, 240, 60, TFT_BLACK);
+  M5.Display.setCursor(0, 120);
+
+  if (!okEncode) {
+    M5.Display.setTextColor(TFT_RED);
+    M5.Display.println(&quot;ENCODE FAIL&quot;);
+    Serial.println(&quot;Haier encode failed&quot;);
+    return;
+  }
+
+  esp32irpk::IRRawTickView view{buf.ticks, buf.len};
+
+  // Send it 3 times with a short gap, like a real remote&#x27;s repeat behaviour -
+  // improves the chance the AC catches it through its own AGC window.
+  bool sent = true;
+  for (int i = 0; i &lt; 3; i++) {
+    if (!tx.send(view)) sent = false;
+    delay(80);
+  }
+
+  M5.Display.setTextColor(sent ? TFT_GREEN : TFT_RED);
+  M5.Display.printf(&quot;%s %s\nlen=%u&quot;, powerOn ? &quot;PWR ON&quot; : &quot;PWR OFF&quot;,
+                    sent ? &quot;OK&quot; : &quot;FAIL&quot;, (unsigned)view.len);
+  Serial.printf(&quot;Sent Haier %s len=%u %s\n&quot;, powerOn ? &quot;ON&quot; : &quot;OFF&quot;,
+                (unsigned)view.len, sent ? &quot;OK&quot; : &quot;FAIL&quot;);
+
+  delay(300);
+  drawUI();
+}
+
+bool saveToggle(const esp32irpk::IRRawTickView &amp;raw) {
+  M5.Display.fillRect(0, 120, 240, 60, TFT_BLACK);
+  M5.Display.setCursor(0, 120);
+
+  if (!raw.ticks || raw.len == 0) {
+    M5.Display.setTextColor(TFT_RED);
+    M5.Display.println(&quot;Empty IR&quot;);
+    Serial.println(&quot;Empty IR capture&quot;);
+    delay(1000);
+    drawUI();
+    return false;
+  }
+
+  File f = LittleFS.open(TOGGLE_FILE, FILE_WRITE);
+  if (!f) {
+    M5.Display.setTextColor(TFT_RED);
+    M5.Display.println(&quot;Save failed&quot;);
+    Serial.println(&quot;Failed to open toggle file&quot;);
+    delay(1000);
+    drawUI();
+    return false;
+  }
+
+  // Store the length as an explicit uint16_t (2 bytes). Writing sizeof(raw.len)
+  // (4 bytes, since IRRawTickView::len is size_t) desynchronises the file
+  // layout from loadToggle(), which reads a 2-byte length and then starts
+  // reading ticks at the wrong offset.
+  uint16_t len = static_cast&lt;uint16_t&gt;(raw.len);
+  f.write((const uint8_t *)&amp;len, sizeof(len));
+  for (size_t i = 0; i &lt; raw.len; i++) {
+    uint16_t t = raw.ticks[i];
+    f.write((const uint8_t *)&amp;t, sizeof(t));
+  }
+  f.close();
+
+  // Dump to Serial for backup.
+  Serial.println();
+  Serial.printf(&quot;// IR_TOGGLE LEN=%u TICK_US=10\n&quot;, (unsigned)raw.len);
+  Serial.printf(&quot;const uint16_t IR_TOGGLE_LEN = %u;\n&quot;, (unsigned)raw.len);
+  Serial.printf(&quot;const uint16_t IR_TOGGLE[] PROGMEM = {\n  &quot;);
+  for (size_t i = 0; i &lt; raw.len; i++) {
+    Serial.printf(&quot;%u&quot;, raw.ticks[i]);
+    if (i + 1 &lt; raw.len) Serial.print(&quot;, &quot;);
+    if ((i + 1) % 16 == 0) Serial.print(&quot;\n  &quot;);
+  }
+  Serial.println(&quot;\n};&quot;);
+  Serial.println();
+
+  M5.Display.setTextColor(TFT_GREEN);
+  M5.Display.printf(&quot;SAVED\nlen=%u&quot;, (unsigned)raw.len);
+  Serial.printf(&quot;Saved toggle len=%u\n&quot;, (unsigned)raw.len);
+  delay(1000);
+  return true;
+}</code></pre>
+</div>
 </div>
 
 <!-- Section 5 -->
@@ -571,7 +1197,9 @@ f.setSwingV(esp32irpk::ac::Haier::SwingV::OFF); // OFF / UP / DOWN / CYCLE</code
     <p>当你的空调品牌不在库的协议表里时，用学习回放：捕获遥控器原始波形 → 保存 → 原样重发。</p>
 
     <h3>6.1 捕获（学习）</h3>
-    <pre><code>// 初始化接收
+    <div class="code-block">
+  <div class="code-head"><span class="code-name">示例代码</span><span class="code-lang">text</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+<pre><code>// 初始化接收
 rx.setMaxRxSymbols(512);      // 空调帧长，务必调大
 rx.setIdleThresholdUs(15000); // 15ms 空闲阈值，把连发帧切成独立捕获
 rx.begin();
@@ -582,9 +1210,12 @@ if (rx.read(result)) {
   // result.raw.ticks[] = mark/space 时长数组（1 tick = 10us）
   // 在这里保存 result.raw
 }</code></pre>
+</div>
 
     <h3>6.2 保存到 LittleFS（文件格式约定）</h3>
-    <pre><code>// 格式：2 字节 uint16_t 长度 + len 个 uint16_t tick（小端）
+    <div class="code-block">
+  <div class="code-head"><span class="code-name">示例代码</span><span class="code-lang">text</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+<pre><code>// 格式：2 字节 uint16_t 长度 + len 个 uint16_t tick（小端）
 File f = LittleFS.open("/power.bin", FILE_WRITE);
 uint16_t len = (uint16_t)raw.len;              // 注意！长度必须是 2 字节
 f.write((const uint8_t *)&amp;len, sizeof(len));
@@ -593,18 +1224,22 @@ for (size_t i = 0; i &lt; raw.len; i++) {
   f.write((const uint8_t *)&amp;t, sizeof(t));
 }
 f.close();</code></pre>
+</div>
     <div class="callout warn">
         文件格式是学习回放最容易翻车的地方：<strong>长度字段必须固定写 2 字节（uint16_t）</strong>。如果用 <code>sizeof(raw.len)</code>（size_t 在 ESP32 上是 4 字节），读写就会错位，回放出来的波形整体损坏。
     </div>
 
     <h3>6.3 回放</h3>
-    <pre><code>// 读文件 → 还原 ticks → 发送
+    <div class="code-block">
+  <div class="code-head"><span class="code-name">示例代码</span><span class="code-lang">text</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+<pre><code>// 读文件 → 还原 ticks → 发送
 uint16_t len = 0;
 f.read((uint8_t *)&amp;len, sizeof(len));
 for (size_t i = 0; i &lt; len; i++) f.read((uint8_t *)&amp;tickBuffer[i], sizeof(uint16_t));
 
 esp32irpk::IRRawTickView view{tickBuffer, len};
 tx.send(view);</code></pre>
+</div>
 
     <h3>6.4 学习时的捕获质量判断</h3>
     <ul>
@@ -613,6 +1248,434 @@ tx.send(view);</code></pre>
         <li>理想的帧从 <strong>同步头</strong>开始（如 Haier 是 3000/3000/3000/4300µs）；缺头的半帧空调不认。</li>
         <li>手机万能遥控 App 通常只能"点按"发一帧，且信号偏强——<strong>放在 30-100cm、连按 3-5 次</strong>，取最干净的一帧。</li>
     </ul>
+</div>
+
+<h3>6.5 完整示例：录制 + 回放两件套</h3>
+<p>下面两个 sketch 配合使用：先用 <strong>recorder</strong> 录制遥控器按键保存到 LittleFS，再刷 <strong>player</strong> 读取文件回放（支持两个槽位：power_on / power_off）。文件格式为 <code>2 字节 uint16_t 长度 + len × 2 字节 tick</code>，1 tick = 10µs。</p>
+<div class="code-block">
+  <div class="code-head"><span class="code-name">m5stick_s3_ir_recorder.ino</span><span class="code-lang">Arduino C++</span><span class="code-note">完整可编译 · 录制 power_on / power_off 两个槽位</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+<div class="code-block">
+  <div class="code-head"><span class="code-name">示例代码</span><span class="code-lang">text</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+<pre><code>// M5StickS3 IR Recorder
+// ======================
+// Records raw IR waveforms from the on-board IR receiver (GPIO42) and saves
+// them to LittleFS as &quot;/power_on.bin&quot; / &quot;/power_off.bin&quot;. It also prints the
+// captured waveform as a copy-paste C array over Serial, so a PC-side script
+// can turn it into a header file for the player sketch.
+//
+// Hardware: M5StickS3 (ESP32-S3)
+// IR RX: GPIO42 (on-board)
+// IR TX: GPIO46 (not used here)
+//
+// Arduino IDE settings:
+//   Board: M5Stack -&gt; M5StickS3
+//   Partition Scheme: pick an 8MB option with SPIFFS/LittleFS (e.g. 8MB)
+//   Libraries: M5Unified, M5GFX, ESP32IRPulseKit
+
+#include &lt;M5Unified.h&gt;
+#include &lt;ESP32IRPulseKit.h&gt;
+#include &lt;LittleFS.h&gt;
+
+constexpr uint16_t IR_RX_PIN = 42;
+
+// Most IR receiver modules output an active-low signal; set inverted=true.
+// If you get no captures, try inverted=false.
+esp32irpk::IRReceiver rx(IR_RX_PIN, true);
+
+struct Slot {
+  const char *name;
+  const char *filename;
+  uint16_t color;
+};
+
+Slot slots[] = {
+  {&quot;power_on&quot;,  &quot;/power_on.bin&quot;,  TFT_GREEN},
+  {&quot;power_off&quot;, &quot;/power_off.bin&quot;, TFT_RED},
+};
+
+const int SLOT_COUNT = sizeof(slots) / sizeof(slots[0]);
+int currentSlot = 0;
+bool armed = false;          // waiting for an IR frame
+uint32_t armedAt = 0;
+
+void setup() {
+  M5.begin();
+  Serial.begin(115200);
+  delay(200);
+  Serial.println(&quot;\nM5StickS3 IR Recorder starting...&quot;);
+
+  // Power on the on-board IR receiver (EXT_5V output).
+  M5.Power.setExtOutput(true, m5::ext_none);
+  delay(100);
+  Serial.println(&quot;EXT_5V ON&quot;);
+
+  // Disable speaker amp while receiving, otherwise IR RX is noisy.
+  M5.Speaker.end();
+  Serial.println(&quot;Speaker off&quot;);
+
+  // Mount LittleFS. formatOnFail=true will create the FS if it does not exist.
+  Serial.println(&quot;Mounting LittleFS...&quot;);
+  if (!LittleFS.begin(true)) {
+    Serial.println(&quot;LittleFS mount failed&quot;);
+    M5.Display.println(&quot;FS mount failed&quot;);
+    while (true) delay(1000);
+  }
+  Serial.println(&quot;LittleFS OK&quot;);
+
+  // Make sure long AC frames (hundreds of ticks) are not truncated.
+  rx.setMaxRxSymbols(512);
+  rx.begin();
+  Serial.println(&quot;RX begin OK&quot;);
+
+  M5.Display.setRotation(3);
+  M5.Display.setTextFont(&amp;fonts::FreeMonoBold9pt7b);
+  M5.Display.clear();
+
+  drawUI();
+  printHelp();
+}
+
+void loop() {
+  static uint32_t aliveTimer = 0;
+  if (millis() - aliveTimer &gt; 5000) {
+    aliveTimer = millis();
+    Serial.println(&quot;alive&quot;);
+  }
+
+  M5.update();
+
+  // BtnA: cycle through slots
+  if (M5.BtnA.wasPressed()) {
+    if (armed) cancelArm();
+    currentSlot = (currentSlot + 1) % SLOT_COUNT;
+    drawUI();
+  }
+
+  // BtnB: arm/disarm recording for the selected slot
+  if (M5.BtnB.wasPressed()) {
+    if (armed) {
+      cancelArm();
+    } else {
+      armSlot();
+    }
+  }
+
+  // If armed and no signal within 10s, timeout.
+  if (armed &amp;&amp; (millis() - armedAt &gt; 10000)) {
+    cancelArm();
+    M5.Display.fillRect(0, 140, 240, 40, TFT_BLACK);
+    M5.Display.setCursor(0, 140);
+    M5.Display.setTextColor(TFT_YELLOW);
+    M5.Display.println(&quot;Timeout&quot;);
+  }
+
+  // Read IR.
+  esp32irpk::IRReceiveResult&lt;4&gt; result;
+  if (rx.read(result)) {
+    if (armed) {
+      saveCapture(result.raw, slots[currentSlot]);
+      armed = false;
+    } else {
+      // Not armed: just dump to serial for inspection.
+      dumpRaw(result.raw, &quot;preview&quot;);
+      M5.Display.fillRect(0, 60, 240, 120, TFT_BLACK);
+      M5.Display.setCursor(0, 60);
+      M5.Display.setTextColor(TFT_CYAN);
+      M5.Display.printf(&quot;Preview len=%u\n&quot;, (unsigned)result.raw.len);
+    }
+  }
+
+  delay(5);
+}
+
+void drawUI() {
+  M5.Display.clear();
+  M5.Display.setCursor(0, 0);
+  M5.Display.setTextColor(TFT_WHITE);
+  M5.Display.println(&quot;IR RECORDER&quot;);
+  M5.Display.println(&quot;A:slot  B:record&quot;);
+
+  for (int i = 0; i &lt; SLOT_COUNT; i++) {
+    int y = 60 + i * 30;
+    if (i == currentSlot) {
+      M5.Display.fillRect(0, y, 240, 24, slots[i].color);
+      M5.Display.setTextColor(TFT_BLACK);
+    } else {
+      M5.Display.fillRect(0, y, 240, 24, TFT_BLACK);
+      M5.Display.setTextColor(slots[i].color);
+    }
+    M5.Display.setCursor(4, y + 4);
+    M5.Display.print(slots[i].name);
+    if (LittleFS.exists(slots[i].filename)) {
+      M5.Display.print(&quot; [OK]&quot;);
+    } else {
+      M5.Display.print(&quot; [---]&quot;);
+    }
+  }
+}
+
+void armSlot() {
+  armed = true;
+  armedAt = millis();
+  M5.Display.fillRect(0, 140, 240, 40, TFT_BLACK);
+  M5.Display.setCursor(0, 140);
+  M5.Display.setTextColor(TFT_YELLOW);
+  M5.Display.printf(&quot;Aim remote at\nStickS3 for %s&quot;, slots[currentSlot].name);
+}
+
+void cancelArm() {
+  armed = false;
+  drawUI();
+}
+
+void saveCapture(const esp32irpk::IRRawTickView &amp;raw, const Slot &amp;slot) {
+  if (!raw.ticks || raw.len == 0) {
+    M5.Display.println(&quot;Empty capture&quot;);
+    return;
+  }
+
+  // LittleFS binary format: uint16_t length, then each tick as uint16_t (LE).
+  // Store the length as an explicit uint16_t: writing sizeof(raw.len) (4 bytes,
+  // since IRRawTickView::len is size_t) would desynchronise the file from the
+  // player&#x27;s loadSlot(), which reads a 2-byte length.
+  File f = LittleFS.open(slot.filename, FILE_WRITE);
+  if (!f) {
+    Serial.printf(&quot;Failed to open %s for write\n&quot;, slot.filename);
+    M5.Display.println(&quot;Write failed&quot;);
+    return;
+  }
+
+  uint16_t len = static_cast&lt;uint16_t&gt;(raw.len);
+  f.write((const uint8_t *)&amp;len, sizeof(len));
+  for (size_t i = 0; i &lt; raw.len; i++) {
+    uint16_t t = raw.ticks[i];
+    f.write((const uint8_t *)&amp;t, sizeof(t));
+  }
+  f.close();
+
+  // Also print to Serial as a copy-paste C array.
+  dumpRaw(raw, slot.name);
+
+  // Move to next slot for convenience.
+  currentSlot = (currentSlot + 1) % SLOT_COUNT;
+  drawUI();
+
+  M5.Display.fillRect(0, 140, 240, 40, TFT_BLACK);
+  M5.Display.setCursor(0, 140);
+  M5.Display.setTextColor(TFT_GREEN);
+  M5.Display.printf(&quot;Saved %s\nlen=%u&quot;, slot.name, (unsigned)raw.len);
+}
+
+void dumpRaw(const esp32irpk::IRRawTickView &amp;raw, const char *label) {
+  if (!raw.ticks || raw.len == 0) return;
+
+  Serial.println();
+  Serial.printf(&quot;// IR_SLOT: %s  LEN: %u  TICK_US: 10\n&quot;, label, (unsigned)raw.len);
+  Serial.printf(&quot;const uint16_t IR_%s_LEN = %u;\n&quot;, label, (unsigned)raw.len);
+  Serial.printf(&quot;const uint16_t IR_%s[] PROGMEM = {\n  &quot;, label);
+  for (size_t i = 0; i &lt; raw.len; i++) {
+    Serial.printf(&quot;%u&quot;, raw.ticks[i]);
+    if (i + 1 &lt; raw.len) Serial.print(&quot;, &quot;);
+    if ((i + 1) % 16 == 0) Serial.print(&quot;\n  &quot;);
+  }
+  Serial.println(&quot;\n};&quot;);
+  Serial.println();
+}
+
+void printHelp() {
+  Serial.println(&quot;M5StickS3 IR Recorder&quot;);
+  Serial.println(&quot;BtnA: switch slot&quot;);
+  Serial.println(&quot;BtnB: start/cancel recording&quot;);
+  Serial.println(&quot;Captured arrays are printed here for PC-side conversion.&quot;);
+  Serial.println();
+}</code></pre>
+</div>
+</div>
+
+<div class="code-block">
+  <div class="code-head"><span class="code-name">m5stick_s3_ir_player.ino</span><span class="code-lang">Arduino C++</span><span class="code-note">完整可编译 · 读取 LittleFS 文件并回放</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+<div class="code-block">
+  <div class="code-head"><span class="code-name">示例代码</span><span class="code-lang">text</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+<pre><code>// M5StickS3 IR Player
+// ====================
+// Reads raw IR waveforms saved by the recorder (LittleFS files) and replays
+// them through the on-board IR transmitter (GPIO46).
+//
+// Files expected on LittleFS:
+//   /power_on.bin
+//   /power_off.bin
+//
+// Each file format: uint16_t tick_count, followed by tick_count uint16_t ticks.
+// 1 tick = 10us. This matches ESP32IRPulseKit&#x27;s IRRawTickView.
+//
+// Hardware: M5StickS3 (ESP32-S3)
+// IR TX: GPIO46 (on-board)
+// IR RX: GPIO42 (not used here)
+//
+// Arduino IDE settings:
+//   Board: M5Stack -&gt; M5StickS3
+//   Partition Scheme: pick an 8MB option with SPIFFS/LittleFS
+//   Libraries: M5Unified, M5GFX, ESP32IRPulseKit
+
+#include &lt;M5Unified.h&gt;
+#include &lt;ESP32IRPulseKit.h&gt;
+#include &lt;LittleFS.h&gt;
+
+constexpr uint16_t IR_TX_PIN = 46;
+
+// On-board IR LED. Most modules are active-high on this board.
+esp32irpk::IRSender tx(IR_TX_PIN);
+
+struct Slot {
+  const char *name;
+  const char *filename;
+  uint16_t color;
+};
+
+Slot slots[] = {
+  {&quot;power_on&quot;,  &quot;/power_on.bin&quot;,  TFT_GREEN},
+  {&quot;power_off&quot;, &quot;/power_off.bin&quot;, TFT_RED},
+};
+
+const int SLOT_COUNT = sizeof(slots) / sizeof(slots[0]);
+
+// Max ticks we are willing to load from a file. Air-conditioner frames rarely
+// exceed a few hundred ticks; this gives plenty of headroom.
+constexpr size_t MAX_TICKS = 1024;
+uint16_t tickBuffer[MAX_TICKS];
+
+void setup() {
+  M5.begin();
+  Serial.begin(115200);
+  delay(200);
+
+  // Power on the on-board IR transmitter (EXT_5V output).
+  M5.Power.setExtOutput(true, m5::ext_none);
+  delay(100);
+
+  if (!LittleFS.begin(true)) {
+    Serial.println(&quot;LittleFS mount failed&quot;);
+    M5.Display.println(&quot;FS mount failed&quot;);
+    while (true) delay(1000);
+  }
+
+  tx.begin();
+
+  M5.Display.setRotation(3);
+  M5.Display.setFont(&amp;fonts::FreeMonoBold9pt7b);
+  M5.Display.clear();
+
+  drawUI();
+
+  Serial.println(&quot;M5StickS3 IR Player&quot;);
+  Serial.println(&quot;BtnA: send power_on&quot;);
+  Serial.println(&quot;BtnB: send power_off&quot;);
+}
+
+void loop() {
+  M5.update();
+
+  if (M5.BtnA.wasPressed()) {
+    sendSlot(0);
+  }
+  if (M5.BtnB.wasPressed()) {
+    sendSlot(1);
+  }
+
+  delay(50);
+}
+
+void drawUI() {
+  M5.Display.clear();
+  M5.Display.setCursor(0, 0);
+  M5.Display.setTextColor(TFT_WHITE);
+  M5.Display.println(&quot;IR PLAYER&quot;);
+
+  for (int i = 0; i &lt; SLOT_COUNT; i++) {
+    int y = 50 + i * 40;
+    bool exists = LittleFS.exists(slots[i].filename);
+    M5.Display.setTextColor(exists ? slots[i].color : TFT_DARKGREY);
+    M5.Display.setCursor(4, y);
+    M5.Display.printf(&quot;%s: %s&quot;, (i == 0 ? &quot;A&quot; : &quot;B&quot;), slots[i].name);
+    M5.Display.setCursor(4, y + 18);
+    M5.Display.printf(&quot;  [%s]&quot;, exists ? &quot;OK&quot; : &quot;missing&quot;);
+  }
+
+  M5.Display.setTextColor(TFT_LIGHTGREY);
+  M5.Display.setCursor(0, 160);
+  M5.Display.println(&quot;Press A/B to send&quot;);
+}
+
+bool loadSlot(const Slot &amp;slot, size_t &amp;outLen) {
+  outLen = 0;
+  if (!LittleFS.exists(slot.filename)) {
+    Serial.printf(&quot;File not found: %s\n&quot;, slot.filename);
+    return false;
+  }
+
+  File f = LittleFS.open(slot.filename, FILE_READ);
+  if (!f || f.size() &lt; 2) {
+    Serial.printf(&quot;Failed to open %s\n&quot;, slot.filename);
+    return false;
+  }
+
+  uint16_t len = 0;
+  f.read((uint8_t *)&amp;len, sizeof(len));
+  if (len == 0 || len &gt; MAX_TICKS) {
+    Serial.printf(&quot;Bad tick count %u in %s\n&quot;, (unsigned)len, slot.filename);
+    f.close();
+    return false;
+  }
+
+  size_t bytesToRead = len * sizeof(uint16_t);
+  // New format is exactly 2-byte length + ticks. Older firmware stored the
+  // length as 4 bytes (size_t), so its files are 2 bytes longer; reject them.
+  if ((size_t)f.size() != sizeof(len) + bytesToRead) {
+    Serial.printf(&quot;Bad file size %u for %s (re-record it)\n&quot;, (unsigned)f.size(), slot.filename);
+    f.close();
+    return false;
+  }
+
+
+  size_t readBytes = f.read((uint8_t *)tickBuffer, bytesToRead);
+  f.close();
+  if (readBytes != bytesToRead) {
+    Serial.printf(&quot;Short read %s\n&quot;, slot.filename);
+    return false;
+  }
+
+  outLen = len;
+  return true;
+}
+
+void sendSlot(int index) {
+  const Slot &amp;slot = slots[index];
+  size_t len = 0;
+  bool ok = loadSlot(slot, len);
+
+  M5.Display.fillRect(0, 120, 240, 60, TFT_BLACK);
+  M5.Display.setCursor(0, 120);
+
+  if (!ok) {
+    M5.Display.setTextColor(TFT_RED);
+    M5.Display.printf(&quot;No data for\n%s&quot;, slot.name);
+    Serial.printf(&quot;No data for %s\n&quot;, slot.name);
+    delay(1000);
+    drawUI();
+    return;
+  }
+
+  esp32irpk::IRRawTickView view{tickBuffer, len};
+  bool sent = tx.send(view);
+
+  M5.Display.setTextColor(sent ? TFT_GREEN : TFT_RED);
+  M5.Display.printf(&quot;Send %s\n%s&quot;, slot.name, sent ? &quot;OK&quot; : &quot;FAIL&quot;);
+  Serial.printf(&quot;Send %s len=%u %s\n&quot;, slot.name, (unsigned)len, sent ? &quot;OK&quot; : &quot;FAIL&quot;);
+
+  delay(500);
+  drawUI();
+}</code></pre>
+</div>
 </div>
 
 <!-- Section 7 -->
@@ -668,17 +1731,23 @@ tx.send(view);</code></pre>
     <h2>8. 进阶：多按键 / 温度 / 模式</h2>
 
     <h3>8.1 一个按键循环多种功能</h3>
-    <pre><code>// K1 短按：开关；K1 长按：温度+1；K2 短按：温度-1；K2 长按：关机
+    <div class="code-block">
+  <div class="code-head"><span class="code-name">示例代码</span><span class="code-lang">text</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+<pre><code>// K1 短按：开关；K1 长按：温度+1；K2 短按：温度-1；K2 长按：关机
 // 用 M5.BtnA.wasPressed() / pressedFor() 区分手势即可</code></pre>
+</div>
 
     <h3>8.2 保存你的"常用设置"</h3>
     <p>把温度/模式/风速固化在代码里，开机即用，不需要每次设置：</p>
-    <pre><code>esp32irpk::ac::Haier::Frame f;
+    <div class="code-block">
+  <div class="code-head"><span class="code-name">示例代码</span><span class="code-lang">text</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+<pre><code>esp32irpk::ac::Haier::Frame f;
 f.setPower(true);
 f.setMode(esp32irpk::ac::Haier::Mode::HEAT);  // 冬天模式
 f.setTemperatureC(26);
 f.setFan(esp32irpk::ac::Haier::Fan::HIGH);
 // 生成帧发送即可</code></pre>
+</div>
 
     <h3>8.3 接上电池做便携遥控</h3>
     <ul>
@@ -699,5 +1768,37 @@ f.setFan(esp32irpk::ac::Haier::Fan::HIGH);
 </div>
 
 </div>
+
+<script>
+function copyCode(btn) {
+    var block = btn.closest('.code-block');
+    var code = block.querySelector('pre').innerText;
+    function done() {
+        btn.textContent = '已复制 ✓';
+        btn.classList.add('copied');
+        setTimeout(function () {
+            btn.textContent = '复制';
+            btn.classList.remove('copied');
+        }, 1600);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(code).then(done, function () { fallbackCopy(code, btn, done); });
+    } else {
+        fallbackCopy(code, btn, done);
+    }
+}
+function fallbackCopy(text, btn, done) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch (e) {}
+    document.body.removeChild(ta);
+    done();
+}
+</script>
+
 </body>
 </html>
