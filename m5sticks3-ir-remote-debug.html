@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M5StickS3 红外遥控器排障实录 — 从"能录不能发"到稳定控制空调</title>
+<style>
+    :root {
+        --bg: #fafbfc;
+        --surface: #ffffff;
+        --surface-hover: #f5f6f8;
+        --text: #1a1a2e;
+        --text-secondary: #5a5a7a;
+        --accent: #6366f1;
+        --accent-2: #8b5cf6;
+        --accent-glow: rgba(99, 102, 241, 0.08);
+        --border: #e8eaef;
+        --code-bg: #f1f3f5;
+        --code-border: #e0e2e7;
+        --tag-bg: #eef0ff;
+        --tag-color: #6366f1;
+        --warn: #d97706;
+        --ok: #059669;
+        --info: #3b82f6;
+        --danger: #dc2626;
+        --shadow: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.03);
+        --shadow-lg: 0 4px 12px rgba(0,0,0,0.06);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.8;
+        -webkit-font-smoothing: antialiased;
+    }
+
+    .container {
+        max-width: 860px;
+        margin: 0 auto;
+        padding: 0 24px;
+    }
+
+    /* Hero */
+    .hero {
+        padding: 80px 0 50px;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 48px;
+    }
+
+    .hero h1 {
+        font-size: 2em;
+        font-weight: 700;
+        color: var(--text);
+        margin-bottom: 12px;
+        letter-spacing: -0.02em;
+    }
+
+    .hero h1 .accent {
+        color: var(--accent);
+    }
+
+    .hero .subtitle {
+        color: var(--text-secondary);
+        font-size: 1.05em;
+        max-width: 640px;
+    }
+
+    .hero .meta {
+        margin-top: 16px;
+        display: flex;
+        gap: 16px;
+        font-size: 0.82em;
+        color: var(--text-secondary);
+        flex-wrap: wrap;
+    }
+
+    .hero .meta span {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    /* TOC */
+    .toc {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 28px 32px;
+        margin-bottom: 48px;
+        box-shadow: var(--shadow);
+    }
+
+    .toc h2 {
+        font-size: 1em;
+        font-weight: 600;
+        color: var(--text-secondary);
+        margin-bottom: 16px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .toc ul {
+        list-style: none;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px 24px;
+    }
+
+    .toc a {
+        color: var(--accent);
+        text-decoration: none;
+        font-size: 0.92em;
+        padding: 4px 0;
+        display: block;
+        border-bottom: 1px solid transparent;
+        transition: border-color 0.15s;
+    }
+
+    .toc a:hover {
+        border-bottom-color: var(--border);
+    }
+
+    /* Sections */
+    .section {
+        margin-bottom: 56px;
+    }
+
+    .section h2 {
+        font-size: 1.35em;
+        font-weight: 700;
+        color: var(--text);
+        margin-bottom: 20px;
+        padding-bottom: 12px;
+        border-bottom: 2px solid var(--accent);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .section h3 {
+        font-size: 1.05em;
+        font-weight: 600;
+        color: var(--text);
+        margin: 24px 0 12px;
+    }
+
+    .section h4 {
+        font-size: 0.98em;
+        font-weight: 600;
+        color: var(--text);
+        margin: 18px 0 8px;
+    }
+
+    .section p {
+        color: var(--text-secondary);
+        margin-bottom: 12px;
+        font-size: 0.95em;
+    }
+
+    .section ul, .section ol {
+        margin: 8px 0 16px 24px;
+        color: var(--text-secondary);
+        font-size: 0.95em;
+    }
+
+    .section li {
+        margin-bottom: 6px;
+    }
+
+    /* Code blocks */
+    pre {
+        background: var(--code-bg);
+        border: 1px solid var(--code-border);
+        border-radius: 8px;
+        padding: 18px 20px;
+        overflow-x: auto;
+        font-size: 0.82em;
+        line-height: 1.6;
+        margin: 12px 0 20px;
+        font-family: "SF Mono", "Fira Code", "Cascadia Code", "JetBrains Mono", monospace;
+        color: #24292e;
+    }
+
+    code {
+        font-family: "SF Mono", "Fira Code", "Cascadia Code", "JetBrains Mono", monospace;
+        background: var(--code-bg);
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.88em;
+        color: var(--accent);
+    }
+
+    pre code {
+        background: none;
+        padding: 0;
+        color: inherit;
+    }
+
+    /* Tags */
+    .tag {
+        display: inline-block;
+        font-size: 0.75em;
+        padding: 3px 10px;
+        border-radius: 6px;
+        background: var(--tag-bg);
+        color: var(--tag-color);
+        font-weight: 500;
+        margin-right: 6px;
+        vertical-align: middle;
+    }
+
+    .tag.ok { background: #ecfdf5; color: #059669; }
+    .tag.warn { background: #fffbeb; color: #d97706; }
+    .tag.info { background: #eff6ff; color: #2563eb; }
+    .tag.danger { background: #fef2f2; color: #dc2626; }
+
+    /* Callouts */
+    .callout {
+        border-radius: 10px;
+        padding: 16px 20px;
+        margin: 16px 0 24px;
+        font-size: 0.92em;
+        border: 1px solid var(--border);
+    }
+
+    .callout.info {
+        background: #eff6ff;
+        border-color: #bfdbfe;
+        color: #1e40af;
+    }
+
+    .callout.ok {
+        background: #ecfdf5;
+        border-color: #a7f3d0;
+        color: #065f46;
+    }
+
+    .callout.warn {
+        background: #fffbeb;
+        border-color: #fde68a;
+        color: #92400e;
+    }
+
+    .callout.danger {
+        background: #fef2f2;
+        border-color: #fecaca;
+        color: #991b1b;
+    }
+
+    /* Cards */
+    .pattern {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 24px 28px;
+        margin-bottom: 16px;
+        box-shadow: var(--shadow);
+    }
+
+    .pattern-title {
+        font-size: 1em;
+        font-weight: 600;
+        color: var(--text);
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .pattern-title .num {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        border-radius: 6px;
+        background: var(--accent);
+        color: white;
+        font-size: 0.78em;
+        font-weight: 600;
+        flex-shrink: 0;
+    }
+
+    .pattern p {
+        color: var(--text-secondary);
+        font-size: 0.92em;
+        margin-bottom: 8px;
+    }
+
+    /* Table */
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 16px 0 24px;
+        font-size: 0.88em;
+    }
+
+    th {
+        text-align: left;
+        padding: 10px 14px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        font-weight: 600;
+        color: var(--text);
+        font-size: 0.82em;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    td {
+        padding: 10px 14px;
+        border: 1px solid var(--border);
+        color: var(--text-secondary);
+        vertical-align: top;
+    }
+
+    tr:nth-child(even) td {
+        background: #fcfcfd;
+    }
+
+    td strong {
+        color: var(--text);
+    }
+
+    /* Timeline */
+    .timeline {
+        position: relative;
+        margin: 16px 0 24px;
+        padding-left: 28px;
+    }
+
+    .timeline::before {
+        content: '';
+        position: absolute;
+        left: 8px;
+        top: 4px;
+        bottom: 4px;
+        width: 2px;
+        background: linear-gradient(180deg, var(--accent), var(--accent-2));
+        opacity: 0.3;
+        border-radius: 1px;
+    }
+
+    .timeline .tl-item {
+        position: relative;
+        margin-bottom: 20px;
+    }
+
+    .timeline .tl-item::before {
+        content: '';
+        position: absolute;
+        left: -26px;
+        top: 8px;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: var(--surface);
+        border: 3px solid var(--accent);
+        box-shadow: var(--shadow);
+    }
+
+    .timeline .tl-title {
+        font-weight: 600;
+        font-size: 0.95em;
+        color: var(--text);
+        margin-bottom: 4px;
+    }
+
+    .timeline .tl-body {
+        color: var(--text-secondary);
+        font-size: 0.9em;
+    }
+
+    /* Footer */
+    .footer {
+        padding: 32px 0 48px;
+        border-top: 1px solid var(--border);
+        margin-top: 48px;
+        text-align: center;
+        color: var(--text-secondary);
+        font-size: 0.82em;
+    }
+
+    .footer a {
+        color: var(--accent);
+        text-decoration: none;
+    }
+
+    @media (max-width: 640px) {
+        .hero { padding: 48px 0 32px; }
+        .hero h1 { font-size: 1.5em; }
+        .toc ul { grid-template-columns: 1fr; }
+        .pattern { padding: 18px 20px; }
+    }
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- Hero -->
+<div class="hero">
+    <h1>M5StickS3 红外遥控器 <span class="accent">排障实录</span></h1>
+    <p class="subtitle">从"能录不能发"到稳定控制空调——一次嵌入式红外调试的完整复盘，以及"以后这种事情应该怎么做"的方法论。</p>
+    <div class="meta">
+        <span>📅 2026-08-10</span>
+        <span>🛠 M5StickS3 · ESP32-S3 · IR</span>
+        <span>📍 /Users/lijialun/work/m5stack</span>
+    </div>
+</div>
+
+<!-- TOC -->
+<div class="toc">
+    <h2>目录</h2>
+    <ul>
+        <li><a href="#bg">1. 背景与目标</a></li>
+        <li><a href="#symptoms">2. 现象描述</a></li>
+        <li><a href="#timeline">3. 排查时间线（逐步还原）</a></li>
+        <li><a href="#evidence">4. 关键实验与数据</a></li>
+        <li><a href="#hardware">5. 红外原理与 StickS3 硬件</a></li>
+        <li><a href="#lessons">6. 根因汇总</a></li>
+        <li><a href="#method">7. 方法论：以后这类事情怎么做</a></li>
+        <li><a href="#current">8. 当前状态与使用说明</a></li>
+    </ul>
+</div>
+
+<!-- Section 1 -->
+<div class="section" id="bg">
+    <h2>1. 背景与目标</h2>
+    <p>用 M5StickS3（ESP32-S3，板载红外收发）做一个空调开关遥控器，目标是一个按键完成"学习 + 发送"：</p>
+    <ul>
+        <li><strong>K1 短按</strong>：发送空调开关码（on/off）。</li>
+        <li><strong>K1 长按</strong>：进入学习模式，用空调遥控器（或手机万能遥控 App）对着设备学习红外波形。</li>
+        <li><strong>K2 长按</strong>：关机。</li>
+    </ul>
+    <p>硬件：IR TX = GPIO46（板载），IR RX = GPIO42（板载）。软件栈：Arduino CLI + M5Unified + ESP32IRPulseKit（库）。</p>
+    <div class="callout info">
+        项目目录里有四个 sketch：<code>ir_recorder</code>（录制）、<code>ir_player</code>（回放）、<code>ir_dump_official</code>（官方 RMT 示例）、<code>ir_toggle_remote</code>（单键二合一，本次主战场）。
+    </div>
+</div>
+
+<!-- Section 2 -->
+<div class="section" id="symptoms">
+    <h2>2. 现象描述</h2>
+    <table>
+        <tr><th>现象</th><th>初判</th><th>实际根因</th></tr>
+        <tr>
+            <td>录制"成功"（显示 SAVED），但发送后空调无反应</td>
+            <td>发射功率 / 协议问题</td>
+            <td><strong>文件格式错位</strong>（Bug 1）+ <strong>单帧协议连发两次</strong>（Bug 2）</td>
+        </tr>
+        <tr>
+            <td>同一个按键每次按，捕获的 tick 数字都不一样</td>
+            <td>噪声 / 滤波问题</td>
+            <td>部分正常（抖动），部分是<strong>库 RX 截断</strong>（Bug 3）</td>
+        </tr>
+        <tr>
+            <td>手机万能遥控 App 的码，解码不出任何空调品牌</td>
+            <td>手机码不标准</td>
+            <td>码其实对（App 能控空调），是<strong>接收链路损坏 + AGC 恢复期削头</strong></td>
+        </tr>
+        <tr>
+            <td>学习过程中"还没按就结束"（误触发）</td>
+            <td>随机噪声</td>
+            <td>RX 通道溢出/噪声触发（Bug 3 的衍生）</td>
+        </tr>
+        <tr>
+            <td>修完所有代码后，近距离测试才终于控制空调</td>
+            <td>—</td>
+            <td><strong>板载 IR 发射功率小，必须 ≤50cm 正对接收窗</strong></td>
+        </tr>
+    </table>
+    <p>整场调试的教训：<strong>症状看似都在"软件"，但最后的临门一脚是"物理距离"</strong>。四个真 bug 是软件，最终达成目标是靠"库生成标准帧 + 近距离"。</p>
+</div>
+
+<!-- Section 3 -->
+<div class="section" id="timeline">
+    <h2>3. 排查时间线（逐步还原）</h2>
+
+    <div class="timeline">
+        <div class="tl-item">
+            <div class="tl-title">第一轮：读代码 → 发现文件格式错位</div>
+            <div class="tl-body">
+                现象：录制正常、发送"OK"、空调没反应。通读 <code>toggle_remote.ino</code> 时发现一个隐蔽的字节序/类型问题：
+                <pre><code>// 保存（saveToggle）：
+f.write((const uint8_t *)&amp;raw.len, sizeof(raw.len));  // raw.len 是 size_t → 4 字节
+
+// 读取（loadToggle）：
+uint16_t len = 0;
+f.read((uint8_t *)&amp;len, sizeof(len));                 // 只读 2 字节</code></pre>
+                保存写 4 字节长度，读取只读 2 字节，<strong>tick 数据整体偏移 2 字节</strong>。用 Python 按 C 语义模拟往返：
+                <pre><code>loaded[0:4]: [0, 300, 300, 300]   ← 开头多一个 0 长度 mark
+loaded[-2:]: [165, 52]            ← 结尾 trailer/gap 丢失</code></pre>
+                <span class="tag danger">Bug 1</span> 修复：长度显式存 <code>uint16_t</code>，并给读取端加"文件精确大小校验"，旧固件留下的坏文件直接拒绝。
+            </div>
+        </div>
+
+        <div class="tl-item">
+            <div class="tl-title">第二轮：查库源码 → 发现 Haier 是单帧协议</div>
+            <div class="tl-body">
+                库源码 <code>src/ac/Haier.h</code> 明确写着：HAIER_AC 每次按键只发一帧（<code>kHaierAcDefaultRepeat == kNoRepeat</code>）。而固件里：
+                <pre><code>bool sent1 = tx.send(view);
+delay(40);
+bool sent2 = tx.send(view);   // 又发一遍！</code></pre>
+                空调把两帧当成两次独立按键：开 → 关，互相抵消。<span class="tag danger">Bug 2</span> 修复：只发一次。
+            </div>
+        </div>
+
+        <div class="tl-item">
+            <div class="tl-title">第三轮：用户实测捕获 → 用数据说话</div>
+            <div class="tl-body">
+                用户用手机万能遥控 App（App 能正常控制空调）连续学习，捕获 len=169/175/221/233… 每次结构都不同。把每帧丢进 Python 做直方图分析：
+                <ul>
+                    <li>169/175：几乎全是 50% 占空比方波（mark≈space≈540µs）——<strong>无任何数据位空间，纯坏信号</strong>。</li>
+                    <li>221：头是 Haier 双头（3150/3160/3000/4510µs 对得上），但数据位 mark 被削到 280-330µs，且夹杂 40-190µs 毛刺。</li>
+                    <li>233：数据位已标准（mark 460-570µs、0 位 630µs、1 位 1660µs），但<strong>没有头部</strong>（半帧）——解码器找不到同步头，位流无法对齐。</li>
+                </ul>
+                <span class="tag info">结论</span> 手机码本身是对的，但 StickS3 接收到的波形质量很差。这指向接收链路本身的问题，而非遥控器。
+            </div>
+        </div>
+
+        <div class="tl-item">
+            <div class="tl-title">关键转折：TX→RX loopback 自测，隔离问题</div>
+            <div class="tl-body">
+                为了分清"接收配置问题"还是"遥控器信号问题"，写了一个 loopback 测试固件：<strong>用板载 TX 发一帧库编码的标准 Haier（精确 520µs mark），再用 RX 接收</strong>。对比两条接收路径：
+                <pre><code>原生 ESP-IDF RMT RX（128 符号, 1us, 官方示例配置）：
+  头 2984/3011, 2984/4303 · mark 511-540µs · space 673/1644µs  → 完美！
+
+库 IRReceiver（默认 64 符号, 无 DMA）：
+  头 302/303/302/435 · mark 被削到 240-460µs + 毛刺        → 损坏！</code></pre>
+                同样一个信号，原生驱动收得完美，库收得一团糟。<span class="tag danger">Bug 3</span> 确认：库 RX 通道配置有缺陷。
+            </div>
+        </div>
+
+        <div class="tl-item">
+            <div class="tl-title">第四轮：修库 → 128 符号 + DMA</div>
+            <div class="tl-body">
+                ESP32-S3 的 <code>soc_caps.h</code>：每通道 RMT 仅 <code>SOC_RMT_MEM_WORDS_PER_CHANNEL = 48</code> 符号。AC 帧普遍 75-125+ 符号，库却把 RX 通道写死 <code>mem_block_symbols = 64</code> 且 <code>with_dma = false</code>——长帧靠 ISR 手工搬运，必然丢数据、削 mark、产生毛刺。
+                <p>补丁（<code>.arduino_sketchbook/libraries/ESP32IRPulseKit/src/hal/RmtHal.cpp</code>）：</p>
+                <pre><code>cfg.mem_block_symbols = 128;   // 原 64
+cfg.flags.with_dma = true;    // 原 false</code></pre>
+                打补丁后 loopback：Haier 解码从 0 次 → 12 轮中 2 次成功，且头部全部干净。
+            </div>
+        </div>
+
+        <div class="tl-item">
+            <div class="tl-title">第五轮：Haier 容差 40% → 55%</div>
+            <div class="tl-body">
+                即使 RX 修好，仍有部分帧失败。分析发现：<strong>接收头（TSOP 类）在长头部后 AGC 恢复期会把第一个数据 mark 从 520µs 削到 280-330µs</strong>，而 Haier 解码容差 40% 的下限是 312µs——刚好卡在边界，偶尔过关偶尔失败。
+                <p>补丁（<code>src/ac/Haier.h</code>）：<code>tol_pct</code> 40 → 55。位判定靠 space 长度 + 0xA5 前缀 + 校验和把关，放宽 mark 窗口不会误判。</p>
+            </div>
+        </div>
+
+        <div class="tl-item">
+            <div class="tl-title">第六轮：看原理图 → 硬件特性实锤</div>
+            <div class="tl-body">
+                用户强烈要求看硬件。下载官方原理图 <code>K150_Stick_S3_PRJ_V0.6</code>（M5Stack 文档站），从"BTB 小板 IR_TX/RX SPK"页确认：
+                <ul>
+                    <li><strong>RX</strong>：Vishay <strong>VSOP38338</strong>——38kHz 解调接收头，内置 AGC + 带通，active-low 输出，10K 上拉。</li>
+                    <li><strong>TX</strong>：Everlight <strong>IR928-6C/F1</strong>——940nm 红外管，22Ω 限流 + 三极管驱动，GPIO46。</li>
+                </ul>
+                硬件特性解释了所有"解码玄学"：AGC 建立期吞头、信号过强饱和、940nm 需要正对。
+            </div>
+        </div>
+
+        <div class="tl-item">
+            <div class="tl-title">第七轮：学习链路反复失败 → 换思路</div>
+            <div class="tl-body">
+                手机只能"连按"（每次发一帧），且多次捕获质量不稳。固件升级为"多次按学习"：累积最佳捕获 + 头部感知评分（含完整 3000/3000/3000/4300 头的帧 +500 分）+ 毛刺过滤（<150µs 并入邻居）。但用户数据里"数据区标准、头部缺失"的半帧问题始终绕不过去。
+                <p><span class="tag warn">决策</span> 既然空调已经确认认识 Haier 协议，而库有可靠的编码器——<strong>放弃"学习"这条路，直接用库生成教科书级 Haier 帧发送</strong>，彻底绕开脆弱的学习链路。</p>
+            </div>
+        </div>
+
+        <div class="tl-item">
+            <div class="tl-title">第八轮：最终——距离！</div>
+            <div class="tl-body">
+                生成帧固件烧上后，用户近距离（≤50cm 正对空调接收窗）按 K1：<strong>空调动了！</strong>
+                <p>此前"发不出去"的最后一块拼图：板载 IR 管功率很小（IR928 单管 + 22Ω 限流），隔 1 米以上信号根本到不了空调。所有代码问题都修完后，剩下的纯粹是物理问题。</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Section 4 -->
+<div class="section" id="evidence">
+    <h2>4. 关键实验与数据</h2>
+
+    <h3>4.1 loopback 自测固件（定位 RX 问题的最有力工具）</h3>
+    <p>核心思想：<strong>用自己的发射端发出已知标准波形，再用接收端收回来</strong>。这样"遥控器"这个变量被完全消除，剩下的只有板载链路和软件栈。对比原生 RMT 驱动与库驱动，问题归属一目了然。</p>
+    <table>
+        <tr><th>接收路径</th><th>头部</th><th>数据 mark</th><th>Haier 解码</th></tr>
+        <tr><td>原生 RMT RX（128 符号, 1us）</td><td>2984/3011/2984/4303</td><td>511-540µs <span class="tag ok">标准</span></td><td>—</td></tr>
+        <tr><td>库 RX（64 符号, 无 DMA）</td><td>302/303/302/435</td><td>240-460µs + 毛刺 <span class="tag danger">损坏</span></td><td>0 次</td></tr>
+        <tr><td>库 RX（128 符号 + DMA，补丁后）</td><td>301-308/318-327/281/451</td><td>510-570µs <span class="tag ok">标准</span></td><td>12 轮中 2 次成功</td></tr>
+    </table>
+
+    <h3>4.2 用户真实捕获分析（离线 Python 复现）</h3>
+    <p>每次学习都会把波形打印成 C 数组，直接拿这些数据离线做直方图、头部扫描、位流提取，不需要反复占用硬件。</p>
+    <pre><code># 关键发现举例（len=233）：
+mark hist:  {38:13, 44:11, 46:28, 49:10, ...}   → 数据 mark 已标准 (~460-570µs)
+space hist: {63:21, 64:13, 166:2, 172:5, ...}  → 0 位 630µs / 1 位 1660µs 都标准
+Haier header at: NONE                          → 但缺 3000/3000/3000/4300 头！</code></pre>
+
+    <h3>4.3 库补丁清单（记录在案，避免将来重复踩坑）</h3>
+    <table>
+        <tr><th>文件</th><th>改动</th><th>原因</th></tr>
+        <tr><td><code>hal/RmtHal.cpp</code></td><td>RX 通道 64→128 符号、with_dma false→true</td><td>ESP32-S3 每通道仅 48 符号，AC 帧超长被截断</td></tr>
+        <tr><td><code>ac/Haier.h</code></td><td><code>tol_pct</code> 40→55</td><td>接收头 AGC 恢复期削短首位 mark（520→280-330µs）</td></tr>
+    </table>
+</div>
+
+<!-- Section 5 -->
+<div class="section" id="hardware">
+    <h2>5. 红外原理与 StickS3 硬件</h2>
+
+    <h3>5.1 红外通信怎么工作</h3>
+    <p>遥控器把 38kHz 载波按 mark/space 时长调制后发射；接收头（TSOP 类）内部完成<strong>带通滤波 + AGC + 整形</strong>，输出解调后的方波，由 RMT 计时。信息只编码在时长里，载波本身不携带信息。</p>
+    <ul>
+        <li>接收头输出的是"解调后的 mark/space 波形"（不是原始 38kHz 信号）。</li>
+        <li>接收头有 <strong>AGC</strong>：自动适应信号强度，但收敛需要时间（约 0.4-1.8ms），会吞掉 burst 开头的 mark。</li>
+        <li>每次按同一键，由于距离/角度/环境光差异，AGC 收敛点不同 → mark/space 时长有 ±几十 µs 的抖动——<strong>这是正常现象</strong>，靠协议容差和校验和来容忍。</li>
+    </ul>
+
+    <h3>5.2 StickS3 板载红外（原理图实锤）</h3>
+    <table>
+        <tr><th>项目</th><th>器件</th><th>关键特性</th></tr>
+        <tr><td>IR RX</td><td>Vishay <strong>VSOP38338</strong></td><td>38kHz 解调头、内置 AGC、active-low、GPIO42、10K 上拉</td></tr>
+        <tr><td>IR TX</td><td>Everlight <strong>IR928-6C/F1</strong></td><td>940nm 红外管、22Ω 限流、三极管驱动、GPIO46、高电平点亮</td></tr>
+    </table>
+    <div class="callout warn">
+        <strong>板载 IR 发射功率很小。</strong> 实测 ≤30-50cm 正对空调接收窗才可靠。隔 1 米以上通常毫无反应——这常常被误判成"代码问题"，其实是物理限制。使用姿势必须先确认。
+    </div>
+
+    <h3>5.3 手机红外 vs 实体遥控器</h3>
+    <table>
+        <tr><th></th><th>StickS3（VSOP38338）</th><th>小米手机红外</th><th>后果</th></tr>
+        <tr><td>发射功率</td><td>单管毫安级</td><td>专用驱动，强得多</td><td>手机贴脸会让接收头 AGC 饱和，波形损坏</td></tr>
+        <tr><td>载波</td><td>38kHz 最灵敏（±2-3kHz）</td><td>30-56kHz 可编程</td><td>非 38kHz 边沿变钝</td></tr>
+        <tr><td>按键行为</td><td>—</td><td>很多 App 只能"点按"发一帧</td><td>学习时要多次按，靠累积选优</td></tr>
+    </table>
+    <p>接收建议：手机/遥控器距 StickS3 <strong>30-100cm</strong> 最稳（太近饱和、太远弱）。</p>
+</div>
+
+<!-- Section 6 -->
+<div class="section" id="lessons">
+    <h2>6. 根因汇总</h2>
+    <table>
+        <tr><th>#</th><th>根因</th><th>类型</th><th>症状</th><th>修复</th></tr>
+        <tr><td>1</td><td>文件长度用 size_t(4B) 写、uint16_t(2B) 读</td><td><span class="tag danger">代码</span></td><td>发送波形错位，空调无反应</td><td>统一 uint16_t + 文件大小校验</td></tr>
+        <tr><td>2</td><td>Haier 单帧协议被连发两次</td><td><span class="tag danger">代码</span></td><td>开→关抵消，SEND OK 但无效果</td><td>只发一次</td></tr>
+        <tr><td>3</td><td>库 RX 通道 64 符号 + 无 DMA</td><td><span class="tag danger">库</span></td><td>长帧 mark 削短、毛刺、误触发</td><td>128 符号 + DMA</td></tr>
+        <tr><td>4</td><td>Haier 解码容差 40% 卡 AGC 边界</td><td><span class="tag warn">库/硬件</span></td><td>解码时好时坏</td><td>容差放宽到 55%</td></tr>
+        <tr><td>5</td><td>学习到的帧缺头/半帧</td><td><span class="tag info">链路</span></td><td>手机连按捕获不稳</td><td>头部感知评分 + 毛刺过滤 + 多次按累积</td></tr>
+        <tr><td>6</td><td>板载 IR 发射功率小</td><td><span class="tag info">物理</span></td><td>隔远了完全没反应</td><td>≤50cm 正对接收窗 / 生成帧直发</td></tr>
+    </table>
+</div>
+
+<!-- Section 7 -->
+<div class="section" id="method">
+    <h2>7. 方法论：以后这类事情应该怎么做</h2>
+    <p>这次的教训沉淀成一套可复用的排查流程，<strong>先按顺序做，别跳步</strong>：</p>
+
+    <div class="pattern">
+        <div class="pattern-title"><span class="num">1</span> 先读硬件，再读代码</div>
+        <p>第一件事是查<strong>官方文档 + 原理图 + 官方示例</strong>，确认引脚、器件型号、电路特性、官方推荐配置。本次如果一开始就知道"板载发射功率小、接收头是 TSOP 带 AGC"，能少走一半弯路。</p>
+    </div>
+
+    <div class="pattern">
+        <div class="pattern-title"><span class="num">2</span> 用数据说话：原始数据打出来，离线分析</div>
+        <p>串口把捕获的原始 tick 数组打印出来（做成 C 数组格式方便复制），拿 Python 离线做直方图、头部扫描、位流提取。别对着屏幕"猜"，让数据告诉你 mark/space 是标准、削短还是方波。</p>
+    </div>
+
+    <div class="pattern">
+        <div class="pattern-title"><span class="num">3</span> 写受控实验隔离变量：loopback 自测</div>
+        <p>用自己的 TX 发已知标准波形、用 RX 收回来（loopback），把"遥控器/手机"这个外部变量彻底排除。再对比原生驱动 vs 第三方库，问题归属（硬件 / 库 / 自己的代码）立刻水落石出。</p>
+    </div>
+
+    <div class="pattern">
+        <div class="pattern-title"><span class="num">4</span> 区分"正常现象"和"bug"</div>
+        <p>抖动、AGC 吞头、量化误差、帧合并边界不同——都是<strong>正常的物理/协议现象</strong>，靠容差和重编码容忍。而"mark 被系统性削 40% + 毛刺"、"文件读出来的 tick 与写进去的不一致"是 <strong>bug</strong>。判据：正常现象应围绕标准值±小范围浮动且结构完整；bug 是结构性损坏。</p>
+    </div>
+
+    <div class="pattern">
+        <div class="pattern-title"><span class="num">5</span> 检查文件格式与字节序</div>
+        <p>嵌入式持久化最容易栽的坑：<code>sizeof(size_t)</code> 在 32 位 ESP32 上是 4 字节，而协议约定 2 字节；写读不一致会导致整体错位。用脚本做一次写→读往返校验，一次就暴露。</p>
+    </div>
+
+    <div class="pattern">
+        <div class="pattern-title"><span class="num">6</span> 库有坑时，用原生驱动交叉验证</div>
+        <p>第三方库的默认配置不一定适配你的板子（RMT 内存、DMA、容差）。怀疑库时不要猜，直接用 ESP-IDF 原生 API 写个最小示例对比，官方示例的配置通常就是正确基线。</p>
+    </div>
+
+    <div class="pattern">
+        <div class="pattern-title"><span class="num">7</span> 物理因素永远最后排（也是最先容易漏的）</div>
+        <p>距离、角度、遮挡、功率。板载 IR 功率小是常态。测试时先把设备怼到接收窗前，确认链路通，再谈优化距离。</p>
+    </div>
+
+    <div class="pattern">
+        <div class="pattern-title"><span class="num">8</span> 遇到瓶颈果断换思路</div>
+        <p>"学习 + 回放"依赖一整条脆弱链路；当协议已知且库有可靠编码器时，<strong>直接生成标准帧</strong>往往更稳。别死磕一条路。</p>
+    </div>
+
+    <div class="pattern">
+        <div class="pattern-title"><span class="num">9</span> 改第三方库要打补丁记录</div>
+        <p>库改动写在项目内的 <code>.arduino_sketchbook/libraries</code>（用户级库目录），并把改动记进 README/笔记，避免更新库时被覆盖后无从查起。</p>
+    </div>
+</div>
+
+<!-- Section 8 -->
+<div class="section" id="current">
+    <h2>8. 当前状态与使用说明</h2>
+
+    <h3>8.1 最终固件行为（toggle_remote）</h3>
+    <table>
+        <tr><th>按键</th><th>行为</th></tr>
+        <tr><td><strong>K1 短按</strong></td><td>库生成教科书级 Haier 帧（完整双头 + 正确校验和），连发 3 次；按一次"开"、再按"关"交替（默认 制冷 24°C / 风速自动）</td></tr>
+        <tr><td><strong>K1 长按</strong></td><td>学习模式（备选路径：多次按累积最佳帧 + 头部感知 + 毛刺过滤）</td></tr>
+        <tr><td><strong>K2 长按</strong></td><td>M5.Power.powerOff() 关机</td></tr>
+    </table>
+    <div class="callout ok">
+        <strong>实测通过</strong>：设备举到空调正前方 30-50cm、正对接收窗，按 K1 空调有反应。
+    </div>
+
+    <h3>8.2 使用注意</h3>
+    <ul>
+        <li>发射：≤30-50cm 正对空调接收窗（面板右下角暗红色小窗）。</li>
+        <li>接收（学习）：手机/遥控器距设备 30-100cm。</li>
+        <li>串口设备名：<code>arduino-cli board list</code> 查看（可能是 usbmodem1101 / usbmodem101，设备重枚举会变）。</li>
+    </ul>
+
+    <h3>8.3 常用命令</h3>
+    <pre><code># 编译
+arduino-cli compile --fqbn m5stack:esp32:m5stack_sticks3:PartitionScheme=default_8MB \
+  /Users/lijialun/work/m5stack/m5stick_s3_ir_toggle_remote
+
+# 上传（端口以 board list 为准）
+arduino-cli upload --fqbn m5stack:esp32:m5stack_sticks3:PartitionScheme=default_8MB \
+  -p /dev/cu.usbmodemXXXX /Users/lijialun/work/m5stack/m5stick_s3_ir_toggle_remote
+
+# 串口监视（注意：退出后要确认没有残留进程占端口，否则上传会报 port busy）
+arduino-cli monitor -p /dev/cu.usbmodemXXXX --config baudrate=115200</code></pre>
+
+    <h3>8.4 相关文件</h3>
+    <table>
+        <tr><th>路径</th><th>说明</th></tr>
+        <tr><td><code>m5stick_s3_ir_toggle_remote/m5stick_s3_ir_toggle_remote.ino</code></td><td>单键遥控器（最终方案：生成帧直发 + 学习备选）</td></tr>
+        <tr><td><code>m5stick_s3_ir_recorder/</code> · <code>m5stick_s3_ir_player/</code></td><td>录制/回放（文件格式 bug 已同步修复）</td></tr>
+        <tr><td><code>.arduino_sketchbook/libraries/ESP32IRPulseKit/</code></td><td>打了补丁的库（RX 128+DMA、Haier 容差 55%）</td></tr>
+        <tr><td><code>README.md</code></td><td>项目使用文档（已更新硬件结论与补丁说明）</td></tr>
+    </table>
+</div>
+
+<!-- Footer -->
+<div class="footer">
+    <p>M5StickS3 红外遥控器排障实录 · 2026-08-10</p>
+    <p style="margin-top:8px;">硬件：M5StickS3 (ESP32-S3) · 接收 VSOP38338 · 发射 IR928-6C · 库 ESP32IRPulseKit 1.0.5（已打补丁）</p>
+</div>
+
+</div>
+</body>
+</html>
