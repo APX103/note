@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M5StickS3 红外开发完全教程 — 从零做一个空调遥控器</title>
+<style>
+    :root {
+        --bg: #fafbfc;
+        --surface: #ffffff;
+        --surface-hover: #f5f6f8;
+        --text: #1a1a2e;
+        --text-secondary: #5a5a7a;
+        --accent: #6366f1;
+        --accent-2: #8b5cf6;
+        --accent-glow: rgba(99, 102, 241, 0.08);
+        --border: #e8eaef;
+        --code-bg: #f1f3f5;
+        --code-border: #e0e2e7;
+        --tag-bg: #eef0ff;
+        --tag-color: #6366f1;
+        --warn: #d97706;
+        --ok: #059669;
+        --info: #3b82f6;
+        --danger: #dc2626;
+        --shadow: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.03);
+        --shadow-lg: 0 4px 12px rgba(0,0,0,0.06);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.8;
+        -webkit-font-smoothing: antialiased;
+    }
+
+    .container {
+        max-width: 860px;
+        margin: 0 auto;
+        padding: 0 24px;
+    }
+
+    /* Hero */
+    .hero {
+        padding: 80px 0 50px;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 48px;
+    }
+
+    .hero h1 {
+        font-size: 2em;
+        font-weight: 700;
+        color: var(--text);
+        margin-bottom: 12px;
+        letter-spacing: -0.02em;
+    }
+
+    .hero h1 .accent {
+        color: var(--accent);
+    }
+
+    .hero .subtitle {
+        color: var(--text-secondary);
+        font-size: 1.05em;
+        max-width: 660px;
+    }
+
+    .hero .meta {
+        margin-top: 16px;
+        display: flex;
+        gap: 16px;
+        font-size: 0.82em;
+        color: var(--text-secondary);
+        flex-wrap: wrap;
+    }
+
+    .hero .meta span {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    /* TOC */
+    .toc {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 28px 32px;
+        margin-bottom: 48px;
+        box-shadow: var(--shadow);
+    }
+
+    .toc h2 {
+        font-size: 1em;
+        font-weight: 600;
+        color: var(--text-secondary);
+        margin-bottom: 16px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .toc ul {
+        list-style: none;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px 24px;
+    }
+
+    .toc a {
+        color: var(--accent);
+        text-decoration: none;
+        font-size: 0.92em;
+        padding: 4px 0;
+        display: block;
+        border-bottom: 1px solid transparent;
+        transition: border-color 0.15s;
+    }
+
+    .toc a:hover {
+        border-bottom-color: var(--border);
+    }
+
+    /* Sections */
+    .section {
+        margin-bottom: 56px;
+    }
+
+    .section h2 {
+        font-size: 1.35em;
+        font-weight: 700;
+        color: var(--text);
+        margin-bottom: 20px;
+        padding-bottom: 12px;
+        border-bottom: 2px solid var(--accent);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .section h3 {
+        font-size: 1.05em;
+        font-weight: 600;
+        color: var(--text);
+        margin: 24px 0 12px;
+    }
+
+    .section p {
+        color: var(--text-secondary);
+        margin-bottom: 12px;
+        font-size: 0.95em;
+    }
+
+    .section ul, .section ol {
+        margin: 8px 0 16px 24px;
+        color: var(--text-secondary);
+        font-size: 0.95em;
+    }
+
+    .section li {
+        margin-bottom: 6px;
+    }
+
+    /* Code blocks */
+    pre {
+        background: var(--code-bg);
+        border: 1px solid var(--code-border);
+        border-radius: 8px;
+        padding: 18px 20px;
+        overflow-x: auto;
+        font-size: 0.82em;
+        line-height: 1.6;
+        margin: 12px 0 20px;
+        font-family: "SF Mono", "Fira Code", "Cascadia Code", "JetBrains Mono", monospace;
+        color: #24292e;
+    }
+
+    code {
+        font-family: "SF Mono", "Fira Code", "Cascadia Code", "JetBrains Mono", monospace;
+        background: var(--code-bg);
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.88em;
+        color: var(--accent);
+    }
+
+    pre code {
+        background: none;
+        padding: 0;
+        color: inherit;
+    }
+
+    /* Tags */
+    .tag {
+        display: inline-block;
+        font-size: 0.75em;
+        padding: 3px 10px;
+        border-radius: 6px;
+        background: var(--tag-bg);
+        color: var(--tag-color);
+        font-weight: 500;
+        margin-right: 6px;
+        vertical-align: middle;
+    }
+
+    .tag.ok { background: #ecfdf5; color: #059669; }
+    .tag.warn { background: #fffbeb; color: #d97706; }
+    .tag.info { background: #eff6ff; color: #2563eb; }
+    .tag.danger { background: #fef2f2; color: #dc2626; }
+
+    /* Callouts */
+    .callout {
+        border-radius: 10px;
+        padding: 16px 20px;
+        margin: 16px 0 24px;
+        font-size: 0.92em;
+        border: 1px solid var(--border);
+    }
+
+    .callout.info {
+        background: #eff6ff;
+        border-color: #bfdbfe;
+        color: #1e40af;
+    }
+
+    .callout.ok {
+        background: #ecfdf5;
+        border-color: #a7f3d0;
+        color: #065f46;
+    }
+
+    .callout.warn {
+        background: #fffbeb;
+        border-color: #fde68a;
+        color: #92400e;
+    }
+
+    .callout.danger {
+        background: #fef2f2;
+        border-color: #fecaca;
+        color: #991b1b;
+    }
+
+    /* Cards */
+    .pattern {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 24px 28px;
+        margin-bottom: 16px;
+        box-shadow: var(--shadow);
+    }
+
+    .pattern-title {
+        font-size: 1em;
+        font-weight: 600;
+        color: var(--text);
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .pattern-title .num {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        border-radius: 6px;
+        background: var(--accent);
+        color: white;
+        font-size: 0.78em;
+        font-weight: 600;
+        flex-shrink: 0;
+    }
+
+    .pattern p {
+        color: var(--text-secondary);
+        font-size: 0.92em;
+        margin-bottom: 8px;
+    }
+
+    /* Table */
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 16px 0 24px;
+        font-size: 0.88em;
+    }
+
+    th {
+        text-align: left;
+        padding: 10px 14px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        font-weight: 600;
+        color: var(--text);
+        font-size: 0.82em;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    td {
+        padding: 10px 14px;
+        border: 1px solid var(--border);
+        color: var(--text-secondary);
+        vertical-align: top;
+    }
+
+    tr:nth-child(even) td {
+        background: #fcfcfd;
+    }
+
+    td strong {
+        color: var(--text);
+    }
+
+    /* Footer */
+    .footer {
+        padding: 32px 0 48px;
+        border-top: 1px solid var(--border);
+        margin-top: 48px;
+        text-align: center;
+        color: var(--text-secondary);
+        font-size: 0.82em;
+    }
+
+    .footer a {
+        color: var(--accent);
+        text-decoration: none;
+    }
+
+    @media (max-width: 640px) {
+        .hero { padding: 48px 0 32px; }
+        .hero h1 { font-size: 1.5em; }
+        .toc ul { grid-template-columns: 1fr; }
+        .pattern { padding: 18px 20px; }
+    }
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- Hero -->
+<div class="hero">
+    <h1>M5StickS3 红外开发 <span class="accent">完全教程</span></h1>
+    <p class="subtitle">拿到一块全新的 M5StickS3，如何一步步把它做成一个空调遥控器（AC Controller）——环境搭建、方案选型、代码、烧录、实测，一次讲清楚。</p>
+    <div class="meta">
+        <span>📅 2026-08-10</span>
+        <span>🛠 M5StickS3 · ESP32-S3 · 红外</span>
+        <span>⏱ 全程约 1-2 小时</span>
+    </div>
+</div>
+
+<!-- TOC -->
+<div class="toc">
+    <h2>目录</h2>
+    <ul>
+        <li><a href="#flow">0. 整体流程总览</a></li>
+        <li><a href="#hardware">1. 认识硬件：StickS3 的红外能力</a></li>
+        <li><a href="#env">2. 环境搭建（Arduino CLI + 板包 + 库）</a></li>
+        <li><a href="#choose">3. 方案选型：生成帧 vs 学习回放</a></li>
+        <li><a href="#plan-a">4. 方案 A：库生成标准帧直发（推荐）</a></li>
+        <li><a href="#verify">5. 首次实测：打通收发链路</a></li>
+        <li><a href="#plan-b">6. 方案 B：学习 + 回放（任意遥控器）</a></li>
+        <li><a href="#best-practice">7. 使用最佳实践与避坑清单</a></li>
+        <li><a href="#extend">8. 进阶：多按键 / 温度 / 模式</a></li>
+    </ul>
+</div>
+
+<!-- Section 0 -->
+<div class="section" id="flow">
+    <h2>0. 整体流程总览</h2>
+    <p>整个项目只有六步，每一步都可以独立验证，不要跳步：</p>
+    <ol>
+        <li><strong>确认目标</strong>：你的空调是什么品牌/协议（决定选方案 A 还是 B）。</li>
+        <li><strong>了解硬件</strong>：板载红外的引脚、器件特性、使用限制（发射距离、载波）。</li>
+        <li><strong>搭环境</strong>：安装 Arduino CLI、M5Stack 板包、红外库。</li>
+        <li><strong>写最小程序</strong>：先发一帧已知信号，把"发射→接收"链路打通（这是最关键的一步）。</li>
+        <li><strong>实现功能</strong>：按选定的方案（生成帧 / 学习回放）写出完整控制器。</li>
+        <li><strong>实测固化</strong>：近距离对准空调验证，然后固化使用姿势（距离、按键习惯）。</li>
+    </ol>
+    <div class="callout info">
+        最重要的原则：<strong>先打通链路，再堆功能</strong>。第一步不要写任何业务逻辑，只验证"设备能不能发出一段空调认识的信号"。
+    </div>
+</div>
+
+<!-- Section 1 -->
+<div class="section" id="hardware">
+    <h2>1. 认识硬件：StickS3 的红外能力</h2>
+
+    <h3>1.1 引脚与器件</h3>
+    <table>
+        <tr><th>功能</th><th>引脚</th><th>板载器件</th><th>特性</th></tr>
+        <tr><td><strong>IR 发射 TX</strong></td><td>GPIO46</td><td>Everlight IR928-6C（940nm 红外管）</td><td>单管 + 22Ω 限流，<strong>功率较小</strong>，高电平点亮</td></tr>
+        <tr><td><strong>IR 接收 RX</strong></td><td>GPIO42</td><td>Vishay VSOP38338（38kHz 解调接收头）</td><td>内置 AGC + 带通滤波，active-low 输出，10K 上拉</td></tr>
+    </table>
+
+    <h3>1.2 必须先知道的四条使用特性</h3>
+    <div class="pattern">
+        <div class="pattern-title"><span class="num">①</span> 发射距离短，必须近距离正对</div>
+        <p>板载红外管功率小，<strong>有效发射距离 ≤ 30-50cm</strong>，且要正对设备的红外接收窗（空调面板右下角的暗红色小窗）。这是设备固有特性，不是软件能解决的。</p>
+    </div>
+    <div class="pattern">
+        <div class="pattern-title"><span class="num">②</span> 接收目标距离 30-100cm</div>
+        <p>接收头带 AGC，信号太近（<20cm）会饱和导致波形失真，太远信号弱。学习时把遥控器/手机放在 30-100cm 处最稳。</p>
+    </div>
+    <div class="pattern">
+        <div class="pattern-title"><span class="num">③</span> 载波 38kHz</div>
+        <p>接收头对 38kHz 载波最灵敏（带宽约 ±2-3kHz）。你的信号源（遥控器/手机 App）应使用 38kHz 载波。</p>
+    </div>
+    <div class="pattern">
+        <div class="pattern-title"><span class="num">④</span> 供电与干扰</div>
+        <p>代码里必须先 <code>M5.Power.setExtOutput(true, m5::ext_none);</code> 给板载红外供电，并调用 <code>M5.Speaker.end();</code> 关闭扬声器功放（功放会干扰 IR 接收）。</p>
+    </div>
+</div>
+
+<!-- Section 2 -->
+<div class="section" id="env">
+    <h2>2. 环境搭建（Arduino CLI + 板包 + 库）</h2>
+
+    <h3>2.1 安装 arduino-cli</h3>
+    <pre><code>brew install arduino-cli</code></pre>
+
+    <h3>2.2 添加 M5Stack 板包并安装核心</h3>
+    <pre><code>arduino-cli config init --overwrite
+arduino-cli config set board_manager.additional_urls "https://static-cdn.m5stack.com/resource/arduino/package_m5stack_index.json"
+arduino-cli core update-index
+arduino-cli core install m5stack:esp32</code></pre>
+
+    <h3>2.3 安装红外库</h3>
+    <p>推荐 <code>ESP32IRPulseKit</code>：支持 RMT 底层收发，内置十余种空调协议（Panasonic / Gree / Haier / Midea / Toshiba…）的编解码，可生成标准帧。</p>
+    <pre><code>arduino-cli lib install M5Unified M5GFX ESP32IRPulseKit</code></pre>
+
+    <h3>2.4 确认板子与端口</h3>
+    <pre><code># 列出已连接的板子（记住你的 USB 端口名）
+arduino-cli board list</code></pre>
+
+    <div class="callout warn">
+        <strong>库的推荐配置（烧录前设置好，避免长帧丢失）</strong>：
+        ESP32-S3 每个 RMT 通道内存很小（48 符号），空调帧往往 75-125+ 符号。建议把库的 RX 通道内存调到 128 符号并开启 DMA（<code>src/hal/RmtHal.cpp</code> 里 <code>cfg.mem_block_symbols = 128; cfg.flags.with_dma = true;</code>）。改完放在项目内、并记录改动，避免库更新后被覆盖。
+    </div>
+</div>
+
+<!-- Section 3 -->
+<div class="section" id="choose">
+    <h2>3. 方案选型：生成帧 vs 学习回放</h2>
+    <p>做 AC 控制器有两条完全不同的路，<strong>先选路再动手</strong>：</p>
+    <table>
+        <tr><th></th><th>方案 A：库生成标准帧直发</th><th>方案 B：学习 + 回放</th></tr>
+        <tr><td><strong>原理</strong></td><td>库内置该品牌协议，用代码生成一帧标准波形发送</td><td>捕获遥控器的原始波形，原样重放</td></tr>
+        <tr><td><strong>前提</strong></td><td>你的空调品牌在库的协议表里（Panasonic/Gree/Haier/Midea…）</td><td>任意品牌、任意按键，只要捕获质量好</td></tr>
+        <tr><td><strong>稳定性</strong></td><td><span class="tag ok">最稳</span> 波形教科书级，空调一定认识</td><td>依赖学习时捕获质量（容易受距离/AGC 影响）</td></tr>
+        <tr><td><strong>灵活性</strong></td><td>可程序化生成任意温度/模式/风速组合</td><td>只能重放录过的按键</td></tr>
+        <tr><td><strong>推荐</strong></td><td><span class="tag ok">首选</span></td><td>协议不在库里的备选</td></tr>
+    </table>
+    <div class="callout ok">
+        判定方法：先把库支持列表看一遍（ESP32IRPulseKit 的 <code>ac/</code> 目录），找到你空调品牌就用方案 A；找不到再用方案 B。绝大多数主流空调都能在 A 里找到。
+    </div>
+</div>
+
+<!-- Section 4 -->
+<div class="section" id="plan-a">
+    <h2>4. 方案 A：库生成标准帧直发（推荐）</h2>
+    <p>以 Haier 空调为例，完整可编译的 sketch（K1 短按 = 开关，K2 长按 = 关机）：</p>
+    <pre><code>#include &lt;M5Unified.h&gt;
+#include &lt;ESP32IRPulseKit.h&gt;
+
+constexpr uint16_t IR_TX_PIN = 46;
+constexpr uint16_t IR_RX_PIN = 42;
+
+esp32irpk::IRSender tx(IR_TX_PIN);
+esp32irpk::IRReceiver rx(IR_RX_PIN, false);
+
+void setup() {
+  M5.begin();
+  Serial.begin(115200);
+  delay(200);
+
+  M5.Power.setExtOutput(true, m5::ext_none);  // 给板载红外供电
+  delay(100);
+  M5.Speaker.end();                           // 关功放，避免干扰 IR
+
+  // 发送端：长帧建议关闭相位对齐载波、加大 RMT 内存
+  tx.setTxMemBlocks(2);
+  tx.setPhaseAlignedCarrier(false);
+  tx.begin();
+
+  Serial.println("K1: 开关   K2长按: 关机");
+}
+
+void loop() {
+  M5.update();
+
+  if (M5.BtnB.pressedFor(1000)) {
+    Serial.println("power off");
+    M5.Power.powerOff();
+  }
+
+  if (M5.BtnA.wasPressed()) {
+    sendToggle();
+  }
+  delay(10);
+}
+
+static bool powerOn = false;  // 交替开/关
+void sendToggle() {
+  powerOn = !powerOn;
+
+  // 库生成一帧教科书级 Haier 帧（完整头部 + 正确校验和）
+  esp32irpk::ac::Haier::Frame f;   // 默认 制冷24°C / 风速自动
+  f.setPower(powerOn);
+
+  uint16_t ticks[esp32irpk::ac::Haier::Frame::kMaxTicks];
+  esp32irpk::IRRawTickBuffer buf{ticks, esp32irpk::ac::Haier::Frame::kMaxTicks, 0};
+  if (!f.toRaw(buf)) {
+    Serial.println("encode failed");
+    return;
+  }
+  esp32irpk::IRRawTickView view{buf.ticks, buf.len};
+
+  // 连发 3 次（模拟真实遥控器重复行为），提高空调命中率
+  for (int i = 0; i &lt; 3; i++) {
+    tx.send(view);
+    delay(80);
+  }
+  Serial.printf("sent Haier %s\n", powerOn ? "ON" : "OFF");
+}</code></pre>
+
+    <h3>4.1 编译与上传</h3>
+    <pre><code>arduino-cli compile --fqbn m5stack:esp32:m5stack_sticks3:PartitionScheme=default_8MB \
+  /path/to/your/sketch_dir
+
+arduino-cli upload --fqbn m5stack:esp32:m5stack_sticks3:PartitionScheme=default_8MB \
+  -p /dev/cu.usbmodemXXXX /path/to/your/sketch_dir</code></pre>
+
+    <h3>4.2 修改成你的空调设置</h3>
+    <p>库每个品牌都提供 setter，直接改默认帧即可生成你想要的模式/温度：</p>
+    <pre><code>esp32irpk::ac::Haier::Frame f;
+f.setPower(true);
+f.setMode(esp32irpk::ac::Haier::Mode::COOL);   // COOL / HEAT / DRY / FAN / AUTO
+f.setTemperatureC(26);                          // 16-30°C
+f.setFan(esp32irpk::ac::Haier::Fan::AUTO);      // AUTO / LOW / MED / HIGH
+f.setSwingV(esp32irpk::ac::Haier::SwingV::OFF); // OFF / UP / DOWN / CYCLE</code></pre>
+    <p>不同品牌命名略有差异（如 Gree 用 <code>ac::Gree::Mode::COOL</code>），但结构完全一致。</p>
+</div>
+
+<!-- Section 5 -->
+<div class="section" id="verify">
+    <h2>5. 首次实测：打通收发链路</h2>
+    <p>这一步是整件事的成败关键。上传后立刻做链路验证：</p>
+    <ol>
+        <li><strong>把设备举到空调正前方 30-50cm</strong>，对准空调接收窗（面板右下角暗红色小窗）。</li>
+        <li>按 K1，观察空调有没有反应。</li>
+        <li>若没反应，按顺序检查：距离/角度 → 载波 38kHz → 板子供电（setExtOutput）→ 端口是否烧对。</li>
+    </ol>
+    <div class="callout danger">
+        <strong>不要一开始就隔 1 米测试。</strong> 板载红外管功率小，先近距离确认链路通，再考虑距离。90% 的"发不出去"都是距离/角度问题，而不是代码问题。
+    </div>
+    <div class="callout info">
+        链路验证通过后再加功能（学习、多按键、屏幕显示）。先小步跑通，再扩展，永远比一次写完再查快。
+    </div>
+</div>
+
+<!-- Section 6 -->
+<div class="section" id="plan-b">
+    <h2>6. 方案 B：学习 + 回放（任意遥控器）</h2>
+    <p>当你的空调品牌不在库的协议表里时，用学习回放：捕获遥控器原始波形 → 保存 → 原样重发。</p>
+
+    <h3>6.1 捕获（学习）</h3>
+    <pre><code>// 初始化接收
+rx.setMaxRxSymbols(512);      // 空调帧长，务必调大
+rx.setIdleThresholdUs(15000); // 15ms 空闲阈值，把连发帧切成独立捕获
+rx.begin();
+
+// 循环里读一帧
+esp32irpk::IRReceiveResult&lt;4&gt; result;
+if (rx.read(result)) {
+  // result.raw.ticks[] = mark/space 时长数组（1 tick = 10us）
+  // 在这里保存 result.raw
+}</code></pre>
+
+    <h3>6.2 保存到 LittleFS（文件格式约定）</h3>
+    <pre><code>// 格式：2 字节 uint16_t 长度 + len 个 uint16_t tick（小端）
+File f = LittleFS.open("/power.bin", FILE_WRITE);
+uint16_t len = (uint16_t)raw.len;              // 注意！长度必须是 2 字节
+f.write((const uint8_t *)&amp;len, sizeof(len));
+for (size_t i = 0; i &lt; raw.len; i++) {
+  uint16_t t = raw.ticks[i];
+  f.write((const uint8_t *)&amp;t, sizeof(t));
+}
+f.close();</code></pre>
+    <div class="callout warn">
+        文件格式是学习回放最容易翻车的地方：<strong>长度字段必须固定写 2 字节（uint16_t）</strong>。如果用 <code>sizeof(raw.len)</code>（size_t 在 ESP32 上是 4 字节），读写就会错位，回放出来的波形整体损坏。
+    </div>
+
+    <h3>6.3 回放</h3>
+    <pre><code>// 读文件 → 还原 ticks → 发送
+uint16_t len = 0;
+f.read((uint8_t *)&amp;len, sizeof(len));
+for (size_t i = 0; i &lt; len; i++) f.read((uint8_t *)&amp;tickBuffer[i], sizeof(uint16_t));
+
+esp32irpk::IRRawTickView view{tickBuffer, len};
+tx.send(view);</code></pre>
+
+    <h3>6.4 学习时的捕获质量判断</h3>
+    <ul>
+        <li>一帧空调波形通常 <strong>100-250 个 tick</strong>（Haier 约 150）。</li>
+        <li>波形的数据位应包含 <strong>1-bit 空间（约 1000-2600µs）</strong>；如果完全没有，说明捕获的是噪声，重学。</li>
+        <li>理想的帧从 <strong>同步头</strong>开始（如 Haier 是 3000/3000/3000/4300µs）；缺头的半帧空调不认。</li>
+        <li>手机万能遥控 App 通常只能"点按"发一帧，且信号偏强——<strong>放在 30-100cm、连按 3-5 次</strong>，取最干净的一帧。</li>
+    </ul>
+</div>
+
+<!-- Section 7 -->
+<div class="section" id="best-practice">
+    <h2>7. 使用最佳实践与避坑清单</h2>
+
+    <h3>7.1 发射（控制空调）</h3>
+    <table>
+        <tr><th>做法</th><th>原因</th></tr>
+        <tr><td>≤30-50cm、正对空调接收窗</td><td>板载 IR 功率小，远了信号到不了</td></tr>
+        <tr><td>连发 2-3 次（间隔 50-100ms）</td><td>模拟遥控器重复行为，提高命中率</td></tr>
+        <tr><td>确保 38kHz 载波</td><td>接收头只对 38kHz 灵敏</td></tr>
+    </table>
+
+    <h3>7.2 接收（学习）</h3>
+    <table>
+        <tr><th>做法</th><th>原因</th></tr>
+        <tr><td>信号源放 30-100cm</td><td>太近 AGC 饱和失真，太远信号弱</td></tr>
+        <tr><td>连按 3-5 次，取最佳帧</td><td>单次捕获可能撞上 AGC 恢复期/半帧</td></tr>
+        <tr><td>关闭扬声器功放（M5.Speaker.end()）</td><td>功放噪声会干扰 IR 接收</td></tr>
+        <tr><td>接收通道用 128 符号 + DMA</td><td>空调长帧（75-125+ 符号）不被截断</td></tr>
+    </table>
+
+    <h3>7.3 通用避坑清单</h3>
+    <div class="pattern">
+        <div class="pattern-title"><span class="num">1</span> 先确认"谁在发信号"</div>
+        <p>手机 App 能控空调 ≠ 它的码能被轻松学习。先用库的生成帧做链路验证（方案 A），确认设备自身收发正常，再谈学习。</p>
+    </div>
+    <div class="pattern">
+        <div class="pattern-title"><span class="num">2</span> 一个按键一个动作，别让 repeat 帧捣乱</div>
+        <p>长按遥控器会连发多帧，学习时捕获到的可能是合并帧。点按 + 多次捕获取最佳。</p>
+    </div>
+    <div class="pattern">
+        <div class="pattern-title"><span class="num">3</span> 协议"单帧"就别连发</div>
+        <p>有些品牌一帧就是完整指令（如 Haier、Toshiba、Samsung），连发两帧会被当成两次按键（开关互相抵消）。<strong>查库文档确认你的品牌是否单帧</strong>，连发只用于提高命中率时也要控制次数与间隔。</p>
+    </div>
+    <div class="pattern">
+        <div class="pattern-title"><span class="num">4</span> 上传报 "port busy"</div>
+        <p>先退出串口监视器再上传；若仍占用，用 <code>lsof /dev/cu.usbmodemXXXX</code> 找到残留的 serial-monitor 进程并结束。</p>
+    </div>
+    <div class="pattern">
+        <div class="pattern-title"><span class="num">5</span> 端口名会变</div>
+        <p>设备重插/重枚举后端口名可能从 usbmodem1101 变成 usbmodem101。上传前用 <code>arduino-cli board list</code> 确认。</p>
+    </div>
+    <div class="pattern">
+        <div class="pattern-title"><span class="num">6</span> 改第三方库要留记录</div>
+        <p>把库放在项目内（如 <code>.arduino_sketchbook/libraries</code>），改动记进 README，防止库更新被覆盖。</p>
+    </div>
+</div>
+
+<!-- Section 8 -->
+<div class="section" id="extend">
+    <h2>8. 进阶：多按键 / 温度 / 模式</h2>
+
+    <h3>8.1 一个按键循环多种功能</h3>
+    <pre><code>// K1 短按：开关；K1 长按：温度+1；K2 短按：温度-1；K2 长按：关机
+// 用 M5.BtnA.wasPressed() / pressedFor() 区分手势即可</code></pre>
+
+    <h3>8.2 保存你的"常用设置"</h3>
+    <p>把温度/模式/风速固化在代码里，开机即用，不需要每次设置：</p>
+    <pre><code>esp32irpk::ac::Haier::Frame f;
+f.setPower(true);
+f.setMode(esp32irpk::ac::Haier::Mode::HEAT);  // 冬天模式
+f.setTemperatureC(26);
+f.setFan(esp32irpk::ac::Haier::Fan::HIGH);
+// 生成帧发送即可</code></pre>
+
+    <h3>8.3 接上电池做便携遥控</h3>
+    <ul>
+        <li>电池满电约 250mAh，待机功耗低，可当床头遥控器常开。</li>
+        <li>K2 长按 <code>M5.Power.powerOff()</code> 可关机省电。</li>
+        <li>用支架把设备固定在床头柜，正对空调方向。</li>
+    </ul>
+
+    <div class="callout ok">
+        <strong>完成标志</strong>：设备在你伸手可及的位置，按一下 K1 空调就响应——恭喜，你的 StickS3 已经是合格的 AC Controller 了。
+    </div>
+</div>
+
+<!-- Footer -->
+<div class="footer">
+    <p>M5StickS3 红外开发完全教程 · 2026-08-10</p>
+    <p style="margin-top:8px;">配套示例代码见 <code>/Users/lijialun/work/m5stack/m5stick_s3_ir_toggle_remote</code> · 库 ESP32IRPulseKit</p>
+</div>
+
+</div>
+</body>
+</html>
