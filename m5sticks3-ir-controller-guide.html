@@ -446,6 +446,7 @@
         <li><a href="#env">2. 环境搭建（Arduino CLI + 板包 + 库）</a></li>
         <li><a href="#choose">3. 方案选型：生成帧 vs 学习回放</a></li>
         <li><a href="#plan-a">4. 方案 A：库生成标准帧直发（推荐）</a></li>
+        <li><a href="#snapshot">4.2 关键概念：整包状态快照</a></li>
         <li><a href="#verify">5. 首次实测：打通收发链路</a></li>
         <li><a href="#plan-b">6. 方案 B：学习 + 回放（任意遥控器）</a></li>
         <li><a href="#best-practice">7. 使用最佳实践与避坑清单</a></li>
@@ -637,7 +638,28 @@ arduino-cli upload --fqbn m5stack:esp32:m5stack_sticks3:PartitionScheme=default_
   -p /dev/cu.usbmodemXXXX /path/to/your/sketch_dir</code></pre>
 </div>
 
-    <h3>4.2 修改成你的空调设置</h3>
+    <h3 id="snapshot">4.2 关键概念：一次"开机"发出去的是整包状态</h3>
+    <p>空调红外和电视遥控器完全不同：<strong>电视发的是"命令码"（比如"音量+"），而空调每一帧发的是完整的设备状态快照</strong>——模式、温度、风速、风向、开/关，全部打包在一个帧里，一次发射出去。</p>
+    <p>以 Haier 为例，一帧固定 9 字节（72 位），字段分布如下：</p>
+    <table>
+        <tr><th>字节</th><th>内容</th><th>示例值</th></tr>
+        <tr><td>0</td><td>固定前缀 0xA5（协议识别）</td><td>0xA5</td></tr>
+        <tr><td>1</td><td><strong>开/关命令</strong>（低 4 位）+ 温度（高 4 位，16-30°C）</td><td>0x81 = 开 + 24°C</td></tr>
+        <tr><td>2</td><td>固定标志位 + 上下摆风</td><td>0x20 = 摆风关</td></tr>
+        <tr><td>3-5</td><td>固定位 / 风速 / 其他标志</td><td>…</td></tr>
+        <tr><td>6</td><td>模式（高 3 位）+ 其他</td><td>0x20 = 制冷</td></tr>
+        <tr><td>7</td><td>保留</td><td>0x00</td></tr>
+        <tr><td>8</td><td>校验和（前 8 字节求和，取低 8 位）</td><td>0x72</td></tr>
+    </table>
+    <p>所以"按一下开关"并不是发一个单独的"开"命令，而是<strong>把这 9 字节整体打包成一帧波形发送</strong>：其中只有字节 1 的 command 字段从"关"改成"开"，温度 / 模式 / 风速 / 风向这些字段<strong>原样跟着这一帧一起上传</strong>。由此推出三条实操结论：</p>
+    <ul>
+        <li><strong>每次发出去的都是完整快照</strong>——不存在"只改开关、其他不变"的单独命令，所以开机前必须先想好整套参数。</li>
+        <li><strong>想换温度 / 模式 = 重新生成一帧</strong>（改 setter 再 toRaw，或加按键循环不同参数）；旧帧里的温度是固定的。</li>
+        <li>不同品牌帧长 / 字段位置不同（Haier 9 字节、Gree 8 字节、Panasonic 27 字节…），但"<strong>整包状态</strong>"这个模型完全一致。</li>
+    </ul>
+    <p>对应到代码里一目了然：<code>f.setTemperatureC(26)</code> 只是改帧里温度字段，<code>f.toRaw()</code> 把整帧编成 mark/space 波形，<code>tx.send()</code> 一次性全部发出。</p>
+
+    <h3>4.3 修改成你的空调设置</h3>
     <p>库每个品牌都提供 setter，直接改默认帧即可生成你想要的模式/温度：</p>
     <div class="code-block">
   <div class="code-head"><span class="code-name">示例代码</span><span class="code-lang">text</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
@@ -649,14 +671,11 @@ f.setFan(esp32irpk::ac::Haier::Fan::AUTO);      // AUTO / LOW / MED / HIGH
 f.setSwingV(esp32irpk::ac::Haier::SwingV::OFF); // OFF / UP / DOWN / CYCLE</code></pre>
 </div>
     <p>不同品牌命名略有差异（如 Gree 用 <code>ac::Gree::Mode::COOL</code>），但结构完全一致。</p>
-</div>
 
-<h3>4.3 完整源码（可直接编译运行）</h3>
+<h3>4.4 完整源码（可直接编译运行）</h3>
 <p>以下是一个完整可编译的版本，包含方案 A（K1 短按生成标准 Haier 帧开关）与备用的学习路径（K1 长按进入学习）。复制后按 <code>sketch.ino</code> 保存为同名文件夹即可用 arduino-cli 编译：</p>
 <div class="code-block">
   <div class="code-head"><span class="code-name">m5stick_s3_ir_toggle_remote.ino</span><span class="code-lang">Arduino C++</span><span class="code-note">完整可编译 · 方案 A 全功能（生成帧直发 + 学习备选）</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
-<div class="code-block">
-  <div class="code-head"><span class="code-name">示例代码</span><span class="code-lang">text</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
 <pre><code>// M5StickS3 Single-Button IR Toggle Remote
 // ==========================================
 // One-key infrared remote for M5StickS3.
@@ -1254,8 +1273,6 @@ tx.send(view);</code></pre>
 <p>下面两个 sketch 配合使用：先用 <strong>recorder</strong> 录制遥控器按键保存到 LittleFS，再刷 <strong>player</strong> 读取文件回放（支持两个槽位：power_on / power_off）。文件格式为 <code>2 字节 uint16_t 长度 + len × 2 字节 tick</code>，1 tick = 10µs。</p>
 <div class="code-block">
   <div class="code-head"><span class="code-name">m5stick_s3_ir_recorder.ino</span><span class="code-lang">Arduino C++</span><span class="code-note">完整可编译 · 录制 power_on / power_off 两个槽位</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
-<div class="code-block">
-  <div class="code-head"><span class="code-name">示例代码</span><span class="code-lang">text</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
 <pre><code>// M5StickS3 IR Recorder
 // ======================
 // Records raw IR waveforms from the on-board IR receiver (GPIO42) and saves
@@ -1490,12 +1507,9 @@ void printHelp() {
   Serial.println();
 }</code></pre>
 </div>
-</div>
 
 <div class="code-block">
   <div class="code-head"><span class="code-name">m5stick_s3_ir_player.ino</span><span class="code-lang">Arduino C++</span><span class="code-note">完整可编译 · 读取 LittleFS 文件并回放</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
-<div class="code-block">
-  <div class="code-head"><span class="code-name">示例代码</span><span class="code-lang">text</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
 <pre><code>// M5StickS3 IR Player
 // ====================
 // Reads raw IR waveforms saved by the recorder (LittleFS files) and replays
@@ -1675,7 +1689,6 @@ void sendSlot(int index) {
   delay(500);
   drawUI();
 }</code></pre>
-</div>
 </div>
 
 <!-- Section 7 -->
