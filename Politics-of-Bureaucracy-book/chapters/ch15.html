@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>第十五章　一个思想实验 · 官僚体制的政治</title>
+<style>
+:root {
+  --bg:#fafbfc; --surface:#ffffff; --text:#1a1a2e; --text-2:#5a5a7a;
+  --accent:#6366f1; --accent-2:#8b5cf6; --border:#e8eaef;
+  --code-bg:#f1f3f5; --tag-bg:#eef0ff; --shadow:0 1px 3px rgba(0,0,0,.04);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  background:var(--bg); color:var(--text); line-height:1.8; -webkit-font-smoothing:antialiased;
+}
+.topbar {
+  position:sticky; top:0; z-index:10; background:rgba(250,251,252,.85);
+  backdrop-filter:blur(8px); border-bottom:1px solid var(--border);
+}
+.topbar-inner { max-width:760px; margin:0 auto; padding:10px 24px;
+  display:flex; justify-content:space-between; align-items:center; }
+.topbar .book { font-size:.85em; color:var(--text-2); }
+.topbar .book a { color:var(--text); text-decoration:none; font-weight:600; }
+.topbar nav a { color:var(--accent); text-decoration:none; font-size:.85em; margin-left:18px; }
+.container { max-width:760px; margin:0 auto; padding:0 24px; }
+.hero { padding:52px 0 34px; border-bottom:1px solid var(--border); margin-bottom:44px; }
+.part-badge {
+  display:inline-block; font-size:.78em; font-weight:600; letter-spacing:.05em;
+  color:var(--accent); background:var(--tag-bg); border-radius:6px; padding:3px 10px; margin-bottom:14px;
+}
+.hero h1 {
+  font-family:"Songti SC","Noto Serif SC","STSong",serif;
+  font-size:1.7em; font-weight:700; letter-spacing:.01em; margin-bottom:10px;
+}
+.hero .meta { color:var(--text-2); font-size:.86em; display:flex; gap:14px; flex-wrap:wrap; }
+.prose { padding-bottom:30px; }
+.prose p {
+  font-family:"Songti SC","Noto Serif SC","STSong",serif;
+  font-size:1.02em; color:#2c2c44; text-align:justify; margin-bottom:1.15em;
+}
+.prose h2 {
+  font-size:1.12em; font-weight:700; color:var(--text);
+  margin:2.1em 0 1em; padding-left:12px; border-left:3px solid var(--accent);
+}
+.prose .num-item {
+  font-family:"Songti SC","Noto Serif SC","STSong",serif;
+  color:#2c2c44; margin-bottom:.45em; padding-left:1.2em; text-indent:-1.2em;
+}
+sup.fn { color:var(--accent); font-size:.72em; }
+figure { margin:1.8em 0; text-align:center; }
+figure svg { max-width:100%; height:auto; border:1px solid var(--border);
+  border-radius:10px; background:var(--surface); box-shadow:var(--shadow); }
+figcaption { font-size:.8em; color:var(--text-2); margin-top:8px; }
+.notes {
+  background:var(--surface); border:1px solid var(--border); border-radius:12px;
+  padding:20px 26px; margin:36px 0 10px; box-shadow:var(--shadow);
+}
+.notes h3 { font-size:.92em; color:var(--text-2); letter-spacing:.08em; margin-bottom:10px; }
+.notes p { font-size:.86em; color:var(--text-2); margin-bottom:.8em; text-align:justify; }
+.navfoot { display:grid; grid-template-columns:1fr auto 1fr; gap:12px;
+  margin:40px 0 20px; padding-top:28px; border-top:1px solid var(--border); }
+.navfoot a {
+  text-decoration:none; color:var(--text); background:var(--surface);
+  border:1px solid var(--border); border-radius:10px; padding:14px 18px;
+  font-size:.88em; transition:all .2s ease; box-shadow:var(--shadow);
+}
+.navfoot a:hover { border-color:var(--accent); transform:translateY(-1px); }
+.navfoot .dir { display:block; font-size:.75em; color:var(--text-2); margin-bottom:2px; }
+.navfoot .next { text-align:right; }
+.navfoot .toc { display:flex; align-items:center; color:var(--accent); font-weight:600; }
+.footer { padding:26px 0 40px; text-align:center; color:var(--text-2); font-size:.8em; }
+.footer a { color:var(--accent); text-decoration:none; }
+@media (max-width:600px){
+  .hero h1{font-size:1.35em} .navfoot{grid-template-columns:1fr 1fr} .navfoot .toc{display:none}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar"><div class="topbar-inner">
+  <div class="book"><a href="../index.html">《官僚体制的政治》<span style="font-weight:400;color:var(--text-2)"> · 塔洛克</span></a></div>
+  <nav><a href="../index.html">← 返回目录</a></nav>
+</div></div>
+<div class="container">
+  <div class="hero">
+    <div class="part-badge">第三篇 · 向下看</div>
+    <h1>第十五章　一个思想实验</h1>
+    <div class="meta"><span>[美] 戈登·塔洛克 著</span><span>The Politics of Bureaucracy</span></div>
+  </div>
+  <div class="prose">
+<p>上一章批判了有关官僚体制运行的“标准”理论，这成全了我本该提出的一种替代理论。即将展开说明的组织理论基本上是规范性的。这是一种打算告诉人们如何使官僚体制运转的理论。</p>
+<h2>建立一个组织的决定</h2>
+<p>我们先来看一个人，姑且称他为A。A是个忙碌的人，整天忙于在他看来是该做的和重要的事情。他到底做些什么，不必在这里细说。比如，他可能是个有钱人，一生都在以“最佳”方式散发积攒的财富；或许，他也可能是个独裁者。无论如何，假设此人认识到，他自己的能力有限，因此下决心要建立一个组织来帮助完成他的目标。</p>
+<p>第一步，我们假设A雇了B来做助手。尽管A对B的所有活动都实行极为严格控制的情况有可能存在，但极为罕见。通常情况是，这个下决心要建立组织的人，也就是从雇用单个助手开始上路的这个人，只想用他的部分时间对他的助手进行控制和监督。这位领导心里还装着别的事情，或者，就算他懒惰吧。关键是，他把自己的部分活动转移给助手之后，他就能有更多时间去做其他事情。也就是说，在我们的模型中，A 只愿意把他全部时间中的一小部分用于控制 B 的活动。为了简化，我们假设，不用于控制 B 的时间会用于控制其他助手， B_2 \cdots \cdots B_n。</p>
+<h2>组织的规模</h2>
+<p>A 最先遇到的一个组织或结构问题，将是确定雇用直接下属的数量。这涉及他手中可用于雇用这些助手的资金，因为这些资金总是有限的。例如，假设 A 为了建立自己的这个组织愿意拿出 20000 美元来雇用人员，他会发现，每人 10000 美元的话，他能雇用两个人；如果每人的费用降到 2000 美元，他就能雇用 10 个人。显然，不同工资招来的人员素质会有很大差距。由于财力不足，招的人越多，人员的平均素质就越差。需要注意的是，即便这里根本没有财力限制，这一点仍然成立。假如 A 是个独裁者，具有在该国征用任何人的权力；再假设他找到了最高素质的人做第一个助手，第二个最合格的人做第二个助手，等等。人员的平均素质，正如在其他例子中一样，会随着等级制中人员数量的增加而下降。当然，这里也假设 A 有能力区分其实际助手和可能的助手。倘若他没有这种能力，他还没上路就被打败了。在确定组织规模时，必须要考虑到素质下降这一事实。</p>
+<p>此外，A 必须认识到，他雇用的直接下属越多，他用于控制每个单个下属活动的时间就越少。A 控制某个特定下属的时间越少，该下属背离 A 的意愿行事的可能性就越大。但是这必须与下述情况平衡来考虑，即：下属越多，该组织能够从事的活动总量也越大。</p>
+<p>把所有这些因素综合来考虑，A 必须对他将要雇用的下属数量做出决定。这个数字会因人员的类型，以及要进行的活动类型而变化。为了这里的分析目的，我们假设，A 决定雇用四位助手，每个人都直接向他汇报工作。那么，他就可以把他全部管理时间的四分之一用于监督每一位助手。当然，这些助手也必须花一些时间“接受监督”。为了简化问题，我们再假设每位助手平均拿出五分之一的时间答对领导 A。那么，由于 A 的全部时间，加上其助手每人五分之一的时间，构成了该组织的内部活动时间，这个总共五人的组织将有能力抽出三又五分之一的人力去影响外界。换言之，增加了四个助手，A 的外部活动能力只增加了三又五分之一。但这仍然是他对外界作用力量的大规模增长。</p>
+<p>然而，这个结果是根据四位助手 (B₁, ~B₂, ~B₃, ~B₄) 所做的所有事情均与 A 的愿望严格保持一致这个假设得出的。但是，这个假设并不能得到保证。人都会出错。例如，即使 B₂ 想要严格执行 A 的命令，他还是会出错。而且也没有理由认为， B₂ 实际上会那么死心塌地地服务于 A 的利益。 B₂ 毕竟也是有着自己权利的个人，而且他对自己目标的兴趣也会比对 A 的目标兴趣大。正如我们在第二篇中已经看到的，这种兴趣，在这么小的一个组织中，并不会经常导致 B₂ 采取行动直接对抗 A 的愿望，但是肯定有一些时间他会不按 A 的愿望去行事。 B₂ 会和他的同僚一起发现，这一点之所以可能，就是因为 A 没有足够的时间去全面检查其所有下属的所有活动。为了分析的目的，我们再假设， B₂ 每三次严格执行</p>
+<p>A 的愿望，就会有一次与 A 可能想干的事对着干。<sup class="fn">①</sup> 这使我们能把 B₂ 的活动分为三组：第一组，按照我们的假设，他会拿出五分之一的时间“接受”A 的“监督”；第二组，他会拿出五分之三的时间执行 A 的意愿；第三组，他会拿出五分之一的时间去做并非 A 真正想干的事。把同样的数字计算用于全部四位助手，这个五人组织——A 与他的四位助手——实际上每天将把总共二又五分之二人的时间用于安排外界的活动，这些活动与 A 建立这个组织的目的是一致的；而每天中五分之四人的时间将会用于 A 不关心或反对的事情。</p>
+<p>实际上，如果A正确地估计到这种情况，而且四位助手是他可雇用的最佳人数，那么减少到三人或增加到五人，都会降低这个组织的总体效率。如果减少到三人，他能实行更严密的监督，但是该等级制的“总产出”会减少。另一方面，如果增加到五人，他可以扩大该组织的“产出”，但要付出对助手不能严加控制的代价，还有一个后果是预期的“差错”数量增加。</p>
+<h2>执行官</h2>
+<p>这种情况还可以改善吗？我们暂且假设，A 利用了最好的监管技术（这个主题以后还会详细讨论）。这可以使我们在这里讨论相对来说较小的组织变化。尽管我们这里讨论的模型非常小，但这一事实本身却会有助于理解对结构的一般修正。在这么小的一个模型中，比较容易对各项修正进行分析，而且其中的大部分分析可以毫无困难地扩展用于大型的复杂结构。</p>
+<p>我想在这里讨论的第一项修正，是为整个组织任命一位“执行官”。在我们的模型中，这就是要在A与 B_1 到 B_4 的下属之间设置“执行官”。这样做了之后，A就可以把自己的注意力限于对执行官工作的监督，而轮到执行官来直接监督下属了。这实际上使问题复杂化了。执行官不会是A的完美代理人，因此，听命于执行官的各位B，甚至会离圆满实现A的愿望更远。然而，我们知道，行政管理结构的制度中包含执行官是相当常见的事。现代军事组织的命令链中非常依赖这种官员，而首相，或维齐尔\<sup class="fn">*</sup>，在历史上也一直是很常见的。应探讨一下这类组织存在的原因。</p>
+<p>使用执行官的主要理由之一，从上级方面说，恐怕就是懒惰，而执行官则被认为可以帮助解决这个问题。例如，巴格达的哈里发\<sup class="fn">*</sup>\<sup class="fn">*</sup>，当他有可能享受妻妾成群或是外出打猎时，他恐怕就不会愿意整天埋头于沉闷的行政管理工作。于是，他会任命一位维齐尔，并且只把自己的一小部分时间用于监管政府的活动。那么，这位维齐尔就要监管所有的中级官员，而哈里发只监管维齐尔。毫无疑问，这种制度节省了哈里发的时间，但是，却也弊端丛生。像其他官员一样，维齐尔只能把他的部分监管时间用于答对领导，他将不会精确按照哈里发的愿望办事。而这位维齐尔的下级，也会在某种程度上背离他们领导的意愿，这就会导致对哈里发真正意愿的双重偏离。因此，整个制度就不会像在统治者把全部时间都用于自己进行监管时那么听使唤。然而，必须认识到的是，如果最高领导天生懒惰，利用执行官这个工具就会是有益的。路易十四没有用首相就成功地进行了统治。但是，当精力和能力都不如路易十四的继任者想用同样的办法进行统治时，却造成行政管理的混乱。路易十五既不愿意也没有能力对其内阁进行适当的监督，如果有位首相的话，他的日子肯定会比没有时好过得多。</p>
+<p>使用执行官还有第二个原因：在出现重大行政管理失误时，为最高领导提供替罪羊。这在波斯的行政管理实践中一直是特别重要的，但是在某种程度上，这存在于几乎所有制度的动机之中。在海军舰船的组织中，船长可以被塑造为一个父亲样的人物，而执行官则被委以执行大多数令人不愉快的任务，如执行纪律，这是另一个例子。<sup class="fn">①</sup> 在历史上，好事都算在君主头上，而错事全都归罪于维齐尔的情况是相当普遍的。为了让这种制度能够工作，显然必须得有一位维齐尔露面，但是他的职责范围也必须非常宽泛，足以使对他的指责听起来言之有理。</p>
+<p>在行政管理等级制的低层级中，有一些相当于组织中的“执行官”的职务被用来帮助高层官员密切控制低层人员。例如，中华帝国的文官制度，通常成双成对地任命官员。每一对官员中，一人的资历可能高于另一人，尽管名义上是平级。这第二个人负责检查第一人对权力的运用，反之亦然。实际上，现在所说的“执行官”并不适用于这种情况，但是某些组织图表却与现代军事建制的组织图表表现出惊人的相似。这种对低层级官员进行额外检查的动机，很可能在大多数由低层级官员监督“执行官”的现代制度中都存在。</p>
+<h2>参谋人员</h2>
+<p>能延伸领导监督能力的第二种组织工具有时候被认为来自普鲁士（正如现代世界中有那么多坏事来自那里一样）。在弗雷德里克大帝死后，普鲁士军队遇到了严峻的问题。在理论上，国王就是指挥官。但是，弗雷德里克的继承人中既无人有指挥的天分，也无人有指挥的愿望。问题是，既要保住虚构的指挥权，同时也要保证对军队的有效领导。在经历了多次失败之后，“参谋”型的组织演化出来了。在许多年中，将军都有自己的个人参谋人员，这些人大都由我们现在应该称为“侍从武官”或侍臣的人构成。普鲁士是欧洲最官僚化的国家之一，从一开始就有一个精心规划的参谋组织。在弗雷德里克继任者的领导下，这个组织得到了壮大发展。参谋长，过去在理论上是国王唯一的助手和顾问，后来变成了德国军队事实上的真正指挥官。</p>
+<p>为了给这个虚构权力一种逼真感，下属指挥官也配备了精细的参谋人员，而且通过这些参谋人员运行的直接命令渠道得到发展。当然，这种制度是不对称的。尽管在理论上，全军的参谋长是国王的助手，事实上却是军队的指挥官。另一方面，第二军团的参谋长，只不过是第二军团指挥将领的一个参谋人员。但是，这使得皇家命令的幻象更为真实。</p>
+<p>如果参谋概念只用于解决普鲁士的问题，这种设置几乎是无害的。在当时的情况下，普鲁士人还承担得起对一种指挥结构某些资源的浪费，这种指挥结构只具有仪式上的重要性。但是，由于普鲁士在1860年代和1870年代的胜利，普鲁士军队的声誉日隆。伊本·赫勒敦<sup class="fn">*</sup>评论说，人们常常复制其征服者的服装，各国陆军则去复制成功军队机器的组织形态。因此，参谋制在19世纪末迅速蔓延到欧洲所有国家的陆军中。“参谋”概念也开始被用于非军事组织。“参谋人员”与“直线人员”之间的区分成为数目众多的组织理论教科书的基础。</p>
+<p>基本上来说，“参谋”一职是由领导指定的人员帮助他监督下属。<sup class="fn">①</sup> 就我们的模型而言，A可能指定单个参谋（staff officer）帮助他监管各位B。但是，这位参谋也必须得到监管，除非A打算让他根据他自己的意愿而非A的意愿来监管各位B。然而，倘若A拿出一些时间来监管这位参谋，他因不再直接监督B而腾出的时间就减少了。如此看来，直接监管的减少，是否能通过增加参谋得到的间接监管获得补偿，至少是不确定的。</p>
+<p>再有，新的组织造成了下属中一种不对称的安排。各位B们变成了要接受 A 和参谋的双重监管，而参谋只服从于 A。因此，这位参谋就在与各位 B 同僚争取 A 的青睐的斗争中处于相对有利的地位。这一事实本身在现代官僚结构中可能引起“参谋”部门相对于“直线”部门的增长。参谋部门的负责人，由于能直接接触到领导，并且有着一种帮助领导直接控制直线组织的身份，在保证得到经费的问题上，就处于比其他可比直线机构的负责人好得多的战略地位。</p>
+<p>任命一位参谋或一位执行官是否会影响到某位领导所控制的下属的数量？到目前为止，我们尚未提出这个问题。在我们的模型中，倘若A应该从 B_1 到 B_4 这组人中选择或提拔一人，使他成为执行官或参谋，而且A并没有把此人置于“直线”上，那么显然，该组织能够施加的外部影响总量将会减少。由这种变化可能引起的组织内部改善恐怕还抵消不了该组织外部影响的损失。然而，如果任命的是第五个人，不利之处就是又额外增加了一个需要监管的下属。由于在“直线”中的人员数量不变，该等级制的“产出”总量不会有增加。然而，在执行最高领导命令的效率方面，有可能取得增益。再重申一遍，由这样一种行政管理变化得到的净收益很可能是负值。在比我们这里的模型更为复杂的组织中，某些“参谋”人员有可能导致整个行政管理效率出现一个净收益。这一点将在以后予以讨论。</p>
+<h2>保留决定权</h2>
+<p>尽管还处于本章简单模型的限定范围内，我却要引进另外一种可能的组织变化。对于最高领导A，保留在某些问题上的决定权，并下命令说，所有与这些问题有关的决定都必须由他个人做出，同时允许其下属在所有其他问题上做出决定，这是可能做到的。用这种办法，A至少可以保证在这类保留问题上，他自己的决定会行得通。但是，要获得这个明显的好处，必须付出一个代价。在这种制度中，A得把他的部分时间用于对这类特别保留问题做出特批，因此，他用于监管这个等级制中下属在其他方面活动的时间也会减少。这就是说，A必须料到，在其他一些同等重要的问题上，也就是他没有保留下来做特殊处理的问题上，背离其意愿情况的比例会升高。</p>
+  </div>
+  
+  <div class="navfoot"><a class="prev" href="ch14.html"><span class="dir">← 上一页</span>第十四章 交头接耳传信息</a><a class="toc" href="../index.html">目录</a><a class="next" href="ch16.html"><span class="dir">下一页 →</span>第十六章 实验的继续</a></div>
+  <div class="footer">《官僚体制的政治》笔记 · 由 OCR 整理本转换，已清理页码与排版残留 · <a href="../../index.html">返回笔记首页</a></div>
+</div>
+</body>
+</html>

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>官僚体制的政治 — 目录</title>
+<style>
+:root {
+  --bg:#fafbfc; --surface:#ffffff; --text:#1a1a2e; --text-2:#5a5a7a;
+  --accent:#6366f1; --accent-2:#8b5cf6; --border:#e8eaef;
+  --code-bg:#f1f3f5; --tag-bg:#eef0ff; --shadow:0 1px 3px rgba(0,0,0,.04);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  background:var(--bg); color:var(--text); line-height:1.8; -webkit-font-smoothing:antialiased;
+}
+.topbar {
+  position:sticky; top:0; z-index:10; background:rgba(250,251,252,.85);
+  backdrop-filter:blur(8px); border-bottom:1px solid var(--border);
+}
+.topbar-inner { max-width:760px; margin:0 auto; padding:10px 24px;
+  display:flex; justify-content:space-between; align-items:center; }
+.topbar .book { font-size:.85em; color:var(--text-2); }
+.topbar .book a { color:var(--text); text-decoration:none; font-weight:600; }
+.topbar nav a { color:var(--accent); text-decoration:none; font-size:.85em; margin-left:18px; }
+.container { max-width:760px; margin:0 auto; padding:0 24px; }
+.hero { padding:52px 0 34px; border-bottom:1px solid var(--border); margin-bottom:44px; }
+.part-badge {
+  display:inline-block; font-size:.78em; font-weight:600; letter-spacing:.05em;
+  color:var(--accent); background:var(--tag-bg); border-radius:6px; padding:3px 10px; margin-bottom:14px;
+}
+.hero h1 {
+  font-family:"Songti SC","Noto Serif SC","STSong",serif;
+  font-size:1.7em; font-weight:700; letter-spacing:.01em; margin-bottom:10px;
+}
+.hero .meta { color:var(--text-2); font-size:.86em; display:flex; gap:14px; flex-wrap:wrap; }
+.prose { padding-bottom:30px; }
+.prose p {
+  font-family:"Songti SC","Noto Serif SC","STSong",serif;
+  font-size:1.02em; color:#2c2c44; text-align:justify; margin-bottom:1.15em;
+}
+.prose h2 {
+  font-size:1.12em; font-weight:700; color:var(--text);
+  margin:2.1em 0 1em; padding-left:12px; border-left:3px solid var(--accent);
+}
+.prose .num-item {
+  font-family:"Songti SC","Noto Serif SC","STSong",serif;
+  color:#2c2c44; margin-bottom:.45em; padding-left:1.2em; text-indent:-1.2em;
+}
+sup.fn { color:var(--accent); font-size:.72em; }
+figure { margin:1.8em 0; text-align:center; }
+figure svg { max-width:100%; height:auto; border:1px solid var(--border);
+  border-radius:10px; background:var(--surface); box-shadow:var(--shadow); }
+figcaption { font-size:.8em; color:var(--text-2); margin-top:8px; }
+.notes {
+  background:var(--surface); border:1px solid var(--border); border-radius:12px;
+  padding:20px 26px; margin:36px 0 10px; box-shadow:var(--shadow);
+}
+.notes h3 { font-size:.92em; color:var(--text-2); letter-spacing:.08em; margin-bottom:10px; }
+.notes p { font-size:.86em; color:var(--text-2); margin-bottom:.8em; text-align:justify; }
+.navfoot { display:grid; grid-template-columns:1fr auto 1fr; gap:12px;
+  margin:40px 0 20px; padding-top:28px; border-top:1px solid var(--border); }
+.navfoot a {
+  text-decoration:none; color:var(--text); background:var(--surface);
+  border:1px solid var(--border); border-radius:10px; padding:14px 18px;
+  font-size:.88em; transition:all .2s ease; box-shadow:var(--shadow);
+}
+.navfoot a:hover { border-color:var(--accent); transform:translateY(-1px); }
+.navfoot .dir { display:block; font-size:.75em; color:var(--text-2); margin-bottom:2px; }
+.navfoot .next { text-align:right; }
+.navfoot .toc { display:flex; align-items:center; color:var(--accent); font-weight:600; }
+.footer { padding:26px 0 40px; text-align:center; color:var(--text-2); font-size:.8em; }
+.footer a { color:var(--accent); text-decoration:none; }
+@media (max-width:600px){
+  .hero h1{font-size:1.35em} .navfoot{grid-template-columns:1fr 1fr} .navfoot .toc{display:none}
+}
+
+.hero { padding:64px 0 40px; }
+.intro { color:var(--text-2); font-size:.92em; margin-top:16px; max-width:640px; text-align:justify; }
+.part { margin-bottom:34px; }
+.part h2 {
+  font-size:1.02em; font-weight:600; color:var(--text-2); letter-spacing:.04em;
+  margin-bottom:12px; padding-bottom:10px; border-bottom:1px solid var(--border);
+  display:flex; align-items:center; gap:10px;
+}
+.part h2 .dot { width:8px; height:8px; border-radius:50%; background:var(--accent); }
+.ch-list { display:flex; flex-direction:column; }
+.ch-row {
+  display:flex; align-items:baseline; gap:14px; text-decoration:none; color:var(--text);
+  padding:11px 16px; border-radius:10px; transition:background .15s ease;
+}
+.ch-row:hover { background:var(--surface); box-shadow:var(--shadow); }
+.ch-row .no {
+  font-size:.78em; color:var(--accent); font-weight:600; min-width:3.4em;
+  font-variant-numeric:tabular-nums;
+}
+.ch-row .t { font-size:.98em; font-family:"Songti SC","Noto Serif SC",serif; }
+.ch-row .arr { margin-left:auto; color:var(--accent); opacity:0; font-size:.85em; transition:opacity .15s ease; }
+.ch-row:hover .arr { opacity:1; }
+.preface-row .no { color:#10b981; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="hero">
+    <div class="part-badge">书籍精读 · The Politics of Bureaucracy</div>
+    <h1>官僚体制的政治</h1>
+    <div class="meta">
+      <span>[美] 戈登·塔洛克 著</span><span>前言：詹姆斯·M. 布坎南</span><span>4 篇 · 25 章</span>
+    </div>
+    <p class="intro">公共选择学派奠基人之一戈登·塔洛克的代表作：不从"官僚是执行机器"的规范假设出发，而是以一个理性、有抱负、以晋升为目标的政治人为原子，重建等级制组织的运行逻辑——从领导的多种形态、同僚与追随者，到信息传递、控制手段与组织任务的天然限度，最后落到"该做些什么"。本笔记由中文译本 OCR 整理本转换为分章 HTML。</p>
+  </div>
+  <div class="part"><h2><span class="dot"></span>原书前言</h2><div class="ch-list"><a class="ch-row preface-row" href="chapters/preface.html" id="ch-preface"><span class="no">前言</span><span class="t">布坎南序：政治人、经济人与官僚体制的效率</span><span class="arr">&rarr;</span></a></div></div>
+  <div class="part"><h2><span class="dot"></span>第一篇　导论</h2><div class="ch-list"><a class="ch-row" href="chapters/ch01.html" id="ch-ch01"><span class="no">第一章</span><span class="t">本书是讲什么的</span><span class="arr">&rarr;</span></a><a class="ch-row" href="chapters/ch02.html" id="ch-ch02"><span class="no">第二章</span><span class="t">预备知识</span><span class="arr">&rarr;</span></a></div></div>
+  <div class="part"><h2><span class="dot"></span>第二篇　政治人的世界</h2><div class="ch-list"><a class="ch-row" href="chapters/ch03.html" id="ch-ch03"><span class="no">第三章</span><span class="t">一般氛围</span><span class="arr">&rarr;</span></a><a class="ch-row" href="chapters/ch04.html" id="ch-ch04"><span class="no">第四章</span><span class="t">观望者与同盟者</span><span class="arr">&rarr;</span></a><a class="ch-row" href="chapters/ch05.html" id="ch-ch05"><span class="no">第五章</span><span class="t">政治人的世界——领导</span><span class="arr">&rarr;</span></a><a class="ch-row" href="chapters/ch06.html" id="ch-ch06"><span class="no">第六章</span><span class="t">单个领导的情形</span><span class="arr">&rarr;</span></a><a class="ch-row" href="chapters/ch07.html" id="ch-ch07"><span class="no">第七章</span><span class="t">集体领导</span><span class="arr">&rarr;</span></a><a class="ch-row" href="chapters/ch08.html" id="ch-ch08"><span class="no">第八章</span><span class="t">多位领导</span><span class="arr">&rarr;</span></a><a class="ch-row" href="chapters/ch09.html" id="ch-ch09"><span class="no">第九章</span><span class="t">同僚、侍臣和男爵</span><span class="arr">&rarr;</span></a><a class="ch-row" href="chapters/ch10.html" id="ch-ch10"><span class="no">第十章</span><span class="t">追随者</span><span class="arr">&rarr;</span></a></div></div>
+  <div class="part"><h2><span class="dot"></span>第三篇　向下看</h2><div class="ch-list"><a class="ch-row" href="chapters/ch11.html" id="ch-ch11"><span class="no">第十一章</span><span class="t">下属与下级</span><span class="arr">&rarr;</span></a><a class="ch-row" href="chapters/ch12.html" id="ch-ch12"><span class="no">第十二章</span><span class="t">了解他们自己</span><span class="arr">&rarr;</span></a><a class="ch-row" href="chapters/ch13.html" id="ch-ch13"><span class="no">第十三章</span><span class="t">帕金森法则</span><span class="arr">&rarr;</span></a><a class="ch-row" href="chapters/ch14.html" id="ch-ch14"><span class="no">第十四章</span><span class="t">交头接耳传信息</span><span class="arr">&rarr;</span></a><a class="ch-row" href="chapters/ch15.html" id="ch-ch15"><span class="no">第十五章</span><span class="t">一个思想实验</span><span class="arr">&rarr;</span></a><a class="ch-row" href="chapters/ch16.html" id="ch-ch16"><span class="no">第十六章</span><span class="t">实验的继续</span><span class="arr">&rarr;</span></a><a class="ch-row" href="chapters/ch17.html" id="ch-ch17"><span class="no">第十七章</span><span class="t">组织任务的限度</span><span class="arr">&rarr;</span></a><a class="ch-row" href="chapters/ch18.html" id="ch-ch18"><span class="no">第十八章</span><span class="t">放松要求</span><span class="arr">&rarr;</span></a><a class="ch-row" href="chapters/ch19.html" id="ch-ch19"><span class="no">第十九章</span><span class="t">控制的问题</span><span class="arr">&rarr;</span></a><a class="ch-row" href="chapters/ch20.html" id="ch-ch20"><span class="no">第二十章</span><span class="t">执行</span><span class="arr">&rarr;</span></a><a class="ch-row" href="chapters/ch21.html" id="ch-ch21"><span class="no">第二十一章</span><span class="t">用结果判断</span><span class="arr">&rarr;</span></a><a class="ch-row" href="chapters/ch22.html" id="ch-ch22"><span class="no">第二十二章</span><span class="t">节省劳力的工具——成本核算</span><span class="arr">&rarr;</span></a><a class="ch-row" href="chapters/ch23.html" id="ch-ch23"><span class="no">第二十三章</span><span class="t">多种多样节省劳力的工具</span><span class="arr">&rarr;</span></a><a class="ch-row" href="chapters/ch24.html" id="ch-ch24"><span class="no">第二十四章</span><span class="t">外部检查</span><span class="arr">&rarr;</span></a></div></div>
+  <div class="part"><h2><span class="dot"></span>第四篇　结束语</h2><div class="ch-list"><a class="ch-row" href="chapters/ch25.html" id="ch-ch25"><span class="no">第二十五章</span><span class="t">该做些什么？究竟该做些什么？</span><span class="arr">&rarr;</span></a></div></div>
+  <div class="footer">由 OCR 整理本转换为分章 HTML · 已清理页码与排版残留，插图按原书文字描述重绘 · <a href="../index.html">返回笔记首页</a></div>
+</div>
+</body>
+</html>
