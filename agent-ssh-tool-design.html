@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent SSH Tool 插件设计方案</title>
+<style>
+    :root {
+        --bg: #0f0f12;
+        --surface: #1a1a1f;
+        --surface-hover: #222228;
+        --text: #e8e8ec;
+        --text-secondary: #9ca3af;
+        --accent: #6366f1;
+        --accent-glow: rgba(99, 102, 241, 0.15);
+        --accent-2: #8b5cf6;
+        --border: rgba(255,255,255,0.06);
+        --code-bg: #131316;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.8;
+        -webkit-font-smoothing: antialiased;
+        min-height: 100vh;
+    }
+
+    .bg-glow {
+        position: fixed;
+        width: 600px; height: 600px;
+        border-radius: 50%;
+        background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+        top: -200px; right: -200px;
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    .container {
+        max-width: 820px;
+        margin: 0 auto;
+        padding: 0 24px;
+        position: relative;
+        z-index: 1;
+    }
+
+    .hero {
+        padding: 80px 0 40px;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .hero h1 {
+        font-size: 2em;
+        font-weight: 700;
+        background: linear-gradient(135deg, var(--text) 0%, var(--accent) 50%, var(--accent-2) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 16px;
+    }
+
+    .hero p {
+        color: var(--text-secondary);
+        font-size: 1.05em;
+    }
+
+    .content {
+        padding: 48px 0 80px;
+    }
+
+    h2 {
+        font-size: 1.5em;
+        font-weight: 600;
+        margin: 48px 0 20px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--border);
+        color: var(--text);
+    }
+
+    h3 {
+        font-size: 1.2em;
+        font-weight: 600;
+        margin: 32px 0 14px;
+        color: var(--text);
+    }
+
+    h4 {
+        font-size: 1.05em;
+        font-weight: 600;
+        margin: 24px 0 10px;
+        color: var(--text-secondary);
+    }
+
+    p {
+        margin-bottom: 16px;
+        color: var(--text);
+    }
+
+    ul, ol {
+        margin: 16px 0 16px 24px;
+        color: var(--text);
+    }
+
+    li {
+        margin-bottom: 8px;
+    }
+
+    a {
+        color: var(--accent);
+        text-decoration: none;
+    }
+
+    a:hover {
+        text-decoration: underline;
+    }
+
+    code {
+        font-family: "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, monospace;
+        background: var(--code-bg);
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.9em;
+        color: #c9c9cf;
+    }
+
+    pre {
+        background: var(--code-bg);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 18px 22px;
+        overflow-x: auto;
+        margin: 20px 0;
+    }
+
+    pre code {
+        background: transparent;
+        padding: 0;
+        font-size: 0.85em;
+        line-height: 1.6;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 24px 0;
+        font-size: 0.95em;
+    }
+
+    th, td {
+        padding: 12px 16px;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+    }
+
+    th {
+        color: var(--text-secondary);
+        font-weight: 600;
+        background: var(--surface);
+    }
+
+    tr:hover td {
+        background: var(--surface-hover);
+    }
+
+    .highlight {
+        background: var(--surface);
+        border-left: 3px solid var(--accent);
+        padding: 16px 20px;
+        border-radius: 0 10px 10px 0;
+        margin: 24px 0;
+    }
+
+    .footer {
+        padding: 30px 0;
+        border-top: 1px solid var(--border);
+        text-align: center;
+        color: var(--text-secondary);
+        font-size: 0.82em;
+    }
+
+    .back {
+        display: inline-block;
+        margin-top: 40px;
+        padding: 10px 18px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        color: var(--text);
+        text-decoration: none;
+        transition: all 0.2s ease;
+    }
+
+    .back:hover {
+        background: var(--surface-hover);
+        text-decoration: none;
+    }
+
+    @media (max-width: 600px) {
+        .hero { padding: 60px 0 30px; }
+        .hero h1 { font-size: 1.5em; }
+        h2 { font-size: 1.25em; }
+        table { font-size: 0.85em; }
+        th, td { padding: 10px 12px; }
+    }
+</style>
+</head>
+<body>
+<div class="bg-glow"></div>
+
+<div class="container">
+    <div class="hero">
+        <h1>Agent SSH Tool 插件设计方案</h1>
+        <p>面向通用 Agent 的远程机器控制抽象设计 —— 以 Kimi CLI 为例场景</p>
+    </div>
+
+    <div class="content">
+        <h2>1. 设计目标</h2>
+        <p>为 Agent 提供一套<strong>安全、异步、可观测、可交互</strong>的远程机器控制能力，满足：</p>
+        <ul>
+            <li>基础能力：SSH 登录、执行命令、文件传输</li>
+            <li>任务能力：任务排队、前台/后台任务、状态机、超时/取消/重试</li>
+            <li>可观测：日志实时回传、结构化存储、执行回放</li>
+            <li>智能：错误分类、根因分析、修复建议</li>
+            <li>抽象性：不绑定具体 Agent 实现、编程语言或部署形态</li>
+        </ul>
+
+        <h2>2. 设计原则</h2>
+        <table>
+            <tr><th>原则</th><th>说明</th></tr>
+            <tr><td>Agent 与执行引擎解耦</td><td>Agent 只通过统一 API/协议与 SSH Tool 交互，不直接持有 SSH 连接</td></tr>
+            <tr><td>一切皆任务</td><td>登录、执行命令、传文件、交互式会话都抽象为 Task</td></tr>
+            <tr><td>默认异步</td><td>所有远程操作都是异步的，Agent 通过 task_id 查询或订阅结果</td></tr>
+            <tr><td>前后台统一模型</td><td>前台任务和后台任务共用同一套状态机和执行引擎，仅调用语义不同</td></tr>
+            <tr><td>连接可复用</td><td>对同一主机维护会话池，减少频繁建连开销</td></tr>
+            <tr><td>安全优先</td><td>凭证不落地、最小权限、操作审计、会话隔离</td></tr>
+        </table>
+
+        <h2>3. 总体架构</h2>
+        <pre><code>┌─────────────────────────────────────────────────────────────┐
+│                         Agent (Kimi CLI)                    │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐  │
+│  │  Tool Caller │  │  Task Client │  │  Output Consumer │  │
+│  └──────┬───────┘  └──────┬───────┘  └────────┬─────────┘  │
+└─────────┼─────────────────┼───────────────────┼────────────┘
+          │                 │                   │
+          ▼                 ▼                   ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    Agent SSH Tool (Plugin)                  │
+│  ┌─────────────┐ ┌─────────────┐ ┌────────────────────────┐ │
+│  │  API Layer  │ │ Task Queue  │ │    Session Manager     │ │
+│  │  (gRPC/HTTP)│ │  & Scheduler│ │  (SSH Connection Pool) │ │
+│  └──────┬──────┘ └──────┬──────┘ └───────────┬────────────┘ │
+│         │               │                    │              │
+│         ▼               ▼                    ▼              │
+│  ┌─────────────────────────────────────────────────────────┐│
+│  │              Task Execution Engine                      ││
+│  │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌───────────┐  ││
+│  │  │ Foregnd  │ │ Backgnd  │ │  Worker  │ │  Error    │  ││
+│  │  │  Handler │ │  Handler │ │  Pool    │ │ Analyzer  │  ││
+│  │  └──────────┘ └──────────┘ └──────────┘ └───────────┘  ││
+│  └─────────────────────────────────────────────────────────┘│
+│         │               │                    │              │
+│         ▼               ▼                    ▼              │
+│  ┌─────────────┐ ┌─────────────┐ ┌────────────────────────┐ │
+│  │ Log Backend │ │State Backend│ │   Credential Store     │ │
+│  │ (Stream+DB) │ │  (KV/Queue) │ │  (Vault/Encrypted KV)  │ │
+│  └─────────────┘ └─────────────┘ └────────────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+                    ┌─────────────────┐
+                    │  Remote Hosts   │
+                    │  (SSH/SFTP)     │
+                    └─────────────────┘</code></pre>
+
+        <h2>4. 核心抽象</h2>
+
+        <h3>4.1 Task（任务）</h3>
+        <p>一次对远程机器的操作请求，是系统的最小调度单元。</p>
+        <pre><code>Task:
+  task_id: string          # 全局唯一
+  task_type: enum          # exec / shell / upload / download / interactive / ping
+  host: HostRef            # 主机引用
+  command?: string         # 执行内容
+  interpreter?: string     # shell / python / powershell / cmd
+  environment: map         # 环境变量
+  working_dir?: string     # 工作目录
+  mode: enum               # foreground / background
+  priority: int            # 优先级，数值越小越优先
+  timeout_ms: int          # 任务超时
+  max_retries: int         # 失败重试次数
+  created_by: AgentRef     # 调用者标识
+  state: TaskState         # 当前状态
+  session_id?: string      # 关联的 SSH 会话
+  parent_task_id?: string  # 父任务（用于任务链）
+  metadata: map            # Agent 透传的上下文</code></pre>
+
+        <h3>4.2 Host（主机）</h3>
+        <pre><code>Host:
+  host_id: string
+  hostname: string         # IP 或域名
+  port: int                # 默认 22
+  username: string
+  credential_ref: string   # 凭证引用，不直接存密码/密钥
+  labels: map              # 标签，用于批量选择
+  max_sessions: int        # 该主机最大并发会话数</code></pre>
+
+        <h3>4.3 Session（会话）</h3>
+        <pre><code>Session:
+  session_id: string
+  host_id: string
+  state: idle / busy / closed
+  channel_type: exec / shell / sftp
+  created_at: timestamp
+  last_used_at: timestamp</code></pre>
+
+        <h3>4.4 Credential（凭证）</h3>
+        <pre><code>Credential:
+  credential_id: string
+  type: password / private_key / ssh_agent / token
+  encrypted_data: bytes
+  allowed_hosts: list      # 可选的主机白名单
+  expires_at?: timestamp</code></pre>
+
+        <h2>5. 任务状态机</h2>
+        <p>所有任务共用同一套状态机：</p>
+        <pre><code>Pending → Queued → Preparing → Connecting → Running
+                                              │
+                    ┌─────────┬──────────────┼──────────────┐
+                    ▼         ▼              ▼              ▼
+              Succeeded  Streaming   AwaitingInteraction  Failed → Retry
+                                                    │
+                                                    ▼
+                                              Cancelled / Timeout</code></pre>
+
+        <table>
+            <tr><th>状态</th><th>含义</th></tr>
+            <tr><td>Pending</td><td>已创建，尚未进入队列</td></tr>
+            <tr><td>Queued</td><td>在队列中等待调度</td></tr>
+            <tr><td>Preparing</td><td>分配 Worker、加载凭证、检查权限</td></tr>
+            <tr><td>Connecting</td><td>建立 SSH 连接</td></tr>
+            <tr><td>Running</td><td>命令正在执行</td></tr>
+            <tr><td>Streaming</td><td>持续有输出（可与 Running 合并，也可独立用于流式任务）</td></tr>
+            <tr><td>AwaitingInteraction</td><td>命令等待用户输入，需要交互式会话接管</td></tr>
+            <tr><td>Succeeded</td><td>成功结束</td></tr>
+            <tr><td>Failed</td><td>失败，可能可重试</td></tr>
+            <tr><td>Cancelled</td><td>被主动取消</td></tr>
+            <tr><td>Timeout</td><td>执行超时</td></tr>
+        </table>
+
+        <div class="highlight">
+            <p><strong>状态迁移规则：</strong></p>
+            <ul>
+                <li>状态迁移只能沿允许的边进行</li>
+                <li>每次状态变更产生 TaskEvent，写入事件流</li>
+                <li>终态（Succeeded/Failed/Cancelled/Timeout）不可再变更</li>
+                <li>失败时根据错误类型决定是否进入 Retry 还是 Failed</li>
+            </ul>
+        </div>
+
+        <h2>6. 前台任务 vs 后台任务</h2>
+        <p>两者共享同一个 Task 模型和状态机，区别主要在调用方语义和生命周期管理。</p>
+
+        <h3>6.1 前台任务（Foreground）</h3>
+        <ul>
+            <li>Agent 调用后阻塞等待（或伪阻塞，内部长轮询/WebSocket）</li>
+            <li>实时输出流直接推送给 Agent</li>
+            <li>用户可在 Agent 侧看到“正在执行……”</li>
+            <li>支持超时自动取消</li>
+            <li>支持在运行中升级为交互式会话</li>
+        </ul>
+
+        <h3>6.2 后台任务（Background）</h3>
+        <ul>
+            <li>Agent 调用后立即返回 task_id</li>
+            <li>Agent 后续通过 query 或 subscribe 获取状态</li>
+            <li>适合长时间运行、批量任务、定时任务</li>
+            <li>用户可随时切到交互式终端接管</li>
+        </ul>
+
+        <h3>6.3 统一调度</h3>
+        <p>调度器不区分前后台，只按优先级、资源、依赖关系调度。Agent 通过 <code>mode</code> 字段表达期望的调用语义。</p>
+
+        <h2>7. 任务队列与调度</h2>
+
+        <h3>7.1 队列设计</h3>
+        <p>采用<strong>多级优先级队列 + 主机级并发限制</strong>：</p>
+        <pre><code>Global Queue
+    ├── Priority 0 (urgent)
+    ├── Priority 1 (normal)
+    └── Priority 2 (background/batch)
+
+Per-Host Semaphore
+    ├── max_sessions per host
+    └── max_foreground_sessions per host (可选)</code></pre>
+
+        <h3>7.2 调度策略</h3>
+        <ol>
+            <li><strong>优先级优先</strong>：同优先级按 FIFO</li>
+            <li><strong>主机资源限制</strong>：每台主机的并发会话数受限，避免压垮目标机</li>
+            <li><strong>任务去重</strong>：相同主机 + 相同命令 + 短时间内的任务可合并或排队</li>
+            <li><strong>依赖控制</strong>：支持 depends_on，前置任务失败则当前任务自动失败</li>
+            <li><strong>公平调度</strong>：防止某 Agent 或某主机的任务独占队列</li>
+        </ol>
+
+        <h3>7.3 取消机制</h3>
+        <ul>
+            <li>Agent 调用 cancel(task_id)</li>
+            <li>调度器从队列移除未开始的任务</li>
+            <li>对已 Running 的任务：发送 SIGINT/SIGTERM，超时未结束则 SIGKILL 或关闭 channel，可选 kill_tree 清理子进程</li>
+        </ul>
+
+        <h2>8. 执行引擎</h2>
+
+        <h3>8.1 执行模式</h3>
+        <table>
+            <tr><th>模式</th><th>适用场景</th><th>技术方式</th></tr>
+            <tr><td>exec</td><td>单条命令，拿 exit code</td><td>SSHClient.exec_command</td></tr>
+            <tr><td>shell</td><td>需要环境变量、工作目录、连续命令</td><td>invoke_shell + 脚本文件</td></tr>
+            <tr><td>interactive</td><td>需要用户交互</td><td>invoke_shell + PTY + WebSocket</td></tr>
+            <tr><td>sftp</td><td>文件上传下载</td><td>open_sftp</td></tr>
+        </table>
+
+        <h3>8.2 Worker 模型</h3>
+        <ul>
+            <li>Worker 池负责消费队列中的任务</li>
+            <li>每个 Worker 同一时间只执行一个 Task</li>
+            <li>Worker 从 Session Manager 申请 Session，用完后归还</li>
+            <li>Worker 持续将输出写入 Log Backend，将状态变更写入 State Backend</li>
+        </ul>
+
+        <h2>9. 日志回传</h2>
+
+        <h3>9.1 日志类型</h3>
+        <table>
+            <tr><th>类型</th><th>内容</th></tr>
+            <tr><td>stdout</td><td>标准输出</td></tr>
+            <tr><td>stderr</td><td>标准错误</td></tr>
+            <tr><td>event</td><td>状态变更事件</td></tr>
+            <tr><td>metadata</td><td>环境、主机、耗时等元信息</td></tr>
+            <tr><td>interaction</td><td>用户输入/输出（交互式会话）</td></tr>
+        </table>
+
+        <h3>9.2 回传方式</h3>
+        <ul>
+            <li><strong>实时流</strong>：WebSocket / SSE / gRPC streaming</li>
+            <li><strong>轮询兜底</strong>：HTTP 分页查询</li>
+            <li><strong>持久化</strong>：结构化存储，支持按 task_id 检索和回放</li>
+        </ul>
+
+        <h3>9.3 日志结构</h3>
+        <pre><code>{
+  "task_id": "t-xxx",
+  "sequence": 42,
+  "timestamp": "2026-09-08T09:37:02.642Z",
+  "type": "stdout",
+  "data": "Installing nginx...",
+  "encoding": "utf-8"
+}</code></pre>
+
+        <h2>10. 错误分析与诊断</h2>
+
+        <h3>10.1 错误分类体系</h3>
+        <table>
+            <tr><th>类别</th><th>说明</th><th>示例</th></tr>
+            <tr><td>CONNECTION</td><td>连接失败</td><td>网络不通、端口拒绝、DNS 失败</td></tr>
+            <tr><td>AUTHENTICATION</td><td>认证失败</td><td>密码错误、密钥失效、用户不存在</td></tr>
+            <tr><td>AUTHORIZATION</td><td>权限不足</td><td>sudo 失败、文件不可读</td></tr>
+            <tr><td>COMMAND</td><td>命令本身错误</td><td>命令不存在、退出码非零</td></tr>
+            <tr><td>TIMEOUT</td><td>执行超时</td><td>命令挂起、等待输入</td></tr>
+            <tr><td>RESOURCE</td><td>资源不足</td><td>磁盘满、内存不足</td></tr>
+            <tr><td>ENVIRONMENT</td><td>环境缺失</td><td>依赖未安装、变量未设置</td></tr>
+            <tr><td>UNKNOWN</td><td>未知错误</td><td>其他异常</td></tr>
+        </table>
+
+        <h3>10.2 自动诊断</h3>
+        <p>错误发生时，Error Analyzer 根据输出和退出码生成：</p>
+        <ul>
+            <li><code>error_code</code>：机器可读错误码</li>
+            <li><code>error_message</code>：人类可读摘要</li>
+            <li><code>root_cause_hints</code>：可能根因</li>
+            <li><code>suggested_actions</code>：建议修复动作</li>
+            <li><code>is_retryable</code>：是否可重试</li>
+        </ul>
+
+        <h3>10.3 与 Agent 协作</h3>
+        <p>Agent 收到错误摘要后，可以：</p>
+        <ol>
+            <li>自动按建议修复后重试</li>
+            <li>向用户展示错误并询问是否继续</li>
+            <li>打开交互式终端让用户手动处理</li>
+        </ol>
+
+        <h2>11. 交互式会话（可选增强）</h2>
+        <p>当任务进入 <code>AwaitingInteraction</code> 状态，或 Agent 主动请求时：</p>
+        <ol>
+            <li>为该 Session 启动 WebSocket 桥接</li>
+            <li>用户通过 Agent 提供的界面操作远程终端</li>
+            <li>用户输入通过 WebSocket → SSH channel</li>
+            <li>远程输出通过 SSH channel → WebSocket → 用户界面</li>
+            <li>交互过程同样记录到日志</li>
+            <li>用户退出后，任务状态回归 Running 或进入终态</li>
+        </ol>
+
+        <h2>12. API 设计（抽象接口）</h2>
+
+        <h3>12.1 任务管理</h3>
+        <pre><code>SubmitTask(request) -> TaskHandle
+  - 提交任务，返回 task_id
+
+CancelTask(task_id) -> Result
+  - 取消任务
+
+GetTask(task_id) -> Task
+  - 查询任务状态和元数据
+
+ListTasks(filter) -> List&lt;Task&gt;
+  - 按状态、主机、时间等筛选
+
+AttachInteractive(task_id) -> WebSocketUrl
+  - 附加交互式终端</code></pre>
+
+        <h3>12.2 输出订阅</h3>
+        <pre><code>SubscribeOutput(task_id) -> Stream&lt;LogEntry&gt;
+  - 实时订阅输出流
+
+GetOutput(task_id, offset, limit) -> List&lt;LogEntry&gt;
+  - 分页获取历史输出</code></pre>
+
+        <h3>12.3 主机与凭证</h3>
+        <pre><code>RegisterHost(host) -> host_id
+  - 注册主机
+
+RegisterCredential(credential) -> credential_id
+  - 注册凭证
+
+TestConnection(host_id) -> Result
+  - 连通性测试</code></pre>
+
+        <h2>13. 安全设计</h2>
+        <ol>
+            <li><strong>凭证隔离</strong>：Agent 不直接接触私钥/密码，只引用 credential_id</li>
+            <li><strong>加密存储</strong>：凭证加密后存入 Vault 或加密 KV</li>
+            <li><strong>最小权限</strong>：SSH 用户只给必要权限，建议使用专用低权限账号</li>
+            <li><strong>审计日志</strong>：记录谁、在什么时间、对哪台机器、做了什么</li>
+            <li><strong>命令审查</strong>：可选危险命令拦截或确认</li>
+            <li><strong>会话超时</strong>：空闲会话自动关闭</li>
+            <li><strong>主机密钥策略</strong>：首次连接可配置为严格校验或自动接受</li>
+        </ol>
+
+        <h2>14. 与具体 Agent 集成的抽象边界</h2>
+        <table>
+            <tr><th>层面</th><th>Agent 负责</th><th>SSH Tool 负责</th></tr>
+            <tr><td>意图理解</td><td>决定执行什么命令、是否需要交互</td><td>不解释意图，只执行</td></tr>
+            <tr><td>上下文管理</td><td>维护对话状态、用户状态</td><td>维护任务状态机</td></tr>
+            <tr><td>用户交互</td><td>展示输出、收集输入、渲染终端</td><td>提供输出流和交互通道</td></tr>
+            <tr><td>任务调度</td><td>发起任务、查询结果</td><td>排队、调度、执行</td></tr>
+            <tr><td>错误处理</td><td>基于诊断结果做决策</td><td>分类错误、给出建议</td></tr>
+            <tr><td>凭证安全</td><td>不保存凭证，只引用</td><td>安全存储和使用凭证</td></tr>
+        </table>
+
+        <h2>15. 最小实现路径（MVP）</h2>
+        <ol>
+            <li><strong>Phase 1：基础执行</strong> — SSH 连接封装、exec 任务、前台/后台任务区分、基础状态机</li>
+            <li><strong>Phase 2：可观测</strong> — 日志实时回传、状态查询 API、错误分类</li>
+            <li><strong>Phase 3：队列与调度</strong> — 任务队列、并发控制、取消/超时/重试</li>
+            <li><strong>Phase 4：交互增强</strong> — 交互式 Web 终端、错误诊断建议、用户接管流程</li>
+        </ol>
+
+        <h2>16. 总结</h2>
+        <p>这份方案的核心是：<strong>把每一次远程操作抽象为受状态机驱动的任务，由独立的执行引擎异步完成，Agent 通过标准化接口发起和观察任务。</strong></p>
+        <p>关键设计要点：</p>
+        <ul>
+            <li><strong>Task 是核心抽象</strong>：登录、命令、文件、交互都是任务</li>
+            <li><strong>前后台统一模型</strong>：区别在于调用语义，不在于底层实现</li>
+            <li><strong>状态机驱动</strong>：所有任务生命周期可观测、可审计</li>
+            <li><strong>队列调度</strong>：优先级 + 主机并发限制 + 取消/超时/重试</li>
+            <li><strong>日志与错误分析</strong>：实时回传 + 结构化存储 + 自动诊断</li>
+            <li><strong>交互是增强项</strong>：Agent 可自动执行，遇到需要时再交给人</li>
+        </ul>
+
+        <a class="back" href="index.html">← 返回笔记索引</a>
+    </div>
+
+    <div class="footer">
+        <a href="https://github.com/APX103/note">GitHub</a>
+    </div>
+</div>
+
+</body>
+</html>
