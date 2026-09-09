@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent SSH Tool 产品流程与交互设计</title>
+<style>
+    :root {
+        --bg: #0f0f12;
+        --surface: #1a1a1f;
+        --surface-hover: #222228;
+        --text: #e8e8ec;
+        --text-secondary: #9ca3af;
+        --accent: #6366f1;
+        --accent-glow: rgba(99, 102, 241, 0.15);
+        --accent-2: #8b5cf6;
+        --border: rgba(255,255,255,0.06);
+        --code-bg: #131316;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.8;
+        -webkit-font-smoothing: antialiased;
+        min-height: 100vh;
+    }
+
+    .bg-glow {
+        position: fixed;
+        width: 600px; height: 600px;
+        border-radius: 50%;
+        background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+        top: -200px; right: -200px;
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    .container {
+        max-width: 820px;
+        margin: 0 auto;
+        padding: 0 24px;
+        position: relative;
+        z-index: 1;
+    }
+
+    .hero {
+        padding: 80px 0 40px;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .hero h1 {
+        font-size: 2em;
+        font-weight: 700;
+        background: linear-gradient(135deg, var(--text) 0%, var(--accent) 50%, var(--accent-2) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 16px;
+    }
+
+    .hero p {
+        color: var(--text-secondary);
+        font-size: 1.05em;
+    }
+
+    .content {
+        padding: 48px 0 80px;
+    }
+
+    h2 {
+        font-size: 1.5em;
+        font-weight: 600;
+        margin: 48px 0 20px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--border);
+        color: var(--text);
+    }
+
+    h3 {
+        font-size: 1.2em;
+        font-weight: 600;
+        margin: 32px 0 14px;
+        color: var(--text);
+    }
+
+    h4 {
+        font-size: 1.05em;
+        font-weight: 600;
+        margin: 24px 0 10px;
+        color: var(--text-secondary);
+    }
+
+    p {
+        margin-bottom: 16px;
+        color: var(--text);
+    }
+
+    ul, ol {
+        margin: 16px 0 16px 24px;
+        color: var(--text);
+    }
+
+    li {
+        margin-bottom: 8px;
+    }
+
+    a {
+        color: var(--accent);
+        text-decoration: none;
+    }
+
+    a:hover {
+        text-decoration: underline;
+    }
+
+    code {
+        font-family: "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, monospace;
+        background: var(--code-bg);
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.9em;
+        color: #c9c9cf;
+    }
+
+    pre {
+        background: var(--code-bg);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 18px 22px;
+        overflow-x: auto;
+        margin: 20px 0;
+    }
+
+    pre code {
+        background: transparent;
+        padding: 0;
+        font-size: 0.85em;
+        line-height: 1.6;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 24px 0;
+        font-size: 0.95em;
+    }
+
+    th, td {
+        padding: 12px 16px;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+    }
+
+    th {
+        color: var(--text-secondary);
+        font-weight: 600;
+        background: var(--surface);
+    }
+
+    tr:hover td {
+        background: var(--surface-hover);
+    }
+
+    .highlight {
+        background: var(--surface);
+        border-left: 3px solid var(--accent);
+        padding: 16px 20px;
+        border-radius: 0 10px 10px 0;
+        margin: 24px 0;
+    }
+
+    .step {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 20px 24px;
+        margin: 20px 0;
+    }
+
+    .step-title {
+        font-weight: 600;
+        color: var(--accent);
+        margin-bottom: 10px;
+    }
+
+    .footer {
+        padding: 30px 0;
+        border-top: 1px solid var(--border);
+        text-align: center;
+        color: var(--text-secondary);
+        font-size: 0.82em;
+    }
+
+    .back {
+        display: inline-block;
+        margin-top: 40px;
+        padding: 10px 18px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        color: var(--text);
+        text-decoration: none;
+        transition: all 0.2s ease;
+    }
+
+    .back:hover {
+        background: var(--surface-hover);
+        text-decoration: none;
+    }
+
+    @media (max-width: 600px) {
+        .hero { padding: 60px 0 30px; }
+        .hero h1 { font-size: 1.5em; }
+        h2 { font-size: 1.25em; }
+        table { font-size: 0.85em; }
+        th, td { padding: 10px 12px; }
+    }
+</style>
+</head>
+<body>
+<div class="bg-glow"></div>
+
+<div class="container">
+    <div class="hero">
+        <h1>Agent SSH Tool 产品流程与交互设计</h1>
+        <p>从配置、接入、使用到交互的完整用户旅程 —— 面向 Kimi CLI 及通用 Agent</p>
+    </div>
+
+    <div class="content">
+        <h2>1. 产品定位</h2>
+        <p>Agent SSH Tool 是 Agent 的“远程手脚”：让 Agent 能够安全、异步、可观测地登录到远程机器并执行操作；同时保留一条“人在回路”的通道，当 Agent 遇到需要确认、输入或排查的场景时，用户可以无缝接管。</p>
+
+        <div class="highlight">
+            <p><strong>核心产品主张：</strong></p>
+            <ul>
+                <li>对 Agent：像调用本地命令一样调用远程机器，但完全异步、可追踪</li>
+                <li>对用户：既能享受自动化的效率，又能在关键时刻介入和确认</li>
+                <li>对平台：统一凭证、统一审计、统一调度</li>
+            </ul>
+        </div>
+
+        <h2>2. 目标用户与角色</h2>
+        <table>
+            <tr><th>角色</th><th>主要职责</th><th>使用场景</th></tr>
+            <tr><td>平台管理员</td><td>配置凭证、主机、权限策略</td><td>初始化部署、安全管控</td></tr>
+            <tr><td>Agent（自动化主体）</td><td>发起任务、获取结果、做决策</td><td>自动部署、巡检、修复</td></tr>
+            <tr><td>终端用户</td><td>与 Agent 对话、确认关键操作、必要时接管 Shell</td><td>日常运维、问题排查</td></tr>
+            <tr><td>审计/安全人员</td><td>查看操作日志、审计会话</td><td>合规、事后复盘</td></tr>
+        </table>
+
+        <h2>3. 核心用户旅程概览</h2>
+        <pre><code>┌─────────────┐   ┌─────────────┐   ┌─────────────┐   ┌─────────────┐   ┌─────────────┐
+│  1. 配置    │ → │  2. 接入    │ → │  3. 使用    │ → │  4. 交互    │ → │  5. 收尾    │
+│  主机/凭证  │   │  Agent 发现 │   │  发起任务   │   │  接管/确认  │   │  查看/审计  │
+└─────────────┘   └─────────────┘   └─────────────┘   └─────────────┘   └─────────────┘</code></pre>
+
+        <h2>4. 配置阶段</h2>
+
+        <h3>4.1 管理员配置主机</h3>
+        <div class="step">
+            <div class="step-title">步骤 1：注册主机</div>
+            <p>管理员通过 CLI 或 Web UI 注册一台远程主机：</p>
+            <pre><code>ssh-tool host add \
+  --name prod-web-01 \
+  --hostname 10.0.1.23 \
+  --port 22 \
+  --username deploy \
+  --credential prod-deploy-key \
+  --labels env=prod,role=web,team=platform</code></pre>
+            <p>注册后系统进行连通性测试，成功后主机状态变为 <code>available</code>。</p>
+        </div>
+
+        <h3>4.2 配置凭证</h3>
+        <div class="step">
+            <div class="step-title">步骤 2：注册凭证</div>
+            <p>凭证独立存储，支持密码、私钥、SSH Agent 三种类型：</p>
+            <pre><code>ssh-tool credential add \
+  --name prod-deploy-key \
+  --type private_key \
+  --key-file ~/.ssh/id_rsa_prod \
+  --allowed-hosts 10.0.1.0/24</code></pre>
+            <p>凭证加密存储，Agent 只引用名称，永不接触明文。</p>
+        </div>
+
+        <h3>4.3 权限策略</h3>
+        <div class="step">
+            <div class="step-title">步骤 3：配置权限</div>
+            <ul>
+                <li>哪些 Agent/用户可以对哪些主机执行哪些命令</li>
+                <li>危险命令拦截列表（如 <code>rm -rf /</code>、<code>mkfs</code>）</li>
+                <li>是否需要用户二次确认</li>
+                <li>最大执行时长、最大并发数</li>
+            </ul>
+        </div>
+
+        <h2>5. Agent 接入阶段</h2>
+
+        <h3>5.1 Agent 如何发现工具</h3>
+        <p>Agent 通过标准 Tool 协议发现 SSH Tool。以 Kimi CLI 为例，Tool 描述形如：</p>
+        <pre><code>{
+  "name": "ssh_tool",
+  "description": "在远程主机上执行命令、传输文件或打开交互式 Shell",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "host": { "type": "string", "description": "主机名或 host_id" },
+      "command": { "type": "string", "description": "要执行的命令" },
+      "mode": { "type": "string", "enum": ["foreground", "background"], "default": "foreground" },
+      "timeout": { "type": "integer", "description": "超时时间（秒）" },
+      "require_confirmation": { "type": "boolean" }
+    },
+    "required": ["host", "command"]
+  }
+}</code></pre>
+
+        <h3>5.2 Agent 连接与认证</h3>
+        <p>Agent 本身不需要管理 SSH 连接。它通过调用 Tool API 发起请求，由 SSH Tool 后端完成：</p>
+        <ol>
+            <li>Agent 调用 <code>ssh_tool</code>，传入 host 和 command</li>
+            <li>SSH Tool 后端根据 host 找到对应 credential</li>
+            <li>后端建立 SSH 连接（或复用已有 Session）</li>
+            <li>后端执行任务，异步返回 <code>task_id</code></li>
+        </ol>
+
+        <div class="highlight">
+            <p><strong>关键设计：</strong>Agent 不持有 SSH 私钥、不直接连接远程主机。所有连接由受信任的 SSH Tool 后端代理，便于统一审计和轮换凭证。</p>
+        </div>
+
+        <h2>6. Agent 使用阶段</h2>
+
+        <h3>6.1 前台任务：Agent 同步等待</h3>
+        <p>适用于短命令、需要立即拿到结果的场景。</p>
+        <pre><code>User: 帮我看看 prod-web-01 的磁盘使用情况
+Agent: 好的，我执行一下 df -h。
+      [调用 ssh_tool，mode=foreground]
+      [等待结果...]
+Agent: prod-web-01 的磁盘使用情况如下：
+      /dev/sda1 已用 72%，剩余 28GB。</code></pre>
+
+        <h3>6.2 后台任务：Agent 提交后异步跟进</h3>
+        <p>适用于长时间运行、批量部署等场景。</p>
+        <pre><code>User: 在 prod-web-01 上后台部署新版本
+Agent: 已提交后台任务，task_id: t-abc123。我会持续跟踪进度。
+      [Agent 订阅任务事件流]
+      [每隔一段时间向用户汇报关键节点]</code></pre>
+
+        <h3>6.3 文件传输</h3>
+        <p>Agent 通过扩展参数上传/下载文件：</p>
+        <pre><code>{
+  "host": "prod-web-01",
+  "task_type": "upload",
+  "local_path": "/tmp/config.json",
+  "remote_path": "/etc/app/config.json"
+}</code></pre>
+
+        <h2>7. Agent 怎么获取所有需要的消息</h2>
+
+        <h3>7.1 消息类型</h3>
+        <p>Agent 需要获取的消息分为四类：</p>
+        <table>
+            <tr><th>消息类型</th><th>内容</th><th>获取方式</th></tr>
+            <tr><td>状态事件</td><td>Pending → Running → Succeeded / Failed / Cancelled</td><td>WebSocket / SSE / 轮询</td></tr>
+            <tr><td>输出日志</td><td>stdout / stderr 片段</td><td>流式订阅 或 分页查询</td></tr>
+            <tr><td>诊断信息</td><td>错误码、根因提示、建议动作</td><td>任务结束时随结果返回</td></tr>
+            <tr><td>交互请求</td><td>“命令需要输入，请用户接管”</td><td>运行时事件推送</td></tr>
+        </table>
+
+        <h3>7.2 推荐获取模式</h3>
+        <p>对 Kimi CLI 这类终端 Agent，推荐 <strong>SSE（Server-Sent Events）</strong> 或 <strong>长轮询</strong>，因为：</p>
+        <ul>
+            <li>单向 server → client 推送足够</li>
+            <li>比 WebSocket 更简单，易穿越代理</li>
+            <li>Agent 可以在一个连接里同时接收状态、日志、事件</li>
+        </ul>
+
+        <h3>7.3 消息协议示例</h3>
+        <pre><code>event: task_state
+data: {"task_id":"t-abc123","state":"Running","timestamp":"..."}
+
+event: log
+data: {"task_id":"t-abc123","type":"stdout","data":"Installing nginx..."}
+
+event: interaction_request
+data: {
+  "task_id":"t-abc123",
+  "type":"awaiting_input",
+  "reason":"sudo password required",
+  "suggested_action":"open_interactive_shell"
+}
+
+event: task_complete
+data: {
+  "task_id":"t-abc123",
+  "state":"Succeeded",
+  "exit_code":0,
+  "duration_ms":12500,
+  "summary":"nginx installed successfully"
+}</code></pre>
+
+        <h2>8. 用户交互流程</h2>
+
+        <h3>8.1 纯 Agent 自动执行</h3>
+        <pre><code>User: 在 prod-web-01 上检查 nginx 状态
+Agent: 执行 systemctl status nginx
+      [task 自动完成]
+Agent: nginx 正在运行，已运行 3 天 12 小时。</code></pre>
+
+        <h3>8.2 Agent + 用户确认</h3>
+        <p>当命令命中策略（危险操作、影响范围大）时，Agent 先询问用户：</p>
+        <pre><code>User: 重启 prod-web-01 上的 nginx
+Agent: 重启 nginx 会影响当前在线连接，确认执行吗？
+       [展示影响范围：prod-web-01, service: nginx, connections: 42]
+User: 确认
+Agent: 执行重启中... [task 开始]
+      [完成后]
+Agent: nginx 重启成功，服务已恢复。</code></pre>
+
+        <h3>8.3 Agent + 交互式 Shell</h3>
+        <p>当命令进入交互状态或需要人工排查时，Agent 打开交互式终端：</p>
+        <pre><code>User: 帮我排查 prod-web-01 上 nginx 启动失败的原因
+Agent: 我先查看日志... [执行 journalctl -u nginx]
+      [输出显示配置语法错误]
+Agent: 发现 /etc/nginx/nginx.conf 第 47 行有语法错误，需要进入交互式 Shell 手动修复吗？
+User: 打开终端
+Agent: [调用 AttachInteractive(t-xxx)]
+      [在 Kimi CLI 中嵌入一个 xterm.js 终端面板]
+      [用户直接编辑配置文件、测试、重启]
+User: 修复好了
+Agent: 我确认一下 nginx 状态... [继续自动化]</code></pre>
+
+        <h3>8.4 交互式 Shell 的产品细节</h3>
+        <table>
+            <tr><th>功能</th><th>说明</th></tr>
+            <tr><td>一键开启</td><td>Agent 检测到需要交互时，向用户展示“打开终端”按钮</td></tr>
+            <tr><td>权限继承</td><td>用户接管时继承该 task 的凭证和主机权限，无需二次登录</td></tr>
+            <tr><td>会话录制</td><td>交互过程全程录像/录屏，便于审计和复盘</td></tr>
+            <tr><td>安全提示</td><td>顶部显示当前主机、用户、剩余空闲时间</td></tr>
+            <tr><td>自动关闭</td><td>空闲超过 N 分钟自动断开，释放资源</td></tr>
+            <tr><td>交还 Agent</td><td>用户退出终端后，Agent 可继续执行后续检查</td></tr>
+        </table>
+
+        <h2>9. 异常与错误处理流程</h2>
+
+        <h3>9.1 连接失败</h3>
+        <pre><code>Agent: 无法连接到 prod-web-01 (Connection timeout)
+       可能原因：网络不可达、SSH 端口未开放、主机已下线
+       建议：
+       1. 检查主机网络状态
+       2. 确认安全组/防火墙规则
+       3. 使用 TestConnection 重新验证</code></pre>
+
+        <h3>9.2 认证失败</h3>
+        <pre><code>Agent: 认证失败，无法使用 prod-deploy-key 登录 prod-web-01
+       可能原因：密钥被轮换、用户名错误、密钥权限过大
+       建议：
+       1. 在凭证管理页面更新密钥
+       2. 确认 ~/.ssh/authorized_keys 包含当前公钥</code></pre>
+
+        <h3>9.3 命令执行失败</h3>
+        <pre><code>Agent: 命令执行失败 (exit code 1)
+       命令：apt install -y nginx
+       错误：E: Unable to locate package nginx
+       建议：
+       1. 运行 apt update 刷新包索引
+       2. 检查源配置 /etc/apt/sources.list
+       [Agent 可以自动尝试 apt update 后重试，并询问用户]</code></pre>
+
+        <h3>9.4 超时</h3>
+        <pre><code>Agent: 任务执行超过 300 秒，已自动取消
+       可能原因：命令挂起、等待输入、网络卡顿
+       建议：
+       1. 以 background 模式重新执行
+       2. 打开交互式 Shell 查看现场</code></pre>
+
+        <h2>10. 安全与权限流程</h2>
+
+        <h3>10.1 最小权限原则</h3>
+        <ul>
+            <li>每台主机配置专用低权限账号（如 <code>deploy</code>）</li>
+            <li>禁止 root 直连，必要时通过 sudo 并记录</li>
+            <li>凭证按主机/环境隔离</li>
+        </ul>
+
+        <h3>10.2 命令审查</h3>
+        <p>策略引擎在任务执行前检查：</p>
+        <pre><code>if command matches dangerous_pattern:
+    require_user_confirmation()
+if command writes to protected_path:
+    require_admin_approval()
+if command runs as root:
+    add_audit_flag()</code></pre>
+
+        <h3>10.3 审计日志</h3>
+        <p>每次操作记录：</p>
+        <ul>
+            <li>谁（Agent / 用户）</li>
+            <li>在什么时间</li>
+            <li>对哪台主机</li>
+            <li>执行了什么命令</li>
+            <li>结果和输出摘要</li>
+            <li>是否经过交互式 Shell</li>
+        </ul>
+
+        <h2>11. 可观测性</h2>
+
+        <h3>11.1 Agent 侧视角</h3>
+        <p>Agent 能获取到的信息：</p>
+        <ul>
+            <li>任务实时状态</li>
+            <li>逐行输出</li>
+            <li>执行耗时</li>
+            <li>退出码</li>
+            <li>错误诊断</li>
+            <li>是否有人工接管</li>
+        </ul>
+
+        <h3>11.2 用户侧视角</h3>
+        <ul>
+            <li>当前有哪些任务在跑</li>
+            <li>历史任务列表与结果</li>
+            <li>输出回放</li>
+            <li>交互式 Shell 入口</li>
+        </ul>
+
+        <h3>11.3 平台侧视角</h3>
+        <ul>
+            <li>主机健康状态</li>
+            <li>队列长度与等待时间</li>
+            <li>并发会话数</li>
+            <li>失败率、错误类型分布</li>
+        </ul>
+
+        <h2>12. 完整示例 Walkthrough</h2>
+
+        <h3>场景：用户让 Kimi CLI 在远程服务器上排查并修复问题</h3>
+
+        <div class="step">
+            <div class="step-title">Step 1：用户发起请求</div>
+            <pre><code>User: prod-web-01 的 nginx 好像停了，帮我看看</code></pre>
+        </div>
+
+        <div class="step">
+            <div class="step-title">Step 2：Agent 调用 SSH Tool</div>
+            <pre><code>Agent → ssh_tool:
+  host: prod-web-01
+  command: systemctl status nginx
+  mode: foreground
+  timeout: 30</code></pre>
+        </div>
+
+        <div class="step">
+            <div class="step-title">Step 3：SSH Tool 调度并执行</div>
+            <pre><code>Task t-001 创建 → Queued → Preparing → Connecting → Running
+输出流实时返回给 Agent</code></pre>
+        </div>
+
+        <div class="step">
+            <div class="step-title">Step 4：Agent 分析输出并决策</div>
+            <pre><code>输出显示：nginx failed (exited, code=1) /etc/nginx/nginx.conf:47 unknown directive
+Agent 判断：配置错误，需要人工修复</code></pre>
+        </div>
+
+        <div class="step">
+            <div class="step-title">Step 5：Agent 请求用户接管</div>
+            <pre><code>Agent: 发现 nginx 配置文件第 47 行有语法错误，需要进入交互式 Shell 修复吗？
+User: 好，打开终端</code></pre>
+        </div>
+
+        <div class="step">
+            <div class="step-title">Step 6：用户通过交互式 Shell 修复</div>
+            <pre><code>[Kimi CLI 中弹出 xterm.js 终端]
+User 执行：vim /etc/nginx/nginx.conf
+User 执行：nginx -t
+User 执行：systemctl restart nginx</code></pre>
+        </div>
+
+        <div class="step">
+            <div class="step-title">Step 7：Agent 接管后续</div>
+            <pre><code>用户退出终端
+Agent 自动执行：systemctl status nginx
+Agent: nginx 已恢复正常运行，配置验证通过。</code></pre>
+        </div>
+
+        <h2>13. 产品验收清单</h2>
+        <ul>
+            <li>✅ 管理员可以注册主机和凭证</li>
+            <li>✅ Agent 可以通过 Tool API 发起前台/后台任务</li>
+            <li>✅ Agent 可以实时获取任务状态、输出、诊断信息</li>
+            <li>✅ 危险操作可以触发用户确认</li>
+            <li>✅ 交互式 Shell 可以一键开启和交还</li>
+            <li>✅ 所有操作都有审计日志</li>
+            <li>✅ 任务支持取消、超时、重试</li>
+            <li>✅ 失败后 Agent 能获得可操作的诊断建议</li>
+        </ul>
+
+        <h2>14. 与上一份技术方案的衔接</h2>
+        <p>这份文档从“用户怎么用”的视角描述了产品流程；<a href="agent-ssh-tool-design.html">上一份《Agent SSH Tool 插件设计方案》</a> 从“系统怎么实现”的视角描述了架构、状态机、队列、日志、安全等技术细节。两份文档结合，可以形成从产品设计到技术实现的完整闭环。</p>
+
+        <a class="back" href="index.html">← 返回笔记索引</a>
+    </div>
+
+    <div class="footer">
+        <a href="https://github.com/APX103/note">GitHub</a>
+    </div>
+</div>
+
+</body>
+</html>
