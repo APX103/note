@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="CV610 实板开发复盘：Apple Silicon Mac 的 Docker 编译、串口部署、LVGL 触屏、端侧 Agent 调研，以及 OS04D10 摄像头与 NPU 人脸检测的完整排障记录。">
+<title>CV610 开发实录：从 Mac 编译到 NPU 实时检测 · 2026-09-09</title>
+<style>
+:root{--bg:#f5f7fa;--paper:#fff;--ink:#1c293d;--muted:#52627a;--line:#dce3ec;--blue:#315cc5;--green:#067465;--amber:#925411;--code:#101d30}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:24px}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.85 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}a{color:var(--blue);text-underline-offset:3px}a:hover{text-decoration-thickness:2px}a:focus-visible,summary:focus-visible{outline:3px solid var(--blue);outline-offset:4px}p{margin:12px 0 18px}strong{font-weight:650}code,pre{font-family:ui-monospace,SFMono-Regular,Consolas,monospace}code{font-size:.86em;background:#edf1f7;padding:2px 5px;border-radius:4px;overflow-wrap:anywhere}pre{background:var(--code);color:#e5edf9;padding:22px;border-radius:12px;overflow:auto;font-size:13px;line-height:1.75}pre code{background:none;padding:0;font-size:inherit;overflow-wrap:normal}h1,h2,h3{line-height:1.35}h1{font-size:clamp(30px,4vw,48px);letter-spacing:-1.6px;margin:20px 0}h2{font-size:27px;letter-spacing:-.6px;margin:0 0 24px}h3{font-size:19px;margin:28px 0 12px}ul,ol{padding-left:24px}li{margin:6px 0}small,.muted{color:var(--muted)}.wrap{max-width:1260px;margin:auto;padding:0 36px}.top{padding:25px 0;font-size:14px}.top a{text-decoration:none}.hero{padding:26px 0 42px;border-bottom:1px solid var(--line)}.eyebrow{color:var(--green);font:600 12px/1.5 ui-monospace,monospace;letter-spacing:2px}.hero p{max-width:780px;font-size:18px;color:var(--muted)}.meta{display:flex;flex-wrap:wrap;gap:8px 20px;font-size:13px;color:var(--muted)}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:32px}.metric{padding:19px 20px;background:var(--paper);border:1px solid var(--line);border-radius:12px}.metric b{display:block;font-size:28px;line-height:1.4;letter-spacing:-.8px}.metric span{font-size:12px;color:var(--muted)}.layout{display:grid;grid-template-columns:205px minmax(0,1fr);gap:44px;padding:42px 0 60px}aside{position:sticky;top:24px;align-self:start}aside b{font-size:12px;color:var(--muted);letter-spacing:2px}nav{display:grid;gap:4px;margin-top:14px}nav a{font-size:13px;text-decoration:none;color:var(--muted);padding:6px 10px;border-left:2px solid var(--line)}nav a:hover{color:var(--blue);border-color:var(--blue);background:#eaf0fb}main{min-width:0}section{padding:32px;background:var(--paper);border:1px solid var(--line);border-radius:15px;margin-bottom:24px}h2 .n{font-size:13px;display:block;letter-spacing:2px;color:var(--green);margin-bottom:7px}.table{overflow-x:auto;margin:20px 0;border:1px solid var(--line);border-radius:9px}table{border-collapse:collapse;width:100%;font-size:14px;min-width:570px}th,td{padding:13px 15px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{background:#edf2f8;font-size:12px;color:#3c506b}tr:last-child td{border-bottom:0}td:first-child{font-weight:550}caption{text-align:left;padding:12px 15px;font-weight:600;background:#f8fafc}.badge{display:inline-block;padding:2px 8px;border-radius:5px;font-size:12px;white-space:nowrap;background:#e9f1fe;color:#2854a8}.ok{background:#e3f4ee;color:#075e4b}.pending{background:#fff0dc;color:#825015}.removed{background:#f0edf5;color:#64566d}.callout{padding:17px 20px;border-left:4px solid var(--green);background:#eef8f5;border-radius:0 9px 9px 0;margin:22px 0}.callout.warn{border-color:#c08631;background:#fff7e9}.callout p{margin:4px 0}.flow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:22px 0}.node{border:1px solid var(--line);border-top:3px solid var(--blue);border-radius:8px;padding:15px 12px;background:#f8faff;font-size:13px}.node b{display:block;margin-bottom:6px}.node em{font-style:normal;font-size:11px;color:var(--green);display:block}.split{display:grid;grid-template-columns:1fr 1fr;gap:16px}.box{border:1px solid var(--line);border-radius:10px;padding:18px}.box h3{margin-top:0}.timeline{list-style:none;padding:0}.timeline li{padding:0 0 19px 24px;border-left:2px solid var(--line);position:relative;margin:0}.timeline li:before{content:"";position:absolute;left:-5px;top:9px;width:8px;height:8px;background:var(--blue);border-radius:50%}.timeline b{display:block}.timeline p{font-size:14px;color:var(--muted);margin:4px 0}.source{font-size:12px;color:var(--muted)}.sources li{font-size:14px;padding-bottom:8px;overflow-wrap:anywhere}details{border:1px solid var(--line);border-radius:9px;padding:15px 18px;margin:16px 0}summary{cursor:pointer;font-weight:600}details p:last-child{margin-bottom:0}.foot{padding:4px 0 40px;color:var(--muted);font-size:13px}.skip{position:absolute;left:16px;top:-80px;background:white;padding:10px;z-index:2}.skip:focus{top:10px}
+@media(max-width:960px){.layout{grid-template-columns:1fr;gap:24px}aside{position:static}nav{grid-template-columns:repeat(3,1fr)}.wrap{padding:0 24px}h1{letter-spacing:-1px}}
+@media(max-width:600px){body{font-size:15px}.wrap{padding:0 16px}.hero{padding-top:10px}.hero p{font-size:16px}.metrics{grid-template-columns:1fr 1fr;gap:10px}.metric{padding:14px}.metric b{font-size:25px}nav{grid-template-columns:1fr 1fr}.layout{padding-top:26px}section{padding:22px 18px;border-radius:12px}h2{font-size:23px}.flow,.split{grid-template-columns:1fr 1fr}.node{font-size:12px}pre{padding:16px;font-size:12px}.meta{font-size:12px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+@media print{body{background:white;font-size:11pt}.wrap{max-width:none;padding:0}.top,aside,.skip{display:none}.hero{padding:0 0 20px}.hero p{font-size:12pt}.layout{display:block;padding:20px 0}section{border:0;padding:18px 0;margin:0;border-radius:0}h2,h3{break-after:avoid}tr,.callout,.metric,.node{break-inside:avoid}.table,pre{overflow:visible}table{min-width:0;font-size:9pt}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#edf1f7;color:#14243d}a{color:inherit}details{display:block}.foot{padding-top:20px}}
+</style>
+</head>
+<body>
+<a class="skip" href="#summary">跳到正文</a>
+<div class="wrap">
+<div class="top"><a href="../index.html">← Notes / 实验与开发记录</a></div>
+<header class="hero">
+<div class="eyebrow">HARDWARE FIELD NOTES · CV610</div>
+<h1>从 Mac 编译，<br>到 NPU 看见人脸。</h1>
+<p>一次完整开发会话的归档：摸清 SDK 与硬件，验证 Docker，换上触摸 Demo，收敛 Agent 方案，最后接通摄像头并在板端实时检测。</p>
+<div class="meta"><span>2026 年 9 月 9 日</span><span>Sunniwell CV610 · Hi3516CV610-20S</span><span>Apple Silicon Mac</span><span>归档时开发板已拔下</span></div>
+<div class="metrics" aria-label="本次结果概览">
+<div class="metric"><b>已跑通</b><span>Mac → Docker → 串口 → 实板</span></div>
+<div class="metric"><b>10 fps</b><span>VPSS 实测视频输出</span></div>
+<div class="metric"><b>42–47 ms</b><span>观察到的单次检测调用耗时</span></div>
+<div class="metric"><b>1.38 MB</b><span>本次部署的检测模型文件</span></div>
+</div>
+</header>
+<div class="layout">
+<aside><b>本页目录</b><nav aria-label="文章目录">
+<a href="#summary">01 · 最终结论</a><a href="#journey">02 · 会话过程</a><a href="#hardware">03 · 硬件与算力</a><a href="#sdk">04 · SDK 与 Mac</a><a href="#demos">05 · Demo 清单</a><a href="#agent">06 · Agent 方案</a><a href="#voice">07 · 免费语音实验</a><a href="#vision">08 · NPU 实现</a><a href="#debug">09 · 摄像头排障</a><a href="#handoff">10 · 接板与恢复</a><a href="#artifacts">11 · 文件与版本</a><a href="#next">12 · 后续边界</a><a href="#sources">来源与证据</a>
+</nav></aside>
+<main>
+<section id="summary">
+<h2><span class="n">01 / OUTCOME</span>这次真正完成了什么</h2>
+<p><strong>这台 ARM Mac 已经可以作为当前应用开发的主力电脑。</strong>官方 x86 Linux 容器里的编译器可运行，编出的 ARMv7 程序已通过 Mac 原生串口部署到 CV610，触摸屏和真实摄像头上的 NPU 检测都已验证。没有为此自行重建交叉工具链。</p>
+<div class="table"><table><thead><tr><th>事项</th><th>最终状态</th><th>证据与范围</th></tr></thead><tbody>
+<tr><td>Mac Docker / 厂商工具链</td><td><span class="badge ok">已实测</span></td><td>最小 C/C++ 编译、LVGL Music、NPU 应用构建通过；后两者已在实板运行。</td></tr>
+<tr><td>串口与触摸交互</td><td><span class="badge ok">已实测</span></td><td>115200 串口控制台、文件上传、校验、屏幕抓取及触摸操作通过。</td></tr>
+<tr><td>OS04D10 + NPU</td><td><span class="badge ok">已实测</span></td><td>J4 / Sensor0 实时画面、检测画框、重启自启动通过；用户最后确认可用。</td></tr>
+<tr><td>PicoClaw</td><td><span class="badge">仅构建通过</span></td><td>生成约 32.3 MiB ARMv7 静态文件；未部署并验证真实聊天。</td></tr>
+<tr><td>MiniAgent / NullClaw</td><td><span class="badge pending">方案阶段</span></td><td>做了源码与资源评估，未创建并交付完整板端 Agent。</td></tr>
+<tr><td>Mac Python STT/TTS</td><td><span class="badge removed">实验后已删除</span></td><td>免费语音回环曾通过；用户拒绝下载模型后，代码、环境、模型和实验缓存已移除。</td></tr>
+<tr><td>全量固件 / ROM 恢复烧录</td><td><span class="badge pending">未验证</span></td><td>本次部署应用和修改启动脚本，没有重刷 U-Boot、内核或分区表。</td></tr>
+</tbody></table></div>
+<div class="callout"><p><strong>现在的作品：</strong>一个可触摸切换实时画面与测试图的离线 NPU 人脸 / 人体检测 Demo。它能找到脸并画框，尚不能认出具体是谁，也没有接入 LLM、VLM 或语音服务。</p></div>
+<p class="source">本文以本次会话最后的实测结果为准。早期报告中的“未上板”“Mac 尚待验证”“优先远程 x86”属于当时阶段；下文同时保留验证边界，避免把应用成功写成全套 SDK 已通过。</p>
+</section>
+
+<section id="journey">
+<h2><span class="n">02 / SESSION</span>需求如何一步步收敛</h2>
+<ol class="timeline">
+<li><b>先研究，不试运行</b><p>最初目标是跑通官方 Demo，并探索“小智式”的创意作品。先查硬件、上层工程、SDK、Mac 支持和烧录路线，遵守当时不安装、不编译的要求。</p></li>
+<li><b>明确要自己的端侧 Agent</b><p>用户补充：上下文、唤醒和工具循环留在板端；ASR、LLM/VLM、TTS 可以在云端。Py 小智是参考，不希望依赖小智后端承载主 Agent。</p></li>
+<li><b>授权 Docker 后验证编译</b><p>先前展开下载过早，被用户提醒应先验 Docker。随后完成 amd64 容器最小检查、厂商 C/C++ 构建及 PicoClaw ARMv7 构建，确认无需先换 x86 电脑。</p></li>
+<li><b>接 Debug，读取真实板况</b><p>进入 Linux 控制台，确认 ARMv7/musl、小内存和根分区剩余空间；先验证已有面板，再按“换一个”的要求编译 LVGL Music。</p></li>
+<li><b>新触摸 Demo 获得用户确认</b><p>Music 完成封面、播放控制、曲目列表交互；用户确认成功。这一步打通了完整的应用编译与部署链路。</p></li>
+<li><b>Agent 从“自写”收敛到“复制并裁剪”</b><p>按用户“越小越好”的要求修订方案，比较 PicoClaw 与 NullClaw，研究 Py 小智表情与播放状态；没有越过方案阶段直接实施。</p></li>
+<li><b>免费语音实验做过，也撤掉了</b><p>Mac Python + Whisper + 系统 TTS 曾跑通；准备 uv 环境供用户自行控制后，按用户要求彻底删除模型下载路线。</p></li>
+<li><b>把芯片的视觉算力用起来</b><p>重新列出 Demo，解释 NPU、IVE、ISP 分工。用户选择人脸 Demo；先用图片验证 NPU，再等待接入摄像头。</p></li>
+<li><b>修复时钟与 I²C 通道，完成实时检测</b><p>确认背面 Sensor0 接线，定位旧模块时钟别名和 GXA543 默认断开问题。修复后摄像头初始化成功，显示真实画面，重启验证通过。</p></li>
+</ol>
+</section>
+
+<section id="hardware">
+<h2><span class="n">03 / BOARD</span>板子是什么，1 TOPS 用在哪里</h2>
+<p>板卡是 <strong>Sunniwell CV610 生态开发板</strong>，本次实板对应 Hi3516CV610-20S。芯片、主板、扩展板和屏幕是不同层级：不能仅凭“CV610”就假定无线模块、屏控制器、Flash 布局全部相同。硬件规格与接口以<a href="#s-hardware">板级指南</a>和<a href="#s-chip">芯片资料</a>为依据。</p>
+<div class="table"><table><thead><tr><th>资源</th><th>已知规格 / 本次板况</th><th>开发上的意义</th></tr></thead><tbody>
+<tr><td>CPU</td><td>Cortex-A7 MP2，950 MHz</td><td>执行 Linux、UI、网络与业务逻辑；不是 Mac 的 ARM64 环境。</td></tr>
+<tr><td>NPU</td><td>1 TOPS</td><td>适合兼容模型的目标检测等推理；峰值算力不等于固定帧率。</td></tr>
+<tr><td>DDR</td><td>128 MB；当前启动划分 Linux 56 MB / MMZ 72 MB</td><td>Linux 实际 MemTotal 约 49 MB；媒体保留内存不能当作应用空闲内存。</td></tr>
+<tr><td>系统与根分区</td><td>Linux 5.10.221+ / ARMv7；当前根分区约 36.3 MB</td><td>初读空闲约 5.8 MB，部署视觉 Demo 后约 2.6 MB。板卡标称 Flash 容量不等于根分区可用空间。</td></tr>
+<tr><td>屏幕与触摸</td><td>JD9853 240 × 320，Hynitron 触摸</td><td>本次使用 DRM <code>/dev/dri/card0</code> 与 evdev <code>/dev/input/event0</code>。</td></tr>
+<tr><td>摄像头</td><td>OS04D10，当前仅使用背面 J4 / Sensor0</td><td>J6 是 Sensor1；双摄需要额外的通道切换处理。</td></tr>
+<tr><td>音频</td><td>板载双麦克风 U1415 / U1416；Speaker 接口 J47</td><td>只收到一只外接喇叭正常。视觉 Demo 不调用音频。</td></tr>
+</tbody></table></div>
+<div class="flow" aria-label="芯片资源分工">
+<div class="node"><em>01 · 图像质量</em><b>ISP / AI ISP</b>曝光、白平衡、降噪等；是否启用某一算法取决于配置。</div>
+<div class="node"><em>02 · 视觉运算</em><b>IVE</b>图像处理、运动检测、跟踪等基础计算。</div>
+<div class="node"><em>03 · 模型推理</em><b>NPU</b>加载兼容模型，检测人脸、人体、车辆等目标。</div>
+<div class="node"><em>04 · 媒体与交互</em><b>编码单元 + CPU</b>H.264/H.265/JPEG 与应用组织；本次 UI 由 CPU 驱动。</div>
+</div>
+<p>音乐和表情界面主要使用 CPU、显示与触摸。摄像头 + NPU Demo 才开始利用这颗芯片更有特点的视觉能力。<strong>1 TOPS 不能推出可以在 128 MB 板子上运行通用 LLM/VLM</strong>；本次方案仍把大模型推理放在外部。</p>
+<h3>接口与供电结论</h3>
+<ul>
+<li><strong>J17：</strong>正常测试使用 5 V / 2 A 供电；<strong>J1318 Debug：</strong>USB 数据线接 Mac，板载 CH343P，115200 波特率。</li>
+<li><strong>J1319：</strong>USB 通信口，也有供电能力，不能与 Debug 口混为一谈。SW401 为主板电源开关。</li>
+<li><strong>J4：</strong>主板背面 Sensor0，30 pin / 0.5 mm FPC，下接触座。金属触点朝向以连接器实际触点为准，不能只看蓝色补强片。</li>
+<li>插拔摄像头排线之前完全断电，包括拔掉 Debug USB。若两颗模组都印有 OS04D10，单摄演示任选一颗接 J4 即可。</li>
+</ul>
+<div class="callout warn"><p><strong>关于“只接 Debug 能不能启动”：</strong>会话早期按原理图给过“Debug 只供串口芯片”的判断，随后实机确实读到了已启动的 Linux。用户没有确认当时是否存在其他供电，因此没有完成“仅 Debug 供电”的独立验证。最终保留独立供电接法，不把当时的控制台连通归因于 Debug 能稳定带动整板。</p></div>
+</section>
+
+<section id="sdk">
+<h2><span class="n">04 / BUILD</span>SDK、宿主架构与 Mac 编译</h2>
+<h3>当前仓库只是应用层的一部分</h3>
+<pre><code>hi_aiot_solution/                 上层构建与集成工程
+├── scripts/build.sh
+├── apps/cv610_ev_board/          本次工作仓库
+├── components/                  媒体、外设、云服务等组件
+├── open_source/                 开源依赖
+└── sdk/                         SDK 集成
+
+HiSpark/Hi3516CV610              另一个 SDK 仓库
+├── soc/                         头文件、库、驱动等
+├── samples/mpp/                 媒体和 NPU 示例
+└── output/mpp/model/            编译后的模型</code></pre>
+<p>官方主工程通过多仓清单组织。只克隆板卡应用仓，不能当作完整固件工程；本次没有完成上层整机工程的全量构建。后期通过 <code>tag_V2.0.0_Beta</code> 的 SDK 部分克隆和按需获取，补齐小应用需要的头文件、sample、模型与库。</p>
+<h3>三个平台需要分开看</h3>
+<div class="flow" aria-label="编译平台关系">
+<div class="node"><em>宿主电脑</em><b>ARM64 macOS</b>编辑、文件管理、Docker Desktop、原生串口。</div>
+<div class="node"><em>厂商工具运行环境</em><b>x86_64 Linux</b>显式 <code>linux/amd64</code> 容器，执行 SDK GCC/G++。</div>
+<div class="node"><em>编译产物</em><b>ARMv7 Linux</b>ELF32 / EABI5 / musl，使用厂商目标库。</div>
+<div class="node"><em>部署执行</em><b>CV610 实板</b>串口上传与校验后运行，开发板本身不跑 Docker。</div>
+</div>
+<p>“Mac 和板子都是 ARM”并不意味着二进制互通。官方交叉编译器交付为 x86 Linux 程序；macOS 是 Darwin，板子是 32 位 ARM Linux，还需要对齐 musl、浮点 ABI、加载器和 SDK 库版本。</p>
+<p>本次阅读的<a href="#s-env">官方环境文档</a>有 Ubuntu、Windows/WSL2 和 Docker 路线，没有找到 CV610 原生 macOS 全流程的官方验证指南。自行重建 GCC/binutils 或评估 Clang + sysroot 在技术上有路线，但不能解决所有镜像工具、二进制库和 Windows 恢复工具的兼容性。用户明确要求 Docker 不行就转 x86，<strong>本次没有执行自建工具链路线</strong>。</p>
+<div class="table"><table><caption>Docker 验证：从最小检查到实板应用</caption><thead><tr><th>检查</th><th>结果</th><th>如何解释</th></tr></thead><tbody>
+<tr><td>amd64 容器运行</td><td><code>x86_64</code> / <code>X86_DOCKER_OK</code>，约 0.8 秒</td><td>先证明跨架构容器可以执行。</td></tr>
+<tr><td>官方 C / C++ 编译链接</td><td><code>SDK_COMPILER_PROBE_PASS</code>；ELF32 ARM，加载器 <code>/lib/ld-musl-arm.so.1</code></td><td>厂商工具链能运行并生成正确目标格式。</td></tr>
+<tr><td>PicoClaw 编译</td><td>Go 1.26.8，Linux ARMv7 静态程序，约 32.3 MiB</td><td>冷构建含下载约 4 分 59 秒；不等于已上板聊天。</td></tr>
+<tr><td>LVGL Music + NPU UI</td><td>编译完成并在实板运行</td><td>将早期“能编译”升级为“应用已跑通”的证据。</td></tr>
+<tr><td>完整上层工程下载</td><td><code>curl 18</code> / <code>early EOF</code> 中断</td><td>属于源码获取失败，不能归因于 Mac 编译器不兼容。</td></tr>
+</tbody></table></div>
+<p>PicoClaw 构建容器最后曾返回 127，原因是编译结束后的 <code>file</code> 检查工具未安装；产物已由 Mac 的 <code>file</code> 补查。没有把这个收尾错误误判成 Go 构建失败。</p>
+<details><summary>保留的构建命令与环境</summary>
+<p>本次 Docker Desktop 4.73.0，Engine 29.4.3；VM 为 linux/arm64，10 CPU、约 7.75 GiB 内存。官方镜像如下，摘要见版本表。</p>
+<pre><code># 从 CV610 工作仓根目录执行；需要本次保留的依赖目录
+docker run --rm --platform linux/amd64 -v "$PWD:/work" \
+  swr.cn-north-4.myhuaweicloud.com/hi_spark/wukun:docker-v1.2.0-rc2 \
+  sh /work/.docker-validation/npu-face/build.sh
+
+# 最小 SDK 检查：使用已保存的脚本
+docker run --rm -i --platform linux/amd64 --network none \
+  --entrypoint /bin/bash \
+  swr.cn-north-4.myhuaweicloud.com/hi_spark/wukun:docker-v1.2.0-rc2 \
+  /dev/stdin &lt; .docker-validation/sdk-probe.sh
+
+# PicoClaw 的独立 Go 构建（在其固定源码及 Go 容器中）
+CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=7 \
+  make build-linux-arm GOFLAGS="-p=2 -tags=goolm,stdjson" \
+  VERSION=bbf6893 GIT_COMMIT=bbf6893c</code></pre>
+<p>C 编译器为 <code>arm-v01c02-linux-musleabi-gcc</code>；本次 NPU 应用使用 <code>-march=armv7-a -mfpu=neon-vfpv4 -mfloat-abi=softfp</code>，沿用官方环境，不自行替换 ABI。</p>
+</details>
+<div class="callout warn"><p><strong>编译、部署、恢复烧录是三个结论。</strong>本次用串口传应用，不需要 Docker USB 透传。官方 U-Boot 正常时的串口 + TFTP 烧录流程、以及面向 ROM 恢复的 Windows ToolPlatform 均只调研，未在 Mac 上实测。<a href="#s-burn">烧录来源</a></p></div>
+</section>
+
+<section id="demos">
+<h2><span class="n">05 / DEMOS</span>哪些玩过，哪些只是看过</h2>
+<p>最初运行的是板上已有面板：亮度、开关、下拉菜单、软键盘，以及 Color 彩色画面。模拟触摸验证了背光 100% → 50% → 100%。用户指出这是旧 Demo，随后换成新编译的 <strong>LVGL v9.3.0 官方 Music Demo</strong>。</p>
+<p>Music 适配了 240 × 320 小屏分页，静态链接 LVGL 与 libdrm 2.4.124，通过 DRM 和 evdev 输出及交互。左右滑封面切歌，上滑切换播放控制和曲目列表；用户已确认手指触摸可用。<strong>这是播放器界面演示，没有实际音频播放。</strong><a href="#s-lvgl">上游源码</a></p>
+<div class="table"><table><caption>本仓调研过的候选 Demo</caption><thead><tr><th>Demo / 路径</th><th>能做什么</th><th>条件与本次状态</th></tr></thead><tbody>
+<tr><td>聊天与大表情<br><code>samples/dialog_fullscreen_ui</code></td><td>聊天气泡、滑动、8 种 LVGL 表情</td><td>适配屏幕即可；本身不含 AI；仅研究。</td></tr>
+<tr><td>摄像头触屏<br><code>samples/gui/square_lcd_video_ui</code></td><td>预览、镜像、亮度、倒计时</td><td>240 × 320 屏和摄像头；未直接部署整套案例。</td></tr>
+<tr><td>机器人双眼<br><code>samples/panel/dual_gc9a01a_240_240_128_50M</code></td><td>眼球与表情动画</td><td>原版双圆屏，单方屏需改布局；未部署。</td></tr>
+<tr><td>单 / 双摄、拍照与推流<br><code>samples/sensor</code>、<code>capture_picture</code>、<code>push_stream</code></td><td>图像采集、预览、录像或 RTSP</td><td>需要摄像头；联网功能需网络；未验证完整案例。</td></tr>
+<tr><td>WS73 综合界面<br><code>references/factory_demo/ws73_lcd</code></td><td>九页产品菜单、配网、摄像头、点播、ZeroClaw 配置</td><td>依赖特定扩展板及网络配置；仅研究并借鉴。</td></tr>
+<tr><td>4G 视频通话<br><code>references/factory_demo/hi2131_lcd</code></td><td>本地画面、远端画中画与通话</td><td>原方案需 Hi2131、摄像头及通话服务；未部署。</td></tr>
+<tr><td>AI 台灯<br><code>references/ai_table_lamp</code></td><td>指尖查词、坐姿提醒、播报</td><td>摄像头、音频和云服务；未接通该业务。</td></tr>
+<tr><td>云端语音 / 原生音频<br><code>references/cloud_agent</code>、<code>samples/agent_audio_sample</code></td><td>录音、上云、回答与播放</td><td>inner / ES7210 为不同硬件路径；仅研究。</td></tr>
+<tr><td>离线语音控制空调<br><code>references/offline_voice_ac_control</code></td><td>唤醒、固定指令与控制</td><td>外设和语音算法有限制；文档所述第三方免费版本约一小时；未部署。</td></tr>
+<tr><td>AIComponent<br><code>samples/ai_component</code></td><td>人 / 车 / 宠物检测及人脸特征比对</td><td>需要 SDK 模型；原图片检测示例并非现成实时画框 UI。</td></tr>
+<tr><td>本次 NPU 小屏应用<br><code>.docker-validation/npu-face</code></td><td>实时人脸 / 人体框，测试图切换</td><td><span class="badge ok">已部署并实测</span> 基于 SDK AiDetect 与既有媒体、UI 代码。</td></tr>
+</tbody></table></div>
+<p class="source">上表各路径相对板卡应用仓。来源入口见<a href="#s-samples">板仓案例</a>。LVGL 另有控件、输入设备、渲染和压力测试；本次未找到可以直接安装的贪吃蛇或 2048 案例。</p>
+</section>
+
+<section id="agent">
+<h2><span class="n">06 / AGENT RESEARCH</span>想做的 Agent，以及为什么还没做</h2>
+<p>需求最终明确为：<strong>复制一个成熟开源底座，尽量裁剪；板端掌握上下文和工具循环，只向外部调用模型。</strong>首版先普通多轮聊天，随后增加免费听说、说话表情、唤醒和按需视觉。不要另建框架、管理后台、多 Agent、插件市场或长期记忆系统。</p>
+<div class="split"><div class="box"><h3>CV610 本地</h3><p>会话与短历史、工具执行、摄像头抓拍、录音播放、UI 状态；本地唤醒是目标，首个闭环可以先触摸触发。</p></div><div class="box"><h3>云端或外部服务</h3><p>LLM / VLM 推理，按需要配置 ASR 和 TTS。本地管理上下文不代表上下文不上传；普通图文模型也不天然包含语音能力。</p></div></div>
+<h3>两条视觉路线均成立</h3>
+<pre><code>A. 主模型是 VLM
+板端 Agent → 摄像头抓拍 → JPEG + 问题 → 主 VLM → 回答
+
+B. 主模型只接受文字
+板端 Agent → 文本 LLM → inspect_scene(question)
+                           ↓
+                     本次抓拍 + 独立视觉 API
+                           ↓
+                  文字描述 / 时间戳 / 错误结果
+                           ↓
+                     文本 LLM 继续回答</code></pre>
+<p>Py 小智的 <code>take_photo(question)</code> / <code>VLCamera</code> 已有路线 B 的实现：拍 JPEG，编码为图片输入，调用独立视觉 API，返回描述。摄像头工具可以经 MCP 暴露，但<strong>给文本模型返回图片路径不会赋予视觉能力</strong>；MCP 返回 ImageContent 也需要明确进入模型请求。首版按需拍一张即可，不需要持续上传视频。<a href="#s-pyx-camera">源码依据</a></p>
+<div class="table"><table><thead><tr><th>候选</th><th>看中了什么</th><th>实际做到哪一步</th></tr></thead><tbody>
+<tr><td>Py 小智</td><td>视觉工具、状态切换、字幕 / 表情、播放取消</td><td>已拉取并阅读固定版本；默认主对话仍连小智后端。没有整体移植到 ARMv7/musl。</td></tr>
+<tr><td>ZeroClaw + local_voice</td><td>本仓已集成本地语音、媒体、拍照与 Agent 桥接</td><td>核查现有代码与上游 0.7.5；厂商 webhook 字段、会话及图片注入仍需对齐，未宣称现成闭环可直接用。</td></tr>
+<tr><td>PicoClaw</td><td>本地会话、模型请求、工具循环、Pico WebSocket、图像工具</td><td>ARMv7 构建通过；约 32.3 MiB 放不进当前根分区剩余空间，真实聊天峰值内存未测。</td></tr>
+<tr><td>NullClaw</td><td>ARM32 musl 发布物约 5.30 MiB，有编译裁剪选项</td><td>按用户“复制一份”偏好，最新精简方案选为候选底座；尚未编译、上板或验证聊天，5.30 MiB 也不是已满足当前空间的证明。</td></tr>
+</tbody></table></div>
+<p class="source">来源：<a href="#s-zeroclaw">现有 ZeroClaw 集成</a>、<a href="#s-pico">PicoClaw</a>、<a href="#s-null">NullClaw</a>。这些是本次固定版本的调查结论，不是对未来版本的承诺。</p>
+<h3>从 Py 小智只取有价值的交互</h3>
+<ul>
+<li>文字消息更新字幕，表情名称更新画面，录音和真实播放状态驱动按钮与提示。</li>
+<li>找不到表情资源就回退 neutral / 默认笑脸；隐藏动画应停止推进。</li>
+<li>停止时取消后续音频并清理播放队列；服务端发完音频，不等于扬声器已播完。</li>
+<li>首版用“待命、聆听、等待回答、说话”的本地状态选择表情，不额外调用情绪模型。</li>
+</ul>
+<p>研究版本附带 21 个 GIF，约 14.2 MiB。板仓已有 8 种 LVGL 绘制表情，首版更适合复用这些代码。原板仓表情固定约 5 秒消失，真正接入语音时应改为随播放开始、结束和取消驱动。<a href="#s-pyx-ui">交互源码</a></p>
+<h3>没有跳过的集成问题</h3>
+<p>GPIO0_0 同时被部分音频样例用作按钮、被当前屏幕方案用作触摸中断；两套代码不能直接叠加。现有音频路径还需核对 PCM / MP3、采样率、回采、TTS 缓冲和 HTTPS 校验。Python 也不能单凭语言判定不可用，但 NumPy、OpenCV、sherpa-onnx 等桌面依赖不能假定有 ARMv7/musl 可用包。<a href="#s-audio">相关案例</a></p>
+<div class="callout"><p><strong>方案边界：</strong>用户要求“先方案，再设计，最后实现”。本次没有交付完整 Agent，也没有承诺 NullClaw 必然可装。最新方向是复制并裁剪；若继续，第一步应是真实文字聊天和资源测量。</p></div>
+</section>
+
+<section id="voice">
+<h2><span class="n">07 / REVERTED EXPERIMENT</span>免费语音方案：验证过，但已撤销</h2>
+<p>在“先写一个本地 Python 脚本”的授权下，实验采用 <strong>faster-whisper / Whisper base</strong> 做本地中文 STT，Mac 自带 <code>say</code> 的“婷婷”声音做 TTS，sounddevice 采集麦克风。语音 API 不收费，但本地 STT 需要下载模型，依然有存储、依赖和计算成本。Mac 系统语音也不是一个可直接移植到 CV610 的开源 TTS 引擎。</p>
+<div class="table"><table><thead><tr><th>实验项目</th><th>当时结果</th><th>最终状态</th></tr></thead><tbody>
+<tr><td>中文合成 → 识别回环</td><td>“你好，这是本地语音测试”识别成功；不同轮次约 1.6 秒 / 0.43 秒</td><td>只代表 Mac 上短测试句，不是板端或长音频基准。</td></tr>
+<tr><td>真实麦克风、朗读、停止</td><td>采样、音频输出与 Ctrl+C 流程通过</td><td>曾可运行，未进行板端语音部署。</td></tr>
+<tr><td>LLM 与历史</td><td>写了模型入口和最近六轮历史；无实际 LLM 配置，默认复读</td><td>没有验证真实 AI 对话。</td></tr>
+<tr><td>uv 环境</td><td>按用户要求准备好，让用户自行启动控制键位</td><td>随后与实验一同删除。</td></tr>
+</tbody></table></div>
+<p>过程中遇到过 NumPy / Mac 数值运行警告，在隔离环境固定 NumPy 1.26.4 后复测。它是已撤销实验的依赖处理，不是现在的项目安装要求。</p>
+<div class="callout warn"><p><strong>用户明确拒绝“还要下载模型”后，实验代码、两个虚拟环境、下载模型、相关依赖缓存和测试音频均已删除。</strong>这里是历史记录，不提供失效的启动入口，也没有在归档时恢复任何模型。</p></div>
+<p>调研还覆盖 SenseVoice / FunASR、Kokoro，以及有外部 GPU 时可评估的 CosyVoice。这些只是开源自部署候选，未在本板部署，也不等于提供永久免费的托管 API。按用户最终偏好，后续若没有满足要求的免费语音服务，可以先不做 STT/TTS。<a href="#s-voice">来源</a></p>
+</section>
+
+<section id="vision">
+<h2><span class="n">08 / RUNNING DEMO</span>现在运行的 NPU Demo 是怎样做的</h2>
+<p>采用最小复用方式：SDK 的 <strong>AiDetect</strong> 推理接口 + 本仓 <code>samples/gui/common</code> 摄像头 / 媒体适配 + 已编好的 LVGL / DRM 库。新增的小应用负责按钮、取帧、检测、预览转换和画框，没有自行训练模型。</p>
+<div class="flow" aria-label="实时摄像头检测数据流">
+<div class="node"><em>01 · 采集</em><b>OS04D10 / J4</b>VI 与 ISP 建立摄像头通路。</div>
+<div class="node"><em>02 · 输出</em><b>VPSS</b>640 × 360、NV21、目标 10 fps。</div>
+<div class="node"><em>03 · 检测</em><b>AiDetect → NPU</b>模型输入 768 × 448；返回类别、位置与置信度。</div>
+<div class="node"><em>04 · 展示</em><b>LVGL / DRM</b>240 × 135 预览，绿色人脸框、青色人体框。</div>
+</div>
+<div class="table"><table><thead><tr><th>项目</th><th>本次实际配置</th></tr></thead><tbody>
+<tr><td>模型</td><td><code>det_hvf_hor.bin</code>，1,382,752 字节，约 1.38 MB / 1.32 MiB。</td></tr>
+<tr><td>来源</td><td>HiSpark / Hi3516CV610，<code>tag_V2.0.0_Beta</code>，固定提交见版本表。</td></tr>
+<tr><td>接口</td><td><code>ss_mpi_aidetect_create_chn</code>、<code>ss_mpi_aidetect_process</code>，应用复用 <code>sample_common_aidetect_*</code> 包装。</td></tr>
+<tr><td>模型信息</td><td>输入 768 × 448；3 类：FACE / HUMAN / VEHICLE。当前 UI 只显示前两类。</td></tr>
+<tr><td>预览处理</td><td>CPU 最近邻缩放与 NV21 → RGB565；预览区域 240 × 135，屏幕总分辨率 240 × 320。</td></tr>
+<tr><td>按钮</td><td><strong>Live</strong> 返回摄像头实时画面；<strong>Test image</strong> 对本地图片做一次真实 NPU 推理。</td></tr>
+<tr><td>可执行文件</td><td><code>cv610_face</code> 322,964 字节；这个体积不包含模型、动态库或系统依赖。</td></tr>
+<tr><td>运行测量</td><td>单次检测调用观察到约 42–47 ms；VPSS 输出为 10 fps。两者不是同一统计口径。</td></tr>
+</tbody></table></div>
+<h3>它是不是 YOLO？</h3>
+<p><strong>不能根据当前资料确认。</strong>实际加载的是海思 AiDetect 的预编译“人脸人形车形”模型；本次查到的官方接口与模型说明没有标注其网络架构或 YOLO 版本。SDK 另外明确提供 <code>yolov5.om</code>、<code>yolov8.om</code> 示例，但不是此次部署的模型。不能凭输出形状或效果猜成某个 YOLO 版本。<a href="#s-aidetect">官方模型文档</a></p>
+<p><strong>人脸检测与身份识别也不同。</strong>现在做的是找出脸的位置；“认出这是某个人”还需要特征提取、注册与比对。本次没有身份库。</p>
+<h3>验证如何逐级推进</h3>
+<ol>
+<li><strong>无摄像头先验证 NPU：</strong>官方 sample 对测试图推理成功，正脸置信度约 0.90；硬件中断计数增加，错误计数为零。</li>
+<li><strong>接入 UI：</strong>触摸 Test image 后显示 Faces 1 / People 1；读取 LCD 截屏验证结果。测试输入来自 OpenCV 的 Lena 样例，转换为 640 × 360 NV21，不是实时摄像头。</li>
+<li><strong>接入真实摄像头：</strong>修复下节两个配置点，读取传感器初始化、VPSS 和 NPU 状态，并检查真实 LCD 画面。</li>
+<li><strong>验证重启：</strong>保留摄像头连接重启，确认通道选通、进程、视频帧和 NPU 计数恢复；用户最终确认“可以了”。</li>
+</ol>
+<p>旧 UI 把测试图标成 <code>OFFICIAL TEST IMAGE</code>，容易误解为海思随模型提供的测试图；准确来源是 <a href="https://github.com/opencv/opencv/blob/4.x/samples/data/lena.jpg">OpenCV 样例</a>。本页按真实来源记录，不把测试图片的识别结果当作现场摄像头结果。</p>
+<div class="callout"><p>实板当时媒体 MMZ 使用约 44 MB / 72 MB，剩余约 28 MB；Linux 可用内存观察到约 29 MB。这是短时运行快照，没有做长时间稳定性或精度基准。</p></div>
+</section>
+
+<section id="debug">
+<h2><span class="n">09 / ROOT CAUSES</span>摄像头接好了，为什么仍然没画面</h2>
+<p>用户看到的英文实际是 <code>Power off before wiring</code>，意思是“接线前断电”，属于提示文字，并不是 Flash 写入失败。它放在等待画面上很容易被当作错误，后来已从两个等待状态中移除。真实故障要看串口日志和图像计数。</p>
+<h3>问题一：旧 sys_config 模块不认识 OS04D10 名称</h3>
+<p>板上原固件的 <code>sys_config.ko</code> 不接受 <code>os04d10</code> 这个传感器名称，直接传入会得到错误时钟配置。对照实际模块与 SDK <code>sys_cfg.c</code>，它内置的 <code>sensor_xxx</code> 对应 <strong>24 MHz</strong>（配置值 <code>0x4001</code>）。</p>
+<pre><code># 现有启动脚本中，给旧 sys_config 模块选择正确时钟
+./load3516cv610_20s_debug -i -sensor0 sensor_xxx
+
+# 应用仍然使用真正的 OS04D10 驱动
+SENSOR0_TYPE=OS04D10_MIPI_4M_30FPS_10BIT</code></pre>
+<p>这只是当前旧固件的时钟兼容别名，并没有把摄像头换成“未知型号”。没有为此重编内核，也没有通过随意写寄存器规避问题。</p>
+<h3>问题二：GXA543 上电没有选通 Sensor0 的 I²C</h3>
+<p>接摄像头后日志出现 <code>I2C_WRITE error</code> / <code>os04d10_reg_init failed</code>，MIPI 没数据，VPSS 收帧为零。用户确认是背面 Sensor0，接口选对了。真正原因是 <strong>I²C 多路器 GXA543 在 0x70，控制值上电为 0x00，两路都未接通</strong>。</p>
+<div class="table"><table><thead><tr><th>检查</th><th>修复前</th><th>选通 J4 后</th></tr></thead><tbody>
+<tr><td><code>i2cget -y 0 0x70</code></td><td><code>0x00</code></td><td><code>0x01</code></td></tr>
+<tr><td>探测 OS04D10 地址 0x3c</td><td>无应答</td><td><code>3c</code> 应答</td></tr>
+<tr><td>摄像头初始化</td><td>寄存器写失败</td><td><code>24Mclk ... Init OK!</code></td></tr>
+<tr><td>视频 / NPU</td><td>无帧</td><td>VPSS 10 fps，NPU 持续执行</td></tr>
+</tbody></table></div>
+<pre><code># 单摄像头接 J4 / Sensor0 的已验证选通命令
+i2cset -y 0 0x70 0x01
+
+# 已固化到 /root/face-demo/start.sh，失败就停止启动
+i2cset -y 0 0x70 0x01 || exit 1</code></pre>
+<p>依据是本仓已有的 <code>samples/sensor/dual/patch/0004-dual-sensor-gxa543-i2c-mux.patch</code>。本次最小应用遗漏了这一步；修复后再次重启确认生效。<strong>这是软件初始化遗漏，不是用户接错。</strong>双摄需要复用原补丁的逐次通道切换方式，不能把单路设置推广为双摄全部已支持。<a href="#s-mux">补丁来源</a></p>
+<h3>最后一次重启验证摘要</h3>
+<pre><code>I2C mux: 0x01
+cv610_face: running
+os04d10 24Mclk 4M30fps(MIPI) 2LANE_720Mbps 10bit linear Init OK!
+[camera] start=00000000
+VPSS: 640 × 360 / YVU-SP420 / frame_rate 10
+NPU stream recv_cnt: 281</code></pre>
+<p class="source">提取自 <code>.docker-validation/npu-face/camera-fix-verification.log</code>。4M30fps 是传感器工作模式；当前应用从 VPSS 取出的低分辨率视频配置为 10 fps，不应混写为屏幕每秒显示 30 帧。</p>
+<h3>串口脚本也修了两类可靠性问题</h3>
+<p>串口写入需要处理部分写成功，不能假定一次 write 传完。命令完成判定也不能匹配固定的 echo 字符串：终端开启回显时可能先匹配到发出的命令。本次改成每条命令随机完成标记，由 printf 产生，并兼容 CRLF；后台命令与标记之间用换行，避免形成 <code>&amp;;</code> 语法错误。保留 <code>check_serial.py</code> 作边界检查。</p>
+</section>
+
+<section id="handoff">
+<h2><span class="n">10 / NEXT CONNECTION</span>下次接板，从这里继续</h2>
+<p>归档时板子已拔掉。以下命令是已保存的操作说明，整理本页时没有重新连接或操作硬件。</p>
+<ol>
+<li>完全断电时确认 OS04D10 排线在背面 J4 / Sensor0，卡扣闭合、触点方向正确。</li>
+<li>J17 接 5 V / 2 A，Debug USB 数据线接 Mac，打开电源。当前启动脚本应自动运行 NPU Demo。</li>
+<li>屏幕使用 Live 看实时画面；Test image 是本地测试图。喇叭可以继续不接。</li>
+<li>需要排查时，先找 Mac 上的串口节点，再以 115200 打开 Linux 控制台；设备后缀可能随连接变化。</li>
+</ol>
+<pre><code># Mac：查找串口，然后替换为实际设备名
+ls /dev/cu.usbmodem* /dev/cu.usbserial* 2&gt;/dev/null
+screen /dev/cu.usbmodem实际后缀 115200
+
+# 板端：先看进程、初始化日志与通道状态
+ps | grep cv610_face
+tail -n 40 /root/face-demo/demo.log
+i2cget -y 0 0x70
+
+# 板端：需要重新启动应用时，先让现有实例退出
+killall -TERM cv610_face
+# 确认 ps 中旧进程已退出，再执行：
+/root/face-demo/start.sh</code></pre>
+<h3>板子上留下了哪些变更</h3>
+<ul>
+<li><code>/root/face-demo/</code>：应用、启动脚本、模型、测试图、命令行 sample、两份补充动态库与日志。</li>
+<li><code>/etc/init.d/S99Desk_lamp</code>：改用 NPU Demo 自启动，设置旧模块所需的 24 MHz 别名。</li>
+<li><code>/root/face-demo/start.sh</code>：等待 NPU 设备、设置局部动态库路径、选通 J4 I²C 并运行应用。</li>
+<li><code>/root/face-demo/S99Desk_lamp.before</code>：原启动脚本备份。原 <code>/bin/samples_panel</code> 保留，已有 <code>sdk_server</code> 保留。</li>
+<li>早先的 Music 程序位于 <code>/tmp/cv610_music</code>。<strong>这块板当前 /tmp 在根文件系统上，不是可以默认断电清空的内存盘。</strong></li>
+</ul>
+<details><summary>需要恢复原出厂面板时</summary>
+<p>下面是主动恢复操作，会替换当前启动脚本并重启；保留用于将来明确需要回退时执行。</p>
+<pre><code>cp /root/face-demo/S99Desk_lamp.before /etc/init.d/S99Desk_lamp
+chmod 755 /etc/init.d/S99Desk_lamp
+sync
+reboot</code></pre>
+<p>恢复启动入口后，<code>/root/face-demo</code> 文件仍在，不会自动清理。仅停止 NPU 应用并启动旧面板不等于恢复自启动。</p>
+</details>
+<p>上传时采用临时 <code>.new</code> 文件，SHA-256 一致后再替换目标；SDK 动态库放在应用私有 <code>lib</code> 目录，尽量复用原固件现有库。没有修改 Flash 分区表或烧录启动固件。</p>
+</section>
+
+<section id="artifacts">
+<h2><span class="n">11 / REPRODUCIBILITY</span>留下的文件、证据和版本</h2>
+<p>原始工作位置是 <code>work/hi_aiot_solution_cv610_ev_board</code>。本页是一份独立可读的归档；下面的路径相对该工作仓，源码、SDK、日志没有随这篇笔记一起上传。尤其 <code>.docker-validation/</code> 已被 Git 忽略，<strong>不能把“存在本机”误认为“已经提交到远程”</strong>。</p>
+<div class="table"><table><thead><tr><th>文件 / 目录</th><th>内容与状态</th></tr></thead><tbody>
+<tr><td><code>CV610_Mac_小智AI_调研报告.md</code></td><td>SDK、平台支持、多模态 Agent 与硬件约束；包含阶段性判断及固定来源。</td></tr>
+<tr><td><code>PicoClaw_CV610_实施方案与Docker验证.md</code></td><td>Docker 与 Go 构建结果、模型 / 语音接入方案。</td></tr>
+<tr><td><code>CV610_MiniAgent_项目方案.md</code></td><td>“复制并裁剪”的最新方案，Py 小智交互借鉴与资源约束。</td></tr>
+<tr><td><code>.docker-validation/artifacts/</code></td><td>PicoClaw ARM 文件、最小 C/C++ 编译产物。</td></tr>
+<tr><td><code>.docker-validation/music-demo/</code></td><td>Music 源码、配置、构建、上传和显示检查脚本。</td></tr>
+<tr><td><code>.docker-validation/research/py-xiaozhi/</code></td><td>固定版本的源码参考，保留；与已删除的 Python 语音实验不同。</td></tr>
+<tr><td><code>.docker-validation/npu-face/face.c</code>、<code>build.sh</code>、<code>start.sh</code></td><td>当前 NPU 应用源码、Mac Docker 构建入口、板端启动入口。</td></tr>
+<tr><td><code>npu-face/serial.py</code>、<code>check_serial.py</code>、<code>deploy_*.py</code></td><td>串口与部署辅助；前缀同为 <code>.docker-validation/</code>。</td></tr>
+<tr><td><code>npu-face/sdk/</code>、<code>sdk-git/</code></td><td>实际用到的 SDK sample / 模型 / 库，以及固定提交的稀疏源码。</td></tr>
+<tr><td><code>npu-face/manifest.json</code>、<code>README.md</code></td><td>文件大小和 SHA-256；接线、操作与兼容修复说明。</td></tr>
+<tr><td><code>npu-face/probe-result.log</code>、<code>camera-fix-verification.log</code></td><td>离线 NPU 检查与真实摄像头重启验证。</td></tr>
+<tr><td><code>npu-face/screen-*.png</code></td><td>本地 LCD 检查截图；包含测试图和真实摄像头画面，本页未嵌入现场画面。</td></tr>
+<tr><td><code>experiments/mac_voice/</code> 及语音环境</td><td><span class="badge removed">已删除</span> 不再是可用运行入口。</td></tr>
+</tbody></table></div>
+<div class="table"><table><caption>本次固定版本</caption><thead><tr><th>组件</th><th>版本 / 提交</th></tr></thead><tbody>
+<tr><td>板卡应用仓基线</td><td><code>e4811a09b98ed183e2a3f721dc3f48ebbde09f05</code></td></tr>
+<tr><td>主工程文档基线</td><td><code>64056407bd667b09f452ba24812b16f823dde569</code></td></tr>
+<tr><td>Hi3516CV610 SDK</td><td><code>tag_V2.0.0_Beta</code> / <code>c477d7f616e00ce672e2665b23f7dcfa1d38d4f2</code></td></tr>
+<tr><td>实板 MPP 报告</td><td><code>HI3516CV610_MPP_V3.0.1.0 B003 Release</code>，Build Time 2026-06-23</td></tr>
+<tr><td>官方 Docker 镜像</td><td><code>wukun:docker-v1.2.0-rc2</code><br><code>sha256:2fa448d269cbe5865b1840714b0e769e03c4018671198e17316c88332901952c</code></td></tr>
+<tr><td>LVGL / libdrm</td><td><code>v9.3.0</code> / <code>2.4.124</code></td></tr>
+<tr><td>PicoClaw 构建基线</td><td><code>bbf6893ca7afad27f1d00a0f5a45982a549c6ed6</code></td></tr>
+<tr><td>Py 小智阅读基线</td><td><code>577e1c9802a899ee558e6fa4f6fed8c4c64cecee</code></td></tr>
+<tr><td>NullClaw 阅读基线</td><td><code>d8a802fd967962be5d4f819ccd0cf1592a98f39c</code>；构建说明要求 Zig 0.16.0，尚未构建。</td></tr>
+</tbody></table></div>
+<details><summary>关键产物 SHA-256</summary>
+<pre><code>cv610_face — 322,964 bytes
+4d2afd6b1ec9ba9b72c496e7be335e3c92a92842bdcd279d73dd47a0ccecc9d1
+
+det_hvf_hor.bin — 1,382,752 bytes
+f3587249c9bc2bd0f353b930206e6dc6b0fb2d56283a7e263c3630a854d25985
+
+picoclaw-linux-arm
+0961fc5523c54cc56c28279208b03fbb5715c6aa637475fd6d4c08ffcb6459bb
+
+start.sh
+243edc23fd2c0a3df75e5558676a4d0d22bd600844cfd3c0677417e8530e90bf</code></pre>
+</details>
+<p>这是一套在当前原固件上验证过的小应用组合，不是宣称所有 SDK 库可以跨版本随意混用。SDK sample、模型和厂商二进制各有自己的许可；日后整理独立代码仓应保留原许可并记录依赖，不能用一份自选许可证覆盖所有组件。</p>
+</section>
+
+<section id="next">
+<h2><span class="n">12 / WHAT REMAINS</span>后续只做真正需要的下一步</h2>
+<p>当前停在一个已验证的视觉基线，后续可按兴趣选择，不自动展开新工程：</p>
+<div class="split"><div class="box"><h3>继续玩 NPU</h3><p>基于人脸位置让眼睛跟随，检测到人再显示表情；或者明确切换到 SDK 的 YOLO 示例。若要识别身份，再单独增加特征提取与比对。</p></div><div class="box"><h3>回到最小 Agent</h3><p>先复制并裁剪一个底座，完成真实多轮文字聊天，测 Flash / RSS / 峰值；通过后再接免费语音和表情，最后考虑视觉工具。</p></div></div>
+<h3>这次值得保留的方法</h3>
+<ul>
+<li><strong>先做最小探针。</strong>验证容器执行和厂商 hello world，再拉大仓、编整机。</li>
+<li><strong>复用现成接口。</strong>硬件适配、媒体和 UI 已有实现，新增代码只连接必要部分。</li>
+<li><strong>让“成功”对应证据。</strong>编译、上板、触摸、离线推理、真实摄像头和重启，各有独立验证。</li>
+<li><strong>保留失败的真正原因。</strong>网络下载中断、缺少 file 工具、I²C 通道断开，与平台不支持是不同问题。</li>
+<li><strong>跟随用户的成本边界。</strong>不想下载语音模型就撤销，不把“开源免费”偷换成没有安装和维护成本。</li>
+</ul>
+<p class="source">未完成的项目包括：全量固件构建与烧录、身份识别、双摄、真实 LLM/VLM 对话、板端语音、长期稳定性、音频与视觉并行运行。这些都没有在本页计为已完成。</p>
+</section>
+
+<section id="sources">
+<h2>来源与证据入口</h2>
+<p>本页总结 2026-09-09 会话中已阅读的文档与源码，并结合本地实测日志。不重新把早期调研推测当作实测。优先使用固定提交；仓库首页和产品页面可能随上游更新。</p>
+<ol class="sources">
+<li id="s-hardware"><a href="https://gitcode.com/HiSpark/hi_aiot_solution_cv610_ev_board/blob/e4811a09b98ed183e2a3f721dc3f48ebbde09f05/hardware/hardware-design-guide/sunniwell-cv610-dev-board.md">Sunniwell CV610 板级硬件指南</a>：接口、屏幕、传感器、麦克风与供电。</li>
+<li id="s-chip"><a href="https://www.hisilicon.com/cn/products/smart-vision/machine-vision/hi3516cv610">海思 Hi3516CV610 产品资料</a>：CPU、NPU 与视觉能力。</li>
+<li id="s-env"><a href="https://gitcode.com/HiSpark/hi_aiot_solution/blob/64056407bd667b09f452ba24812b16f823dde569/docs/zh-CN/get-started/environment-setup/README.md">HiSpark 开发环境总览</a>；<a href="https://gitcode.com/HiSpark/hi_aiot_solution/blob/64056407bd667b09f452ba24812b16f823dde569/docs/zh-CN/get-started/environment-setup/Docker/installation-steps-linux.md">官方 Linux Docker 环境</a>；<a href="https://docs.docker.com/build/building/multi-platform/">Docker 多平台构建</a>。</li>
+<li id="s-burn"><a href="https://gitcode.com/HiSpark/hi_aiot_solution/blob/64056407bd667b09f452ba24812b16f823dde569/docs/Instruction/burning-guide.md">官方烧录指南</a>；<a href="https://gitcode.com/HiSpark/hi_aiot_solution/blob/64056407bd667b09f452ba24812b16f823dde569/docs/zh-CN/tools/BurnTool.md">BurnTool / ToolPlatform</a>；<a href="https://github.com/WCHSoftGroup/ch34xser_macos">WCH macOS 串口驱动</a>。</li>
+<li id="s-samples"><a href="https://gitcode.com/HiSpark/hi_aiot_solution_cv610_ev_board/tree/e4811a09b98ed183e2a3f721dc3f48ebbde09f05/samples">板卡 samples</a>；<a href="https://gitcode.com/HiSpark/hi_aiot_solution_cv610_ev_board/tree/e4811a09b98ed183e2a3f721dc3f48ebbde09f05/references">整机 references</a>。</li>
+<li id="s-lvgl"><a href="https://github.com/lvgl/lvgl/tree/v9.3.0/demos/music">LVGL v9.3.0 Music Demo</a>：本次新触摸演示的上游。</li>
+<li id="s-pyx-camera"><a href="https://github.com/huangjunsen0406/py-xiaozhi/blob/577e1c9802a899ee558e6fa4f6fed8c4c64cecee/src/mcp/tools/camera/vl_camera.py">Py 小智 VLCamera</a>；<a href="https://github.com/huangjunsen0406/py-xiaozhi/blob/577e1c9802a899ee558e6fa4f6fed8c4c64cecee/src/mcp/tools/camera/register.py">拍照工具注册</a>。</li>
+<li id="s-pyx-ui"><a href="https://github.com/huangjunsen0406/py-xiaozhi/blob/577e1c9802a899ee558e6fa4f6fed8c4c64cecee/src/plugins/ui_presenter.py">Py 小智 UI 消息处理</a>；<a href="https://github.com/huangjunsen0406/py-xiaozhi/blob/577e1c9802a899ee558e6fa4f6fed8c4c64cecee/src/bootstrap/session.py">会话状态</a>；<a href="https://github.com/huangjunsen0406/py-xiaozhi/blob/577e1c9802a899ee558e6fa4f6fed8c4c64cecee/pyproject.toml">依赖清单</a>。</li>
+<li id="s-zeroclaw"><a href="https://gitcode.com/HiSpark/hi_aiot_solution_cv610_ev_board/tree/e4811a09b98ed183e2a3f721dc3f48ebbde09f05/references/zeroclaw_base">板仓 ZeroClaw 基础集成</a>；<a href="https://github.com/zeroclaw-labs/zeroclaw/blob/a2988f0dfffa0c14fa56e218c7bb9f28da494da4/crates/zeroclaw-runtime/src/agent/loop_.rs">核查的上游 0.7.5 Agent 循环</a>。</li>
+<li id="s-pico"><a href="https://github.com/sipeed/picoclaw/blob/bbf6893ca7afad27f1d00a0f5a45982a549c6ed6/Makefile">PicoClaw 构建入口</a>；<a href="https://github.com/sipeed/picoclaw/blob/bbf6893ca7afad27f1d00a0f5a45982a549c6ed6/pkg/channels/pico/pico.go">Pico 会话通道</a>；<a href="https://github.com/sipeed/picoclaw/blob/bbf6893ca7afad27f1d00a0f5a45982a549c6ed6/pkg/tools/fs/load_image.go">图像工具</a>；<a href="https://github.com/sipeed/picoclaw/blob/bbf6893ca7afad27f1d00a0f5a45982a549c6ed6/pkg/tools/integration/mcp_tool.go">MCP 结果转换</a>。</li>
+<li id="s-null"><a href="https://github.com/nullclaw/nullclaw/releases/tag/v2026.5.29">NullClaw 调研时的发布物</a>；<a href="https://github.com/nullclaw/nullclaw/blob/d8a802fd967962be5d4f819ccd0cf1592a98f39c/build.zig">构建与裁剪选项</a>。</li>
+<li id="s-voice"><a href="https://github.com/SYSTRAN/faster-whisper">faster-whisper</a>；<a href="https://github.com/FunAudioLLM/SenseVoice">SenseVoice</a>；<a href="https://github.com/modelscope/FunASR">FunASR</a>；<a href="https://github.com/hexgrad/kokoro">Kokoro</a>；<a href="https://github.com/FunAudioLLM/CosyVoice">CosyVoice</a>。除 Mac 实验外未部署。</li>
+<li id="s-audio"><a href="https://gitcode.com/HiSpark/hi_aiot_solution_cv610_ev_board/tree/e4811a09b98ed183e2a3f721dc3f48ebbde09f05/samples/agent_audio_sample">音频案例与 inner / ES7210 路径</a>；<a href="https://gitcode.com/HiSpark/hi_aiot_solution_cv610_ev_board/blob/e4811a09b98ed183e2a3f721dc3f48ebbde09f05/references/offline_voice_ac_control/README.md">离线语音试用约束</a>。</li>
+<li id="s-aidetect"><a href="https://gitcode.com/HiSpark/Hi3516CV610/blob/c477d7f616e00ce672e2665b23f7dcfa1d38d4f2/docs/04API参考/SVP/智能视频处理软件V1.0开发参考/智能视频处理软件V1.0开发参考.md">SDK 智能视频处理软件 V1.0 开发参考</a>；<a href="https://gitcode.com/HiSpark/Hi3516CV610/tree/c477d7f616e00ce672e2665b23f7dcfa1d38d4f2/output/mpp/model/aidetect">实际模型目录</a>。当前文件大小与运行数据以本次 manifest / 日志为准。</li>
+<li id="s-mux"><a href="https://gitcode.com/HiSpark/hi_aiot_solution_cv610_ev_board/blob/e4811a09b98ed183e2a3f721dc3f48ebbde09f05/samples/sensor/dual/patch/0004-dual-sensor-gxa543-i2c-mux.patch">GXA543 I²C 多路器补丁</a>；<a href="https://gitcode.com/HiSpark/Hi3516CV610/blob/c477d7f616e00ce672e2665b23f7dcfa1d38d4f2/soc/drivers/interdrv/sysconfig/sys_cfg.c">sys_config 时钟配置源码</a>。</li>
+</ol>
+</section>
+</main>
+</div>
+<footer class="foot">CV610 开发会话归档 · 2026-09-09 · 单文件 HTML，无外部字体、脚本或运行依赖。<br><a href="../index.html">返回 Notes</a> · <a href="#summary">回到结论</a></footer>
+</div>
+</body>
+</html>
