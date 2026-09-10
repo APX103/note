@@ -1,0 +1,300 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="可照做的 CV610 Mac 开发教程：拉取官方 Docker 镜像、编译 ARM 程序、串口上传校验、运行触摸 Demo、更新 NPU，以及官方整机烧录与恢复的边界。"><title>CV610 · Mac 开发教程：编译、串口部署与烧录</title><style>
+:root{--bg:#f5f7fa;--paper:#fff;--ink:#1c293d;--muted:#52627a;--line:#dce3ec;--blue:#315cc5;--green:#067465;--amber:#925411;--code:#101d30}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:24px}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.85 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}a{color:var(--blue);text-underline-offset:3px}a:hover{text-decoration-thickness:2px}a:focus-visible,summary:focus-visible{outline:3px solid var(--blue);outline-offset:4px}p{margin:12px 0 18px}strong{font-weight:650}code,pre{font-family:ui-monospace,SFMono-Regular,Consolas,monospace}code{font-size:.86em;background:#edf1f7;padding:2px 5px;border-radius:4px;overflow-wrap:anywhere}pre{background:var(--code);color:#e5edf9;padding:22px;border-radius:12px;overflow:auto;font-size:13px;line-height:1.75}pre code{background:none;padding:0;font-size:inherit;overflow-wrap:normal}h1,h2,h3{line-height:1.35}h1{font-size:clamp(30px,4vw,48px);letter-spacing:-1.6px;margin:20px 0}h2{font-size:27px;letter-spacing:-.6px;margin:0 0 24px}h3{font-size:19px;margin:28px 0 12px}ul,ol{padding-left:24px}li{margin:6px 0}small,.muted{color:var(--muted)}.wrap{max-width:1260px;margin:auto;padding:0 36px}.top{padding:25px 0;font-size:14px}.top a{text-decoration:none}.hero{padding:26px 0 42px;border-bottom:1px solid var(--line)}.eyebrow{color:var(--green);font:600 12px/1.5 ui-monospace,monospace;letter-spacing:2px}.hero p{max-width:780px;font-size:18px;color:var(--muted)}.meta{display:flex;flex-wrap:wrap;gap:8px 20px;font-size:13px;color:var(--muted)}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:32px}.metric{padding:19px 20px;background:var(--paper);border:1px solid var(--line);border-radius:12px}.metric b{display:block;font-size:28px;line-height:1.4;letter-spacing:-.8px}.metric span{font-size:12px;color:var(--muted)}.layout{display:grid;grid-template-columns:205px minmax(0,1fr);gap:44px;padding:42px 0 60px}aside{position:sticky;top:24px;align-self:start}aside b{font-size:12px;color:var(--muted);letter-spacing:2px}nav{display:grid;gap:4px;margin-top:14px}nav a{font-size:13px;text-decoration:none;color:var(--muted);padding:6px 10px;border-left:2px solid var(--line)}nav a:hover{color:var(--blue);border-color:var(--blue);background:#eaf0fb}main{min-width:0}section{padding:32px;background:var(--paper);border:1px solid var(--line);border-radius:15px;margin-bottom:24px}h2 .n{font-size:13px;display:block;letter-spacing:2px;color:var(--green);margin-bottom:7px}.table{overflow-x:auto;margin:20px 0;border:1px solid var(--line);border-radius:9px}table{border-collapse:collapse;width:100%;font-size:14px;min-width:570px}th,td{padding:13px 15px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{background:#edf2f8;font-size:12px;color:#3c506b}tr:last-child td{border-bottom:0}td:first-child{font-weight:550}caption{text-align:left;padding:12px 15px;font-weight:600;background:#f8fafc}.badge{display:inline-block;padding:2px 8px;border-radius:5px;font-size:12px;white-space:nowrap;background:#e9f1fe;color:#2854a8}.ok{background:#e3f4ee;color:#075e4b}.pending{background:#fff0dc;color:#825015}.removed{background:#f0edf5;color:#64566d}.callout{padding:17px 20px;border-left:4px solid var(--green);background:#eef8f5;border-radius:0 9px 9px 0;margin:22px 0}.callout.warn{border-color:#c08631;background:#fff7e9}.callout p{margin:4px 0}.flow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:22px 0}.node{border:1px solid var(--line);border-top:3px solid var(--blue);border-radius:8px;padding:15px 12px;background:#f8faff;font-size:13px}.node b{display:block;margin-bottom:6px}.node em{font-style:normal;font-size:11px;color:var(--green);display:block}.split{display:grid;grid-template-columns:1fr 1fr;gap:16px}.box{border:1px solid var(--line);border-radius:10px;padding:18px}.box h3{margin-top:0}.timeline{list-style:none;padding:0}.timeline li{padding:0 0 19px 24px;border-left:2px solid var(--line);position:relative;margin:0}.timeline li:before{content:"";position:absolute;left:-5px;top:9px;width:8px;height:8px;background:var(--blue);border-radius:50%}.timeline b{display:block}.timeline p{font-size:14px;color:var(--muted);margin:4px 0}.source{font-size:12px;color:var(--muted)}.sources li{font-size:14px;padding-bottom:8px;overflow-wrap:anywhere}details{border:1px solid var(--line);border-radius:9px;padding:15px 18px;margin:16px 0}summary{cursor:pointer;font-weight:600}details p:last-child{margin-bottom:0}.foot{padding:4px 0 40px;color:var(--muted);font-size:13px}.skip{position:absolute;left:16px;top:-80px;background:white;padding:10px;z-index:2}.skip:focus{top:10px}
+@media(max-width:960px){.layout{grid-template-columns:1fr;gap:24px}aside{position:static}nav{grid-template-columns:repeat(3,1fr)}.wrap{padding:0 24px}h1{letter-spacing:-1px}}
+@media(max-width:600px){body{font-size:15px}.wrap{padding:0 16px}.hero{padding-top:10px}.hero p{font-size:16px}.metrics{grid-template-columns:1fr 1fr;gap:10px}.metric{padding:14px}.metric b{font-size:25px}nav{grid-template-columns:1fr 1fr}.layout{padding-top:26px}section{padding:22px 18px;border-radius:12px}h2{font-size:23px}.flow,.split{grid-template-columns:1fr 1fr}.node{font-size:12px}pre{padding:16px;font-size:12px}.meta{font-size:12px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+@media print{body{background:white;font-size:11pt}.wrap{max-width:none;padding:0}.top,aside,.skip{display:none}.hero{padding:0 0 20px}.hero p{font-size:12pt}.layout{display:block;padding:20px 0}section{border:0;padding:18px 0;margin:0;border-radius:0}h2,h3{break-after:avoid}tr,.callout,.metric,.node{break-inside:avoid}.table,pre{overflow:visible}table{min-width:0;font-size:9pt}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#edf1f7;color:#14243d}a{color:inherit}details{display:block}.foot{padding-top:20px}}
+
+.hero h1{max-width:850px}.hero .lead{max-width:820px}.metrics{grid-template-columns:repeat(3,1fr)}
+.code-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:22px 0 -10px;padding:10px 15px;background:#e8eef7;border-radius:9px 9px 0 0;font-size:12px;color:#344b69}
+.copy{font:inherit;border:1px solid #b8c8df;border-radius:5px;padding:5px 10px;background:white;color:#214a88;cursor:pointer;flex-shrink:0}.copy:focus-visible{outline:3px solid var(--blue);outline-offset:3px}
+.code-head+pre{border-top-left-radius:0;border-top-right-radius:0}.terminal{font-weight:700}.result{font-size:14px;border-left:3px solid #93b0ce;padding:5px 14px;margin:12px 0 24px;color:var(--muted)}
+.download{display:inline-block;background:#254fae;color:white;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:600}.compact li{margin-bottom:10px}nav{gap:0}nav a{padding-top:4px;padding-bottom:4px}
+@media(max-width:600px){.metrics{grid-template-columns:1fr}.metric b{font-size:23px}.code-head{font-size:11px}.flow{grid-template-columns:1fr 1fr}}
+@media print{.copy,.download{display:none}.code-head{background:#eee}details{break-inside:auto}}
+</style></head><body><a class="skip" href="#route">跳到正文</a><div class="wrap"><div class="top"><a href="../index.html">← Notes</a> / <a href="session-2026-09-09.html">会话复盘</a></div><header class="hero"><div class="eyebrow">CV610 / PRACTICAL DEVELOPMENT GUIDE</div><h1>在 Mac 上编译，<br>把程序跑到板子上。</h1><p class="lead">从拉镜像到触屏亮起：按步骤操作，知道命令在哪运行、产物放在哪、如何判断成功，以及出错后怎样恢复。</p><div class="meta"><span>整理：2026-09-10</span><span>Apple Silicon · Hi3516CV610</span><span>应用开发教程 + 固件烧录参考</span></div><div class="metrics"><div class="metric"><b>01 → 07</b><span>完成一个可交互的 Music Demo</span></div><div class="metric"><b>6.5 KiB</b><span>随页归档的构建源码与串口助手</span></div><div class="metric"><b>115200</b><span>Mac 原生串口 · 无需板端联网</span></div></div></header><div class="layout"><aside><b>按步骤操作</b><nav aria-label="教程目录"><a href="#route">00 · 先选对路线：传应用，还是刷固件</a><a href="#tools">01 · 准备工具与接线</a><a href="#docker">02 · 拉镜像，先验证容器再下载大工程</a><a href="#workspace">03 · 准备工作目录与小工具包</a><a href="#compile">04 · 先编一个最小 ARM 程序</a><a href="#serial">05 · 从 Mac 打开板子的串口</a><a href="#upload">06 · 通过串口上传，校验后执行</a><a href="#music">07 · Music 触屏 Demo 实战</a><a href="#npu">08 · 已有 NPU 工程怎么重编、更新</a><a href="#persist">09 · 持久化、开机启动与回滚</a><a href="#firmware">10 · 确实要刷整机固件时，用什么工具</a><a href="#troubleshoot">11 · 遇到问题，先看这一项</a><a href="#versions">12 · 复现版本与验收清单</a></nav></aside><main><section id="route"><h2><span class="n">00 / CV610 ON MAC</span>先选对路线：传应用，还是刷固件</h2>
+<p><strong>日常改界面、试算法，用「Docker 编译应用 + Mac 串口传文件」就够了。</strong>这条路线已经让 Music 触屏和 NPU 人脸检测在这块板上运行。先沿着第 01–07 步走；需要换内核、驱动或整套系统时，再看第 10 步。</p>
+<div class="flow"><div class="node"><em>Mac</em><b>编辑与下载</b>保存 C 源码和构建脚本</div><div class="node"><em>amd64 Linux 容器</em><b>官方 GCC 编译</b>输出 ARMv7 / musl ELF</div><div class="node"><em>Mac 原生串口</em><b>传输与校验</b>gzip → Base64 → SHA-256</div><div class="node"><em>CV610 Linux</em><b>启动与观察</b>日志、触摸、摄像头</div></div>
+<div class="table"><table><thead><tr><th>你要做的事</th><th>产物 / 工具</th><th>本次证据</th></tr></thead><tbody><tr><td>换一个应用或 Demo</td><td>ELF 程序、必要的 .so / 模型；Python 串口助手</td><td><span class="badge ok">实板通过</span> Music 与 NPU 均运行过</td></tr><tr><td>更换整套系统</td><td>U-Boot、内核、rootfs、分区 XML；官方 burn.sh + TFTP</td><td><span class="badge pending">未实测</span> 本教程单列官方流程</td></tr><tr><td>无法进入 U-Boot 的恢复</td><td>Windows ToolPlatform / BurnTool + 对应镜像</td><td><span class="badge pending">未实测</span> 需 Windows 恢复环境</td></tr></tbody></table></div>
+<div class="callout"><p><strong>本文的「部署」会写什么？</strong>上传到 <code>/root</code> 会写根文件系统所在的 Flash；上传到这块板的 <code>/run</code> 则写内存，断电消失。两者都不等于整分区烧录。本次实测 <code>/tmp</code> 也在根分区上，不能把它当 RAM 盘。</p></div>
+<p>本教程依据 2026-09-09 的成功实验整理，2026-09-10 补做了最小 C/C++ 编译复核。教程中的命令已整理为可复制的步骤；今日没有重新执行上板部署、修改开机脚本或刷写固件。先前的 <a href="session-2026-09-09.html">会话复盘</a> 保留需求、方案取舍和排障经过。</p>
+</section><section id="tools"><h2><span class="n">01 / CV610 ON MAC</span>准备工具与接线</h2><div class="table"><table><thead><tr><th>所在位置</th><th>准备什么</th><th>用途</th></tr></thead><tbody><tr><td>Mac</td><td>Docker Desktop；Terminal；Python 3；Git；curl / tar / unzip</td><td>容器负责编译，Mac 负责串口。已有工具就直接使用。</td></tr><tr><td>容器</td><td>官方 wukun 镜像内的 GCC / G++、CMake、Meson、Ninja</td><td>不用在 macOS 原生重建厂商交叉编译器。</td></tr><tr><td>板端</td><td>能启动的 Linux、root shell、base64 / gzip / sha256sum</td><td>串口助手通过已有 shell 写文件；不依赖 SSH、网络或 pyserial。</td></tr><tr><td>硬件</td><td>CV610 主板、Debug 数据线、5 V / 2 A 电源</td><td>先验证串口；Music 再接 JD9853 240×320 + Hynitron 触摸屏。</td></tr></tbody></table></div>
+<ol class="compact"><li><strong>主板 J17 接 5 V / 2 A 电源。</strong>主板 J1318 是 CH343P USB 转 Debug UART，接 Mac 的数据线。不要把扩展板自身的 Debug 口当作 CV610 主板的控制台。</li><li>这次曾在只接 Debug 时观察到板子启动；这不构成摄像头、Wi-Fi、喇叭同时工作的供电保证。教程统一按官方 J17 供电规格操作。</li><li>摄像头选 OS04D10，单摄使用主板背面 <strong>J4 / Sensor0</strong>。插拔屏幕、扩展板、摄像头排线前，断开电源和可能供电的 Debug USB。</li><li>Speaker 接 J47；主板已有麦克风。Music UI 和人脸检测都不靠喇叭运行。</li></ol>
+<p class="source">接线依据：<a href="https://gitcode.com/HiSpark/hi_aiot_solution_cv610_ev_board/blob/e4811a09b98ed183e2a3f721dc3f48ebbde09f05/hardware/hardware-design-guide/sunniwell-cv610-dev-board.md">Sunniwell 板级指南</a>。本机串口已经可用，不需要为了教程重复安装驱动；新 Mac 确实缺驱动时再参考 <a href="https://github.com/WCHSoftGroup/ch34xser_macos">WCH 官方 macOS 驱动</a>。</p>
+<div class="code-head"><span class="terminal">Mac 终端 · 先确认工具</span><button class="copy" type="button" aria-label="复制下方代码">复制</button></div><pre><code class="language-sh">docker info
+python3 --version
+git --version</code></pre>
+<div class="result">成功标志：Docker 能显示 Server 信息，Python 显示 3.x。只出现 Docker Client 或提示无法连接 daemon 时，先启动 Docker Desktop。</div>
+</section><section id="docker"><h2><span class="n">02 / CV610 ON MAC</span>拉镜像，先验证容器再下载大工程</h2>
+<p>Apple Silicon 是 ARM64，官方编译器运行在 x86 Linux，目标程序是 ARM32 Linux。这三者不同。<code>--platform linux/amd64</code> 指的是<strong>运行编译器的容器</strong>，不是让板子运行 x86 程序。</p>
+<div class="code-head"><span class="terminal">Mac 终端 · 新终端里先设置镜像变量</span><button class="copy" type="button" aria-label="复制下方代码">复制</button></div><pre><code class="language-sh">export CV610_IMAGE=&#x27;swr.cn-north-4.myhuaweicloud.com/hi_spark/wukun@sha256:2fa448d269cbe5865b1840714b0e769e03c4018671198e17316c88332901952c&#x27;
+
+# 已经缓存时，这一步只检查已有镜像
+docker pull --platform linux/amd64 &quot;$CV610_IMAGE&quot;
+
+# 只启动一个命令，不获取完整 SDK / 工程
+docker run --rm --platform linux/amd64 --network none \
+  --entrypoint /bin/sh &quot;$CV610_IMAGE&quot; -c &#x27;uname -m&#x27;</code></pre>
+<div class="result">成功标志：输出 <code>x86_64</code> 且退出码为 0。这一步失败就停下来排查 Docker；不要一边怀疑容器不兼容，一边继续下载整个工程。</div>
+<p>易读的标签是 <code>wukun:docker-v1.2.0-rc2</code>。这里固定已经实测的镜像摘要，避免同名标签以后指向不同内容。首次拉取仍需要下载约 1.14 GiB 的压缩镜像层；本机已缓存。</p>
+<div class="code-head"><span class="terminal">Mac 终端 · 看编译器版本</span><button class="copy" type="button" aria-label="复制下方代码">复制</button></div><pre><code class="language-sh">docker run --rm --platform linux/amd64 --network none \
+  --entrypoint /bin/sh &quot;$CV610_IMAGE&quot; -c &#x27;
+  /opt/toolchains/gcc-10.3-arm-musl-x86-linux-26.06.1/arm-v01c02-linux-musleabi-gcc/bin/arm-v01c02-linux-musleabi-gcc --version
+&#x27;</code></pre>
+<div class="result">本次为 GCC 10.3.0，厂商工具链版本 CS71.26.06.1，musl 1.2.3。镜像里的 <code>arm-v01c02-linux-musleabi-gcc</code> 是要使用的编译器。</div>
+<p class="source">HiSpark 的 <a href="https://gitcode.com/HiSpark/hi_aiot_solution/blob/64056407bd667b09f452ba24812b16f823dde569/docs/zh-CN/get-started/environment-setup/Docker/installation-steps-linux.md">镜像文档</a>面向 Linux 宿主机；这里的 ARM Mac 应用构建结论来自实测。Docker 支持跨架构运行，但仿真编译可能慢于原生 x86，见 <a href="https://docs.docker.com/build/building/multi-platform/">Docker 官方说明</a>。</p>
+</section><section id="workspace"><h2><span class="n">03 / CV610 ON MAC</span>准备工作目录与小工具包</h2>
+<p>本机已有板卡应用仓，直接使用原目录。新 Mac 先克隆板仓，再把 <code>CV610_WORK</code> 改成实际路径。所有 Mac 命令默认在<strong>同一个终端</strong>执行，保留前面设置的变量。</p>
+<div class="code-head"><span class="terminal">Mac 终端 · 当前机器</span><button class="copy" type="button" aria-label="复制下方代码">复制</button></div><pre><code class="language-sh">export CV610_WORK=&#x27;/Volumes/ssd/main_link/work/hi_aiot_solution_cv610_ev_board&#x27;
+cd &quot;$CV610_WORK&quot;
+mkdir -p .docker-validation</code></pre>
+<details><summary>新 Mac 没有这个目录：先克隆板卡应用仓</summary>
+<div class="code-head"><span class="terminal">Mac 终端 · 仅首次创建</span><button class="copy" type="button" aria-label="复制下方代码">复制</button></div><pre><code class="language-sh">mkdir -p &quot;$HOME/work&quot;
+cd &quot;$HOME/work&quot;
+git clone https://gitcode.com/HiSpark/hi_aiot_solution_cv610_ev_board.git
+export CV610_WORK=&quot;$HOME/work/hi_aiot_solution_cv610_ev_board&quot;
+cd &quot;$CV610_WORK&quot;
+# 固定本次实测的官方板仓版本（只在新克隆目录执行）
+git checkout --detach e4811a09b98ed183e2a3f721dc3f48ebbde09f05</code></pre>
+<p>这只是板卡应用仓。独立小程序和本文 Music 的构建路径够用；官方整机工程还需要第 10 步的主仓、多仓组件与 SDK。</p></details>
+<p><a class="download" href="mac-dev-kit.zip" download>下载配套小工具与 Music 源码 · 6.5 KiB</a></p>
+<p>包里是这次用过的 <code>sdk-probe.sh</code>、<code>serial.py</code> 和 Music 的 <code>main.c / lv_conf.h / CMakeLists.txt / build.sh</code>。串口助手只把原来写死的设备名改为读取 <code>CV610_PORT</code>；不安装 Python 包，不含 SDK、第三方源码、模型、密钥或现场日志。</p>
+<div class="code-head"><span class="terminal">Mac 终端 · 下载后检查与解压</span><button class="copy" type="button" aria-label="复制下方代码">复制</button></div><pre><code class="language-sh">cd &quot;$CV610_WORK&quot;
+# 如果浏览器保存到了别处，修改下面的 ZIP 路径
+export CV610_KIT=&quot;$HOME/Downloads/mac-dev-kit.zip&quot;
+shasum -a 256 &quot;$CV610_KIT&quot;
+unzip -n &quot;$CV610_KIT&quot; -d &quot;$CV610_WORK&quot;</code></pre>
+<div class="result">ZIP 的 SHA-256 应为 <code>ab1e41647b605198ad4006bdbaeaa628d9fae6f67aa956312c4e5bab62ddefe2</code>。<code>unzip -n</code> 保留已存在的文件，不覆盖你后来改过的 Demo。若要与本文逐字对应，用一份新工作目录。</div>
+<div class="code-head"><span class="terminal">目录关系 · 不执行</span><button class="copy" type="button" aria-label="复制下方代码">复制</button></div><pre><code class="language-text">hi_aiot_solution_cv610_ev_board/
+└── .docker-validation/
+    ├── sdk-probe.sh          # 已验证的 C / C++ 编译检查
+    ├── serial.py             # Mac 原生串口工具
+    ├── probe/                # 第 04 步生成的小程序
+    ├── music-demo/           # 已归档的 Music 适配源码
+    ├── ui-deps/              # 第 07 步获取的 LVGL / libdrm
+    └── music-build/          # 第 07 步生成的库与应用</code></pre>
+<p>本机 <code>.docker-validation</code> 已被 Git 忽略。忽略规则不会保存源码，这也是另附源码包的原因；长期维护时可再把需要的工程移入正式源码目录。</p>
+</section><section id="compile"><h2><span class="n">04 / CV610 ON MAC</span>先编一个最小 ARM 程序</h2>
+<p>先用包里的原始检查脚本，确认 C 编译、C++ 标准库链接和目标格式都正确。脚本在容器内创建两个小源码，执行官方编译器，不需要板子在线。</p>
+<div class="code-head"><span class="terminal">Mac 终端 · 输出保留在挂载目录</span><button class="copy" type="button" aria-label="复制下方代码">复制</button></div><pre><code class="language-sh">cd &quot;$CV610_WORK&quot;
+docker run --rm --platform linux/amd64 --network none \
+  --mount &quot;type=bind,src=$CV610_WORK/.docker-validation,dst=/work&quot; \
+  --entrypoint /bin/bash &quot;$CV610_IMAGE&quot; /work/sdk-probe.sh
+
+file .docker-validation/probe/probe-armv7
+shasum -a 256 .docker-validation/probe/probe-armv7</code></pre>
+<div class="result">成功标志：脚本最后输出 <code>SDK_COMPILER_PROBE_PASS</code>；<code>file</code> 显示 <code>ELF 32-bit … ARM … EABI5</code>；程序加载器为 <code>/lib/ld-musl-arm.so.1</code>。2026-09-10 再次编译通过。</div>
+<p><code>--mount</code> 把 Mac 目录映射到容器 <code>/work</code>。即使容器由 <code>--rm</code> 删除，生成的 <code>probe</code> 目录仍在 Mac 上。不能直接在 macOS 执行这个 ELF；第 06 步将它送到板端。</p>
+<details><summary>编译到底执行了什么？看最关键的 C 命令</summary>
+<div class="code-head"><span class="terminal">容器内部 · sdk-probe.sh 已自动执行，无需再抄一次</span><button class="copy" type="button" aria-label="复制下方代码">复制</button></div><pre><code class="language-sh">export PATH=/opt/toolchains/gcc-10.3-arm-musl-x86-linux-26.06.1/arm-v01c02-linux-musleabi-gcc/bin:$PATH
+arm-v01c02-linux-musleabi-gcc \
+  -march=armv7-a -mfpu=neon-vfpv4 -mfloat-abi=softfp \
+  probe.c -o probe-armv7</code></pre>
+<p>此处 <code>probe.c</code> 检查 32 位 ARM 目标并打印 <code>CV610 ARMv7 compiler probe</code>。<code>-mfloat-abi=softfp</code> 与这套厂商库匹配；不要换成随手找到的 aarch64 或 gnueabihf 工具链。</p></details>
+<p><strong>应用包不是固件包。</strong>最小 C 程序可以只传一个可执行文件；界面程序还取决于链接方式；NPU 程序另外需要匹配的动态库与模型。第 07–08 步分别说明。</p>
+</section><section id="serial"><h2><span class="n">05 / CV610 ON MAC</span>从 Mac 打开板子的串口</h2>
+<p>串口由 <strong>macOS 直接打开</strong>。本机已确认过的节点是 <code>/dev/cu.usbmodem5C842916071</code>，换电脑或换 USB 口后重新查，不要假设它永远不变。</p>
+<div class="code-head"><span class="terminal">Mac 终端 · 枚举设备</span><button class="copy" type="button" aria-label="复制下方代码">复制</button></div><pre><code class="language-sh">python3 - &lt;&lt;&#x27;PY&#x27;
+import glob
+for path in sorted(glob.glob(&#x27;/dev/cu.usb*&#x27;)):
+    print(path)
+PY
+
+# 将值改成上面实际出现的 CV610 主板 Debug 串口
+export CV610_PORT=&#x27;/dev/cu.usbmodem5C842916071&#x27;
+screen &quot;$CV610_PORT&quot; 115200</code></pre>
+<p>回车后应看到 Linux 的登录提示或 shell。若停在 <code>login:</code>，用当前固件的账号登录；不要在网页里保存密码。<code>hisilicon #</code> 一类提示可能是 U-Boot，还没有进入 Linux，不能执行本文的传文件助手。</p>
+<div class="code-head"><span class="terminal">板端 Linux shell · 在 screen 窗口中输入</span><button class="copy" type="button" aria-label="复制下方代码">复制</button></div><pre><code class="language-sh">uname -a
+cat /proc/mtd
+df -h / /run /tmp
+command -v base64 gzip sha256sum
+ls -l /lib/ld-musl-arm.so.1</code></pre>
+<div class="result">本机为 ARMv7 Linux 5.10.221+；三项传输命令和 musl 加载器应存在。约 49 MiB 是当前 Linux 可见内存，不是整块物理 DDR 容量。</div>
+<p><strong>退出 screen：按 Ctrl+A，松开，再按反斜杠 <code>\</code>，按提示确认。</strong>只按 Ctrl+A、D 是脱离会话，可能仍占着串口。上传前退出所有串口终端；可用 <code>lsof "$CV610_PORT"</code> 查看占用进程，再正常关闭对应程序。</p>
+<p class="source">Docker Desktop 的 USB 设备接入需另行处理，不能把 Linux 的 <code>--device /dev/ttyUSB0</code> 直接替换成 Mac 节点就认定可用。本路径不依赖容器 USB 透传，见 <a href="https://docs.docker.com/desktop/features/usbip/">Docker USB/IP 文档</a>。</p>
+</section><section id="upload"><h2><span class="n">06 / CV610 ON MAC</span>通过串口上传，校验后执行</h2>
+<p>先确认已退出 screen，且板端留在已登录的 Linux shell。下面的 Python 使用源码包里的 <code>Board</code>，与先前 NPU 部署复用同一套传输方法。</p>
+<div class="code-head"><span class="terminal">Mac 终端 · 先只执行一条检查命令</span><button class="copy" type="button" aria-label="复制下方代码">复制</button></div><pre><code class="language-sh">cd &quot;$CV610_WORK&quot;
+python3 .docker-validation/serial.py &#x27;uname -a&#x27;</code></pre>
+<div class="result">应看到板端内核信息及 <code>CV610_DONE_…</code> 完成标记。若超时、无 shell 或串口被占用，先修复连接，不继续上传。</div>
+<div class="code-head"><span class="terminal">Mac 终端 · 上传最小 C 程序到 RAM 并执行</span><button class="copy" type="button" aria-label="复制下方代码">复制</button></div><pre><code class="language-python">python3 - &lt;&lt;&#x27;PY&#x27;
+import sys
+sys.path.insert(0, &#x27;.docker-validation&#x27;)
+from serial import Board
+with Board() as b:
+    print(b.run(&#x27;df -k /run; mount | grep &quot; /run &quot;&#x27;))
+    b.push(&#x27;.docker-validation/probe/probe-armv7&#x27;, &#x27;/run/probe-armv7&#x27;)
+    out = b.run(&#x27;chmod 755 /run/probe-armv7 &amp;&amp; /run/probe-armv7; echo APP_RC=$?&#x27;)
+    print(out)
+    assert &#x27;CV610 ARMv7 compiler probe&#x27; in out and &#x27;APP_RC=0&#x27; in out
+PY</code></pre>
+<div class="result">运行后的预期输出：<code>CV610 ARMv7 compiler probe</code>、<code>APP_RC=0</code>。这是供读者执行的最小上板检查；本次整理只复核了它的编译，上板成功的历史证据来自后面的 Music 和 NPU。</div>
+<h3>传输工具做了哪些事</h3>
+<ol><li>Mac 把文件 gzip 压缩、转 Base64，分块写入 115200 串口；板端用已有命令解码。</li><li>先写目标文件的 <code>.new</code>，比较原始文件与板端文件的 SHA-256。</li><li>只有校验一致才重命名到目标路径；同哈希文件重传时直接跳过。程序权限和启动由后面的命令负责。</li></ol>
+<p><code>Board.run()</code> 的完成标记只说明 shell 命令执行结束，<strong>不表示命令成功</strong>；因此示例显式读取 <code>APP_RC</code>、检查应用输出。它也不会自动登录，更不是串口刷机协议。</p>
+<div class="callout warn"><p>115200、8N1 的原始上限约 11.5 kB/s，Base64 与等待还会降低速度。小程序、约 1 MiB 的 UI 可以用；几十 MiB 的 Agent 或 rootfs 不适合照搬这条传输方法。以后有网络时再用板端实际可用的 SCP / HTTP / TFTP，先确认服务和命令存在。</p></div>
+</section><section id="music"><h2><span class="n">07 / CV610 ON MAC</span>完整例子：重建并运行 Music 触屏 Demo</h2>
+<p><span class="badge ok">2026-09-09 实板通过</span> 这是你确认能手指交互的新版界面。使用 LVGL 9.3.0 官方 Music，适配 JD9853 240×320 和 Hynitron 触摸。它展示播放界面，<strong>没有实际音频解码或声音输出</strong>。</p>
+<h3>7.1 下载两个固定版本的源码</h3>
+<p>本机 <code>ui-deps/lvgl-9.3.0</code> 与 <code>ui-deps/libdrm-2.4.124</code> 已在，可跳过。新目录执行下面的下载；上游源码各自保留原许可证。</p>
+<div class="code-head"><span class="terminal">Mac 终端 · 仅缺依赖时执行</span><button class="copy" type="button" aria-label="复制下方代码">复制</button></div><pre><code class="language-sh">cd &quot;$CV610_WORK&quot;
+mkdir -p .docker-validation/ui-deps
+cd .docker-validation/ui-deps
+curl -fL --retry 3 https://github.com/lvgl/lvgl/archive/refs/tags/v9.3.0.tar.gz \
+  -o lvgl-v9.3.0.tar.gz
+curl -fL --retry 3 https://dri.freedesktop.org/libdrm/libdrm-2.4.124.tar.xz \
+  -o cv610-libdrm-2.4.124.tar.xz
+shasum -a 256 lvgl-v9.3.0.tar.gz cv610-libdrm-2.4.124.tar.xz</code></pre>
+<details><summary>本次使用的下载包摘要 · 比较一致后再解压</summary>
+<div class="code-head"><span class="terminal">参考值 · 不执行</span><button class="copy" type="button" aria-label="复制下方代码">复制</button></div><pre><code class="language-text">4933becfd3603b29158a5d04138139582836ef2bc17beb6c39dccda9cb0d32e7  lvgl-v9.3.0.tar.gz
+ac36293f61ca4aafaf4b16a2a7afff312aa4f5c37c9fbd797de9e3c0863ca379  cv610-libdrm-2.4.124.tar.xz</code></pre>
+<p>摘要不同先检查是否下载到 HTML 错误页、版本或上游归档是否变化，不能直接把错误页面交给 tar。</p></details>
+<div class="code-head"><span class="terminal">Mac 终端 · 解压和编译</span><button class="copy" type="button" aria-label="复制下方代码">复制</button></div><pre><code class="language-sh">cd &quot;$CV610_WORK/.docker-validation/ui-deps&quot;
+tar -xzf lvgl-v9.3.0.tar.gz
+tar -xJf cv610-libdrm-2.4.124.tar.xz
+cd &quot;$CV610_WORK&quot;
+
+docker run --rm --platform linux/amd64 --network none \
+  --mount &quot;type=bind,src=$CV610_WORK,dst=/work&quot; \
+  --entrypoint /bin/sh &quot;$CV610_IMAGE&quot; \
+  /work/.docker-validation/music-demo/build.sh
+
+file .docker-validation/music-build/app/cv610_music
+shasum -a 256 .docker-validation/music-build/app/cv610_music</code></pre>
+<div class="result">产物是 <code>.docker-validation/music-build/app/cv610_music</code>，不是固件镜像。LVGL 和 libdrm 已静态链接，运行时使用板载 musl。构建脚本另生成 <code>music-build/cv610_music.gz</code>，但下面的助手自动压缩，直接传 ELF 即可。</div>
+<p>构建脚本先用 Meson/Ninja 构建 ARM 静态 libdrm，再用 CMake/Ninja 构建 LVGL 与应用；源码包已经包含这些参数，不需要重复手抄整套编译命令。</p>
+<h3>7.2 传到板上并切换界面</h3>
+<p>先通过串口确认 <code>/dev/dri/card0</code>、<code>/dev/input/event0</code> 存在，原系统已加载屏幕和触摸驱动。脚本停止本会话已知的三个界面进程，保留媒体 SDK 服务；新固件应先核对实际应用名。一个 DRM 屏幕只让一个界面应用占用。</p>
+<div class="code-head"><span class="terminal">Mac 终端 · 上板试运行，会临时替换当前屏幕界面</span><button class="copy" type="button" aria-label="复制下方代码">复制</button></div><pre><code class="language-python">cd &quot;$CV610_WORK&quot;
+python3 - &lt;&lt;&#x27;PY&#x27;
+import sys
+sys.path.insert(0, &#x27;.docker-validation&#x27;)
+from serial import Board
+with Board() as b:
+    print(b.run(&#x27;ls -l /dev/dri/card0 /dev/input/event0; df -k /run&#x27;))
+    b.push(&#x27;.docker-validation/music-build/app/cv610_music&#x27;, &#x27;/run/cv610_music&#x27;)
+    print(b.run(&#x27;chmod 755 /run/cv610_music&#x27;))
+    print(b.run(&#x27;killall -TERM samples_panel cv610_music cv610_face 2&gt;/dev/null || true&#x27;))
+    b.read(1)
+    print(b.run(&#x27;setsid /run/cv610_music &lt;/dev/null &gt;/run/cv610-music.log 2&gt;&amp;1 &amp;&#x27;))
+    b.read(3)
+    out = b.run(&#x27;cat /run/cv610-music.log; ps | grep &quot;[c]v610_music&quot;&#x27;)
+    print(out)
+    assert &#x27;[display] 240x320&#x27; in out and &#x27;[music] ready&#x27; in out
+PY</code></pre>
+<div class="result">成功标志：日志显示 <code>[display] 240x320</code>、<code>[music] ready</code>；点屏幕后出现 <code>[touch] pressed …</code>。左右滑专辑封面切歌，上滑进入控制页，再上滑进入曲目列表。</div>
+<p>原实验将程序放在 <code>/tmp/cv610_music</code>；教程改用已确认是 tmpfs 的 <code>/run</code> 做临时试运行，避免把测试文件写进紧张的根分区。<strong>这次整理没有重新上板执行这个路径调整。</strong></p>
+<h3>7.3 退出与恢复</h3>
+<div class="code-head"><span class="terminal">板端 Linux shell · 回到本会话已安装的 NPU 界面</span><button class="copy" type="button" aria-label="复制下方代码">复制</button></div><pre><code class="language-sh">killall -TERM cv610_music 2&gt;/dev/null
+setsid /root/face-demo/start.sh &lt;/dev/null &gt;/root/face-demo/launcher.log 2&gt;&amp;1 &amp;</code></pre>
+<p>如果是尚未安装 NPU 的原厂固件，停止 Music 后启动 <code>/bin/samples_panel &amp;</code>。临时测试没有改开机脚本，重启会回到<strong>当时已经配置的</strong>开机应用；当前这块板是 NPU，不会凭空恢复为最初原厂面板。</p>
+<p class="source">界面来源：<a href="https://github.com/lvgl/lvgl/tree/v9.3.0/demos/music">LVGL v9.3.0 Music</a>；图形接口依赖：<a href="https://dri.freedesktop.org/libdrm/">libdrm 发布目录</a>。本地原始验证日志记录了 240×320 显示、触摸事件，用户确认可交互。</p>
+</section><section id="npu"><h2><span class="n">08 / CV610 ON MAC</span>已有 NPU 工程怎么重编、更新</h2>
+<p><span class="badge ok">2026-09-09 实板通过</span> 这一节针对<strong>当前 Mac 保留的 NPU 工作目录和已经部署的板子</strong>。小工具包只附 Music，不包含 NPU 的 SDK、检测模型、测试图或本地源码；从零恢复 NPU 工程不能只下载本页附件。</p>
+<div class="table"><table><thead><tr><th>本机位置（相对板仓）</th><th>作用</th></tr></thead><tbody><tr><td><code>.docker-validation/npu-face/face.c</code></td><td>240×320 界面、摄像头预览、NPU 检测画框</td></tr><tr><td><code>npu-face/build.sh</code>（前缀同上）</td><td>链接官方媒体、AiDetect 库及 Music 已生成的 LVGL / DRM</td></tr><tr><td><code>npu-face/sdk-git</code>、<code>npu-face/sdk</code></td><td>固定 SDK 的头文件、sample、动态库、模型；不在 Note 附件里</td></tr><tr><td><code>npu-face/start.sh</code></td><td>板端应用启动与 J4 I²C 通道选通</td></tr></tbody></table></div>
+<p>本次 SDK 为 <code>HiSpark/Hi3516CV610</code> 的 <code>tag_V2.0.0_Beta</code>，提交 <code>c477d7f616e00ce672e2665b23f7dcfa1d38d4f2</code>。模型为 <code>det_hvf_hor.bin</code>，用 AiDetect API 做人脸 / 人体 / 车辆检测；不是人脸身份比对，也没有证据将其命名为某个 YOLO 版本。</p>
+<div class="code-head"><span class="terminal">Mac 终端 · 当前本地工程重编</span><button class="copy" type="button" aria-label="复制下方代码">复制</button></div><pre><code class="language-sh">cd &quot;$CV610_WORK&quot;
+test -f .docker-validation/npu-face/face.c
+test -f .docker-validation/music-build/app/lvgl/lib/liblvgl.a
+test -d .docker-validation/npu-face/sdk/soc/libs/musl
+
+docker run --rm --platform linux/amd64 --network none \
+  --mount &quot;type=bind,src=$CV610_WORK,dst=/work&quot; \
+  --entrypoint /bin/sh &quot;$CV610_IMAGE&quot; \
+  /work/.docker-validation/npu-face/build.sh
+
+file .docker-validation/npu-face/build/cv610_face</code></pre>
+<p>构建同时生成命令行检查程序 <code>sample_aidetect</code> 和 UI 程序 <code>cv610_face</code>。本次 UI 为 322,964 bytes，模型 1,382,752 bytes；新版编译后大小可能变化，以实际文件为准。</p>
+<div class="table"><table><thead><tr><th>板端路径</th><th>更新原则</th></tr></thead><tbody><tr><td><code>/root/face-demo/cv610_face</code></td><td>改 UI / 应用时只更新这个文件，并保留旧版本</td></tr><tr><td><code>/root/face-demo/lib/</code></td><td>本次只补 libss_mpi_aidetect.so 和 libaiservice_comm.so；不要覆盖系统 /lib</td></tr><tr><td><code>/root/face-demo/det_hvf_hor.bin</code></td><td>已验证的检测模型；重编 UI 不需要每次重传</td></tr><tr><td><code>/root/face-demo/start.sh</code></td><td>设置私有 LD_LIBRARY_PATH、选通 I²C、启动应用并记录日志</td></tr></tbody></table></div>
+<div class="code-head"><span class="terminal">Mac 终端 · 只更新当前已部署的 NPU 可执行文件</span><button class="copy" type="button" aria-label="复制下方代码">复制</button></div><pre><code class="language-python">python3 - &lt;&lt;&#x27;PY&#x27;
+import sys
+sys.path.insert(0, &#x27;.docker-validation&#x27;)
+from serial import Board
+with Board() as b:
+    print(b.run(&#x27;df -k /root; ls -l /root/face-demo/cv610_face&#x27;))
+    # 先确认余量足够同时容纳旧文件、备份与 .new，再继续
+    out = b.run(&#x27;cp /root/face-demo/cv610_face /root/face-demo/cv610_face.previous; echo BACKUP_RC=$?&#x27;)
+    print(out)
+    assert &#x27;BACKUP_RC=0&#x27; in out
+    b.push(&#x27;.docker-validation/npu-face/build/cv610_face&#x27;, &#x27;/root/face-demo/cv610_face&#x27;)
+    print(b.run(&#x27;chmod 755 /root/face-demo/cv610_face&#x27;))
+    out = b.run(&#x27;LD_LIBRARY_PATH=/root/face-demo/lib /root/face-demo/cv610_face --check&#x27;)
+    print(out)
+    assert &#x27;rectangle clipping check passed&#x27; in out
+    print(b.run(&#x27;killall -TERM cv610_face samples_panel cv610_music 2&gt;/dev/null || true&#x27;))
+    b.read(1)
+    print(b.run(&#x27;setsid /root/face-demo/start.sh &lt;/dev/null &gt;/root/face-demo/launcher.log 2&gt;&amp;1 &amp;&#x27;))
+    b.read(3)
+    print(b.run(&#x27;tail -30 /root/face-demo/demo.log&#x27;))
+PY</code></pre>
+<p><strong>不能只凭 <code>--check</code> 通过就宣布 NPU 正常。</strong>它检查矩形裁剪；还要点击 Test image 检查模型推理，点击 Live 确认真实摄像头画面，并观察 <code>/proc/umap/svp_npu</code> 的中断和错误计数。</p>
+<details><summary>这块原固件的两个摄像头兼容点</summary><p>旧版 <code>sys_config.ko</code> 不识别 <code>os04d10</code> 名称。已核对该版本里的 <code>sensor_xxx</code> 对应 24 MHz，所以原开机驱动参数改为 <code>-sensor0 sensor_xxx</code>；应用仍选择真正的 OS04D10。这只适用于本次核对过的旧固件，不能作为任意 SDK 的通用传感器配置。</p><p>GXA543 I²C 复用器上电默认关闭；J4 需要 <code>i2cset -y 0 0x70 0x01</code>，已写在 <code>start.sh</code>。选通后摄像头在 <code>0x3c</code> 应答。J6 / 双摄不能直接沿用这一单通道配置。</p><p>「Power off before wiring」是应用中的断电接线提示，不是烧写工具报错。原问题最终定位到时钟与 I²C 选通；修复后有真实预览和持续推理。</p></details>
+<p class="source">来源：<a href="https://gitcode.com/HiSpark/Hi3516CV610/tree/c477d7f616e00ce672e2665b23f7dcfa1d38d4f2/samples/mpp/svp/ai_component">官方 AI sample</a>、<a href="https://gitcode.com/HiSpark/hi_aiot_solution_cv610_ev_board/blob/e4811a09b98ed183e2a3f721dc3f48ebbde09f05/samples/sensor/dual/patch/0004-dual-sensor-gxa543-i2c-mux.patch">双摄 I²C mux 补丁</a>，以及前一篇<a href="session-2026-09-09.html#debug">实板排障记录</a>。</p>
+</section><section id="persist"><h2><span class="n">09 / CV610 ON MAC</span>持久化、开机启动与回滚</h2>
+<p>先在 <code>/run</code> 测试；决定保留后，再放到 <code>/root/你的应用目录</code>。本次原固件的根分区只有 48 MiB，UBIFS 可用容量更小，9 月 10 日检查时剩余约 2.6 MiB。<strong>Flash 芯片总共 256 MiB，不表示根目录有 256 MiB 可用。</strong></p>
+<div class="code-head"><span class="terminal">板端 Linux shell · 先查空间与启动入口</span><button class="copy" type="button" aria-label="复制下方代码">复制</button></div><pre><code class="language-sh">df -h / /run /tmp
+cat /proc/mtd
+ls -l /etc/init.d/S99Desk_lamp
+ps</code></pre>
+<p>当前 <code>S99Desk_lamp</code> 负责原系统驱动 / 媒体服务和应用启动。做自启时，先备份，再修改它原有的应用启动位置，保留必要的驱动加载顺序；不要另加一个同时争抢屏幕的开机进程。本文不附整个原文件，因为其中含设备默认凭据。</p>
+<div class="code-head"><span class="terminal">板端 Linux shell · 修改之前的备份动作</span><button class="copy" type="button" aria-label="复制下方代码">复制</button></div><pre><code class="language-sh"># 这份备份记录“现在”的开机配置；首次执行，不覆盖已有备份
+test -e /root/S99Desk_lamp.before-tutorial || \
+  cp /etc/init.d/S99Desk_lamp /root/S99Desk_lamp.before-tutorial
+# 按当前启动逻辑只修改应用行；修改后检查脚本语法
+sh -n /etc/init.d/S99Desk_lamp
+sync</code></pre>
+<p>让程序脱离串口终端，使用 <code>setsid … &lt;/dev/null &gt;日志 2&gt;&amp;1 &amp;</code>；生产启动脚本应遵循现有系统服务方式。先手动运行成功，再修改自启，最后重启验证。日志长期放 Flash 会占空间，临时测试优先 <code>/run</code>。</p>
+<div class="code-head"><span class="terminal">板端 Linux shell · NPU 应用更新失败时回滚</span><button class="copy" type="button" aria-label="复制下方代码">复制</button></div><pre><code class="language-sh">killall -TERM cv610_face 2&gt;/dev/null
+test -f /root/face-demo/cv610_face.previous &amp;&amp; \
+  cp /root/face-demo/cv610_face.previous /root/face-demo/cv610_face &amp;&amp; \
+  chmod 755 /root/face-demo/cv610_face
+setsid /root/face-demo/start.sh &lt;/dev/null &gt;/root/face-demo/launcher.log 2&gt;&amp;1 &amp;</code></pre>
+<details><summary>只有想恢复“最初原厂界面”时，才用这份旧备份</summary>
+<div class="code-head"><span class="terminal">板端 Linux shell · 会取消当前 NPU 开机启动</span><button class="copy" type="button" aria-label="复制下方代码">复制</button></div><pre><code class="language-sh">test -f /root/face-demo/S99Desk_lamp.before &amp;&amp; \
+  cp /root/face-demo/S99Desk_lamp.before /etc/init.d/S99Desk_lamp &amp;&amp; \
+  chmod 755 /etc/init.d/S99Desk_lamp &amp;&amp; sync &amp;&amp; reboot</code></pre>
+<p><code>/root/face-demo/S99Desk_lamp.before</code> 是 9 月 9 日安装 NPU 前保留的原厂脚本；与本节的 <code>before-tutorial</code> 不是同一恢复点。</p></details>
+</section><section id="firmware"><h2><span class="n">10 / CV610 ON MAC</span>确实要刷整机固件时，用什么工具</h2>
+<div class="callout warn"><p><strong>以下是官方流程整理，未在这台 Mac 上完成整机烧录。</strong>本教程没有把应用部署经验扩大为「Mac 已验证任意固件刷机」。如果只是改应用，到第 09 步就结束。</p></div>
+<h3>10.1 先获得完整主工程与匹配的配置</h3>
+<p>当前板仓在完整工程里对应 <code>apps/cv610_ev_board</code>；编译入口 <code>scripts/build.sh</code> 位于主仓。官方用 <code>repo</code> 管理多仓；按官方下载指南选择 CV610 清单与 Linux 组件，并在 Linux 文件系统工作区内同步。不要只下载本板仓后就尝试执行一个不存在的主仓构建脚本。</p>
+<div class="code-head"><span class="terminal">Linux 构建环境 · 官方默认多仓获取示例，非本文已完成步骤</span><button class="copy" type="button" aria-label="复制下方代码">复制</button></div><pre><code class="language-sh">mkdir -p hi_project
+cd hi_project
+repo init -u https://gitcode.com/HiSpark/hi_aiot_solution_manifest -b main
+repo sync
+cd hi_aiot_solution
+repo manifest -r -o manifest.lock.xml</code></pre>
+<p>这是官方默认清单写法，获取范围可能很大。只做 CV610 时先查看 <a href="https://gitcode.com/HiSpark/hi_aiot_solution_manifest/blob/main/chipsets/hi3516cv610/boards/ev_board.xml">板卡清单</a>及其下载说明再收窄；不在本教程里声称已经重新同步成功。之前完整主仓下载曾因 <code>curl 18 / early EOF</code> 中断。</p>
+<div class="code-head"><span class="terminal">Linux 构建环境 · 完整主仓根目录</span><button class="copy" type="button" aria-label="复制下方代码">复制</button></div><pre><code class="language-sh">bash scripts/build.sh build --target cv610_ev_board \
+  references factory_demo/ws73_lcd</code></pre>
+<p>这个例子对应 WS73 + JD9853 / Hynitron + OS04D10 的综合 Demo。该案例 <code>app.defconfig</code> 已有 <code>CONFIG_BUILD_INSTALL=y</code>。以构建成功日志实际输出为准，当前板仓 README 指向 <code>_build/install/image/factory_demo/</code>。</p>
+<div class="table"><table><thead><tr><th>应配套保存的产物</th><th>作用</th></tr></thead><tbody><tr><td><code>nand_burn_table.xml</code></td><td>这块 NAND 板的分区地址、长度及镜像清单</td></tr><tr><td><code>boot_image.bin</code></td><td>U-Boot；文件名以生成的 XML 为准</td></tr><tr><td><code>uImage</code></td><td>内核</td></tr><tr><td><code>nand_env.bin</code></td><td>与本镜像匹配的启动参数和分区配置</td></tr><tr><td><code>rootfs_*</code></td><td>根文件系统镜像，格式和文件名以 XML 为准</td></tr></tbody></table></div>
+<p>镜像与分区表是一个整体。本板旧 rootfs 分区为 48 MiB；当前 WS73 Demo 配置为 198 MiB。不能把新 rootfs 单独套进旧分区，也不能把这组容量当作所有 CV610 的通用刷写地址。</p>
+<h3>10.2 U-Boot 正常：官方 burn.sh，串口控制 + TFTP 传镜像</h3>
+<p><strong>使用有真实串口和可达网络的 Linux / WSL2 环境。</strong>准备稳定电源、主板 Debug 串口、主板网口到同网段网络；本教程按有线链路准备 TFTP，不把 Linux 下的 Wi-Fi 驱动当作 U-Boot 已支持的网络能力。配置 <code>tools/burn/config.ini</code> 中的实际串口设备。</p>
+<div class="code-head"><span class="terminal">Linux / WSL2 官方烧录环境 · 非 Mac 原生终端</span><button class="copy" type="button" aria-label="复制下方代码">复制</button></div><pre><code class="language-sh"># 在完整主仓根目录，路径按本次构建日志核对
+bash tools/burn/check_config.sh _build/install/image/factory_demo
+
+# 预检成功、供电/串口/网络与镜像均确认后，才开始实际烧录
+bash tools/burn/burn.sh</code></pre>
+<ol><li>输入板子能访问的 TFTP 主机 IP。</li><li>输入同网段的板端 IP；这是烧录时给 U-Boot 配的地址，不要求原 Linux 已联网。</li><li>输入包含分区 XML 与全部镜像的目录。</li><li>脚本通过串口进入 U-Boot，配置网络，再逐分区下载和写入。写入期间保持供电，等完成并重启。</li></ol>
+<div class="result">官方预检成功标志是退出码 0；烧录成功标志包含 <code>AutoBurn 完成</code>。随后用串口检查 <code>uname -a</code> 和目标 Demo。不要仅凭进度条走完判断应用功能通过。</div>
+<p>官方 Linux Docker 启动示例需要串口设备映射和 TFTP 网络配置。Mac Docker USB、UDP 可达性是另外的验证工作，本会话没有执行。按当前偏好，真要走这步时用 x86 Linux 或 Windows + WSL2，不继续自建工具链绕路。</p>
+<h3>10.3 U-Boot 不可用：Windows ToolPlatform / BurnTool</h3>
+<ol><li>准备 Windows PC 和匹配的串口驱动，将完整镜像目录拷到 Windows。</li><li>解压 SDK 附带的 <code>tools/ToolPlatform/ToolPlatform-CAM-5.7.14-win32-x86_64.zip</code>，运行 <code>ToolPlatform.exe</code>。</li><li>选择 Hi3516CV610、正确 COM 口、115200，加载该构建配套的 NAND 分区 XML。</li><li>按工具提示进入烧写状态并断电 / 上电，写入完成前不要断电；完成后查看串口启动日志。</li></ol>
+<p>BurnTool 通过芯片 ROM Boot 通信，不依赖已有 U-Boot；普通 Python shell 文件上传助手做不到这一点。没有验证过 Wine、Windows ARM 虚拟机或其他 Mac 替代运行方式。</p>
+<p class="source">本节依据固定版本的 <a href="https://gitcode.com/HiSpark/hi_aiot_solution/blob/64056407bd667b09f452ba24812b16f823dde569/docs/zh-CN/get-started/quick-start/build-documentation.md">官方构建文档</a>、<a href="https://gitcode.com/HiSpark/hi_aiot_solution/blob/64056407bd667b09f452ba24812b16f823dde569/docs/Instruction/burning-guide.md">烧录指南</a>、<a href="https://gitcode.com/HiSpark/hi_aiot_solution/blob/64056407bd667b09f452ba24812b16f823dde569/docs/zh-CN/tools/BurnTool.md">ToolPlatform 操作指南</a>，以及 <a href="https://gitcode.com/HiSpark/hi_aiot_solution_cv610_ev_board/blob/e4811a09b98ed183e2a3f721dc3f48ebbde09f05/references/factory_demo/ws73_lcd/README.md">WS73 案例 README</a>。原始脚本参数已核对；整机执行尚未验证。</p>
+</section><section id="troubleshoot"><h2><span class="n">11 / CV610 ON MAC</span>遇到问题，先看这一项</h2><div class="table"><table><thead><tr><th>现象</th><th>先查什么</th><th>处理方向</th></tr></thead><tbody><tr><td>Docker 只显示 Client / daemon 未连接</td><td>Docker Desktop 是否启动</td><td>先让 docker info 成功，再拉镜像或构建。</td></tr><tr><td>exec format error</td><td>容器平台与 ELF 架构</td><td>容器用 linux/amd64；板端产物必须是 ARM32，不能是 Mach-O / x86_64 / AArch64。</td></tr><tr><td>编译成功，但末尾退出 127</td><td>最后失败的是哪个命令</td><td>可能只是容器缺 file；本次 Go 构建就遇到过。用 Mac 的 file 检查，不能直接判为编译失败。</td></tr><tr><td>Mac 上没有 cu.usb* 节点</td><td>数据线、主板 Debug 口、设备枚举、供电</td><td>先排除充电线和接错扩展板串口，再按需要看 WCH 驱动。</td></tr><tr><td>串口乱码 / 上传超时</td><td>115200、独占串口、Linux 已登录</td><td>退出 screen 会话；不能向登录界面或 U-Boot 提示符发送 shell 文件传输。</td></tr><tr><td>文件存在却报 not found</td><td>ELF 指定的加载器与所需 .so</td><td>检查 /lib/ld-musl-arm.so.1、ABI、readelf 的 NEEDED；不要直接覆盖系统 libc。</td></tr><tr><td>SHA-256 不一致</td><td>串口丢字节、被其他进程占用、存储空间</td><td>不启动 .new 文件；恢复连接并重传。</td></tr><tr><td>No space left on device</td><td>df -h / /run 与 cat /proc/mtd</td><td>/run 用内存；本机 /tmp 用根分区。不要把 256 MiB Flash 总容量当作 rootfs 余量。</td></tr><tr><td>屏幕黑 / DRM 失败</td><td>现有界面进程、card0、屏幕驱动</td><td>先停原 UI，只保留一个显示进程；别把媒体服务顺手全杀。</td></tr><tr><td>Music 没声音</td><td>它是 UI Demo</td><td>没有接音频解码；不是 Speaker 坏了。</td></tr><tr><td>Live 没画面</td><td>OS04D10 接 J4、24 MHz 时钟、I²C mux</td><td>仅对当前旧固件按第 08 步兼容记录排查；先断电再调整排线。</td></tr><tr><td>WS73 搜不到 5 GHz 热点</td><td>热点频段</td><td>当前方案需 2.4 GHz；可改用合适热点或网线。本次 ZeroClaw 试聊因此暂停，未证明聊天可用。</td></tr><tr><td>烧录脚本打不开串口 / TFTP 超时</td><td>Linux 设备映射与板端能到达的服务器地址</td><td>与编译是两回事；按官方 x86 Linux / WSL2 路线准备，不把 Mac 容器地址直接当 LAN 地址。</td></tr></tbody></table></div>
+<p>硬件环境发生变化时重新确认设备节点、屏幕分辨率、Flash 类型与分区、摄像头型号。固定版本和已有日志能帮助排查，不能代替实际检查。</p>
+</section><section id="versions"><h2><span class="n">12 / CV610 ON MAC</span>复现版本与验收清单</h2><div class="table"><table><thead><tr><th>项目</th><th>本次固定值 / 证据</th></tr></thead><tbody><tr><td>板仓</td><td><code>e4811a09b98ed183e2a3f721dc3f48ebbde09f05</code></td></tr><tr><td>Docker</td><td><code>wukun:docker-v1.2.0-rc2</code>，摘要见第 02 步</td></tr><tr><td>工具链</td><td>GCC 10.3.0 / <code>arm-v01c02-linux-musleabi-</code> / softfp</td></tr><tr><td>图形依赖</td><td>LVGL 9.3.0；libdrm 2.4.124</td></tr><tr><td>NPU SDK</td><td><code>tag_V2.0.0_Beta</code> / <code>c477d7f616e00ce672e2665b23f7dcfa1d38d4f2</code></td></tr><tr><td>主工程文档基线</td><td><code>64056407bd667b09f452ba24812b16f823dde569</code></td></tr><tr><td>成功的实板结果</td><td>Music 240×320 + 触摸；OS04D10 Live + NPU；原始记录见会话复盘</td></tr><tr><td>本次教程复核</td><td>原最小 C/C++ 构建通过；ZIP 与命令静态检查；浏览器排版与导航检查</td></tr></tbody></table></div>
+<ol class="compact"><li>镜像能运行：输出 <code>x86_64</code>。</li><li>编译器能生成 ARM32 / musl ELF，脚本退出成功。</li><li>串口能进入板端 Linux，上传文件的哈希一致。</li><li>目标程序返回正确结果；有 UI 的还要亲手点、滑并看日志。</li><li>关闭串口后程序行为符合预期，停止和回滚命令可用。</li><li>只有需要自启时才修改开机脚本，并单独重启验收。</li></ol>
+<p>这页用于照着操作；<a href="session-2026-09-09.html">上一页会话复盘</a>用于查我们为什么这样选、试过什么、放弃了什么。模型 Key、Wi-Fi 密码和带凭据的原始启动脚本都不属于教程内容。</p>
+</section></main></div><footer class="foot">CV610 / Mac 开发教程 · 2026-09-10 · <a href="../index.html">返回 Notes</a> · <a href="mac-dev-kit.zip" download>配套源码包</a></footer></div><script>
+document.querySelectorAll('.copy').forEach(button=>button.addEventListener('click',async()=>{
+ const code=button.parentElement.nextElementSibling.querySelector('code');
+ const value=code.textContent;
+ try{await navigator.clipboard.writeText(value);button.textContent='已复制';setTimeout(()=>button.textContent='复制',1600);}
+ catch{const range=document.createRange();range.selectNodeContents(code);const selection=window.getSelection();selection.removeAllRanges();selection.addRange(range);button.textContent='已选中：⌘C / Ctrl+C';button.setAttribute('aria-label','代码已选中，请按 Command C 或 Control C 复制');}
+}));
+</script></body></html>
