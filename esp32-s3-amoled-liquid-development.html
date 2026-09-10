@@ -165,17 +165,21 @@ dependencies:
 <h3>从 IMU 到位移</h3>
 <div class="flow"><div><b>1 · 测量</b>QMI8658 读取加速度，单位 m/s²。</div><div><b>2 · 映射</b>轴方向、偏置、灵敏度与轻度滤波。</div><div><b>3 · 求解</b>加速度积分成速度，再更新位置与压力。</div><div><b>4 · 显示</b>粒子密度 → 连续白色液面 → RGB565 DMA。</div></div>
 <p>不把加速度向量归一化：倾角小，屏幕平面内的重力分量也小；倾角大，驱动力更明显。加速度计也会反映手持晃动产生的加速度，因此不用把“角度”直接当作移动速度。该实现没有完整刚体姿态融合或三维容器旋转动力学。</p>
-<pre><code>// 最终 IMU 映射；轴符号延续实机工作的设置。
-#define IMU_SWAP_XY 0
+<pre><code>// 当前 IMU 映射：交换屏幕平面内的两个输入轴，保留符号。
+#define IMU_SWAP_XY 1
 #define IMU_X_SIGN (-1.0f)
 #define IMU_Y_SIGN (1.0f)
 #define IMU_X_BIAS 0.0f
 #define IMU_Y_BIAS 0.0f
 #define ACCEL_GAIN 0.18f
 
+float x = IMU_SWAP_XY ? data.accelY : data.accelX;
+float y = IMU_SWAP_XY ? data.accelX : data.accelY;
+
 // 轻度滤波，保留幅值差异。
 ax += 0.45f * (IMU_X_SIGN * (x - IMU_X_BIAS) * ACCEL_GAIN - ax);
 ay += 0.45f * (IMU_Y_SIGN * (y - IMU_Y_BIAS) * ACCEL_GAIN - ay);</code></pre>
+<p>根据后续实物反馈，屏幕平面内两轴已交换：屏幕横向使用传感器 −Y，纵向使用 +X，Z 不参与计算。该版本已编译烧写；实际方向及正负号仍待倾斜实物确认，不能仅凭串口运行正常判定方向正确。</p>
 <p>读数中断超过 250 ms 时停止施加旧加速度，串口显示 <code>STALE</code>；正常为 <code>IMU=OK</code>。传感器配置参考原示例：4g 量程，250 Hz 加速度与陀螺仪采样；液体只消费加速度。</p>
 <h3>每次 FLIP 步进</h3>
 <ol><li>积分加速度、限制每轴速度、更新位置。</li><li>用空间哈希进行两轮粒子分离，再处理四壁碰撞。</li><li>标记液体网格、清理速度与权重。</li><li>粒子速度传到网格，归一化，恢复固体边界条件。</li><li>计算密度，求解不可压缩性，再把网格速度传回粒子。</li><li>对求解后的速度执行阻尼与上限，防止压力修正重新注入过大速度。</li></ol>
@@ -232,7 +236,7 @@ ay += 0.45f * (IMU_Y_SIGN * (y - IMU_Y_BIAS) * ACCEL_GAIN - ay);</code></pre>
 Settled coverage: 34.8%
 PASS: tilt, shake, damping, one-third fill, solid interior and open air</code></pre>
 <p>这里的 energy 是所有粒子的速度平方和，用于比较衰减，不是以焦耳标定的物理能量；<code>0.0000</code> 是四位小数的输出精度。</p>
-<h3>最终串口样本</h3>
+<h3>双核调优版本串口样本</h3>
 <pre><code>I (8926) liquid: fps=26.7 accel=(-0.19,0.06) heap=8542207 IMU=OK physics=13.1ms render=31.4ms
 I (15000) liquid: fps=26.7 accel=(-0.19,0.07) heap=8542207 IMU=OK physics=13.0ms render=30.5ms
 I (19050) liquid: fps=26.7 accel=(-0.20,0.06) heap=8542207 IMU=OK physics=13.0ms render=30.5ms</code></pre>
@@ -290,20 +294,29 @@ wc -c .local-tools/original-flash-20260910.bin
 <tr><td>能编译但运行不流畅</td><td>分别测量物理和绘制耗时；缓存核、减少重复运算、优化 DMA 条带，最后利用双核重叠。</td></tr>
 <tr><td>测试阈值因几何变化失效</td><td>重新检查实际位移与边界，采用相对容器尺度的断言；不把旧半屏参数写死成新需求的标准。</td></tr>
 </tbody></table></div>
+<h3>后续黑屏反馈：程序运行与面板显示分开确认</h3>
+<p>用户后来报告屏幕全黑，出现时间可能早于 XY 交换，不能据此把原因归到轴映射。读取串口时应用仍以约 26.7 FPS 运行，IMU 正常、空闲堆稳定。随后在每两秒的日志中加入 <code>white</code>：统计低分辨率画面中灰度大于 127 的像素占比，并重新编译烧写。</p>
+<pre><code>I (12975) liquid: fps=26.7 accel=(-0.07,0.20) heap=8542207 IMU=OK physics=12.9ms render=30.6ms white=36.9%
+I (15000) liquid: fps=26.7 accel=(-0.07,0.20) heap=8542207 IMU=OK physics=12.9ms render=30.6ms white=37.6%
+I (17025) liquid: fps=26.7 accel=(-0.07,0.20) heap=8542207 IMU=OK physics=12.9ms render=30.6ms white=38.5%</code></pre>
+<p>这些样本证明该观测时段内生成的画面并非全黑，且绘制调用与 DMA 等待没有报错；它们不能证明面板实际发光。更新本文时尚未收到重新烧写后的屏幕恢复确认，黑屏根因与修复均未确认，因此暂不修改面板初始化或供电配置。</p>
+<ol><li>先看启动及连续运行日志，区分没有启动、复位循环与正常运行。</li><li>检查 <code>IMU</code> 与 <code>white</code>；若白色占比为零，继续检查模拟状态和画面生成。</li><li>若白色占比正常而实物仍全黑，继续核查面板初始化、亮度、供电与显示传输；最终以实物显示反馈验证，不能把“烧写成功”当作“黑屏已修复”。</li></ol>
 <p>后续调手感建议一次只改一组参数：先调 <code>ACCEL_GAIN</code>，再调阻尼与 FLIP 比例，最后调回弹。粒子半径、压力网格和数量是相互关联的，应一起看静置覆盖率与动态体积表现。</p>
 </section>
 
 <section id="archive"><h2>12 / 文件、版本与归档</h2>
 <p>本文对应开发板仓库基线提交 <code>7ab8f957e22ea1ab811256359f4eddcaaf49ee91</code> 之上的本机 <code>liquid/</code> 工程。固件工程修改仍在开发板工作目录；此次 Note 的提交只归档本文并登记 Index，不代表把固件源代码推到了 Waveshare 上游。</p>
 <div class="table-wrap"><table><thead><tr><th>本机工件</th><th>用途</th></tr></thead><tbody>
-<tr><td><code>liquid/build/white_liquid.bin</code></td><td>最终应用，308,256 字节，约 301 KiB</td></tr>
+<tr><td><code>liquid/build/white_liquid.bin</code></td><td>当前应用（XY 交换 + 白色占比诊断），308,336 字节，约 301 KiB</td></tr>
 <tr><td><code>.local-tools/original-flash-20260910.bin</code></td><td>原机整片 Flash，16,777,216 字节</td></tr>
 <tr><td><code>.local-tools/original-flash-20260910.sha256</code></td><td>原机备份校验文件</td></tr>
 <tr><td><code>.local-tools/white-liquid-before-density-tuning.bin</code></td><td>调整粒子与阻尼前的液体应用</td></tr>
-<tr><td><code>.local-tools/liquid-density-runtime.log</code></td><td>最终双核版本运行日志</td></tr>
-<tr><td><code>.local-tools/liquid-density-flash.log</code></td><td>最终一轮构建与烧录日志</td></tr>
+<tr><td><code>.local-tools/liquid-density-runtime.log</code></td><td>双核调优版本运行日志</td></tr>
+<tr><td><code>.local-tools/liquid-density-flash.log</code></td><td>粒子与阻尼调优版本构建与烧录日志</td></tr>
+<tr><td><code>.local-tools/liquid-axis-flash.log</code></td><td>XY 交换版本烧录日志</td></tr>
+<tr><td><code>.local-tools/liquid-black-diagnostic-flash.log</code></td><td>增加白色占比诊断后的构建与烧录日志</td></tr>
 </tbody></table></div>
-<details><summary>本次工件 SHA-256</summary><p>最终应用：</p><pre class="hash"><code>b6a694ce35a56e0d220b9d4f1b1e1ac5c362c0ae63b05f486979992df7c226a0</code></pre><p>原机完整备份：</p><pre class="hash"><code>77003647d6cfd5cb4331e24cbf33c7c58a38fcecad36743b5031c220c62827a7</code></pre><p>重新构建后的二进制可能因构建元数据改变哈希；以上值标识的是本次实际生成的工件。</p></details>
+<details><summary>本次工件 SHA-256</summary><p>当前应用（XY 交换 + 白色占比诊断）：</p><pre class="hash"><code>ce410bc97c6ce4f96ddbf39e2e918ac30e6ce83a0f767f91d8920f2a782550dd</code></pre><p>原机完整备份：</p><pre class="hash"><code>77003647d6cfd5cb4331e24cbf33c7c58a38fcecad36743b5031c220c62827a7</code></pre><p>重新构建后的二进制可能因构建元数据改变哈希；以上值标识的是本次实际生成的工件。</p></details>
 <h3>Note 的发布流程</h3>
 <p>先在 <code>Work/Note</code> 执行 <code>git pull --ff-only</code> 同步远端，再写入这个独立 HTML，在根目录 <code>index.html</code> 添加相对链接卡片。检查 HTML 结构、目录锚点与 Index 目标路径后，只暂存本次两份文件，提交并推送。既有未跟踪文件不加入提交；线上构建交给原有自动化。</p>
 <h3>参考来源</h3><ul>
