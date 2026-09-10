@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="ESP32-S3 Touch AMOLED 1.8 在 Apple Silicon Mac 上从 ESP-IDF 环境安装、固件备份到 IMU 白色液体模拟、双核优化与烧录的完整实录。">
+<title>ESP32-S3 AMOLED 白色液体：开发与烧录实录</title>
+<style>
+:root{color-scheme:light;--bg:#f6f7fa;--paper:#fff;--ink:#202435;--muted:#626b80;--line:#dfe3ec;--accent:#4f46e5;--soft:#eef2ff}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:24px}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.85 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}main{max-width:1040px;margin:auto;padding:38px 28px 72px}a{color:var(--accent);text-underline-offset:3px}a:focus-visible{outline:3px solid var(--accent);outline-offset:4px}.back{font-size:14px}.eyebrow{color:var(--accent);font-weight:700;letter-spacing:.12em;font-size:12px;margin-top:30px}h1{font-size:clamp(29px,5vw,44px);line-height:1.28;letter-spacing:-.03em;margin:12px 0 18px}h2{font-size:25px;line-height:1.45;margin:0 0 22px}h3{font-size:18px;margin:25px 0 10px}p{margin:12px 0}.lead,.meta{color:var(--muted)}.meta{font-size:13px}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:30px 0}.metric{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:17px}.metric strong{display:block;font-size:26px;line-height:1.3}.metric span{font-size:12px;color:var(--muted)}nav{background:var(--soft);padding:22px 26px;border-radius:14px;margin-bottom:28px}nav ol{columns:2;column-gap:36px;margin:10px 0 0;padding-left:22px}nav li{break-inside:avoid;padding:2px 0}section{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:30px;margin:22px 0}.note{border-left:3px solid var(--accent);padding:12px 18px;background:var(--soft);margin:20px 0}.table-wrap{overflow:auto;margin:18px 0}table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;vertical-align:top;padding:12px 14px;border-bottom:1px solid var(--line)}th{background:#f4f5f9;font-weight:650}code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.88em;overflow-wrap:anywhere}p code,li code,td code{background:#f1f3f8;padding:2px 5px;border-radius:4px}pre{background:#171c2b;color:#e8ecf7;overflow:auto;border-radius:10px;padding:20px;line-height:1.65;font-size:13px;tab-size:4}pre code{font-size:inherit;overflow-wrap:normal}ul,ol{padding-left:24px}li{margin:5px 0}.flow{display:flex;flex-wrap:wrap;gap:10px;margin:20px 0}.flow div{flex:1 1 155px;padding:14px;border:1px solid var(--line);border-radius:9px;background:#f8f9fc;font-size:14px}.flow b{display:block;color:var(--accent)}.split{display:grid;grid-template-columns:1fr 220px;gap:26px;align-items:start}figure{margin:0}figure img{display:block;width:184px;max-width:100%;margin:auto;border-radius:15px;border:5px solid #252934}figcaption{font-size:12px;line-height:1.7;color:var(--muted);margin-top:12px}details{margin:16px 0}summary{cursor:pointer;color:var(--accent);font-weight:600}.hash{word-break:break-all;font-size:12px}.footer{font-size:13px;color:var(--muted);margin-top:32px}section:target{border-color:var(--accent)}
+@media(max-width:700px){main{padding:24px 16px 45px}section{padding:23px 18px}.metrics{grid-template-columns:repeat(2,1fr)}nav ol{columns:1}.split{grid-template-columns:1fr}figure{max-width:230px;margin:auto}pre{padding:14px}th,td{padding:10px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+@media print{body{background:white;font-size:11pt}main{max-width:none;padding:0}section{border:0;border-radius:0;padding:18px 0;break-inside:auto}nav,.back{display:none}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f3f4f7;color:#111}h2,h3{break-after:avoid}.metrics{break-inside:avoid}}
+</style>
+</head>
+<body>
+<main>
+<a class="back" href="index.html">← 返回 Notes</a>
+<header>
+<div class="eyebrow">EMBEDDED / ESP-IDF / DEVELOPMENT LOG</div>
+<h1>把一块 AMOLED 开发板<br>做成可以晃动的白色液体</h1>
+<p class="lead">ESP32-S3-Touch-AMOLED-1.8 · Apple Silicon Mac · 从工具链准备、固件备份到物理模拟、性能调优与实机烧录。</p>
+<p class="meta">记录日期：2026-09-10　｜　本文是一次真实开发会话的复盘；命令中的路径按实际 SSD 工程组织。</p>
+</header>
+<div class="metrics" aria-label="最终验证结果">
+<div class="metric"><strong>900</strong><span>更细的液体粒子</span></div>
+<div class="metric"><strong>34.8%</strong><span>主机静置测试的屏幕覆盖率</span></div>
+<div class="metric"><strong>26.7 FPS</strong><span>最终板上静置实测</span></div>
+<div class="metric"><strong>301 KiB</strong><span>最终应用二进制约大小</span></div>
+</div>
+<nav aria-label="文章目录"><strong>阅读导航</strong><ol>
+<li><a href="#goal">需求与最终效果</a></li><li><a href="#hardware">仓库与硬件核对</a></li>
+<li><a href="#environment">Mac 开发环境准备</a></li><li><a href="#connection">USB 连接、BOOT 与原机备份</a></li>
+<li><a href="#choice">为什么复用 FLIP</a></li><li><a href="#implementation">工程结构与实现流程</a></li>
+<li><a href="#performance">性能优化实录</a></li><li><a href="#tuning">空洞、冲击力与 1/3 液体量</a></li>
+<li><a href="#validation">主机检查与实机证据</a></li><li><a href="#flash">构建、烧录、监控与恢复</a></li>
+<li><a href="#troubleshooting">遇到的问题与排查顺序</a></li><li><a href="#archive">归档与来源</a></li>
+</ol></nav>
+
+<section id="goal"><h2>01 / 需求与最终效果</h2>
+<div class="split"><div>
+<p>设备上电后直接进入黑底白色液体画面。液体根据板子的倾斜和晃动流向不同方向；小倾角缓慢流动，大倾角加速更明显，回正后保留一段惯性再逐渐停下。</p>
+<p>最初希望约半屏发白。实机体验后，需求调整为：<strong>约 1/3 屏幕的液体、更多更小的粒子、内部无空洞、更柔和的冲击与更明显的阻尼</strong>。</p>
+<p>AMOLED 像素自行发光，没有独立背光。这里的“白色水珠”最终表现为连续白色区域，而不是把整个背景点亮。</p>
+<div class="note">物理粒子和屏幕像素不是一一对应：900 个粒子负责动力学，92×112 的密度图负责表面重建，再以 4 倍像素扩展显示到 368×448 屏幕。</div>
+</div><figure><img src="data:image/png;base64,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" width="184" height="224" alt="主机模拟静置后，下方约三分之一为连续白色液体，上方为黑色空气"><figcaption>同一算法在 Mac 主机上生成的静置画面，非实物照片。边缘保留像素感，内部连成白色液面。</figcaption></figure></div>
+</section>
+
+<section id="hardware"><h2>02 / 先读仓库，再核对实物</h2>
+<p>工作目录为 <code>/Volumes/ssd/main_link/work/ESP32-S3-Touch-AMOLED-1.8</code>。先检查 Git 状态与仓库说明，再阅读显示、IMU 和 BSP 示例。新功能放在独立的 <code>liquid/</code> 工程，保留原示例。</p>
+<div class="table-wrap"><table><thead><tr><th>项目</th><th>核对结果</th><th>依据</th></tr></thead><tbody>
+<tr><td>MCU</td><td>ESP32-S3，rev 0.2，40 MHz 晶振</td><td>esptool 实机查询</td></tr>
+<tr><td>存储</td><td>16 MB Flash、8 MB PSRAM</td><td>esptool 实机查询</td></tr>
+<tr><td>显示</td><td>368×448，1.8 英寸 AMOLED，QSPI，RGB565</td><td>仓库说明及显示示例</td></tr>
+<tr><td>运动传感器</td><td>QMI8658，加速度输出采用 m/s²</td><td>仓库 IMU 示例与运行日志</td></tr>
+<tr><td>硬件变体</td><td>原版 SH8601 / FT3168；V2 CO5300 / CST820</td><td>仓库硬件说明；本次沿用示例中的变体探测逻辑</td></tr>
+<tr><td>USB</td><td>USB Serial/JTAG；本次端口 <code>/dev/cu.usbmodem31301</code></td><td>macOS 枚举与 esptool 查询</td></tr>
+</tbody></table></div>
+<h3>复用的入口</h3>
+<ul><li><code>README_ZH.md</code>：硬件、工具链、示例布局。</li>
+<li><code>examples/esp-idf/13_display_colorbar/</code>：屏幕引脚、初始化命令、QSPI 与 RGB565 发送。</li>
+<li><code>examples/esp-idf/92_qmi8658_imu/</code>：地址探测、复位、量程、采样率和读数。</li>
+<li><code>examples/esp-idf/00_bsp_quickstart/</code>：参考 BSP、PSRAM 和 FreeRTOS 配置。</li></ul>
+<div class="table-wrap"><table><thead><tr><th>接口</th><th>本工程引脚</th></tr></thead><tbody>
+<tr><td>I²C</td><td>SDA = GPIO15，SCL = GPIO14，主总线 I2C_NUM_0</td></tr>
+<tr><td>QSPI</td><td>CS = GPIO12，时钟 = GPIO11，DATA0…3 = GPIO4…7</td></tr>
+<tr><td>显示发送</td><td>SPI2_HOST，40 MHz QSPI，16 bit RGB565</td></tr>
+</tbody></table></div>
+<p>显示初始化沿用仓库色条示例的 CO5300 组件与命令表；探测到 V2 时使用 <code>0x10</code> 水平偏移。这里记录的是本次实机成功运行的路径，不把仓库支持列表当作所有硬件变体均已独立测试的证明。</p>
+</section>
+
+<section id="environment"><h2>03 / 在 SSD 上准备 ESP-IDF</h2>
+<p>用户曾通过 VS Code 插件安装过相关工具，因此先找现有环境，而不是直接重复下载。本次检查了常见 ESP-IDF 路径、VS Code 扩展与设置、Spotlight 中的 <code>idf.py</code>。没有找到可用安装；系统 Python 为 3.9.6，但用户目录下已有可复用的 Python 3.11.16。</p>
+<p>选用仓库列出的 <strong>ESP-IDF v5.5.5</strong>。ESP-IDF 源码、工具链、Python 虚拟环境、下载缓存均放在项目的 <code>.local-tools/</code>，并加入 Git 忽略。</p>
+<pre><code>PROJECT=/Volumes/ssd/main_link/work/ESP32-S3-Touch-AMOLED-1.8
+cd "$PROJECT"
+mkdir -p .local-tools
+
+git clone --depth 1 --branch v5.5.5 \
+  --recursive --shallow-submodules \
+  https://github.com/espressif/esp-idf.git .local-tools/esp-idf
+
+# 本次复用的 Python；换机器时先确认实际 Python 3.11 路径。
+export PATH="$HOME/.local/share/uv/python/cpython-3.11.16-macos-aarch64-none/bin:$PATH"
+python3 --version
+
+export IDF_TOOLS_PATH="$PROJECT/.local-tools/espressif"
+export PIP_CACHE_DIR="$PROJECT/.local-tools/pip-cache"
+.local-tools/esp-idf/install.sh esp32s3
+
+# 补齐 IDF 指定的构建工具，避免直接依赖系统 CMake 版本。
+python3 .local-tools/esp-idf/tools/idf_tools.py install cmake ninja
+source .local-tools/esp-idf/export.sh
+idf.py --version</code></pre>
+<p>本次安装包括 Xtensa 编译器、调试器、RISC-V/ULP 相关工具、OpenOCD 与 Python 依赖。即使只选择 ESP32-S3，官方安装脚本仍会安装其判定需要的工具集。下载较大的编译器包是准备阶段的主要耗时。</p>
+<div class="table-wrap"><table><thead><tr><th>工具</th><th>本次版本</th></tr></thead><tbody>
+<tr><td>ESP-IDF</td><td>v5.5.5</td></tr><tr><td>Python</td><td>3.11.16</td></tr>
+<tr><td>Xtensa 工具链</td><td>esp-14.2.0_20260121</td></tr><tr><td>CMake / Ninja</td><td>3.30.2 / 1.12.1</td></tr>
+<tr><td>esptool</td><td>4.12.0</td></tr></tbody></table></div>
+<h3>给后续开发留一个固定入口</h3>
+<p><code>scripts/idf.sh</code> 根据脚本位置定位工程，设置 SSD 上的工具和缓存目录，激活 IDF，再转发参数。无需修改全局 shell 配置。现有脚本中的 Python 路径是本机路径，迁移机器时需要调整。</p>
+<pre><code>./scripts/idf.sh --version
+./scripts/idf.sh -C liquid build
+./scripts/idf.sh -C liquid size</code></pre>
+</section>
+
+<section id="connection"><h2>04 / USB、BOOT 与完整备份</h2>
+<p>最初扫描时还没有板子串口；用户插入后出现了 <code>/dev/cu.usbmodem31301</code>，无需按 BOOT。通过实机查询确认是 ESP32-S3、16 MB Flash 和 8 MB PSRAM。</p>
+<pre><code>ls /dev/cu.*
+ioreg -p IOUSB -w 0
+
+cd /Volumes/ssd/main_link/work/ESP32-S3-Touch-AMOLED-1.8
+PY="$PWD/.local-tools/espressif/python_env/idf5.5_py3.11_env/bin/python"
+PORT=/dev/cu.usbmodem31301
+"$PY" -m esptool --chip esp32s3 -p "$PORT" flash_id</code></pre>
+<p>BOOT 是进入下载模式的备用方法，不是“进入了错误模式”。正常先尝试自动连接与复位；自动握手失败时，再按住 BOOT 配合 RESET 进入下载模式。更换 USB 插口后应重新确认端口名，数据线需要支持数据传输。</p>
+<h3>在首次写入前读取原机 16 MB Flash</h3>
+<pre><code>"$PY" -m esptool --chip esp32s3 -p "$PORT" -b 921600 \
+  read_flash 0 0x1000000 \
+  .local-tools/original-flash-20260910.bin
+
+shasum -a 256 .local-tools/original-flash-20260910.bin
+wc -c .local-tools/original-flash-20260910.bin</code></pre>
+<p>本次实际读出 <strong>16,777,216 字节</strong>，约耗时 <strong>209.9 秒</strong>。备份以及旁边的 SHA-256 校验文件保留在 SSD，不上传到 Note。它是整片 Flash 备份，含当时应用、分区表和数据分区，不只是一个 app.bin。</p>
+<p>二次调整粒子与阻尼前，又把第一版液体应用另存为 <code>.local-tools/white-liquid-before-density-tuning.bin</code>，方便比较或回退。</p>
+</section>
+
+<section id="choice"><h2>05 / 复用现成物理核心，而不是从头做引擎</h2>
+<p>最初写过一个粒子位置约束原型。用户提出可以使用现成物理库后，转而比较已有实现：LiquidFun 提供二维刚体与液体粒子，Bullet 是通用三维物理库的例子；但本任务只需要一个二维液体容器。</p>
+<p>最终选中 <a href="https://github.com/Vateva/Esp32FluidSimulation8x8">Vateva/Esp32FluidSimulation8x8</a>：上游已经在 <strong>ESP32-S3 + QMI8658</strong> 上做了由加速度控制的 FLIP/PIC 液体，区别主要在于它使用 8×8 LED。直接移植它的物理核心，比引入完整通用引擎更贴近任务。</p>
+<p>上游固定提交为 <code>136ec526f98222504692033d1dfe92ea6c2c8fe3</code>，MIT 许可。工程保留 <code>grid.cpp</code>、<code>grid.h</code>、<code>particle.h</code>，并记录来源与许可；去掉 Arduino、LED、按键和网络等无关依赖。</p>
+<div class="note">LiquidFun 只做了候选调查，没有接入最终固件。最终的压力求解、粒子与网格速度交换来自 FLIP 核心；屏幕、IMU 适配、表面重建、阻尼和调度由本工程完成。</div>
+<p>“能否塞进 Flash”和“能否实时运行”需要分开判断。本次最终应用约 301 KiB，实际难点是帧预算、内存访问、浮点运算和整屏传输。</p>
+</section>
+
+<section id="implementation"><h2>06 / 工程结构与运行流程</h2>
+<pre><code>ESP32-S3-Touch-AMOLED-1.8/
+├── .local-tools/                 # IDF、工具、缓存、日志与本机备份；Git 忽略
+├── scripts/idf.sh                # 固定构建入口
+└── liquid/
+    ├── CMakeLists.txt
+    ├── sdkconfig.defaults
+    ├── README.md
+    ├── test_fluid.cpp            # Mac 主机数值与图像行为检查
+    └── main/
+        ├── CMakeLists.txt
+        ├── idf_component.yml
+        ├── main.c               # 屏幕、IMU、FreeRTOS 与 DMA
+        ├── fluid.h / fluid.cpp  # 模拟编排、速度控制、表面重建与快照
+        └── flip/
+            ├── grid.cpp / grid.h / particle.h
+            ├── config.h / utils.h
+            └── LICENSE / UPSTREAM.md</code></pre>
+<h3>构建依赖与板级配置</h3>
+<pre><code># liquid/main/idf_component.yml
+dependencies:
+  idf: ">=5.5,&lt;6.1"
+  espressif/esp_lcd_co5300:
+    version: "^2.1.0"
+    public: true
+  waveshare/qmi8658:
+    version: "^2.0.0"
+    public: true</code></pre>
+<p>关键 sdkconfig：目标 <code>esp32s3</code>，16 MB Flash，240 MHz CPU，性能优化，1 kHz FreeRTOS tick，USB Serial/JTAG 控制台，Octal PSRAM 80 MHz，主任务栈 8192 字节。</p>
+<h3>从 IMU 到位移</h3>
+<div class="flow"><div><b>1 · 测量</b>QMI8658 读取加速度，单位 m/s²。</div><div><b>2 · 映射</b>轴方向、偏置、灵敏度与轻度滤波。</div><div><b>3 · 求解</b>加速度积分成速度，再更新位置与压力。</div><div><b>4 · 显示</b>粒子密度 → 连续白色液面 → RGB565 DMA。</div></div>
+<p>不把加速度向量归一化：倾角小，屏幕平面内的重力分量也小；倾角大，驱动力更明显。加速度计也会反映手持晃动产生的加速度，因此不用把“角度”直接当作移动速度。该实现没有完整刚体姿态融合或三维容器旋转动力学。</p>
+<pre><code>// 最终 IMU 映射；轴符号延续实机工作的设置。
+#define IMU_SWAP_XY 0
+#define IMU_X_SIGN (-1.0f)
+#define IMU_Y_SIGN (1.0f)
+#define IMU_X_BIAS 0.0f
+#define IMU_Y_BIAS 0.0f
+#define ACCEL_GAIN 0.18f
+
+// 轻度滤波，保留幅值差异。
+ax += 0.45f * (IMU_X_SIGN * (x - IMU_X_BIAS) * ACCEL_GAIN - ax);
+ay += 0.45f * (IMU_Y_SIGN * (y - IMU_Y_BIAS) * ACCEL_GAIN - ay);</code></pre>
+<p>读数中断超过 250 ms 时停止施加旧加速度，串口显示 <code>STALE</code>；正常为 <code>IMU=OK</code>。传感器配置参考原示例：4g 量程，250 Hz 加速度与陀螺仪采样；液体只消费加速度。</p>
+<h3>每次 FLIP 步进</h3>
+<ol><li>积分加速度、限制每轴速度、更新位置。</li><li>用空间哈希进行两轮粒子分离，再处理四壁碰撞。</li><li>标记液体网格、清理速度与权重。</li><li>粒子速度传到网格，归一化，恢复固体边界条件。</li><li>计算密度，求解不可压缩性，再把网格速度传回粒子。</li><li>对求解后的速度执行阻尼与上限，防止压力修正重新注入过大速度。</li></ol>
+<h3>双核与 DMA 的数据所有权</h3>
+<p>核心 1 上的物理任务以 40 Hz 目标频率运行。核心 0 的主任务读取 IMU，在互斥锁内更新输入并复制粒子快照，随后释放锁、绘制快照。这样渲染不会读到修改了一半的粒子数组，物理计算也可以和显示重叠。</p>
+<p>物理任务若超出一个周期，会让出 CPU 并重新对齐调度，不无限追赶积压。显示使用 64 行 DMA 条带，收到传输完成信号后才复用缓冲区。物理任务栈为 4096 字节。</p>
+</section>
+
+<section id="performance"><h2>07 / 从 4.4 FPS 到 26.7 FPS</h2>
+<p>优化依据是板上计时，不使用 Mac 的执行速度推断 MCU 性能。串口分别报告物理计算与渲染耗时。早期单线程日志中的 <code>physics</code> 可能包含一帧内多次物理步进；最终双核日志报告单次物理步进，不能直接当作同一种指标比较。</p>
+<div class="table-wrap"><table><thead><tr><th>阶段</th><th>实测 FPS</th><th>主要变化 / 发现</th></tr></thead><tbody>
+<tr><td>1000 粒子初版</td><td>4.4</td><td>每帧物理约 134 ms，渲染约 92 ms；Flash 够用，计算和传输是瓶颈。</td></tr>
+<tr><td>热点运算与步进调整</td><td>8.8</td><td>减少物理追赶步数；安全实现快速逆平方根；降低重复浮点与条带开销。</td></tr>
+<tr><td>600 粒子、低成本扩展</td><td>15.2</td><td>不再逐个输出像素做双线性插值；一份灰度样本扩展成 4×4 像素。</td></tr>
+<tr><td>缓存密度核</td><td>约 17</td><td>用预计算的子像素核减少每帧重复浮点运算；减少压力迭代。</td></tr>
+<tr><td>40 Hz + 64 行 DMA</td><td>25.2</td><td>单次物理约 8.6 ms，渲染约 24.4 ms；形成第一版可用效果。</td></tr>
+<tr><td>900 小粒子 + 去孔洞</td><td>16.9</td><td>更细的压力网格和新增重建处理提高了单核负载。</td></tr>
+<tr><td>最终双核</td><td><strong>26.7</strong></td><td>物理约 13.1 ms、渲染约 30–31 ms，可并行重叠；IMU 和空闲堆稳定。</td></tr>
+</tbody></table></div>
+<p><code>utils.h</code> 中的上游逆平方根实现原本用指针强转并假定 <code>long</code> 为 32 位；这不适合直接拿到 64 位 Mac 做验证。改为 <code>uint32_t</code> 和 <code>memcpy</code> 转换位表示，再做两次 Newton 修正，避免严格别名与位宽问题。热路径的 clamp 使用比较，网格源文件开启 <code>-freciprocal-math</code>。</p>
+<p>密度核事先按 4×4 子像素相位缓存，最终每个核为 7×7。密度图只有 92×112，粒子足够细，但无需把 164,864 个物理屏幕像素都放进求解器。</p>
+</section>
+
+<section id="tuning"><h2>08 / 三个体验问题的修复</h2>
+<h3>问题一：液体内部像有气泡</h3>
+<p>用户看到的孔洞并不全是“粒子数量不足”。粒子分离、局部密度波动与显示阈值共同造成了断开的白色表面；只加粒子并不能保证内部连续。</p>
+<ul><li>增加粒子数量并缩小半径，细化密度重建。</li><li>调整绘制核的覆盖与阈值，让相邻粒子的贡献更容易连接。</li><li>对黑色空气做从屏幕边界开始的八邻域连通标记，填白液体内部封闭的空洞；开放到外界的空气和液滴间隙仍保留。</li></ul>
+<p>这是明确针对“无气泡液体”外观的表面重建规则，不等同于物理求解器已完整模拟真实水体。完成灰度图后复用密度数组作为队列，避免再分配一份大缓冲区。</p>
+<h3>问题二：稍微倾斜就猛烈乱冲</h3>
+<p>原始灵敏度偏高，FLIP 动量保留也较强。更关键的是：压力修正本身会产生速度，原先仅在修正前限速，无法约束修正后的冲击。</p>
+<ul><li><code>ACCEL_GAIN</code> 从 0.6 改为 0.18，即旧版的 30%。</li><li><code>FLIP_RATIO</code> 从 0.94 改为 0.80，增加 PIC 的局部平滑作用。</li><li>加入按时间步计算的 <code>exp(-2 × dt)</code> 速度阻尼。</li><li>压力密度修正系数最终降到 0.05；在初始静止布局中校准参考密度，避免第一下 IMU 冲击改变参考状态。</li><li>求解后继续施加阻尼，并把每轴速度限制在 ±0.35 m/s；墙面回弹从 0.15 降到 0.03。</li></ul>
+<h3>问题三：液体量改为约 1/3 屏</h3>
+<p>600 个较大粒子改为 900 个小粒子。最终虚拟粒子半径约 1.9 mm，旧版约 3 mm。虚拟容器为 0.20×0.24 m，这些是模拟尺度，不是屏幕的真实尺寸。</p>
+<p>仅缩小粒子时，原压力网格过粗，测试中液体仍会膨胀到接近半屏。把压力网格从 20×24 细化到 30×36 后，再微调半径，主机在连续摇晃、释放、重新静置的测试序列中得到 <strong>34.8%</strong> 覆盖率。初始布局和最终静置轮廓会略有不同，覆盖率不是强制裁切出来的固定矩形。</p>
+<div class="table-wrap"><table><thead><tr><th>最终参数</th><th>值</th><th>用途</th></tr></thead><tbody>
+<tr><td>NUM_PARTICLES</td><td>900</td><td>粒子总数</td></tr><tr><td>GRID_SIZE_X / Y</td><td>30 / 36</td><td>压力网格</td></tr>
+<tr><td>PARTICLE_RADIUS_CELLS</td><td>0.285</td><td>相对网格单元的粒子半径</td></tr><tr><td>DELTA_T</td><td>1 / 40 s</td><td>物理步长</td></tr>
+<tr><td>FLIP_RATIO</td><td>0.80</td><td>动量保留与平滑比例</td></tr><tr><td>压力迭代 / OVERRELAXATION</td><td>10 / 1.9</td><td>压力收敛</td></tr>
+<tr><td>K_FACTOR</td><td>0.05</td><td>密度漂移修正强度</td></tr><tr><td>VELOCITY_DRAG</td><td>2.0 / s</td><td>全局速度衰减</td></tr>
+<tr><td>MAX_PARTICLE_SPEED</td><td>0.35 m/s / 轴</td><td>求解前后限速</td></tr><tr><td>回弹 / 沿墙速度保留</td><td>0.03 / 0.95</td><td>减弱碰壁反弹，保留沿墙滑动</td></tr>
+<tr><td>ACCEL_GAIN</td><td>0.18</td><td>IMU 加速度到模拟的比例</td></tr>
+</tbody></table></div>
+</section>
+
+<section id="validation"><h2>09 / 验证：行为检查与实机计时分开做</h2>
+<p><code>liquid/test_fluid.cpp</code> 使用普通 C++ assert，不引入测试框架。Mac 上开启 AddressSanitizer 和 UndefinedBehaviorSanitizer，以便抓出数组边界和未定义行为问题。</p>
+<pre><code>clang++ -std=c++17 -O2 -Wall -Wextra -Werror \
+  -fsanitize=address,undefined \
+  liquid/main/fluid.cpp liquid/main/flip/grid.cpp liquid/test_fluid.cpp \
+  -o /tmp/amoled-fluid-test
+/tmp/amoled-fluid-test</code></pre>
+<p>最终覆盖：加速方向、反向倾斜、连续摇晃的有限数值与边界、求解后速度上限、释放后衰减、约 1/3 覆盖率、静置水域全白、封闭空洞填充、开放空气保留，以及修改实时粒子不会影响已保存的绘制快照。</p>
+<pre><code>Energy after release: 135.5296 -&gt; 0.0000
+Settled coverage: 34.8%
+PASS: tilt, shake, damping, one-third fill, solid interior and open air</code></pre>
+<p>这里的 energy 是所有粒子的速度平方和，用于比较衰减，不是以焦耳标定的物理能量；<code>0.0000</code> 是四位小数的输出精度。</p>
+<h3>最终串口样本</h3>
+<pre><code>I (8926) liquid: fps=26.7 accel=(-0.19,0.06) heap=8542207 IMU=OK physics=13.1ms render=31.4ms
+I (15000) liquid: fps=26.7 accel=(-0.19,0.07) heap=8542207 IMU=OK physics=13.0ms render=30.5ms
+I (19050) liquid: fps=26.7 accel=(-0.20,0.06) heap=8542207 IMU=OK physics=13.0ms render=30.5ms</code></pre>
+<p>空闲堆约 8.54 MB，包含 PSRAM，不能解释为全部都是高速内部 RAM。静置日志证明这段观测中运行稳定；剧烈晃动下的最低帧率和最终手感仍需实物体验。用户确认第一版整体效果不错，并提出本轮空洞、冲击力和液体量调整；本文不会把尚未收到的最终手感反馈写成“已验收”。</p>
+</section>
+
+<section id="flash"><h2>10 / 日常构建、烧录、监控与恢复</h2>
+<h3>正常开发循环</h3>
+<pre><code>cd /Volumes/ssd/main_link/work/ESP32-S3-Touch-AMOLED-1.8
+
+# 修改后先跑对应主机检查，再编译。
+./scripts/idf.sh -C liquid build
+./scripts/idf.sh -C liquid size
+
+# 确认实际端口；以下是本次连接时的端口。
+ls /dev/cu.*
+./scripts/idf.sh -C liquid -p /dev/cu.usbmodem31301 flash
+./scripts/idf.sh -C liquid -p /dev/cu.usbmodem31301 monitor
+
+# 也可以合并为一次开发命令：
+./scripts/idf.sh -C liquid -p /dev/cu.usbmodem31301 build flash monitor</code></pre>
+<p>monitor 使用 <strong>Ctrl+]</strong> 退出。串口被 monitor 占用时，先退出再执行下一次烧录。成功烧录的关键输出是数据哈希校验通过，随后 <code>Hard resetting via RTS pin</code>，板子复位进入新应用。</p>
+<h3>理解烧录偏移</h3>
+<p>本次构建生成的布局：bootloader 在 <code>0x0</code>，分区表在 <code>0x8000</code>，应用在 <code>0x10000</code>。常规烧录使用 <code>idf.py flash</code> 读取构建生成的参数；修改分区布局后不要继续照抄旧偏移。</p>
+<pre><code># 脱离 idf.py 时，优先使用当前构建生成的参数文件。
+PROJECT=/Volumes/ssd/main_link/work/ESP32-S3-Touch-AMOLED-1.8
+PY="$PROJECT/.local-tools/espressif/python_env/idf5.5_py3.11_env/bin/python"
+cd "$PROJECT/liquid/build"
+"$PY" -m esptool --chip esp32s3 -p /dev/cu.usbmodem31301 \
+  -b 460800 --before default_reset --after hard_reset \
+  write_flash @flash_args</code></pre>
+<h3>恢复原机完整 Flash</h3>
+<p>以下是需要回到本次开发前状态时使用的恢复命令，开发过程中没有执行恢复。它会恢复备份中的整片内容，包括旧数据分区。</p>
+<pre><code>cd /Volumes/ssd/main_link/work/ESP32-S3-Touch-AMOLED-1.8
+PY="$PWD/.local-tools/espressif/python_env/idf5.5_py3.11_env/bin/python"
+
+# 先核对文件尺寸和校验值。
+wc -c .local-tools/original-flash-20260910.bin
+(cd .local-tools &amp;&amp; shasum -a 256 -c original-flash-20260910.sha256)
+
+"$PY" -m esptool --chip esp32s3 -p /dev/cu.usbmodem31301 \
+  -b 921600 write_flash 0x0 .local-tools/original-flash-20260910.bin</code></pre>
+<p>若只回退液体调整前的应用，在<strong>本次分区布局没有改变</strong>的前提下，可以把 <code>.local-tools/white-liquid-before-density-tuning.bin</code> 写回 <code>0x10000</code>。它不是整片备份，不能代替 bootloader 和分区表。</p>
+</section>
+
+<section id="troubleshooting"><h2>11 / 本次踩到的坑与排查顺序</h2>
+<div class="table-wrap"><table><thead><tr><th>现象</th><th>本次处理</th></tr></thead><tbody>
+<tr><td>没有串口</td><td>检查 USB 数据线、重新插入、列出 <code>/dev/cu.*</code>；本次插入后即被识别，不需要先按 BOOT。</td></tr>
+<tr><td>IDE 可能装过工具，但命令不可用</td><td>先查已有 IDF 与 Python。最终复用 Python 3.11，另外在 SSD 安装 IDF，不依赖 IDE 状态。</td></tr>
+<tr><td>首次下载报域名解析失败</td><td>发生在受限执行环境；授权联网执行后正常下载，不是固件工程本身的错误。</td></tr>
+<tr><td>FreeRTOS 编译错误连锁刷屏</td><td>根因是包含顺序：<code>freertos/FreeRTOS.h</code> 必须在 <code>freertos/semphr.h</code> 之前。修正根因后恢复构建。</td></tr>
+<tr><td>Mac 上快速逆平方根存在未定义行为</td><td>移除指针别名转换和 32 位 long 假设，使用固定宽度整数与 memcpy。</td></tr>
+<tr><td>白色区域破洞、缩小粒子后仍接近半屏</td><td>联合处理显示核、封闭空气、参考密度和压力网格分辨率，不只堆粒子。</td></tr>
+<tr><td>轻微倾斜冲击太强</td><td>检查加速度增益、FLIP/PIC 比例、压力修正推力及求解后的速度，而不只在输入端限速。</td></tr>
+<tr><td>能编译但运行不流畅</td><td>分别测量物理和绘制耗时；缓存核、减少重复运算、优化 DMA 条带，最后利用双核重叠。</td></tr>
+<tr><td>测试阈值因几何变化失效</td><td>重新检查实际位移与边界，采用相对容器尺度的断言；不把旧半屏参数写死成新需求的标准。</td></tr>
+</tbody></table></div>
+<p>后续调手感建议一次只改一组参数：先调 <code>ACCEL_GAIN</code>，再调阻尼与 FLIP 比例，最后调回弹。粒子半径、压力网格和数量是相互关联的，应一起看静置覆盖率与动态体积表现。</p>
+</section>
+
+<section id="archive"><h2>12 / 文件、版本与归档</h2>
+<p>本文对应开发板仓库基线提交 <code>7ab8f957e22ea1ab811256359f4eddcaaf49ee91</code> 之上的本机 <code>liquid/</code> 工程。固件工程修改仍在开发板工作目录；此次 Note 的提交只归档本文并登记 Index，不代表把固件源代码推到了 Waveshare 上游。</p>
+<div class="table-wrap"><table><thead><tr><th>本机工件</th><th>用途</th></tr></thead><tbody>
+<tr><td><code>liquid/build/white_liquid.bin</code></td><td>最终应用，308,256 字节，约 301 KiB</td></tr>
+<tr><td><code>.local-tools/original-flash-20260910.bin</code></td><td>原机整片 Flash，16,777,216 字节</td></tr>
+<tr><td><code>.local-tools/original-flash-20260910.sha256</code></td><td>原机备份校验文件</td></tr>
+<tr><td><code>.local-tools/white-liquid-before-density-tuning.bin</code></td><td>调整粒子与阻尼前的液体应用</td></tr>
+<tr><td><code>.local-tools/liquid-density-runtime.log</code></td><td>最终双核版本运行日志</td></tr>
+<tr><td><code>.local-tools/liquid-density-flash.log</code></td><td>最终一轮构建与烧录日志</td></tr>
+</tbody></table></div>
+<details><summary>本次工件 SHA-256</summary><p>最终应用：</p><pre class="hash"><code>b6a694ce35a56e0d220b9d4f1b1e1ac5c362c0ae63b05f486979992df7c226a0</code></pre><p>原机完整备份：</p><pre class="hash"><code>77003647d6cfd5cb4331e24cbf33c7c58a38fcecad36743b5031c220c62827a7</code></pre><p>重新构建后的二进制可能因构建元数据改变哈希；以上值标识的是本次实际生成的工件。</p></details>
+<h3>Note 的发布流程</h3>
+<p>先在 <code>Work/Note</code> 执行 <code>git pull --ff-only</code> 同步远端，再写入这个独立 HTML，在根目录 <code>index.html</code> 添加相对链接卡片。检查 HTML 结构、目录锚点与 Index 目标路径后，只暂存本次两份文件，提交并推送。既有未跟踪文件不加入提交；线上构建交给原有自动化。</p>
+<h3>参考来源</h3><ul>
+<li><a href="https://github.com/waveshareteam/ESP32-S3-Touch-AMOLED-1.8">Waveshare 官方开发板仓库</a>：硬件说明、ESP-IDF 示例和驱动配置。</li>
+<li><a href="https://github.com/espressif/esp-idf/tree/v5.5.5">ESP-IDF v5.5.5 源码</a>：本次实际使用的 SDK。</li>
+<li><a href="https://docs.espressif.com/projects/esp-idf/en/v5.5/esp32s3/api-guides/tools/idf-tools.html">Espressif 工具安装说明</a>：工具路径、安装与 Python 环境。</li>
+<li><a href="https://github.com/Vateva/Esp32FluidSimulation8x8/tree/136ec526f98222504692033d1dfe92ea6c2c8fe3">FLIP 上游固定版本</a>：粒子与网格物理核心，MIT 许可。</li>
+<li><a href="https://google.github.io/liquidfun/">LiquidFun 官方介绍</a>：曾评估的二维液体候选，未用于最终固件。</li>
+</ul>
+</section>
+<footer class="footer">基于仓库代码、实际命令输出、主机检查与板上串口记录整理。本文为单文件 HTML，样例图内嵌，不依赖外部脚本或字体。<a href="index.html">返回 Notes</a></footer>
+</main>
+</body>
+</html>
