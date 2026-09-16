@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="M5StickS3 Demo 刷机路线定型：官网四条开发路径与既有笔记经验对比，arduino-cli + esp32:esp32 核心直刷 M5Unified Mic_FFT 例程的完整实录。">
+<title>M5StickS3 Demo 刷机路线：从官网调研到 Mic_FFT 上板</title>
+<style>
+:root{color-scheme:light;--bg:#f6f7fa;--paper:#fff;--ink:#202435;--muted:#626b80;--line:#dfe3ec;--accent:#4f46e5;--soft:#eef2ff}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:24px}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.85 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}main{max-width:1040px;margin:auto;padding:38px 28px 72px}a{color:var(--accent);text-underline-offset:3px}a:focus-visible{outline:3px solid var(--accent);outline-offset:4px}.back{font-size:14px}.eyebrow{color:var(--accent);font-weight:700;letter-spacing:.12em;font-size:12px;margin-top:30px}h1{font-size:clamp(29px,5vw,44px);line-height:1.28;letter-spacing:-.03em;margin:12px 0 18px}h2{font-size:25px;line-height:1.45;margin:0 0 22px}h3{font-size:18px;margin:25px 0 10px}p{margin:12px 0}.lead,.meta{color:var(--muted)}.meta{font-size:13px}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:30px 0}.metric{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:17px}.metric strong{display:block;font-size:26px;line-height:1.3}.metric span{font-size:12px;color:var(--muted)}nav{background:var(--soft);padding:22px 26px;border-radius:14px;margin-bottom:28px}nav ol{columns:2;column-gap:36px;margin:10px 0 0;padding-left:22px}nav li{break-inside:avoid;padding:2px 0}section{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:30px;margin:22px 0}.note{border-left:3px solid var(--accent);padding:12px 18px;background:var(--soft);margin:20px 0}.table-wrap{overflow:auto;margin:18px 0}table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;vertical-align:top;padding:12px 14px;border-bottom:1px solid var(--line)}th{background:#f4f5f9;font-weight:650}code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.88em;overflow-wrap:anywhere}p code,li code,td code{background:#f1f3f8;padding:2px 5px;border-radius:4px}pre{background:#171c2b;color:#e8ecf7;overflow:auto;border-radius:10px;padding:20px;line-height:1.65;font-size:13px;tab-size:4}pre code{font-size:inherit;overflow-wrap:normal}ul,ol{padding-left:24px}li{margin:5px 0}.footer{font-size:13px;color:var(--muted);margin-top:32px}section:target{border-color:var(--accent)}
+@media(max-width:700px){main{padding:24px 16px 45px}section{padding:23px 18px}.metrics{grid-template-columns:repeat(2,1fr)}nav ol{columns:1}pre{padding:14px}th,td{padding:10px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+@media print{body{background:white;font-size:11pt}main{max-width:none;padding:0}section{border:0;border-radius:0;padding:18px 0;break-inside:auto}nav,.back{display:none}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f3f4f7;color:#111}h2,h3{break-after:avoid}.metrics{break-inside:avoid}}
+</style>
+</head>
+<body>
+<main>
+<a class="back" href="index.html">← 返回 Notes</a>
+<header>
+<div class="eyebrow">EMBEDDED / ARDUINO-CLI / DEMO FLASHING</div>
+<h1>M5StickS3 Demo 刷机路线<br>从官网调研到 Mic_FFT 上板</h1>
+<p class="lead">M5Stack StickS3（K150）· Apple Silicon Mac · 开发方式选型、本机环境补齐、官方例程编译烧录，以及一次 USB 掉线的排查实录。</p>
+<p class="meta">记录日期：2026-09-16　｜　前序经验：<a href="m5sticks3-ir-controller-guide.html">红外开发完全教程</a> · <a href="m5sticks3-ir-remote-debug.html">红外排障实录</a>（2026-08，另一台机器） · <a href="esp32-s3-amoled-liquid-development.html">ESP32-S3 AMOLED 液体实录</a>（2026-09，本机 ESP-IDF 路线）。</p>
+</header>
+<div class="metrics" aria-label="本次结果">
+<div class="metric"><strong>3.5 s</strong><span>固件写入耗时（1302 kbit/s）</span></div>
+<div class="metric"><strong>17%</strong><span>固件占用（572 KB / 3.3 MB APP）</span></div>
+<div class="metric"><strong>0</strong><span>新增开发板核心下载量</span></div>
+<div class="metric"><strong>4</strong><span>屏幕显示窗格（峰值/频谱/瀑布/波形）</span></div>
+</div>
+<nav aria-label="文章目录"><strong>阅读导航</strong><ol>
+<li><a href="#decision">结论先行：最方便的开发方式</a></li>
+<li><a href="#hardware">硬件与连接确认</a></li>
+<li><a href="#environment">本机环境补齐</a></li>
+<li><a href="#build">FQBN 与编译参数</a></li>
+<li><a href="#flash">烧录与 USB 掉线插曲</a></li>
+<li><a href="#verify">验证方式与串口说明</a></li>
+<li><a href="#demos">Demo 清单与下一步</a></li>
+<li><a href="#archive">归档与来源</a></li>
+</ol></nav>
+
+<section id="decision"><h2>01 / 结论先行：最方便的开发方式</h2>
+<p>官网为 StickS3 列了四条路：Arduino IDE、UiFlow2（MicroPython 图形化）、ESP-IDF、PlatformIO。结合我们已有笔记的实际经验，本机定型为 <strong>arduino-cli + esp32:esp32 核心 + M5Unified/M5GFX 库</strong>，理由有三：</p>
+<ul>
+<li><strong>8 月两篇 StickS3 笔记验证过 arduino-cli 全流程</strong>（环境搭建、库补丁、烧录），命令行天然适合交给 agent 执行；Arduino IDE 只是同一工具链的 GUI 壳。</li>
+<li><strong>本机已装 esp32:esp32 3.3.10 核心</strong>，与 M5Stack 官方板包 m5stack:esp32 3.3.9 同代（均已跟进 Arduino 3.x）。不必为一个板型再装一套约 1 GB 的平行核心，FQBN 加上参数即可等价。</li>
+<li><strong>M5Unified 0.2.17 已内置 <code>board_M5StickS3</code> 板型识别</strong>（I²C 47/48、Port A 9/10、M5PM1 电源类），例程代码板卡无关，无需改一行。</li>
+</ul>
+<div class="table-wrap"><table><thead><tr><th>路径</th><th>官网态度</th><th>我们的经验</th><th>本机采用</th></tr></thead><tbody>
+<tr><td>Arduino CLI + M5Unified</td><td>Arduino 路的 CLI 等价物</td><td>8 月笔记全程验证</td><td><strong>✅ 本次定型</strong></td></tr>
+<tr><td>PlatformIO</td><td>官方直接给出 platformio.ini 配置</td><td><code>work/m5-guitartuner</code> 同款配置跑通过</td><td>备选（本机未装 pio）</td></tr>
+<tr><td>ESP-IDF</td><td>列为支持，无专教程</td><td>9 月 AMOLED 液体工程（项目内 .local-tools）</td><td>写自有固件时用</td></tr>
+<tr><td>UiFlow2</td><td>主推之一，网页图形化</td><td>无记录</td><td>不适合 agent 驱动，跳过</td></tr>
+</tbody></table></div>
+<div class="note">与 8 月笔记的差异：当时用 <code>m5stack:esp32</code> 板包（2.x 时代）选 M5StickS3 板型；本次直接用已装的 <code>esp32:esp32</code> 核心 + esp32s3 板型加编译参数，零额外核心下载。两条路都通，后者在多板共用的机器上更干净。</div>
+</section>
+
+<section id="hardware"><h2>02 / 硬件与连接确认</h2>
+<p>StickS3（SKU K150）：ESP32-S3-PICO-1-N8R8（8 MB Flash + 8 MB Octal PSRAM）、1.14″ ST7789P3（135×240）、BMI270 六轴、ES8311 音频 codec + MEMS 麦克风 + 喇叭、板载红外收发（TX=46 / RX=42）、M5PM1 电源管理。</p>
+<ul>
+<li>USB 为 <strong>ESP32-S3 原生 USB Serial/JTAG</strong>：Mac 免驱、免按 BOOT，直接 <code>esptool</code> 自动复位进入下载模式。</li>
+<li>本次端口 <code>/dev/cu.usbmodem31301</code>；<code>arduino-cli board list</code> 识别为 ESP32 Family Device，<code>ioreg</code> 中对应 "USB JTAG/serial debug unit"。</li>
+<li>电源按键逻辑：<strong>单击开机 / 双击关机</strong>、长按进下载模式——双击关机会让板子从 USB 上消失，这是本次掉线插曲的根因（见第 05 节）。</li>
+</ul>
+</section>
+
+<section id="environment"><h2>03 / 本机环境补齐</h2>
+<p>开工前盘点：arduino-cli 1.5.1（Homebrew）与 esp32:esp32 3.3.10 核心已在；sketchbook <code>~/Documents/Arduino</code> 里只有几个 IMU 库，<strong>M5 系库缺失</strong>。补一条命令即可：</p>
+<pre><code>arduino-cli lib install M5Unified M5GFX
+# Installed M5GFX@0.2.24
+# Installed M5Unified@0.2.17
+
+# 验证库内已含 StickS3 板型识别
+grep -n "board_M5StickS3" ~/Documents/Arduino/libraries/M5Unified/src/M5Unified.cpp
+# :81:{ board_t::board_M5StickS3 , GPIO_NUM_48,GPIO_NUM_47 , GPIO_NUM_10,GPIO_NUM_9 }</code></pre>
+<div class="table-wrap"><table><thead><tr><th>组件</th><th>版本</th><th>状态</th></tr></thead><tbody>
+<tr><td>arduino-cli</td><td>1.5.1（Homebrew）</td><td>已有</td></tr>
+<tr><td>esp32:esp32 核心</td><td>3.3.10</td><td>已有</td></tr>
+<tr><td>M5Unified</td><td>0.2.17</td><td>本次安装</td></tr>
+<tr><td>M5GFX</td><td>0.2.24</td><td>本次安装</td></tr>
+</tbody></table></div>
+</section>
+
+<section id="build"><h2>04 / FQBN 与编译参数</h2>
+<p>例程取自 M5Unified 库自带 Advanced 例程 <code>Mic_FFT</code>（24 kHz 采样、1024 点 FFT、四窗格显示），复制为独立工程 <code>/Volumes/ssd/main_link/work/Mic_FFT</code>。编译 FQBN：</p>
+<pre><code>esp32:esp32:esp32s3:PSRAM=opi,FlashSize=8M,PartitionScheme=default_8MB,CDCOnBoot=cdc</code></pre>
+<div class="table-wrap"><table><thead><tr><th>参数</th><th>取值</th><th>原因</th></tr></thead><tbody>
+<tr><td>PSRAM</td><td><code>opi</code></td><td>N8R8 的 PSRAM 是 8 MB Octal，必须选 opi 否则运行时堆分配失败</td></tr>
+<tr><td>FlashSize</td><td><code>8M</code></td><td>板载 8 MB Flash</td></tr>
+<tr><td>PartitionScheme</td><td><code>default_8MB</code></td><td>8 MB 分区表（3 MB APP / 1.5 MB SPIFFS）</td></tr>
+<tr><td>CDCOnBoot</td><td><code>cdc</code></td><td>走原生 USB CDC，Serial 即 USB 口日志（默认值是 Disabled）</td></tr>
+</tbody></table></div>
+<p>编译一次通过：<strong>572,903 字节（17% APP 区），全局变量 25,944 字节（7% RAM）</strong>，无需改任何例程代码。</p>
+</section>
+
+<section id="flash"><h2>05 / 烧录与 USB 掉线插曲</h2>
+<p>工程内固化了一键脚本 <code>flash.sh</code>：自动探测 <code>/dev/cu.usbmodem*</code> → 编译 → 烧录 → 抓 10 秒串口日志。</p>
+<pre><code>#!/bin/zsh  # flash.sh 核心三步
+FQBN="esp32:esp32:esp32s3:PSRAM=opi,FlashSize=8M,PartitionScheme=default_8MB,CDCOnBoot=cdc"
+PORT="$(ls /dev/cu.usbmodem* | head -1)"
+arduino-cli compile -b "$FQBN"
+arduino-cli upload   -b "$FQBN" -p "$PORT"</code></pre>
+<h3>插曲：编译完成后板子从 USB 上消失</h3>
+<p>首次烧录时报 <code>Could not open /dev/cu.usbmodem31301 ... No such file or directory</code>。排查：<code>ls /dev/cu.*</code> 只剩蓝牙口；<code>ioreg -p IOUSB</code> 与 <code>system_profiler SPUSBDataType</code> 里 "USB JTAG/serial debug unit" 均已消失；轮询 30 秒无果——<strong>物理层掉线而非软件问题</strong>（烧录尚未开始，不存在固件改坏 USB 的可能）。最可能原因是 StickS3 被误触<strong>双击关机</strong>。</p>
+<div class="note">排查方法论：串口消失先分层——<code>ls /dev/cu.*</code> 看 macOS 枚举，<code>ioreg</code>/<code>system_profiler</code> 看 USB 物理设备。枚举和物理都没了就是线/板子的事，重插（黑屏则单击电源键开机）即可，不要在软件侧空转。</div>
+<p>重新开机后执行 <code>flash.sh</code>：esptool v5.3.0 自动复位进入下载模式，<strong>573,056 字节压缩为 324,171 后 3.5 秒写完（1302 kbit/s），Hash 校验通过，RTS 硬复位生效</strong>。</p>
+</section>
+
+<section id="verify"><h2>06 / 验证方式与串口说明</h2>
+<p>烧录校验由 esptool 的 <code>Verifying written data — Hash of data verified</code> 保证；复位后程序即随开机自启。<strong>串口静默是正常现象</strong>：Mic_FFT 例程正常运行时不输出任何日志，仅在 <code>M5.Mic.isEnabled()</code> 失败时才打印 "microphone is not available."。板卡识别是否正确同样不用猜——若 M5Unified 认不出板子，麦克风初始化会失败并打出该错误。</p>
+<p>上电后屏幕应为四窗格：顶部峰值频率读数（Hz，带三角标记）→ 绿色频谱柱状图 → 黄蓝瀑布图 → 底部白色实时波形。对麦克风说话/吹气，各窗格应实时起伏。</p>
+</section>
+
+<section id="demos"><h2>07 / Demo 清单与下一步</h2>
+<h3>官方（可直接用本套环境刷）</h3>
+<ul>
+<li>M5Unified Basic 例程：Button / Displays / Imu / Microphone / Speaker / Rtc / HowToUse。</li>
+<li>M5Unified Advanced 例程：<strong>Mic_FFT（本文）</strong>、WebRadio、Bluetooth A2DP、Speak_with_AquesTalk。</li>
+<li>官方 StickS3 API 教程：Battery / Display / IMU / IR NEC / Mic / Speaker / Wakeup（docs.m5stack.com/en/arduino/m5sticks3/）。</li>
+<li>整机固件：小智语音助手、ESP-Claw（官方走 M5Burner）。</li>
+</ul>
+<h3>社区高星（StickS3 生态以 AI agent 桌面伴侣为主）</h3>
+<div class="table-wrap"><table><thead><tr><th>项目</th><th>Star</th><th>一句话</th></tr></thead><tbody>
+<tr><td><a href="https://github.com/HanminYIN/VibeStick-for-Mac">VibeStick-for-Mac</a></td><td>101</td><td>macOS 上 Codex/本地 agent 的桌面伴侣</td></tr>
+<tr><td><a href="https://github.com/78/voicestick">voicestick</a></td><td>90</td><td>LLM 语音输入棒</td></tr>
+<tr><td><a href="https://github.com/CharlexH/CodeBuddy">CodeBuddy</a></td><td>69</td><td>Claude Desktop Buddy 的 StickS3 移植</td></tr>
+<tr><td><a href="https://github.com/sky18Dragon/RICOH-GR-Live-View-Shooting">RICOH-GR-Live-View</a></td><td>32</td><td>理光 GR 无线取景器 + BLE 快门</td></tr>
+<tr><td><a href="https://github.com/sheepxux/Taskhub-for-StickS3">Taskhub-for-StickS3</a></td><td>28</td><td>Mac 本地 AI agent 任务监控面板</td></tr>
+<tr><td><a href="https://github.com/Teapot174/AirMouseS3">AirMouseS3</a></td><td>20</td><td>IMU 体感飞鼠（<strong>已克隆至 work/AirMouseS3</strong>）</td></tr>
+<tr><td><a href="https://github.com/openbrt/voxstick">voxstick</a></td><td>10</td><td>USB 按键说话听写棒（UAC+HID）</td></tr>
+</tbody></table></div>
+<div class="note">AirMouseS3 是 PlatformIO 工程（platformio.ini + src/main.cpp，M5Unified 依赖），刷它需要先 <code>brew install platformio</code>；其配置与 <code>work/m5-guitartuner</code> 同源，可复用经验。</div>
+</section>
+
+<section id="archive"><h2>08 / 归档与来源</h2>
+<ul>
+<li>工程：<code>/Volumes/ssd/main_link/work/Mic_FFT</code>（Mic_FFT.ino + flash.sh）。</li>
+<li>已克隆待刷：<code>/Volumes/ssd/main_link/work/AirMouseS3</code>。</li>
+<li>环境：arduino-cli 1.5.1 · esp32:esp32 3.3.10 · M5Unified 0.2.17 · M5GFX 0.2.24 · 端口 <code>/dev/cu.usbmodem31301</code>。</li>
+<li>来源：<a href="https://docs.m5stack.com/en/core/StickS3">StickS3 官方文档</a> · <a href="https://docs.m5stack.com/en/arduino/m5sticks3/program">Arduino 快速上手</a> · <a href="https://github.com/m5stack/M5Unified">M5Unified</a> · <a href="https://github.com/topics/sticks3">sticks3 topic</a>。</li>
+</ul>
+</section>
+
+<p class="footer">本文为真实操作会话记录；命令与输出按本机实际路径与版本摘录。</p>
+</main>
+</body>
+</html>
