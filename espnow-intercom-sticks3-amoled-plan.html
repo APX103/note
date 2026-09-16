@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="M5StickS3 与 Waveshare ESP32-S3-Touch-AMOLED-1.8 基于 ESP-NOW 的双机 Push-to-Talk 对讲方案：硬件盘点、链路预算、音频管线、双工与回声治理、协议设计与里程碑。">
+<title>ESP-NOW 双机对讲方案：M5StickS3 × AMOLED 触摸屏</title>
+<style>
+:root{color-scheme:light;--bg:#f6f7fa;--paper:#fff;--ink:#202435;--muted:#626b80;--line:#dfe3ec;--accent:#4f46e5;--soft:#eef2ff}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:24px}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.85 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}main{max-width:1040px;margin:auto;padding:38px 28px 72px}a{color:var(--accent);text-underline-offset:3px}a:focus-visible{outline:3px solid var(--accent);outline-offset:4px}.back{font-size:14px}.eyebrow{color:var(--accent);font-weight:700;letter-spacing:.12em;font-size:12px;margin-top:30px}h1{font-size:clamp(29px,5vw,44px);line-height:1.28;letter-spacing:-.03em;margin:12px 0 18px}h2{font-size:25px;line-height:1.45;margin:0 0 22px}h3{font-size:18px;margin:25px 0 10px}p{margin:12px 0}.lead,.meta{color:var(--muted)}.meta{font-size:13px}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:30px 0}.metric{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:17px}.metric strong{display:block;font-size:26px;line-height:1.3}.metric span{font-size:12px;color:var(--muted)}nav{background:var(--soft);padding:22px 26px;border-radius:14px;margin-bottom:28px}nav ol{columns:2;column-gap:36px;margin:10px 0 0;padding-left:22px}nav li{break-inside:avoid;padding:2px 0}section{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:30px;margin:22px 0}.note{border-left:3px solid var(--accent);padding:12px 18px;background:var(--soft);margin:20px 0}.table-wrap{overflow:auto;margin:18px 0}table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;vertical-align:top;padding:12px 14px;border-bottom:1px solid var(--line)}th{background:#f4f5f9;font-weight:650}code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.88em;overflow-wrap:anywhere}p code,li code,td code{background:#f1f3f8;padding:2px 5px;border-radius:4px}pre{background:#171c2b;color:#e8ecf7;overflow:auto;border-radius:10px;padding:20px;line-height:1.65;font-size:13px;tab-size:4}pre code{font-size:inherit;overflow-wrap:normal}ul,ol{padding-left:24px}li{margin:5px 0}.footer{font-size:13px;color:var(--muted);margin-top:32px}section:target{border-color:var(--accent)}
+@media(max-width:700px){main{padding:24px 16px 45px}section{padding:23px 18px}.metrics{grid-template-columns:repeat(2,1fr)}nav ol{columns:1}pre{padding:14px}th,td{padding:10px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+@media print{body{background:white;font-size:11pt}main{max-width:none;padding:0}section{border:0;border-radius:0;padding:18px 0;break-inside:auto}nav,.back{display:none}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f3f4f7;color:#111}h2,h3{break-after:avoid}.metrics{break-inside:avoid}}
+</style>
+</head>
+<body>
+<main>
+<a class="back" href="index.html">← 返回 Notes</a>
+<header>
+<div class="eyebrow">EMBEDDED / ESP-NOW / DESIGN DOC</div>
+<h1>两块 ESP32-S3<br>做成一对正经对讲机</h1>
+<p class="lead">M5Stack StickS3 × Waveshare ESP32-S3-Touch-AMOLED-1.8 · ESP-NOW 无线链路 · Push-to-Talk 交互 · 本文档只出方案，不含实现代码。</p>
+<p class="meta">方案日期：2026-09-16　｜　前序：<a href="m5sticks3-demo-flashing-setup.html">StickS3 刷机路线（Mic_FFT 已上板）</a> · <a href="esp32-s3-amoled-liquid-development.html">AMOLED 板开发实录（液体工程，环境已备）</a>。</p>
+</header>
+<div class="metrics" aria-label="方案关键数字">
+<div class="metric"><strong>2 × ES8311</strong><span>两板同款音频 codec（重大利好）</span></div>
+<div class="metric"><strong>64 kbps</strong><span>目标语音码率（16 kHz ADPCM）</span></div>
+<div class="metric"><strong>250 B</strong><span>ESP-NOW 单包 payload 上限</span></div>
+<div class="metric"><strong>半双工</strong><span>PTT 交互模型（防回声循环）</span></div>
+</div>
+<nav aria-label="文章目录"><strong>阅读导航</strong><ol>
+<li><a href="#goal">需求与最终形态</a></li>
+<li><a href="#hardware">硬件盘点：两板音频全通</a></li>
+<li><a href="#link">为什么是 ESP-NOW：链路预算</a></li>
+<li><a href="#priorart">先例扫描</a></li>
+<li><a href="#audio">音频管线设计</a></li>
+<li><a href="#duplex">双工模型与回声治理（三问三答）</a></li>
+<li><a href="#protocol">协议帧设计</a></li>
+<li><a href="#projects">工程形态与代码复用</a></li>
+<li><a href="#ui">UI：按键与屏幕</a></li>
+<li><a href="#risks">风险与未决问题</a></li>
+<li><a href="#milestones">里程碑</a></li>
+</ol></nav>
+
+<section id="goal"><h2>01 / 需求与最终形态</h2>
+<p>两台设备组成一对一无线对讲：<strong>按住说话（Push-to-Talk），松开收听；不按时随时能收到对方语音并从喇叭放出</strong>。StickS3 用实体按键触发，AMOLED 板用触摸屏上的大按钮触发。无路由器、无手机、无云端，开机即用。</p>
+<ul>
+<li><strong>StickS3</strong>：按住 BtnA 说话；喇叭随时播放来话；小屏显示状态（空闲/发送中/接收中/对方占用）。</li>
+<li><strong>AMOLED 板</strong>：按住屏幕 PTT 区域说话；喇叭随时播放来话；大屏可显示电平表、链路质量、通话状态。</li>
+<li>交互上是"对讲机"而不是"电话"：同一时刻一方说、一方听，抢占有仲裁、状态有提示。</li>
+</ul>
+</section>
+
+<section id="hardware"><h2>02 / 硬件盘点：两板音频全通</h2>
+<p>先回答最前提的问题：<strong>两块板都有麦克风和扬声器，且用的是同一颗音频 codec</strong>——这消掉了整个方案最大的不确定项。</p>
+<div class="table-wrap"><table><thead><tr><th></th><th>M5StickS3（K150）</th><th>Waveshare AMOLED 1.8″</th></tr></thead><tbody>
+<tr><td>主控</td><td>ESP32-S3-PICO-1-N8R8</td><td>ESP32-S3（16 MB Flash / 8 MB PSRAM）</td></tr>
+<tr><td>音频 codec</td><td>ES8311（I2C 0x18 + I2S）</td><td><strong>ES8311（同一颗）</strong>（I2C + I2S，例程已给引脚）</td></tr>
+<tr><td>麦克风</td><td>MEMS（SNR 65 dB，经 ES8311 ADC）</td><td>板载麦克风输入（经 ES8311 ADC）</td></tr>
+<tr><td>扬声器</td><td>AW8737 功放 + 8Ω 1W 喇叭</td><td>功放 + 喇叭（例程含 PA 使能脚）</td></tr>
+<tr><td>说话触发</td><td>实体键 BtnA=G11 / BtnB=G12</td><td>电容触摸（FT3168 / CST820）+ 大屏按钮</td></tr>
+<tr><td>软件栈</td><td>Arduino CLI + M5Unified（Mic/Speaker 类已封装 ES8311）</td><td>Arduino CLI + 仓库自带 <code>15_ES8311</code> 例程（<strong>麦克风→回声→喇叭 loopback 现成可跑</strong>）</td></tr>
+</tbody></table></div>
+<div class="note">AMOLED 仓库的 <code>examples/arduino/examples/15_ES8311/15_ES8311.ino</code> 是 16 kHz 麦克风回声演示：<code>es8311_microphone_config</code> 初始化录音、I2S 引脚 MCK=16/BCK=9/DI=10/WS=45/DO=8、PA 使能脚拉高。这意味着录音与播放的 bring-up 代码已经存在，方案落地时改造即可，不用从 datasheet 起步。</div>
+<p> StickS3 侧则由 M5Unified 全权托管 ES8311（<code>M5.Mic</code> / <code>M5.Speaker</code>），Mic_FFT 例程已验证录音链路可用。</p>
+</section>
+
+<section id="link"><h2>03 / 为什么是 ESP-NOW：链路预算</h2>
+<p>ESP-NOW 是乐鑫在 Wi-Fi MAC 层之上做的无连接点对点协议：不建联、不要 AP、不等 IP，发就是发，单向空口延迟约 2–5 ms，非常适合语音包这种"小包、高频、容忍少量丢"的流量。</p>
+<div class="table-wrap"><table><thead><tr><th>约束</th><th>数值</th><th>对本方案的影响</th></tr></thead><tbody>
+<tr><td>单包 payload（经典模式）</td><td>250 字节</td><td>音频按 ~200 B/包分片（约 20–25 ms 语音）</td></tr>
+<tr><td>实际可持续吞吐</td><td>约 100–500 kbps（视信道与发包节拍）</td><td>64 kbps 语音码率留有余量；发包要限速避免冲爆</td></tr>
+<tr><td> peers / 加密</td><td>点对点 MAC 寻址，支持 CCMP（PMK/LMK）</td><td>定向发给对方 MAC，他人不解析；可选加密</td></tr>
+<tr><td>覆盖距离</td><td>室内全屋、视距实测 100–200 m</td><td>家用场景绰绰有余</td></tr>
+<tr><td>信道</td><td>固定单信道（1–13）</td><td>两板锁同一信道；可选扫一遍挑最干净的</td></tr>
+</tbody></table></div>
+<p>备选链路对照：Wi-Fi UDP（要 AP、要 IP，延迟抖动更大）、蓝牙 HFP/A2DP（配对复杂、语音走 HFP 音质差）、AuriRink/I2S 无线（不通用）。结论维持 ESP-NOW。</p>
+</section>
+
+<section id="priorart"><h2>04 / 先例扫描</h2>
+<ul>
+<li><a href="https://blog.adafruit.com/2026/04/17/new-guide-esp-now-walkie-talkies-adafruitlearningsystem-adafruit/">Adafruit《ESP-NOW Walkie Talkies》教程（2026-04）</a>：Feather ESP32-S3 + I2S 麦克风，ESP-NOW 收发 I2S 音频包，架构与本方案同型。</li>
+<li><a href="https://github.com/atomic14/esp32-walkie-talkie">atomic14/esp32-walkie-talkie</a>：最流行的开源对讲机，支持 UDP 广播 / ESP-NOW 两种传输，ADPCM 压缩，包协议（序号+时间戳+丢包容忍）值得直接借鉴。</li>
+<li><a href="https://www.cnx-software.com/2026/05/30/pcmflow722-library-enables-two-way-real-time-hd-voice-over-esp-now-with-g-722-audio-codec/">PCMFlow722（G.722 over ESP-NOW）</a>：证明了 64 kbps 实时双向语音在 ESP-NOW 上可持续，且明确按半双工设计——与本方案码率和双工选择互相印证。</li>
+<li>社区共识的编码阶梯：裸 PCM（256 kbps，太重）→ IMA ADPCM（32–64 kbps，CPU 几乎免费，最常用）→ G.722（64 kbps 宽带音质）→ Opus（16–24 kbps 最省带宽但 S3 上 CPU 开销显著）。</li>
+</ul>
+</section>
+
+<section id="audio"><h2>05 / 音频管线设计</h2>
+<div class="flow">
+<div><b>采集</b>I2S DMA 16 kHz 16 bit 单声道，帧长 20 ms（320 样本）</div>
+<div><b>编码</b>IMA ADPCM 4:1 压缩 → 每帧 160 B + 头部</div>
+<div><b>发包</b>限速发送，单包 ≤250 B，附序号/时间戳</div>
+<div><b>重排</b>jitter buffer 60–100 ms 按序重排、补缺</div>
+<div><b>解码</b>ADPCM 还原（丢包则重置预测器，小爆音可忍）</div>
+<div><b>播放</b>I2S 连续 DMA 输出到 ES8311</div>
+</div>
+<h3>参数建议</h3>
+<ul>
+<li><strong>起步：16 kHz / IMA ADPCM ≈ 64 kbps</strong>。两板例程原生就是 16 kHz，音质与带宽的平衡点，PCMFlow722 证明 64 kbps 可持续。</li>
+<li>若实测丢包率高：降到 8 kHz（≈32 kbps）换可靠性；若还想升级音质：换 G.722（同为 64 kbps 但 7 kHz 音频带宽）。</li>
+<li>播放侧恒速走时（数码时钟晶振）与发送侧采样钟有偏差，需要<strong>时钟弹性缓冲</strong>：水位低于阈值丢帧、高于阈值插帧，否则长时间通话会累积漂移。</li>
+</ul>
+</section>
+
+<section id="duplex"><h2>06 / 双工模型与回声治理（三问三答）</h2>
+<h3>Q1：会不会"串台"？</h3>
+<p><strong>不会像模拟对讲机那样串。</strong>ESP-NOW 是按目标 MAC 定向发送的数字包（可再加 CCMP 加密），只有配对的那台板子会解析内容。同信道的其他 Wi-Fi 设备只会造成空口竞争（表现为丢包/卡顿），不会把声音串进别人的设备。</p>
+<h3>Q2：是不是全双工？</h3>
+<p><strong>射频物理层是半双工的</strong>（Wi-Fi 同频段分时收发），但包交换层面双向可以交替并发——技术上能做出"边说边听"的伪全双工。<strong>本方案明确不做</strong>：全双工会引入声学回声消除（AEC）需求，S3 上做 AEC 性价比极低，且空口双向满流量会互相挤占。经典对讲机式半双工 + 抢占提示，体验反而清晰。</p>
+<h3>Q3：逻辑上会不会串扰（回声循环）？</h3>
+<p><strong>会，这正是 PTT 要治理的核心。</strong>危险场景：A 按住说话时，A 的喇叭同时在放 B 之前的声音 → A 的麦克风把它录进去再发回 B → 回声循环甚至啸叫。治理规则：</p>
+<div class="table-wrap"><table><thead><tr><th>规则</th><th>行为</th></tr></thead><tbody>
+<tr><td>发送静音（核心规则）</td><td>本地按住 PTT 期间，喇叭静音；期间收到的音频包丢弃（或缓存、松开后不补放，避免过期语音轰炸）</td></tr>
+<tr><td>抢占仲裁</td><td>收到对方 PTT_DOWN 后本端进入"对方占用"态：触摸/按键说话仍允许排队，但对端不播放；或直接禁止并震动/闪红提示"对方讲话中"</td></tr>
+<tr><td>结束信令</td><td>松开 PTT 即发 PTT_UP，超时未收到视为对方断线，自动回空闲态（防"卡死在占用"）</td></tr>
+<tr><td>心跳</td><td>低频心跳包携带 RSSI/电量，驱动在线状态显示</td></tr>
+</tbody></table></div>
+<div class="note">一句话总结交互语义：<strong>谁按住谁占有信道；占有期间自己不听；双方都按住时，先按者先说，后按者看到"占用"提示。</strong>这是最简单、永不啸叫、实现量最小的模型。</div>
+</section>
+
+<section id="protocol"><h2>07 / 协议帧设计</h2>
+<p>统一帧头 + 两种载荷（信令 / 音频），纯 C++ 结构体打包，两边工程共享同一份头文件。</p>
+<pre><code>// 所有帧共用头（小端， packed）
+struct frame_hdr_t {
+  uint16_t magic;      // 0xE731 固定标识 + 版本
+  uint8_t  type;       // SIG_PTT_DOWN / SIG_PTT_UP / SIG_HEART / AUDIO
+  uint8_t  flags;      // 预留：加密、重传请求等
+  uint16_t seq;        // 音频包序号（信令包恒 0）
+  uint32_t ts_ms;      // 发端单调时间戳
+};
+
+// AUDIO 载荷： 160 B IMA ADPCM（20 ms @16 kHz）+ 4 B 状态字
+// SIG 载荷：   心跳含 RSSI/电量/音量；PTT_UP 含累计发包数供对端统计</code></pre>
+<ul>
+<li>丢包不重传（语音重传到得晚不如丢）；连续丢 3 包以上重置 ADPCM 预测器并静音一帧。</li>
+<li>配对信息（对端 MAC、信道、PMK/LMK）烧录时写死进 NVS，首次开机对码流程留作后续增强。</li>
+</ul>
+</section>
+
+<section id="projects"><h2>08 / 工程形态与代码复用</h2>
+<p>两个独立 Arduino CLI 工程（工具链与 Mic_FTF 完全一致，零新增环境），一个共享协议层：</p>
+<pre><code>work/espnow-intercom/
+├── common/               # 纯 C++ 共享层，两工程软链接或复制
+│   ├── protocol.h        # 帧结构、序号、时间戳
+│   ├── adpcm.h/.cpp      # IMA ADPCM 编解码（无依赖）
+│   ├── jitter_buffer.h   # 重排 + 时钟弹性缓冲
+│   └── link.h/.cpp       # ESP-NOW 封装：配对、限速发包、RSSI
+├── sticks3/              # M5Unified: M5.Mic / M5.Speaker / M5.BtnA
+│   └── sticks3.ino
+└── amoled/               # Waveshare: 15_ES8311 例程改造 + 触摸库
+    └── amoled.ino</code></pre>
+<div class="table-wrap"><table><thead><tr><th>关注点</th><th>StickS3</th><th>AMOLED</th></tr></thead><tbody>
+<tr><td>编译</td><td colspan="2">均为 <code>arduino-cli compile -b esp32:esp32:esp32s3:PSRAM=opi,FlashSize=8M,PartitionScheme=default_8MB,CDCOnBoot=cdc</code>（AMOLED 板 Flash 16 MB，FlashSize 可改 16M）</td></tr>
+<tr><td>音频</td><td>M5Unified 托管 ES8311</td><td>移植 15_ES8311 的 es8311.c + I2S 引脚</td></tr>
+<tr><td>PTT 输入</td><td><code>M5.BtnA.isPressed()</code></td><td>触摸库按下区域判定（按住状态而非点击）</td></tr>
+<tr><td>优先分工</td><td>先做发送端（Mic_FFT 已验麦）</td><td>先做接收端（15_ES8311 已验喇叭）</td></tr>
+</tbody></table></div>
+</section>
+
+<section id="ui"><h2>09 / UI：按键与屏幕</h2>
+<ul>
+<li><strong>StickS3（135×240 竖条小屏）</strong>：顶部状态色带——灰=空闲、绿=我方发送中、蓝=接收播放中、红=对方占用；底部大字显示对端 RSSI 与电量；按键长按 BtnB 弹出音量档位。</li>
+<li><strong>AMOLED（368×448 触摸大屏）</strong>：屏幕下半部整块是 PTT 按钮（按住即说话，视觉按压反馈），上半部显示实时电平条 + 频谱残影（复用 Mic_FFT 的 FFT 代码即可）+ 通话时长与链路质量。</li>
+<li>两端收到 PTT_UP 后状态带延迟 ~300 ms 回空闲，避免视觉闪跳。</li>
+</ul>
+</section>
+
+<section id="risks"><h2>10 / 风险与未决问题</h2>
+<div class="table-wrap"><table><thead><tr><th>风险</th><th>评估</th><th>预案</th></tr></thead><tbody>
+<tr><td>ESP-NOW 实际吞吐不足 64 kbps</td><td>中低（有 64 kbps 成功先例，但受信道质量影响）</td><td>M2 里程碑先实测单向吞吐；不足则降 8 kHz/32 kbps</td></tr>
+<tr><td>收发时钟漂移累积</td><td>中（长时间通话必然漂移）</td><td>jitter buffer 水位控制丢帧/插帧</td></tr>
+<tr><td>AMOLED 触摸"按住"语义</td><td>低（CST820/FT3168 均可读持续按压）</td><td>若只有按下/抬起事件，用状态机保持</td></tr>
+<tr><td>StickS3 电池仅 250 mAh</td><td>低（持续 Wi-Fi TX 耗电较快）</td><td>空闲心跳降频 + 屏幕超时熄灭</td></tr>
+<tr><td>两板同时上电抢信道</td><td>低</td><td>抢占仲裁（06 节）天然覆盖</td></tr>
+</tbody></table></div>
+</section>
+
+<section id="milestones"><h2>11 / 里程碑</h2>
+<div class="flow">
+<div><b>M1 双端自检</b>各自跑通 mic→codec→speaker 本地回声，验证两板音频链路</div>
+<div><b>M2 单向语音</b>StickS3 说 → AMOLED 放，实测吞吐/丢包/延迟</div>
+<div><b>M3 双向 PTT</b>信令 + 抢占仲裁 + 发送静音，完整对讲体验</div>
+<div><b>M4 加固</b>时钟弹性缓冲、心跳掉线检测、UI 打磨、可选 CCMP 加密</div>
+</div>
+<p>每个里程碑独立可验证、可单独烧录演示，与既有"下载到 work → 烧录 → 记 HTML → push"流水线完全一致。</p>
+</section>
+
+<p class="footer">方案文档，不含实现代码；硬件结论基于两板官方仓库与既有会话实测（Mic_FFT 录音、液体工程 I2C/显示）。吞吐与延迟数字以 M2 实测为准。</p>
+</main>
+</body>
+</html>
