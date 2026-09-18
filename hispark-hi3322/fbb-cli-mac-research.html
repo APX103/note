@@ -164,7 +164,8 @@ fbb gdb --mode agent --connect localhost:3333 --json-summary   # 需先 fbb open
 <li>SDK 内文档：一站式 CLI 开发环境使用指南、HiSpark Studio for VS Code 使用指南、BurnTool 工具使用指南（docs/zh-CN/HiDiTingV100）</li>
 <li>关键文件：src/build/config/target_config/3322/3322.json（requires.toolchains 26.08.1）、src/build/cmake/build_script.cmake（darwin 分支）、src/tools/bin/sign_tool/（macos_universal）、src/tools/bin/fbb_tool/install_bisheng.py（平台判定）</li>
 </ul>
-<p class="source">调研方法：本机仓库 git 取证 + 官方工具源/脚本/远端 master 对比交叉验证；未在 mac 上实际执行构建（待另一台机器部署时按第 06 节验证，验证点：fbb doctor 全绿、bisheng darwin-arm64 落盘、pack_diting_community 出包、串口烧录 FLASH_RC=0）。</p>
+<p class="source">调研方法：本机仓库 git 取证 + 官方工具源/脚本/远端 master 对比交叉验证。</p>
+<div class="callout"><p><strong>✅ 2026-09-19 实机验证（Apple Silicon 本机）：环境部署与编译已通过。</strong>fbb 1.2.1 安装 → bisheng 26.08.1 darwin-arm64 落盘 → <code>fbb build pack_diting_community</code> 全程 mac 原生编译（约 8 分钟）→ 产物 <code>diting-community.fwpkg</code> 9.4 MB。途中两坑已解决：① pip 版 cmake 3.20.5 wheel 在新 macOS 上卡死在 dyld（bundle 结构不合规，ad-hoc 重签无效），换 Kitware 官方签名版 + venv shim 修复；② <code>fbb sdk install</code> git 克隆默认 300s 超时被杀，改本地 <code>git clone file://</code> + <code>git remote set-url</code> 绕过（或设 <code>FBB_GIT_TIMEOUT=3600</code>），再 <code>fbb setup --sdk-dir</code> 补装工具链。烧录/串口环节待板子接入后验证。Codex Agent 使用说明已写入 <code>~/hispark/hs-fbb/master/src/AGENTS.md</code>（含踩坑复现命令）。</p></div>
 </section>
 
 </main></div><div class="foot">APX103 · note · hispark-hi3322 · 2026-09-18</div></div>
