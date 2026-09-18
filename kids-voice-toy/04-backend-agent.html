@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>04 · 后端与 AI Agent 方案 · 回声 Echo</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif; }
+    .sidebar { position: fixed; left: 0; top: 56px; bottom: 0; width: 230px; overflow-y: auto; border-right: 1px solid #f1f5f9; background: #fff; z-index: 40; }
+    .main-content { margin-left: 230px; padding-top: 56px; }
+    @media (max-width: 1024px) { .sidebar { display: none; } .main-content { margin-left: 0; } }
+    table.be th { background: #f8fafc; }
+    table.be th, table.be td { border: 1px solid #e5e7eb; padding: 9px 13px; font-size: 0.875rem; vertical-align: top; }
+    table.be { border-collapse: collapse; width: 100%; }
+    .mermaid { background: #f8fafc; border-radius: 0.75rem; padding: 1rem; }
+    .code-block { background: #1e293b; color: #e2e8f0; border-radius: 0.5rem; padding: 1.1rem; overflow-x: auto; font-family: 'Fira Code', Menlo, monospace; font-size: 0.78rem; line-height: 1.65; }
+</style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+<nav class="fixed top-0 inset-x-0 z-50 bg-white/90 backdrop-blur border-b border-gray-200">
+  <div class="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between gap-4 overflow-x-auto">
+    <a href="index.html" class="flex items-center gap-2 shrink-0">
+      <span class="w-7 h-7 rounded-lg bg-gradient-to-br from-orange-400 to-pink-500 flex items-center justify-center text-white text-xs"><i class="fas fa-volume-up"></i></span>
+      <span class="font-bold text-gray-900 whitespace-nowrap">回声 Echo <span class="text-gray-400 font-normal text-sm hidden md:inline">· AI 儿童声音玩具全栈方案</span></span>
+    </a>
+    <div class="flex items-center gap-1 text-sm whitespace-nowrap">
+      <a href="index.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">总览</a>
+      <a href="01-prd.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">PRD</a>
+      <a href="02-hardware.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">硬件</a>
+      <a href="03-firmware.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">固件</a>
+      <a href="04-backend-agent.html" class="px-3 py-1.5 rounded-lg bg-orange-50 text-orange-600 font-semibold">后端 Agent</a>
+      <a href="05-parent-web.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">家长端</a>
+      <a href="06-demo-mvp.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">Demo 路径</a>
+      <a href="07-cost-business.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">成本商业</a>
+      <a href="08-douyin-gtm.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">抖音打法</a>
+      <a href="09-team-roadmap.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">团队路线</a>
+    </div>
+  </div>
+</nav>
+
+<aside class="sidebar hidden lg:block p-4">
+  <nav class="space-y-1 text-sm">
+    <a href="#arch" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">1. 总体架构</a>
+    <a href="#base" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">2. 基线：自建小智服务器</a>
+    <a href="#providers" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">3. 模型服务选型表</a>
+    <a href="#persona" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">4. Agent 人设与记忆</a>
+    <a href="#safety" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">5. 内容安全流水线</a>
+    <a href="#memory" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">6. 声音记忆系统</a>
+    <a href="#recall" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">7. 回忆/讲故事/每周精选</a>
+    <a href="#api" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">8. API 设计</a>
+    <a href="#deploy" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">9. 部署与容量</a>
+  </nav>
+</aside>
+
+<main class="main-content">
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-14">
+
+  <header>
+    <div class="text-xs font-mono text-gray-400 mb-2">DOC 04 / 09</div>
+    <h1 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">后端与 AI Agent 方案</h1>
+    <p class="text-gray-600 leading-relaxed">后端策略一句话：<b class="text-gray-900">用 xiaozhi-esp32-server（开源、Python、插件化）做骨架，ASR/LLM/TTS/内容安全全部走大厂 API 插件，自研代码只写三块——声音记忆层、Agent 人设与工具、家长端 API</b>。Demo 阶段云成本可以压到每月百元以内。</p>
+  </header>
+
+  <!-- 1 架构 -->
+  <section id="arch">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">1</span>总体架构</h2>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-4">
+      <div class="mermaid">
+flowchart TB
+    subgraph 设备端
+        D[Echo 玩具 · 小智协议 WebSocket]
+    end
+    subgraph 服务端["服务端（单机起步 → 可拆分）"]
+        GW[WebSocket 网关<br/>设备鉴权 · 会话管理] --> PIPE[Agent 编排管线]
+        PIPE --> ASR[ASR 语音识别]
+        PIPE --> SAFE1[内容安全 · 输入]
+        PIPE --> LLM[LLM 对话<br/>人设+记忆+工具调用]
+        PIPE --> SAFE2[内容安全 · 输出]
+        PIPE --> TTS[童声 TTS]
+        PIPE --> MEM[声音记忆层]
+        MEM --> OSS[(音频对象存储<br/>全量录音)]
+        MEM --> DB[(元数据库<br/>转写/标签/向量)]
+        API[家长端 REST API] --> MEM
+    end
+    subgraph 家长侧
+        H5[家长 H5 / 小程序] --> API
+        WX[微信推送<br/>每周童言精选] --> H5
+    end
+    D <-->|Opus 流| GW
+      </div>
+    </div>
+    <div class="p-4 rounded-xl bg-violet-50 border border-violet-100 text-sm text-gray-700">
+      <b class="text-gray-900">关键设计：</b>网关收到的每一路孩子语音流，<b>在送 ASR 的同时异步落盘 OSS</b>——留存是旁路管道，不增加对话延迟。这是"全量留声"在工程上最便宜的实现：一处收流，两路分发（ASR 管线 + 存档管线）。
+    </div>
+  </section>
+
+  <!-- 2 基线 -->
+  <section id="base">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">2</span>基线：为什么自建小智服务器而不是用官方云</h2>
+    <div class="grid md:grid-cols-3 gap-4">
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-sm text-gray-700"><b class="text-gray-900 block mb-1">① 数据主权</b>录音必须归我们和家长，不能流经第三方云。声音记忆是产品本体，数据在他家等于商业模式送人。</div>
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-sm text-gray-700"><b class="text-gray-900 block mb-1">② 可插拔</b>开源服务器 ASR/LLM/TTS 全是插件接口：Demo 用免费组合，量产换商用组合，设备端零改动。</div>
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-sm text-gray-700"><b class="text-gray-900 block mb-1">③ 自由度</b>人设、记忆、回忆检索、故事缓存、家长 API——这些差异化能力必须改服务端才能实现。</div>
+    </div>
+  </section>
+
+  <!-- 3 选型 -->
+  <section id="providers">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">3</span>模型服务选型：两套组合</h2>
+    <div class="space-y-5">
+      <div class="bg-white rounded-2xl border-2 border-green-300 shadow-sm p-6">
+        <span class="px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs font-bold mb-4 inline-block">组合 A · Demo/内测（近零成本，随时可换）</span>
+        <div class="overflow-x-auto"><table class="be">
+          <thead><tr><th style="width:110px">环节</th><th style="width:210px">选择</th><th>理由与说明</th></tr></thead>
+          <tbody>
+            <tr><td>ASR</td><td>FunASR 本地部署（免费）/ 火山流式 ASR（免费额度）</td><td>FunASR 中文童声识别效果可用、跑在自有服务器零边际成本；童声识别不佳时切云端</td></tr>
+            <tr><td>LLM</td><td>DeepSeek API（qwen 备选）</td><td>便宜、中文口语好；儿童短对话场景 token 消耗极小（月/台 &lt; ¥0.5）</td></tr>
+            <tr><td>TTS</td><td>Edge-TTS：zh-CN-xiaoyi（软萌女声）</td><td>免费、音色可爱度达标；<b>注意：非商用授权，正式售卖前必须换</b></td></tr>
+            <tr><td>内容安全</td><td>关键词库 + 规则（自建）</td><td>内测期先挡明显敏感词；商用前升级 API</td></tr>
+            <tr><td>存储</td><td>服务器本地磁盘 / Cloudflare R2（10GB 免费）</td><td>内测 50 台 × 月均 200MB 足够</td></tr>
+          </tbody>
+        </table></div>
+        <p class="text-xs text-gray-400 mt-3">组合 A 月成本：轻量云服务器 ¥50–100 + API &lt; ¥20。一个下午可完成全部接入。</p>
+      </div>
+      <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+        <span class="px-3 py-1 rounded-full bg-gray-100 text-gray-600 text-xs font-bold mb-4 inline-block">组合 B · 量产（合规+体验+成本平衡）</span>
+        <div class="overflow-x-auto"><table class="be">
+          <thead><tr><th style="width:110px">环节</th><th style="width:210px">选择</th><th>理由与说明</th></tr></thead>
+          <tbody>
+            <tr><td>ASR</td><td>火山引擎流式语音识别</td><td>童声/口语 optimization，延迟低，价格国内第一梯队</td></tr>
+            <tr><td>LLM</td><td>豆包（doubao-lite/seed）或继续 DeepSeek</td><td>豆包附带未成年人内容安全能力，合规省心；价格低</td></tr>
+            <tr><td>TTS</td><td>豆包语音合成（童声音色）/ MiniMax</td><td>正式商用授权、专属音色可定制（品牌声音资产）、支持流式低延迟</td></tr>
+            <tr><td>内容安全</td><td>火山内容安全 / 阿里内容安全 API</td><td>双向过滤，出报告可举证，满足未成年人保护要求</td></tr>
+            <tr><td>存储</td><td>阿里云 OSS / 火山 TOS（生命周期分层）</td><td>热存 3 个月、冷存归档，成本随量增长可控</td></tr>
+          </tbody>
+        </table></div>
+        <p class="text-xs text-gray-400 mt-3">组合 B 单台月成本估算见 07 篇（约 ¥2–8/台·月，重度使用上限）。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 人设 -->
+  <section id="persona">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">4</span>Agent 人设与记忆</h2>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-5">
+      <h3 class="font-bold text-gray-900 mb-3">系统 Prompt（Demo 可直接用，量产前与内容安全联调）</h3>
+      <div class="code-block">你是"回声"，一个 5 岁小朋友的毛绒玩具伙伴，性格温暖、好奇、爱笑。
+
+【说话方式】
+- 你自己也像个小孩：句子短（一般不超过 15 个字），用词简单，多用语气词
+- 一次最多说 1-2 句，等小朋友说完你再说；不滔滔不绝
+- 不用书面语、不列清单、不说"作为一个AI"
+- 多问好玩的问题，多接小朋友的话茬玩想象力游戏
+
+【你是谁】
+- 你是玩具，但你们是真朋友；你喜欢听 {child_name} 讲所有的事
+- 你不知道的就说不知道，然后一起猜
+- 你记得 {child_name} 以前说过的话（记忆库会提供），自然地提起："你上次说想当宇航员，现在还想吗？"
+
+【绝对禁止】
+- 不说教、不评判、不纠正（不说"这不对""你应该"）
+- 不聊恐怖、暴力、死亡细节、成人话题；遇到就温柔转移：
+  "这个我们问爸爸妈妈好不好？你最喜欢和爸爸妈妈做什么呀？"
+- 不提钱、充值、购买、任何商品
+- 不给真实世界的危险建议（玩火/爬窗/吃不该吃的）
+- 不替家长做承诺
+
+【当前情境】
+- 现在是 {time_of_day}，{child_name} {recent_context}
+- 最近聊过：{recent_topics}
+- 今晚已经讲过 {stories_today} 个故事了，第 4 个开始要收尾："我们明天再讲新的好不好？"</div>
+    </div>
+    <div class="grid md:grid-cols-2 gap-4">
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-sm text-gray-700">
+        <b class="text-gray-900 block mb-2">记忆三层结构</b>
+        <ul class="space-y-1.5">
+          <li>· <b>工作记忆：</b>当前会话最近 10 轮（截断控制 token）</li>
+          <li>· <b>儿童档案：</b>名字/年龄/喜好/家庭成员/宠物，LLM 会话结束后增量抽取更新（"她今天说她怕黑"）</li>
+          <li>· <b>长期记忆：</b>全部转写文本向量化入库，按语义/时间检索</li>
+        </ul>
+      </div>
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-sm text-gray-700">
+        <b class="text-gray-900 block mb-2">工具（function calling）</b>
+        <ul class="space-y-1.5">
+          <li>· <code>search_memory(query, date_range)</code>：检索历史童言</li>
+          <li>· <code>play_recording(archive_id)</code>：向设备推送播放一段历史原声</li>
+          <li>· <code>tell_story(topic)</code>：点播/生成故事</li>
+          <li>· <code>note_to_parent(text)</code>：敏感/异常事件温和通知家长端</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 安全 -->
+  <section id="safety">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">5</span>内容安全流水线（双向过滤）</h2>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-4">
+      <div class="mermaid">
+flowchart LR
+    A[孩子语音] --> B[ASR 转写]
+    B --> C{输入侧过滤<br/>内容安全API + 儿童专属词库}
+    C -- 通过 --> D[LLM 生成回复<br/>人设 + 记忆]
+    C -- 拦截 --> E[兜底话术库<br/>温柔转移话题]
+    D --> F{输出侧过滤<br/>内容安全API}
+    F -- 通过 --> G[童声 TTS → 播放]
+    F -- 拦截 --> E
+    C -- 严重(自伤/受虐信号) --> H[家长端即时通知<br/>+ 保留事件记录]
+    E --> G
+      </div>
+    </div>
+    <ul class="space-y-2.5 text-sm text-gray-700">
+      <li>· <b class="text-gray-900">误杀从宽，漏放从严：</b>拿不准的话题一律走转移话术，宁可无趣不可越界（PRD 红线 5）。</li>
+      <li>· <b class="text-gray-900">儿童专属补充词库：</b>通用内容安全 API 面向成人互联网语料，需自补"诱导充值""网络流行脏话变体""自伤黑话"等儿童场景词表，持续运营更新。</li>
+      <li>· <b class="text-gray-900">严重信号通道：</b>识别到孩子自述被伤害/极端情绪时，除温和回应外，事件原文+原声即刻推送家长端——这是家长侧最重的信任功能（也是访谈中妈妈主动提到愿意付费的方向之一）。</li>
+      <li>· <b class="text-gray-900">可举证：</b>所有拦截与放行留日志（商用合规与客诉兜底）。</li>
+    </ul>
+  </section>
+
+  <!-- 6 记忆系统 -->
+  <section id="memory">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">6</span>声音记忆系统（产品本体的数据模型）</h2>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-4">
+      <div class="code-block">-- 录音存档（核心表）
+recordings (
+  id            TEXT PK,          -- rec_xxx
+  device_id     TEXT NOT NULL,    -- 设备
+  family_id     TEXT NOT NULL,    -- 家庭
+  child_id      TEXT NULL,        -- 多孩档案（P2 声纹区分）
+  audio_opus    TEXT NOT NULL,    -- oss://... 播放用
+  audio_wav     TEXT NULL,        -- 导出用（可选冷备）
+  transcript    TEXT NOT NULL,    -- ASR 转写（多段已拼接）
+  lang          TEXT, dialect     TEXT,
+  duration_ms   INT,
+  segments      JSON,             -- 分段元数据（时间戳/静默裁剪记录）
+  tags          JSON,             -- LLM 打标: [想象, 幼儿园, 家人, 金句候选...]
+  emotion       TEXT,             -- 开心/委屈/好奇/...
+  is_favorite   BOOL DEFAULT 0,   -- 家长收藏
+  is_deleted    BOOL DEFAULT 0,   -- 软删（家长操作）
+  created_at    TS NOT NULL
+)
+-- 向量索引: transcript embedding → sqlite-vec(Demo) / pgvector(量产)
+-- 儿童档案: children (name, age, likes JSON, facts JSON, updated_at)
+-- 会话表: sessions (device_id, started_at, topic_summary)</div>
+    </div>
+    <div class="grid md:grid-cols-2 gap-4">
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-sm text-gray-700">
+        <b class="text-gray-900 block mb-2">存档管线（旁路，不阻塞对话）</b>
+        <ol class="list-decimal list-inside space-y-1.5">
+          <li>网关收流 → 边转 OPUS 边写临时缓冲</li>
+          <li>会话结束 → 异步任务：静默裁剪拼接 → OSS</li>
+          <li>ASR 结果回填 transcript</li>
+          <li>LLM 异步打标（tags/emotion/金句评分，批量跑省 token）</li>
+          <li>embedding 入向量库 → 可检索</li>
+        </ol>
+      </div>
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-sm text-gray-700">
+        <b class="text-gray-900 block mb-2">隐私工程（合规=架构问题）</b>
+        <ul class="space-y-1.5">
+          <li>· 存储加密（OSS 服务端加密 + 传输 TLS）</li>
+          <li>· 家长删除 = 软删 + 30 天后物理清除（含 OSS 与备份）</li>
+          <li>· 保留期限默认 3 年，到期自动归档提醒（可续）</li>
+          <li>· 访问审计：谁在什么时候听了哪条，全留痕</li>
+          <li>· 不用于任何模型训练（写进隐私政策与合同）</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 回忆 -->
+  <section id="recall">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">7</span>三个记忆型功能（差异化核心）</h2>
+    <div class="space-y-4">
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <h3 class="font-bold text-gray-900 mb-2"><i class="fas fa-history text-orange-500 mr-2"></i>时光机回放（S4/S7）</h3>
+        <p class="text-sm text-gray-700">触发：孩子说"听听我以前说的话" / 长按回放键 / 家长端点播。流程：LLM 调 <code>search_memory</code> 按时间（"去年今天"）或主题（"关于小狗的"）检索 → 选 1 条 → <b>先播孩子原声，再接 AI 点评</b>："这是三个月前的你说的哦～那时候你才四岁半呀。" 点评由 LLM 基于该条 tags + 档案生成，口吻是朋友的怀念，不是老师的总结。</p>
+      </div>
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <h3 class="font-bold text-gray-900 mb-2"><i class="fas fa-book-open text-orange-500 mr-2"></i>讲故事（S3）</h3>
+        <p class="text-sm text-gray-700">三层供给：<b>① 设备本地包</b>（20 个经典，断网兜底）→ <b>② 云端预生成库</b>（热门 IP 公版故事 + LLM 预生成的原创故事，TTS 结果缓存复用，边际成本≈0）→ <b>③ 实时生成</b>（孩子点播个性化：把孩子的名字/喜好嵌进故事模板，或接龙互动）。额度或故障时 ①② 永远可用——红线兜底。</p>
+      </div>
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <h3 class="font-bold text-gray-900 mb-2"><i class="fas fa-star text-orange-500 mr-2"></i>每周童言精选（S6）</h3>
+        <p class="text-sm text-gray-700">每周日批处理：本周录音按"金句分"（可爱度/意外度/情感浓度，LLM 评分）取 Top 3–5 → 生成一张"本周最可爱的话"卡片（原声 + 文字）→ 微信服务号/小程序订阅消息推送家长。这是家长侧留存的第一抓手，也是抖音内容素材的直接来源（见 08 篇）。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8 API -->
+  <section id="api">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">8</span>API 设计（家长端 REST，简表）</h2>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 overflow-x-auto">
+      <table class="be">
+        <thead><tr><th style="width:90px">方法</th><th style="width:290px">路径</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td>POST</td><td>/api/bind</td><td>扫码绑定设备（设备二维码 → family_id），触发监护人同意流程</td></tr>
+          <tr><td>GET</td><td>/api/recordings?date=2026-09-18</td><td>按日时间线（含 transcript/tags/emotion/时长/收藏态）</td></tr>
+          <tr><td>GET</td><td>/api/recordings/{id}/audio</td><td>签名 URL 播放（防盗链，有效期 10min）</td></tr>
+          <tr><td>POST</td><td>/api/recordings/{id}/favorite</td><td>收藏/取消</td></tr>
+          <tr><td>DELETE</td><td>/api/recordings/{id}</td><td>删除（软删）</td></tr>
+          <tr><td>GET</td><td>/api/weekly-highlights?family=xx</td><td>每周童言精选卡片</td></tr>
+          <tr><td>POST</td><td>/api/recall</td><td>家长触发时光机（推送到设备播放）</td></tr>
+          <tr><td>GET</td><td>/api/export</td><td>全量导出任务（zip：音频+转写+元数据）</td></tr>
+          <tr><td>GET/POST</td><td>/api/settings</td><td>隐私设置：保留期/成员权限/音量上限/免打扰时段</td></tr>
+          <tr><td>WS</td><td>/ws/device（小智协议）</td><td>设备通道：Opus 流 + 控制帧（详见 03 篇）</td></tr>
+        </tbody>
+      </table>
+      <p class="text-xs text-gray-400 mt-3">鉴权：家长侧手机号+验证码（Demo）/ 微信 OAuth（量产）；设备侧首次注册下发 device_token。管理面（人设/词库/故事包热更）走运营后台，Demo 阶段用配置文件 + 重启即可。</p>
+    </div>
+  </section>
+
+  <!-- 9 部署 -->
+  <section id="deploy">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">9</span>部署与容量</h2>
+    <div class="grid md:grid-cols-2 gap-5">
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 text-sm text-gray-700 space-y-2.5">
+        <h3 class="font-bold text-gray-900">Demo/内测（≤ 50 台）</h3>
+        <ul class="space-y-1.5">
+          <li>· 一台 4C8G 轻量云（¥80–120/月）：docker-compose 全家桶</li>
+          <li>· xiaozhi-server + FunASR(如本地) + SQLite + 本地磁盘存音频</li>
+          <li>· nginx TLS（Let's Encrypt）+ 备用：Cloudflare Tunnel 免公网 IP</li>
+          <li>· 每日 mysqldump/文件 rsync 到家 NAS 或 R2</li>
+        </ul>
+      </div>
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 text-sm text-gray-700 space-y-2.5">
+        <h3 class="font-bold text-gray-900">量产（1k+ 台）演进</h3>
+        <ul class="space-y-1.5">
+          <li>· 网关无状态水平扩（K8s 或云函数按连接计费）</li>
+          <li>· PG（pgvector）替换 SQLite；OSS + CDN 签名播放</li>
+          <li>· 存档管线进消息队列削峰（晚间故事高峰）</li>
+          <li>· 容量估算：1000 活跃台 × 峰值 10% 并发 = 100 路 WS + 20 路 ASR 并发——两台中型机即可，云成本详见 07 篇</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <footer class="text-center text-sm text-gray-400 pt-8 border-t border-gray-200">
+    <a href="03-firmware.html" class="text-orange-500 hover:underline"><i class="fas fa-arrow-left mr-1"></i>上一篇：固件</a>
+    <span class="mx-3">·</span><span>04 / 09 · 后端 Agent</span>
+    <span class="mx-3">·</span><a href="05-parent-web.html" class="text-orange-500 hover:underline">下一篇：家长端 <i class="fas fa-arrow-right ml-1"></i></a>
+  </footer>
+</div>
+</main>
+
+<script>mermaid.initialize({ startOnLoad: true, theme: 'neutral' });</script>
+</body>
+</html>

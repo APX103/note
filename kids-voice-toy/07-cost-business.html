@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>07 · 成本模型与商业模式 · 回声 Echo</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif; }
+    .sidebar { position: fixed; left: 0; top: 56px; bottom: 0; width: 230px; overflow-y: auto; border-right: 1px solid #f1f5f9; background: #fff; z-index: 40; }
+    .main-content { margin-left: 230px; padding-top: 56px; }
+    @media (max-width: 1024px) { .sidebar { display: none; } .main-content { margin-left: 0; } }
+    table.cb th { background: #f8fafc; }
+    table.cb th, table.cb td { border: 1px solid #e5e7eb; padding: 9px 13px; font-size: 0.875rem; vertical-align: top; }
+    table.cb { border-collapse: collapse; width: 100%; }
+    .total-row td { background: #fff7ed; font-weight: 700; }
+    .code-block { background: #1e293b; color: #e2e8f0; border-radius: 0.5rem; padding: 1.1rem; overflow-x: auto; font-family: 'Fira Code', Menlo, monospace; font-size: 0.78rem; line-height: 1.65; }
+</style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+<nav class="fixed top-0 inset-x-0 z-50 bg-white/90 backdrop-blur border-b border-gray-200">
+  <div class="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between gap-4 overflow-x-auto">
+    <a href="index.html" class="flex items-center gap-2 shrink-0">
+      <span class="w-7 h-7 rounded-lg bg-gradient-to-br from-orange-400 to-pink-500 flex items-center justify-center text-white text-xs"><i class="fas fa-volume-up"></i></span>
+      <span class="font-bold text-gray-900 whitespace-nowrap">回声 Echo <span class="text-gray-400 font-normal text-sm hidden md:inline">· AI 儿童声音玩具全栈方案</span></span>
+    </a>
+    <div class="flex items-center gap-1 text-sm whitespace-nowrap">
+      <a href="index.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">总览</a>
+      <a href="01-prd.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">PRD</a>
+      <a href="02-hardware.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">硬件</a>
+      <a href="03-firmware.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">固件</a>
+      <a href="04-backend-agent.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">后端 Agent</a>
+      <a href="05-parent-web.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">家长端</a>
+      <a href="06-demo-mvp.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">Demo 路径</a>
+      <a href="07-cost-business.html" class="px-3 py-1.5 rounded-lg bg-orange-50 text-orange-600 font-semibold">成本商业</a>
+      <a href="08-douyin-gtm.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">抖音打法</a>
+      <a href="09-team-roadmap.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">团队路线</a>
+    </div>
+  </div>
+</nav>
+
+<aside class="sidebar hidden lg:block p-4">
+  <nav class="space-y-1 text-sm">
+    <a href="#hardware" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">1. 硬件成本与定价锚点</a>
+    <a href="#cloud" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">2. 云端单位经济模型</a>
+    <a href="#pricing" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">3. 定价与收费红线</a>
+    <a href="#model" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">4. 单位经济模型</a>
+    <a href="#competitors" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">5. 竞品价格带</a>
+    <a href="#cash" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">6. 现金流与投入节奏</a>
+  </nav>
+</aside>
+
+<main class="main-content">
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-14">
+
+  <header>
+    <div class="text-xs font-mono text-gray-400 mb-2">DOC 07 / 09</div>
+    <h1 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">成本模型与商业模式</h1>
+    <p class="text-gray-600 leading-relaxed">商业策略一句话：<b class="text-gray-900">硬件买断制（含首年服务）建立信任，会员订阅在家长侧情感增值上收费，实体的"声音书"赚口碑与毛利——孩子在设备端永远感知不到"付费"二字的存在。</b></p>
+  </header>
+
+  <!-- 1 -->
+  <section id="hardware">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">1</span>硬件成本与定价锚点</h2>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 overflow-x-auto mb-4">
+      <table class="cb">
+        <thead><tr><th>档位</th><th style="width:120px">单台成本</th><th style="width:110px">目标售价</th><th>一次性投入</th><th>用途</th></tr></thead>
+        <tbody>
+          <tr><td>A · 成品机改造</td><td>¥79–168</td><td>不卖</td><td>¥0</td><td>Demo / 内容拍摄道具</td></tr>
+          <tr><td>B · 开发板 DIY</td><td>¥90–120</td><td>不卖（可收 ¥199 押金借测）</td><td>¥0</td><td>种子家庭内测</td></tr>
+          <tr><td>C · 量产 BOM（1k）</td><td>¥43–64</td><td><b>¥199–249</b></td><td>开模 ¥3–8 万 + 3C ¥3–6 万</td><td>正式销售</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="grid md:grid-cols-3 gap-4 text-sm">
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5"><b class="text-gray-900 block mb-1">为什么定 ¥199–249</b>火火兔价位带（¥100–200）是"妈妈买玩具不犹豫区间"；BubblePal（¥399+）证明 AI 玩具溢价空间。我们卡在中间：比特讯玩具贵一点显示"智能"，比大牌便宜一半显示"划算"。</div>
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5"><b class="text-gray-900 block mb-1">首发价策略</b>首发 ¥199 限量（首批 500 台），恢复价 ¥249；"首发价"同时是抖音直播间的话术抓手。</div>
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5"><b class="text-gray-900 block mb-1">毛利结构</b>BOM ¥55 + 云首年 ¥10–30 + 渠道/物流/退损 ~15% → 首发毛利 ≈ 35–45%，健康水平；会员与周边是纯增量。</div>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section id="cloud">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">2</span>云端单位经济：每台每月到底多少钱</h2>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-4">
+      <h3 class="font-bold text-gray-900 mb-3 text-sm">测算公式（公开价格可自行代入核对，以各厂商当期刊例为准）</h3>
+      <div class="code-block">单台月成本 = 日均交互时长(min) × 30 × [ ASR(元/分钟)
+              + LLM(元/分钟对话 ≈ 1.5k in + 0.3k out tokens)
+              + TTS(元/字符 ≈ 80 字/分钟) ]
+            + 存储: 月增音频(MB) × 单价(冷热分层) + 分摊带宽
+
+假设：中度用户日均 15 min 交互、月增录音 ~200MB（Opus）</div>
+    </div>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 overflow-x-auto">
+      <table class="cb">
+        <thead><tr><th>组合</th><th>配置</th><th style="width:150px">单台·月（轻度/重度）</th><th>适用</th></tr></thead>
+        <tbody>
+          <tr><td>免费组合（04 篇 A）</td><td>FunASR 自部署 + DeepSeek + Edge-TTS + 本地盘</td><td>≈ ¥0.3 / ¥1.5</td><td>Demo/内测（仅服务器分摊）</td></tr>
+          <tr><td>国产云组合（04 篇 B）</td><td>火山 ASR + 豆包 LLM + 豆包 TTS + OSS 分层</td><td>≈ ¥1.5–2 / ¥5–8</td><td>量产主力</td></tr>
+          <tr><td>高保真组合</td><td>定制音色 TTS + 旗舰 LLM</td><td>≈ ¥3 / ¥10+</td><td>仅会员档/按需功能</td></tr>
+        </tbody>
+      </table>
+      <p class="text-xs text-gray-400 mt-3">重度 = 日均 45min（睡前故事重用户）。关键结论：<b>国产云组合下，1000 台活跃设备的月云成本约 ¥2k–5k，年化 ≈ ¥2.4–6 万</b>——一台设备的年云成本（¥20–60）远低于一次会员年费（¥99–198），商业模型天然成立。大杀器是缓存：热门故事 TTS 结果全量缓存复用，边际成本≈0，重故事用户的成本远低于直觉。</p>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section id="pricing">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">3</span>定价结构与收费红线</h2>
+    <div class="grid md:grid-cols-2 gap-5 mb-5">
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <h3 class="font-bold text-gray-900 mb-3">免费层（硬件买断即含，永久）</h3>
+        <ul class="space-y-2 text-sm text-gray-700">
+          <li>· 无限对话（公平使用条款兜底极端滥用）</li>
+          <li>· 无限故事（本地包 + 云端公版库）</li>
+          <li>· 录音留存与回听：<b>近 12 个月</b></li>
+          <li>· 每周童言精选推送</li>
+          <li>· 基础童声音色</li>
+        </ul>
+        <p class="text-xs text-gray-400 mt-3">原则：免费层必须"永远好用"。对比竞品"讲到一半要充值"，我们的免费层就是最强广告。</p>
+      </div>
+      <div class="bg-gradient-to-br from-orange-500 to-pink-500 rounded-2xl p-6 text-white">
+        <h3 class="font-bold mb-3">会员 ¥99/年 或 ¥12/月（首发 ¥69/年）</h3>
+        <ul class="space-y-2 text-sm text-white/95">
+          <li>· 录音云端保存延长至 5 年 + 容量翻倍</li>
+          <li>· 月度成长报告（词汇/话题/情绪变化）</li>
+          <li>· 专属童声音色 2–3 款</li>
+          <li>· 亲友共享席位（奶奶也能听）</li>
+          <li>· 时光胶囊自定义纪念日提醒</li>
+        </ul>
+        <p class="text-xs text-white/80 mt-3">收费全部落在"家长侧增值"，孩子侧零感知——这是与"叫妈妈充值"模式的本质区别。</p>
+      </div>
+    </div>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      <h3 class="font-bold text-gray-900 mb-3">实体周边：情感付费的天花板（毛利率 60%+）</h3>
+      <p class="text-sm text-gray-700 mb-3">「年度声音书」：一年下来最有代表性的 60 条童言 + AI 写的成长叙事 + 二维码原声（印刷二维码扫码即听），精装 ¥129–199。生日/六一/春节档期主推。<b>它同时是传播物</b>——妈妈晒的是书，书带来的是新用户。</p>
+      <div class="p-3.5 rounded-xl bg-red-50 border border-red-100 text-sm text-gray-700"><b class="text-red-600">收费红线（工程实现，非口号）：</b>服务器额度系统只对"云端新故事生成/高保真音色"生效；本地故事包与对话链路<b>不走额度系统</b>（物理上不可能断供）；额度用尽的设备端行为 = 自动切缓存内容，家长端收到一条温和提醒。<b>任何 PRD/需求都不得改动这条架构约束。</b></div>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section id="model">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">4</span>单位经济模型（1k 台首发批次测算）</h2>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 overflow-x-auto">
+      <table class="cb">
+        <thead><tr><th>项目</th><th style="width:150px">金额/比例</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td>售价（首发均价）</td><td>¥220</td><td>199/249 混合</td></tr>
+          <tr><td>BOM + 组装 + 包装</td><td>-¥58</td><td>02 篇 C 档</td></tr>
+          <tr><td>物流 + 退损（8%）</td><td>-¥18</td><td>退货主因是配网摩擦，用开箱引导视频压</td></tr>
+          <tr><td>渠道费（抖音小店 ~5%）</td><td>-¥11</td><td>自播为主，达人佣金另计在投放预算</td></tr>
+          <tr><td>首年云成本摊销</td><td>-¥24</td><td>¥2/月 × 12，含活跃率折减</td></tr>
+          <tr><td>首年礼盒/卡片/说明书</td><td>-¥6</td><td>扫码绑定引导卡（降退货投资）</td></tr>
+          <tr class="total-row"><td>单台首年毛利</td><td class="text-green-600">≈ ¥103（47%）</td><td>未含会员/周边</td></tr>
+          <tr><td>会员转化（20%）× 年费 ¥99</td><td>+¥20/台（期望值）</td><td>三年 LTV 增量 +¥60–80</td></tr>
+          <tr><td>声音书转化（8%）× ¥159</td><td>+¥13/台（期望值）</td><td>且带来转介绍</td></tr>
+        </tbody>
+      </table>
+      <p class="text-xs text-gray-400 mt-3">CAC 假设：抖音自然流 + 少量 DOU+（08 篇），获客成本目标 ≤ ¥35/台。盈亏平衡点：单批次约 400–600 台（覆盖开模与认证摊销）。</p>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section id="competitors">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">5</span>竞品价格带对照（2026 市场）</h2>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 overflow-x-auto">
+      <table class="cb">
+        <thead><tr><th>产品</th><th style="width:130px">硬件价格</th><th style="width:150px">订阅</th><th>我们的对照动作</th></tr></thead>
+        <tbody>
+          <tr><td>火火兔/牛听听类</td><td>¥69–299</td><td>内容会员 ¥10–30/月</td><td>我们的免费层故事库对标其会员权益，直接降维</td></tr>
+          <tr><td>BubblePal 类 AI 挂坠</td><td>¥399+</td><td>部分功能订阅</td><td>价格低一档 + "留声"差异化，详情页逐项对比</td></tr>
+          <tr><td>Folotoy 等开源系</td><td>¥199–599</td><td>API 自付</td><td>体验对齐（同源生态），我们多记忆层与家长端</td></tr>
+          <tr class="bg-orange-50/60"><td><b>回声 Echo</b></td><td><b>¥199–249 买断</b></td><td><b>¥99/年（可选）</b></td><td>买断制 + 免费层永久可用是核心价格心智</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section id="cash">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">6</span>现金流与投入节奏（不融资路线）</h2>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 overflow-x-auto mb-4">
+      <table class="cb">
+        <thead><tr><th style="width:190px">阶段</th><th style="width:130px">投入</th><th>内容</th></tr></thead>
+        <tbody>
+          <tr><td>Phase 0 Demo（W1–2）</td><td>&lt; ¥0.1 万</td><td>06 篇清单，全部自付无压力</td></tr>
+          <tr><td>Phase 1 内测（W3–4）</td><td>¥0.3–0.5 万</td><td>10 台 B 档 DIY + 小奖励</td></tr>
+          <tr><td>Phase 2 小批量（W5–8）</td><td>¥3–6 万</td><td>100–300 台贴牌（方案商垫付部分可谈）+ 认证启动费 + 内容投放</td></tr>
+          <tr><td>Phase 3 首发放量（W9–16）</td><td>¥8–15 万</td><td>3C 完成费 + 开模 + 首批库存 + DOU+ 预算</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="grid md:grid-cols-2 gap-4 text-sm">
+      <div class="bg-emerald-50 rounded-2xl border border-emerald-100 p-5 text-gray-700"><b class="text-gray-900 block mb-1">推荐：小步快跑不融资</b>每一阶段用上一阶段验证数据解锁投入；Phase 2 起可接天使（估值叙事现成：儿童 AI 记忆资产），但不依赖融资活命——现金流转正路径清晰（首批 500 台回收 ≈ ¥7–10 万）。</div>
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-gray-700"><b class="text-gray-900 block mb-1">爆单是最大的财务风险</b>抖音爆量 → 现金被备货吃光 → 发不出货 → 差评反噬。对策：预售制（7 天发货）+ 方案商账期 + 08 篇爆单预案。<b>宁可少卖，不可断供。</b></div>
+    </div>
+  </section>
+
+  <footer class="text-center text-sm text-gray-400 pt-8 border-t border-gray-200">
+    <a href="06-demo-mvp.html" class="text-orange-500 hover:underline"><i class="fas fa-arrow-left mr-1"></i>上一篇：Demo 路径</a>
+    <span class="mx-3">·</span><span>07 / 09 · 成本商业</span>
+    <span class="mx-3">·</span><a href="08-douyin-gtm.html" class="text-orange-500 hover:underline">下一篇：抖音打法 <i class="fas fa-arrow-right ml-1"></i></a>
+  </footer>
+</div>
+</main>
+
+</body>
+</html>

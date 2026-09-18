@@ -239,6 +239,10 @@
     <!-- HiDiTing / hs-fbb 调研 -->
     <div class="section-title"><span class="dot"></span> 最新记录</div>
     <div class="grid">
+        <a class="card" href="kids-voice-toy/index.html">
+            <div class="card-title"><span class="arrow">&rarr;</span> AI 儿童声音玩具「回声 Echo」全栈方案（10 篇）</div>
+            <div class="card-desc"><span class="tag">2026-09-18 · 产品方案</span> 会回应、会留声、能一起回看成长的声音玩具 — PRD · 硬件 · 固件 · 后端 Agent · 家长端 · 14 天 Demo 路径 · 成本商业 · 抖音打法 · 团队路线图</div>
+        </a>
         <a class="card" href="hispark-hi3322/fbb-cli-mac-research.html">
             <div class="card-title"><span class="arrow">&rarr;</span> HiDiTing fbb CLI 调研：Agent 友好设计与 Mac 部署可行性</div>
             <div class="card-desc"><span class="tag">2026-09-18 · 调研报告</span> 官方一站式 CLI 能力全景 · JSON 契约与 gdb agent 模式 · 毕昇 26.08.1 起支持 Apple Silicon · 旧克隆坑位与完整部署步骤</div>
@@ -250,6 +254,51 @@
         <a class="card" href="hispark-cv610/session-2026-09-09.html">
             <div class="card-title"><span class="arrow">&rarr;</span> CV610 开发实录：从 Mac 编译到 NPU 实时检测</div>
             <div class="card-desc"><span class="tag">2026-09-09 · 实板验证</span> Docker 编译 · 串口与 LVGL 触摸 · Agent 方案取舍 · 摄像头排障 · NPU 检测与复现手册</div>
+        </a>
+    </div>
+
+    <!-- AI 儿童声音玩具方案 -->
+    <div class="section-title"><span class="dot" style="background:#f97316;"></span> AI 儿童声音玩具「回声 Echo」方案</div>
+    <div class="grid">
+        <a class="card" href="kids-voice-toy/index.html">
+            <div class="card-title"><span class="arrow">&rarr;</span> 系列总览 · 一页纸看懂回声 Echo</div>
+            <div class="card-desc"><span class="tag">总览</span> 三个访谈洞察 · 产品定义 · 技术架构速览 · 文档地图 — 孩子的玩伴，父母的声音日记</div>
+        </a>
+        <a class="card" href="kids-voice-toy/01-prd.html">
+            <div class="card-title"><span class="arrow">&rarr;</span> 01 · 产品需求文档（PRD）</div>
+            <div class="card-desc"><span class="tag">产品</span> 双角色模型 · 用户故事 · P0/P1/P2 功能 · 按键交互规格 · 五条产品红线 · 竞品对照与成功指标</div>
+        </a>
+        <a class="card" href="kids-voice-toy/02-hardware.html">
+            <div class="card-title"><span class="arrow">&rarr;</span> 02 · 硬件方案：三档配置与 BOM</div>
+            <div class="card-desc"><span class="tag">硬件</span> ESP32-S3 选型 · 成品机/开发板/量产 BOM（¥43–64）· 毛绒外壳 · 华强北供应链与认证前置设计</div>
+        </a>
+        <a class="card" href="kids-voice-toy/03-firmware.html">
+            <div class="card-title"><span class="arrow">&rarr;</span> 03 · 固件方案：小智生态分级改造</div>
+            <div class="card-desc"><span class="tag">固件</span> L0–L2 改造路线（Demo 可零固件改动）· 多段录音状态机 · 离线故事包红线兜底 · OTA 与配网</div>
+        </a>
+        <a class="card" href="kids-voice-toy/04-backend-agent.html">
+            <div class="card-title"><span class="arrow">&rarr;</span> 04 · 后端与 AI Agent 方案</div>
+            <div class="card-desc"><span class="tag">后端</span> 小智服务器自建 · ASR/LLM/TTS/内容安全选型（零成本→量产两套组合）· 儿童人设 Prompt · 声音记忆数据模型</div>
+        </a>
+        <a class="card" href="kids-voice-toy/05-parent-web.html">
+            <div class="card-title"><span class="arrow">&rarr;</span> 05 · 家长端：H5 三屏起步</div>
+            <div class="card-desc"><span class="tag">家长端</span> 声音时间线线框 · 原声优先原则 · 每周童言精选推送 · 隐私权利产品化 · 小程序演进路径</div>
+        </a>
+        <a class="card" href="kids-voice-toy/06-demo-mvp.html">
+            <div class="card-title"><span class="arrow">&rarr;</span> 06 · Demo 最简实现路径（14 天）★ 先看</div>
+            <div class="card-desc"><span class="tag">Demo</span> Day-by-Day 计划 · &lt;¥800 零焊接近零固件改动 · 服务器侧全量落盘录音 · Go/No-Go 判据 · 避坑清单</div>
+        </a>
+        <a class="card" href="kids-voice-toy/07-cost-business.html">
+            <div class="card-title"><span class="arrow">&rarr;</span> 07 · 成本模型与商业模式</div>
+            <div class="card-desc"><span class="tag">商业</span> 云成本公式（¥1–8/台·月）· ¥199–249 买断 + 会员 · 收费红线工程化 · 单位经济模型与现金流节奏</div>
+        </a>
+        <a class="card" href="kids-voice-toy/08-douyin-gtm.html">
+            <div class="card-title"><span class="arrow">&rarr;</span> 08 · 抖音冷启动打法</div>
+            <div class="card-desc"><span class="tag">增长</span> 内容先行四阶段 · 三板斧与 20 条选题 · 爆款结构公式 · DOU+ 纪律 · 3C 前后转化路径 · 爆单预案</div>
+        </a>
+        <a class="card" href="kids-voice-toy/09-team-roadmap.html">
+            <div class="card-title"><span class="arrow">&rarr;</span> 09 · 团队与路线图</div>
+            <div class="card-desc"><span class="tag">组织</span> 16 周五阶段甘特图 · 3 人最小团队 · 自建 vs 外包决策 · 风险登记册 Top10 · 本周行动清单</div>
         </a>
     </div>
 

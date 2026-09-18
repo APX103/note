@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>06 · Demo 最简实现路径（14 天）· 回声 Echo</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif; }
+    .sidebar { position: fixed; left: 0; top: 56px; bottom: 0; width: 230px; overflow-y: auto; border-right: 1px solid #f1f5f9; background: #fff; z-index: 40; }
+    .main-content { margin-left: 230px; padding-top: 56px; }
+    @media (max-width: 1024px) { .sidebar { display: none; } .main-content { margin-left: 0; } }
+    table.dm th { background: #f8fafc; }
+    table.dm th, table.dm td { border: 1px solid #e5e7eb; padding: 9px 13px; font-size: 0.875rem; vertical-align: top; }
+    table.dm { border-collapse: collapse; width: 100%; }
+    .code-block { background: #1e293b; color: #e2e8f0; border-radius: 0.5rem; padding: 1.1rem; overflow-x: auto; font-family: 'Fira Code', Menlo, monospace; font-size: 0.78rem; line-height: 1.65; }
+    .day-badge { display:inline-flex; align-items:center; justify-content:center; min-width: 74px; padding: 2px 10px; border-radius: 999px; font-size: .72rem; font-weight: 700; }
+</style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+<nav class="fixed top-0 inset-x-0 z-50 bg-white/90 backdrop-blur border-b border-gray-200">
+  <div class="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between gap-4 overflow-x-auto">
+    <a href="index.html" class="flex items-center gap-2 shrink-0">
+      <span class="w-7 h-7 rounded-lg bg-gradient-to-br from-orange-400 to-pink-500 flex items-center justify-center text-white text-xs"><i class="fas fa-volume-up"></i></span>
+      <span class="font-bold text-gray-900 whitespace-nowrap">回声 Echo <span class="text-gray-400 font-normal text-sm hidden md:inline">· AI 儿童声音玩具全栈方案</span></span>
+    </a>
+    <div class="flex items-center gap-1 text-sm whitespace-nowrap">
+      <a href="index.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">总览</a>
+      <a href="01-prd.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">PRD</a>
+      <a href="02-hardware.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">硬件</a>
+      <a href="03-firmware.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">固件</a>
+      <a href="04-backend-agent.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">后端 Agent</a>
+      <a href="05-parent-web.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">家长端</a>
+      <a href="06-demo-mvp.html" class="px-3 py-1.5 rounded-lg bg-orange-50 text-orange-600 font-semibold">Demo 路径</a>
+      <a href="07-cost-business.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">成本商业</a>
+      <a href="08-douyin-gtm.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">抖音打法</a>
+      <a href="09-team-roadmap.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">团队路线</a>
+    </div>
+  </div>
+</nav>
+
+<aside class="sidebar hidden lg:block p-4">
+  <nav class="space-y-1 text-sm">
+    <a href="#goal" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">1. 目标与验证假设</a>
+    <a href="#principles" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">2. 五条最简原则</a>
+    <a href="#plan" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">3. 14 天计划（Day-by-Day）</a>
+    <a href="#gonogo" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">4. Go / No-Go 判据</a>
+    <a href="#budget" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">5. 预算清单</a>
+    <a href="#pitfalls" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">6. 避坑清单</a>
+    <a href="#after" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">7. Demo 之后的升级路径</a>
+  </nav>
+</aside>
+
+<main class="main-content">
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-14">
+
+  <header>
+    <div class="text-xs font-mono text-gray-400 mb-2">DOC 06 / 09 · 全系列最优先执行篇</div>
+    <h1 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Demo 最简实现路径：14 天，&lt;¥800，零焊接，几乎零固件改动</h1>
+    <p class="text-gray-600 leading-relaxed">这一篇回答你上一版方案最大的两个问题：<b class="text-gray-900">成本没降到最低、Demo 没做到最简</b>。本次的解法是——硬件买现成品、固件不改一行、录音留存放到服务器侧做、家长端只做一个页面。<b class="text-gray-900">全部自研工作量收敛到：部署一个开源服务器 + 一次配置 + 两个小脚本 + 一个单页 H5。</b></p>
+  </header>
+
+  <!-- 1 -->
+  <section id="goal">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">1</span>Demo 要验证的三个假设（不多不少）</h2>
+    <div class="grid md:grid-cols-3 gap-4">
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <span class="day-badge bg-blue-100 text-blue-700">假设一 · 孩子侧</span>
+        <p class="text-sm text-gray-700 mt-3">孩子对"按键说话 + 可爱童声回应 + 能听自己录音"的玩具，<b>第 7 天仍主动去按</b>——而不是像以前的 AI 玩具一样吃灰。</p>
+      </div>
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <span class="day-badge bg-pink-100 text-pink-700">假设二 · 家长侧</span>
+        <p class="text-sm text-gray-700 mt-3">妈妈看到"手机上按时间线回听孩子说的话"时<b>情绪反应强烈</b>（笑出声/转发给爸爸/反复回放）——这是买单意愿的直接前兆。</p>
+      </div>
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <span class="day-badge bg-violet-100 text-violet-700">假设三 · 技术侧</span>
+        <p class="text-sm text-gray-700 mt-3">小智生态（固件+服务器）改造成本的判断成立：<b>一个下午能部署、一周能定制</b>，对话质量（ASR 童声识别 + 人设）达到"孩子愿意继续聊"的水平。</p>
+      </div>
+    </div>
+    <div class="mt-4 p-4 rounded-xl bg-orange-50 border border-orange-100 text-sm text-gray-700">
+      <b class="text-gray-900">Demo 明确不验证：</b>续航、外壳颜值、量产成本、3C、按键 A/B 方案、支付——这些全部后置。Demo 只验证"孩子玩不玩、妈妈动不动心"。
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section id="principles">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">2</span>五条最简原则（本方案与上一版的本质区别）</h2>
+    <div class="space-y-3">
+      <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex gap-4 items-start"><span class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold shrink-0">1</span><p class="text-sm text-gray-700"><b class="text-gray-900">能买不焊：</b>设备直接淘宝买小智兼容成品机（¥79–168）。不上开发板、不焊 INMP441、不画 PCB——那些是内测阶段的事。</p></div>
+      <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex gap-4 items-start"><span class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold shrink-0">2</span><p class="text-sm text-gray-700"><b class="text-gray-900">能不改就不改：</b>固件零改动（L0 路线）。设备交互先用成品的"按住说话"，我们自定义的多段录音交互等验证完核心价值再说。</p></div>
+      <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex gap-4 items-start"><span class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold shrink-0">3</span><p class="text-sm text-gray-700"><b class="text-gray-900">能用别人的服务就不自建：</b>ASR/LLM/TTS 全部 API；录音存储先落服务器本地磁盘，OSS 都可以后接。</p></div>
+      <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex gap-4 items-start"><span class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold shrink-0">4</span><p class="text-sm text-gray-700"><b class="text-gray-900">能服务器侧做就不动设备：</b>"全量录音留存"在服务器收流时落盘实现——设备完全无感知，这就是最简。</p></div>
+      <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex gap-4 items-start"><span class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold shrink-0">5</span><p class="text-sm text-gray-700"><b class="text-gray-900">能一页就不做三页：</b>家长端 Demo = 单页 H5（时间线+播放器），三天写完，样式从简。</p></div>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section id="plan">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">3</span>14 天 Day-by-Day 计划</h2>
+
+    <div class="space-y-4">
+      <!-- Week 1 -->
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div class="px-6 py-3 bg-gradient-to-r from-orange-500 to-pink-500 text-white font-bold text-sm">第一周：让设备开口说话，让录音留下来</div>
+        <div class="divide-y divide-gray-100">
+          <div class="p-5 flex gap-4 items-start"><span class="day-badge bg-gray-100 text-gray-600 shrink-0">Day 1–2</span>
+            <div class="text-sm text-gray-700"><b class="text-gray-900">采购与开户</b>
+              <ul class="mt-1.5 space-y-1 text-gray-600">
+                <li>· 淘宝下单小智兼容整机 ×2（关键词与买前确认清单见 02 篇档位 A；买 2 台，1 台试错 1 台备用）</li>
+                <li>· 注册：DeepSeek（LLM）、火山引擎（ASR 免费额度）、腾讯/阿里轻量云 4C8G（月付 ~¥100，选国内节点延迟低）</li>
+                <li>· 域名一个（或先用云厂商免费二级域名 + 自动 HTTPS）</li>
+              </ul>
+            </div>
+          </div>
+          <div class="p-5 flex gap-4 items-start"><span class="day-badge bg-gray-100 text-gray-600 shrink-0">Day 3–4</span>
+            <div class="text-sm text-gray-700"><b class="text-gray-900">部署自建小智服务器</b>
+              <ul class="mt-1.5 space-y-1 text-gray-600">
+                <li>· GitHub 拉取 <code>xiaozhi-esp32-server</code>，docker-compose 一键起（含 Web 管理台）</li>
+                <li>· 配 Provider：ASR=火山流式（或 FunASR 容器）、LLM=DeepSeek、TTS=Edge-TTS（音色 zh-CN-xiaoyi）</li>
+                <li>· 设备切到自建服务器（成品机 OTA 换 server 地址 / 刷官方固件填自己域名；06 篇避坑①）</li>
+                <li>· <b>验收：孩子按住说话 → 软萌童声回复。</b>到这一步已有一台"能聊天的玩具"</li>
+              </ul>
+            </div>
+          </div>
+          <div class="p-5 flex gap-4 items-start"><span class="day-badge bg-gray-100 text-gray-600 shrink-0">Day 5–6</span>
+            <div class="text-sm text-gray-700"><b class="text-gray-900">录音全量落盘（自研第一块，约 60 行代码）</b>
+              <ul class="mt-1.5 space-y-1 text-gray-600">
+                <li>· 在服务器收流回调处挂旁路：会话音频 → 拼 OPUS 文件 → 本地磁盘；ASR 转写结果入库（SQLite）</li>
+                <li>· 批处理脚本：LLM 给每条打 3 个标签（话题/情绪/可爱分）——晚上跑批，白天陪玩</li>
+                <li>· <b>验收：说 10 句话后，磁盘上有 10 个音频文件 + 10 条带标签的转写记录</b></li>
+              </ul>
+            </div>
+          </div>
+          <div class="p-5 flex gap-4 items-start"><span class="day-badge bg-gray-100 text-gray-600 shrink-0">Day 7</span>
+            <div class="text-sm text-gray-700"><b class="text-gray-900">周末实战 #1</b>：交给第一个家庭（宝妈 + 女儿）开始 7 天真实使用。给妈妈的唯一任务：什么都不用做，第 7 天一起听听回放。</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Week 2 -->
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div class="px-6 py-3 bg-gradient-to-r from-violet-500 to-indigo-500 text-white font-bold text-sm">第二周：让妈妈看到价值，让人设定型</div>
+        <div class="divide-y divide-gray-100">
+          <div class="p-5 flex gap-4 items-start"><span class="day-badge bg-gray-100 text-gray-600 shrink-0">Day 8–9</span>
+            <div class="text-sm text-gray-700"><b class="text-gray-900">家长端单页 H5（自研第二块，2 天）</b>
+              <ul class="mt-1.5 space-y-1 text-gray-600">
+                <li>· 一个 HTML 页面 + 3 个接口（04 篇 API 表）：按日列表 / 签名播放 URL / 收藏</li>
+                <li>· 手机浏览器打开即用；播放按钮做成大圆钮（05 篇线框图直接照抄）</li>
+                <li>· <b>验收：妈妈手机上点开，3 秒内听到女儿的声音</b>——观察她的表情，这是 Demo 最重要的时刻</li>
+              </ul>
+            </div>
+          </div>
+          <div class="p-5 flex gap-4 items-start"><span class="day-badge bg-gray-100 text-gray-600 shrink-0">Day 10–11</span>
+            <div class="text-sm text-gray-700"><b class="text-gray-900">Agent 人设与安全调优</b>
+              <ul class="mt-1.5 space-y-1 text-gray-600">
+                <li>· 挂上 04 篇系统 Prompt，按女儿的真实反应迭代语气（每晚饭后听当天录音找问题）</li>
+                <li>· 输入输出接关键词过滤（自建儿童词表第一版）；敏感话题兜底话术灌入</li>
+                <li>· 故事模式：预置 20 个公版故事文本 → Edge-TTS 批量生成缓存，点播秒回</li>
+              </ul>
+            </div>
+          </div>
+          <div class="p-5 flex gap-4 items-start"><span class="day-badge bg-gray-100 text-gray-600 shrink-0">Day 12–13</span>
+            <div class="text-sm text-gray-700"><b class="text-gray-900">时光机首秀（差异化时刻）</b>
+              <ul class="mt-1.5 space-y-1 text-gray-600">
+                <li>· 最简实现：H5 加"随机回放一条 7 天前的录音"按钮 + LLM 生成一句点评拼在播放后</li>
+                <li>· 给孩子演示："还记得你上周说的话吗？"→ 玩具放出她自己的原声——拍下这一刻（就是抖音第一条素材，见 08 篇）</li>
+              </ul>
+            </div>
+          </div>
+          <div class="p-5 flex gap-4 items-start"><span class="day-badge bg-red-100 text-red-600 shrink-0">Day 14</span>
+            <div class="text-sm text-gray-700"><b class="text-gray-900">复盘与 Go/No-Go</b>：拉数据（使用次数/天数）、访谈妈妈（愿不愿意推荐/买）、逐条过判据（第 4 节）→ 决定进入小批量（09 篇 Phase 2）或调整方向。</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-5 p-4 rounded-xl bg-gray-100 border border-gray-200 text-sm text-gray-600">
+      排期假设：执行人 = 你 1 人 + AI 编程工具全开（这一版的代码量就两个脚本 + 一个页面，完全在个人可完成范围）；宝妈家庭配合成本低（她本来就想做这个产品）。<b>如果 Day 4 结束设备还不能对话，立即检查 02 篇避坑清单，必要时换第二台机型——不要在一台机器上耗超过 1 天。</b>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section id="gonogo">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">4</span>Go / No-Go 判据（提前写死，防止自我感动）</h2>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 overflow-x-auto">
+      <table class="dm">
+        <thead><tr><th style="width:230px">指标</th><th style="width:150px">Go（继续）</th><th style="width:150px">调整后重来</th><th style="width:150px">No-Go（停）</th></tr></thead>
+        <tbody>
+          <tr><td>孩子第 7 天主动使用</td><td class="text-green-600 font-bold">有，≥1 次/天</td><td>提醒后使用</td><td class="text-red-500 font-bold">完全不碰</td></tr>
+          <tr><td>日均主动交互次数（7 日均值）</td><td class="text-green-600 font-bold">≥ 3</td><td>1–2</td><td class="text-red-500 font-bold">≈ 0</td></tr>
+          <tr><td>妈妈回听行为</td><td class="text-green-600 font-bold">主动回放 ≥ 3 次且转发他人</td><td>演示后回放</td><td class="text-red-500 font-bold">无兴趣</td></tr>
+          <tr><td>妈妈购买意愿原话</td><td class="text-green-600 font-bold">"多少钱/哪里买/能不能再做一台"</td><td>"挺好但…"</td><td class="text-red-500 font-bold">明确拒绝</td></tr>
+          <tr><td>对话体验（你耳朵的判断）</td><td class="text-green-600 font-bold">孩子与玩具来回 ≥ 5 轮不冷场</td><td>3–4 轮</td><td class="text-red-500 font-bold">1–2 轮即放弃</td></tr>
+        </tbody>
+      </table>
+      <p class="text-xs text-gray-400 mt-3">5 项中 4 项达 Go → 进入 09 篇 Phase 2（种子家庭 10 台）。达成 2–3 项 → 定位改方向（例：纯"留声+回听"去掉对话，或反向）。≤1 项 → 收手复盘，沉没成本不恋战。</p>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section id="budget">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">5</span>Demo 预算清单（合计 &lt; ¥800）</h2>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 overflow-x-auto">
+      <table class="dm">
+        <thead><tr><th>项目</th><th style="width:140px">金额</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td>小智兼容成品机 ×2</td><td>¥160–340</td><td>一台主用一台备险（试错成本算进来）</td></tr>
+          <tr><td>轻量云服务器 1 个月</td><td>¥80–120</td><td>4C8G，Demo 全部服务跑这一台</td></tr>
+          <tr><td>API 充值</td><td>¥50</td><td>DeepSeek ¥20 就能用很久；ASR 免费额度内</td></tr>
+          <tr><td>域名（可选）</td><td>¥0–60</td><td>也可用云厂商免费域名过渡</td></tr>
+          <tr><td>合计</td><td class="font-bold text-orange-600">≈ ¥300–570</td><td>不及上一版方案一个开发板的封装调试时间值钱</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section id="pitfalls">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">6</span>避坑清单（每一条都是别人真金白银踩过的）</h2>
+    <div class="space-y-3 text-sm">
+      <div class="bg-red-50 rounded-xl border border-red-100 p-4"><b class="text-red-600">① 成品机锁服务器：</b>部分淘宝"小智 AI"成品机固件锁死官方服务器、无 OTA 改址入口。<b>下单前让客服确认"能否连接自建服务器/能否刷机"</b>，收货第一时间验证；被锁就直接走"USB 刷官方小智固件"路线（需看板型是否有适配，02 篇买前确认三问）。</div>
+      <div class="bg-red-50 rounded-xl border border-red-100 p-4"><b class="text-red-600">② 板型不适配：</b>冷门板子可能没有小智固件适配包。优先选社区支持列表里的热门板型（面包板/虾哥机等大众款），别贪便宜买"同价位配置更高"的杂牌。</div>
+      <div class="bg-red-50 rounded-xl border border-red-100 p-4"><b class="text-red-600">③ Edge-TTS 限流：</b>免费通道有并发/频率限制，故事批量生成会 429。批处理加退避重试、错峰夜间跑；正式售卖前必须切商用 TTS（04 篇组合 B）。</div>
+      <div class="bg-red-50 rounded-xl border border-red-100 p-4"><b class="text-red-600">④ ASR 对童声的挫败：</b>幼儿发音不清会导致识别稀碎、AI 答非所问，孩子立刻失去兴趣。若火山识别童声效果差：切换/混用 FunASR 中文模型，或 Prompt 里告诉 LLM"你听到的是转写可能不准的小孩子话，听不懂就温柔地请她再说一遍"——把识别缺陷转化成"玩具没听清"的自然交互。</div>
+      <div class="bg-red-50 rounded-xl border border-red-100 p-4"><b class="text-red-600">⑤ 家庭 WiFi 的 2.4G：</b>ESP32 只支持 2.4GHz。给种子家庭的第一条语音提示："请连 2.4G 的 WiFi"——这是未来量产退货的头号来源，Demo 就要开始记录这类摩擦。</div>
+      <div class="bg-red-50 rounded-xl border border-red-100 p-4"><b class="text-red-600">⑥ 录音同意：</b>哪怕 Demo 阶段，也向家庭明确"所有录音存在你自己服务器上、仅项目组可见"——既是尊重，也是给自己习惯合规流程。</div>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section id="after">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">7</span>Demo 之后：验证通过才解锁的升级路径</h2>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      <div class="grid md:grid-cols-3 gap-4 text-sm">
+        <div class="p-4 rounded-xl bg-amber-50 border border-amber-100"><b class="block text-gray-900 mb-1">+1 周 · L1 固件</b>离线故事包进设备 + 音量限幅（红线兜底提前落地），让种子家庭敢给娃睡前挂机上。</div>
+        <div class="p-4 rounded-xl bg-amber-50 border border-amber-100"><b class="block text-gray-900 mb-1">+2–3 周 · 种子 10 台</b>档位 B 开发板自制（02 篇清单），上多段录音交互（03 篇 L2 状态机），找 5–10 个种子家庭。</div>
+        <div class="p-4 rounded-xl bg-amber-50 border border-amber-100"><b class="block text-gray-900 mb-1">+1–2 月 · 小批量</b>方案商贴牌 100–300 台 + 抖音账号蓄水（08 篇），3C 并行启动，走向 09 篇 Phase 3。</div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="text-center text-sm text-gray-400 pt-8 border-t border-gray-200">
+    <a href="05-parent-web.html" class="text-orange-500 hover:underline"><i class="fas fa-arrow-left mr-1"></i>上一篇：家长端</a>
+    <span class="mx-3">·</span><span>06 / 09 · Demo 路径</span>
+    <span class="mx-3">·</span><a href="07-cost-business.html" class="text-orange-500 hover:underline">下一篇：成本商业 <i class="fas fa-arrow-right ml-1"></i></a>
+  </footer>
+</div>
+</main>
+
+</body>
+</html>

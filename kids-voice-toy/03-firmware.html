@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>03 · 固件方案 · 回声 Echo</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif; }
+    .sidebar { position: fixed; left: 0; top: 56px; bottom: 0; width: 230px; overflow-y: auto; border-right: 1px solid #f1f5f9; background: #fff; z-index: 40; }
+    .main-content { margin-left: 230px; padding-top: 56px; }
+    @media (max-width: 1024px) { .sidebar { display: none; } .main-content { margin-left: 0; } }
+    table.fw th { background: #f8fafc; }
+    table.fw th, table.fw td { border: 1px solid #e5e7eb; padding: 9px 13px; font-size: 0.875rem; vertical-align: top; }
+    table.fw { border-collapse: collapse; width: 100%; }
+    .mermaid { background: #f8fafc; border-radius: 0.75rem; padding: 1rem; }
+    .code-block { background: #1e293b; color: #e2e8f0; border-radius: 0.5rem; padding: 1rem; overflow-x: auto; font-family: 'Fira Code', Menlo, monospace; font-size: 0.8rem; line-height: 1.6; }
+</style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+<nav class="fixed top-0 inset-x-0 z-50 bg-white/90 backdrop-blur border-b border-gray-200">
+  <div class="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between gap-4 overflow-x-auto">
+    <a href="index.html" class="flex items-center gap-2 shrink-0">
+      <span class="w-7 h-7 rounded-lg bg-gradient-to-br from-orange-400 to-pink-500 flex items-center justify-center text-white text-xs"><i class="fas fa-volume-up"></i></span>
+      <span class="font-bold text-gray-900 whitespace-nowrap">回声 Echo <span class="text-gray-400 font-normal text-sm hidden md:inline">· AI 儿童声音玩具全栈方案</span></span>
+    </a>
+    <div class="flex items-center gap-1 text-sm whitespace-nowrap">
+      <a href="index.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">总览</a>
+      <a href="01-prd.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">PRD</a>
+      <a href="02-hardware.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">硬件</a>
+      <a href="03-firmware.html" class="px-3 py-1.5 rounded-lg bg-orange-50 text-orange-600 font-semibold">固件</a>
+      <a href="04-backend-agent.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">后端 Agent</a>
+      <a href="05-parent-web.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">家长端</a>
+      <a href="06-demo-mvp.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">Demo 路径</a>
+      <a href="07-cost-business.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">成本商业</a>
+      <a href="08-douyin-gtm.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">抖音打法</a>
+      <a href="09-team-roadmap.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">团队路线</a>
+    </div>
+  </div>
+</nav>
+
+<aside class="sidebar hidden lg:block p-4">
+  <nav class="space-y-1 text-sm">
+    <a href="#baseline" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">1. 基线：小智固件</a>
+    <a href="#levels" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">2. L0–L2 分级改造路线</a>
+    <a href="#buttons" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">3. 按键与录音状态机</a>
+    <a href="#upload" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">4. 录音上传通道</a>
+    <a href="#offline" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">5. 离线故事包（红线兜底）</a>
+    <a href="#provision" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">6. 配网、绑定与 OTA</a>
+    <a href="#budget" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">7. 资源预算与规格</a>
+    <a href="#effort" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">8. 工作量评估</a>
+  </nav>
+</aside>
+
+<main class="main-content">
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-14">
+
+  <header>
+    <div class="text-xs font-mono text-gray-400 mb-2">DOC 03 / 09</div>
+    <h1 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">固件方案：基于小智（xiaozhi-esp32）分级改造</h1>
+    <p class="text-gray-600 leading-relaxed">固件策略一句话：<b class="text-gray-900">不从零写一行音频代码，全部站在小智开源固件肩膀上；而且 Demo 阶段可以做到"零固件改动"</b>——录音留存这件事，在服务器侧收流落盘即可完成。本文给出 L0/L1/L2 三级改造路线，按验证进度逐级投入。</p>
+  </header>
+
+  <!-- 1 基线 -->
+  <section id="baseline">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">1</span>基线：小智开源固件给了我们什么</h2>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-5">
+      <div class="mermaid">
+flowchart LR
+    A[I2S 麦克风采集] --> B[AGC / AEC 预处理]
+    B --> C[Opus 编码 16kbps]
+    C --> D[WebSocket 二进制上行]
+    D --> E[云端 Agent]
+    E --> F[Opus 音频下行]
+    F --> G[Opus 解码]
+    G --> H[I2S 功放播放]
+    I[按键/状态灯] --> J[交互层]
+    J --> D
+    K[OTA / 配网 / WiFi 管理] -.支撑.-> D
+      </div>
+      <p class="text-xs text-gray-400 mt-3 text-center">小智固件已实现的完整音频管线与协议栈（示意）</p>
+    </div>
+    <div class="grid md:grid-cols-2 gap-4">
+      <div class="bg-emerald-50 rounded-2xl border border-emerald-100 p-5 text-sm text-gray-700">
+        <b class="text-gray-900 block mb-2"><i class="fas fa-circle-check text-emerald-500 mr-2"></i>直接复用（不碰）</b>
+        <ul class="space-y-1.5">
+          <li>· I2S 麦/功放驱动（主流板型全适配）</li>
+          <li>· Opus 编解码与抖动缓冲</li>
+          <li>· WebSocket 协议 + 心跳 + 断线重连</li>
+          <li>· WiFi 配网（首次配网 + 记忆重连）</li>
+          <li>· OTA 固件升级</li>
+          <li>· 板型抽象层（换硬件成本低）</li>
+        </ul>
+      </div>
+      <div class="bg-orange-50 rounded-2xl border border-orange-100 p-5 text-sm text-gray-700">
+        <b class="text-gray-900 block mb-2"><i class="fas fa-screwdriver-wrench text-orange-500 mr-2"></i>需要改造（L1/L2 阶段）</b>
+        <ul class="space-y-1.5">
+          <li>· 按键交互：多段录音状态机（第 3 节）</li>
+          <li>· 录音封口逻辑与上传触发</li>
+          <li>· 本地缓存回放（回放键）</li>
+          <li>· 断网本地录音暂存与补传</li>
+          <li>· 离线故事包播放器</li>
+          <li>· 状态灯效协议（WS2812）</li>
+        </ul>
+      </div>
+    </div>
+    <div class="mt-4 p-4 rounded-xl bg-gray-100 border border-gray-200 text-sm text-gray-600">
+      <b class="text-gray-900">开源合规提示：</b>xiaozhi-esp32 采用宽松开源协议（以仓库 LICENSE 为准，当前为 MIT），允许商用与闭源修改，但需保留版权声明。量产前在固件 About/官网放置合规声明即可。改造建议以 fork + 私有仓库维护，定期同步上游（上游修 bug、适配新板型，白捡）。
+    </div>
+  </section>
+
+  <!-- 2 分级 -->
+  <section id="levels">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">2</span>L0–L2 分级改造路线（核心策略）</h2>
+    <div class="space-y-4">
+      <div class="bg-white rounded-2xl border-2 border-green-300 shadow-sm p-6">
+        <div class="flex items-center gap-3 mb-3">
+          <span class="px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs font-bold">L0 · 零固件改动</span>
+          <span class="text-sm text-gray-400">对应 06 篇 Demo 第 1 周</span>
+        </div>
+        <p class="text-sm text-gray-700 mb-3">淘宝成品机刷小智官方固件（或出厂自带），仅把 <b>服务器地址指向我们自建的 xiaozhi-esp32-server</b>。对话、童声、故事全部由服务器侧配置实现；<b>录音全量留存由服务器收流时落盘实现（设备根本不知道自己在被存档）</b>。</p>
+        <div class="flex flex-wrap gap-2 text-xs">
+          <span class="px-2.5 py-1 rounded bg-green-50 text-green-700">✔ 两周 Demo 达成</span>
+          <span class="px-2.5 py-1 rounded bg-green-50 text-green-700">✔ 零 C 开发</span>
+          <span class="px-2.5 py-1 rounded bg-gray-100 text-gray-500">✘ 按键交互是成品的（按住说话松开发送）</span>
+          <span class="px-2.5 py-1 rounded bg-gray-100 text-gray-500">✘ 断网本地故事暂无</span>
+        </div>
+      </div>
+      <div class="bg-white rounded-2xl border border-amber-200 shadow-sm p-6">
+        <div class="flex items-center gap-3 mb-3">
+          <span class="px-3 py-1 rounded-full bg-amber-100 text-amber-700 text-xs font-bold">L1 · 配置级改造</span>
+          <span class="text-sm text-gray-400">对应 06 篇 Demo 第 2 周（可选）</span>
+        </div>
+        <p class="text-sm text-gray-700 mb-3">在小智固件<strong>已有能力</strong>里做配置组合：预置离线故事包（flash 存 MP3，改 Makefile 分区表 + 资源打包）、调整按键映射（板型配置文件）、音量上限限幅。不写复杂新逻辑，改配置、加资源、重新编译烧录。</p>
+        <div class="flex flex-wrap gap-2 text-xs">
+          <span class="px-2.5 py-1 rounded bg-amber-50 text-amber-700">✔ 断网也有故事（红线兜底）</span>
+          <span class="px-2.5 py-1 rounded bg-amber-50 text-amber-700">✔ 需 1–2 天 ESP-IDF 编译经验</span>
+        </div>
+      </div>
+      <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+        <div class="flex items-center gap-3 mb-3">
+          <span class="px-3 py-1 rounded-full bg-gray-100 text-gray-600 text-xs font-bold">L2 · 深度改造（种子家庭版起）</span>
+          <span class="text-sm text-gray-400">对应 09 篇路线图 Phase 2</span>
+        </div>
+        <p class="text-sm text-gray-700 mb-3">实现完整 PRD 交互：多段录音状态机、本地缓存回放、断网录音暂存补传、3 键+长按组合、状态灯效协议、电量上报。工作量见第 8 节；建议此阶段引入固件工程师或外包。</p>
+        <div class="flex flex-wrap gap-2 text-xs">
+          <span class="px-2.5 py-1 rounded bg-gray-100 text-gray-600">完整 PRD 交互</span>
+          <span class="px-2.5 py-1 rounded bg-gray-100 text-gray-600">建议外包或合伙人承担</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 状态机 -->
+  <section id="buttons">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">3</span>按键与录音状态机（L2 规格）</h2>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-5">
+      <div class="mermaid">
+stateDiagram-v2
+    [*] --> 待机
+    待机 --> 录音中 : 按下录音键
+    录音中 --> 录音暂停 : 松开（3s内可再按续录）
+    录音暂停 --> 录音中 : 再按录音键（续段拼接）
+    录音暂停 --> 已封口 : 静默超时5s 自动封口
+    录音中 --> 已封口 : 静默超时5s 自动封口
+    已封口 --> 上传中 : 按发送键
+    已封口 --> 本地回放 : 按回放键
+    本地回放 --> 已封口 : 播放结束
+    上传中 --> AI思考 : 上传完成
+    AI思考 --> 播报中 : 首包音频到达
+    播报中 --> 待机 : 播报完成
+    上传中 --> 待机 : 失败→本地暂存提示重试
+      </div>
+    </div>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      <h3 class="font-bold text-gray-900 mb-4">关键实现细节</h3>
+      <ul class="space-y-3 text-sm text-gray-700">
+        <li><b class="text-gray-900">多段拼接：</b>设备只做"分段缓存 + 顺序上传"，<b>拼接与静默裁剪在服务器侧完成</b>（对齐 ASR 时间戳），固件复杂度大幅下降。每段独立 Opus 帧，段间插入 200ms 静音标记。</li>
+        <li><b class="text-gray-900">自动封口：</b>录音中 VAD 检测连续静默 5s → "叮"提示音 → 进入已封口态。孩子无需理解"说完了要干嘛"。</li>
+        <li><b class="text-gray-900">本地回放：</b>已封口的缓存直接送解码器播放，不经网络——即时、可反复（复读机快乐，S2）。</li>
+        <li><b class="text-gray-900">长按组合（L2 后期）：</b>长按发送 2s = 故事模式；长按回放 2s = 时光机（向服务器要一条历史录音+AI 点评）。</li>
+        <li><b class="text-gray-900">播放中抢话：</b>L2 初期半双工（播放时新录音排队）；后续启用 AEC 全双工打断。</li>
+        <li><b class="text-gray-900">童锁防误触：</b>播报中按键只做"暂停/继续"，不误触发上传。</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 4 上传通道 -->
+  <section id="upload">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">4</span>录音上传通道（安全设计）</h2>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      <p class="text-sm text-gray-700 mb-4"><b class="text-gray-900">原则：设备不直连 OSS。</b>云存储密钥永不下发到设备（儿童玩具被拆解提取密钥是真实风险）。所有音频经已鉴权的 WebSocket/TLS 通道发给 Agent 服务器，由服务器写 OSS。</p>
+      <div class="code-block">上行消息（WebSocket JSON 控制帧 + 二进制音频帧）:
+{ "type": "session.start", "device_id": "ECHO-XXXX", "segments": 3,
+  "codec": "opus/16000/16k", "local_id": "20260918-1530-001" }
+&lt;binary: opus frames...&gt;
+{ "type": "session.end", "duration_ms": 12400 }
+
+服务器确认:
+{ "type": "session.ack", "local_id": "20260918-1530-001",
+  "archive_id": "rec_9f3a2c", "transcript_ready": true }</div>
+      <ul class="mt-4 space-y-2.5 text-sm text-gray-700">
+        <li>· <b>幂等去重：</b>local_id 保证断网重传不产生重复存档。</li>
+        <li>· <b>断网暂存（L2）：</b>音频段写 LittleFS（flash 预留 4MB 分区，≥ 500 段），联网后按序补传，家长端时间线无洞。</li>
+        <li>· <b>通道复用：</b>L0 阶段对话流与存档是同一条流——服务器收到即落盘，天然全量留存。</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 5 离线故事 -->
+  <section id="offline">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">5</span>离线故事包（"永不中断"红线的兜底）</h2>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      <div class="grid md:grid-cols-3 gap-4 text-sm text-gray-700 mb-4">
+        <div class="p-4 rounded-xl bg-amber-50 border border-amber-100"><b class="block text-gray-900 mb-1">资源规格</b>flash 预留 4–8MB 分区；Opus 24kbps 单文件；预置 20 个经典故事 ≈ 1 小时 ≈ 10MB（N16R8 模组 flash 16MB 充裕）</div>
+        <div class="p-4 rounded-xl bg-amber-50 border border-amber-100"><b class="block text-gray-900 mb-1">触发条件</b>① 断网 ② 服务端额度/故障降级指令 ③ 音量键+回放键组合（彩蛋直通）</div>
+        <div class="p-4 rounded-xl bg-amber-50 border border-amber-100"><b class="block text-gray-900 mb-1">更新机制</b>WiFi 空闲时 OTA 增量更新故事包（服务器可配置内容与顺序）</div>
+      </div>
+      <p class="text-sm text-gray-700">降级体验设计：断网时童声提示（本地预录 TTS 片段）"网络在睡觉，我先给你讲个故事吧"→ 直接开讲。<b>孩子永远听不到"错误""失败""充值"这类词</b>——这是把竞品"讲到一半要充值"的崩塌体验反过来做成口碑的细节。</p>
+    </div>
+  </section>
+
+  <!-- 6 配网绑定 -->
+  <section id="provision">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">6</span>配网、绑定与 OTA</h2>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 overflow-x-auto">
+      <table class="fw">
+        <thead><tr><th style="width:140px">环节</th><th>方案</th><th>体验目标</th></tr></thead>
+        <tbody>
+          <tr><td>首次配网</td><td>复用小智配网（SoftAP/蓝牙 + 微信小程序或浏览器页面输 WiFi）</td><td>祖辈也能完成：开机 → 手机扫码 → 选 WiFi → 30s 内连上</td></tr>
+          <tr><td>设备绑定</td><td>设备屏幕/贴纸印二维码（设备指纹签名），家长扫码 → 绑定家庭 → 监护人同意流程（合规必需）</td><td>绑定即完成《儿童个人信息保护》告知同意，全程 &lt; 1 分钟</td></tr>
+          <tr><td>断网恢复</td><td>记忆重连 + 指数退避；重连期间自动进入本地故事降级</td><td>路由器重启不打断睡前故事</td></tr>
+          <tr><td>OTA</td><td>小智 OTA 通道 + 灰度发布（1% → 10% → 全量）+ 版本回滚</td><td>出问题远程救砖，不产生退货</td></tr>
+          <tr><td>日志回捞</td><td>家长授权后触发设备上传运行日志（脱敏）</td><td>客服排障不靠猜</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 7 资源预算 -->
+  <section id="budget">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">7</span>资源预算与音频规格</h2>
+    <div class="grid md:grid-cols-2 gap-5">
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 text-sm text-gray-700 space-y-2">
+        <h3 class="font-bold text-gray-900 mb-2">音频规格（全链路统一）</h3>
+        <ul class="space-y-1.5">
+          <li>· 采样率 16kHz 单声道（ASR 与存档够用，省带宽）</li>
+          <li>· Opus 16–24kbps：上行对话 16k，故事/回放 24k</li>
+          <li>· 存档双份：Opus（播放用）+ 转写文本（检索用）</li>
+          <li>· AGC 目标电平 -18dBFS；VAD 阈值按童声调校</li>
+        </ul>
+      </div>
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 text-sm text-gray-700 space-y-2">
+        <h3 class="font-bold text-gray-900 mb-2">ESP32-S3 资源预算（N16R8）</h3>
+        <ul class="space-y-1.5">
+          <li>· RAM：音频缓冲 + Opus + TLS ≈ 预算内（小智已验证）</li>
+          <li>· PSRAM 8MB：断网暂存缓冲、故事包缓存充裕</li>
+          <li>· Flash 16MB：固件 3MB + 故事包 8MB + 暂存 4MB 分区</li>
+          <li>· 功耗：活跃 ≈ 300mA，待机呼吸灯 &lt; 50mA——2000mAh 足够</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8 工作量 -->
+  <section id="effort">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">8</span>工作量评估（假设 1 名熟悉 C++/嵌入式的工程师）</h2>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 overflow-x-auto">
+      <table class="fw">
+        <thead><tr><th>任务</th><th style="width:130px">工作量</th><th>备注</th></tr></thead>
+        <tbody>
+          <tr><td>跑通小智固件编译/烧录/连自建服务器（L0）</td><td>1–2 天</td><td>Mac + ESP-IDF 5.x；成品机多数免编译，改 OTA 地址即可</td></tr>
+          <tr><td>L1：故事包打包 + 分区表 + 按键配置</td><td>2–3 天</td><td>资源脚本一次性投入</td></tr>
+          <tr><td>L2：多段录音状态机 + 本地回放</td><td>5–8 天</td><td>核心改造，充分测试童锁/防误触</td></tr>
+          <tr><td>L2：断网暂存补传 + 幂等</td><td>3–5 天</td><td>LittleFS 队列 + 重传策略</td></tr>
+          <tr><td>L2：灯效协议 + 电量上报 + 日志</td><td>2–3 天</td><td>体验打磨</td></tr>
+          <tr><td>量产固件：产测程序 + 烧录工装适配</td><td>5 天</td><td>与代工厂配合</td></tr>
+        </tbody>
+      </table>
+      <p class="text-xs text-gray-400 mt-4">总计：L0+L1 约 1 周（自己上手）；L2 全量约 4–5 周（建议外包报价 ¥1.5–3 万或引入固件合伙人——决策表见 09 篇）。</p>
+    </div>
+  </section>
+
+  <footer class="text-center text-sm text-gray-400 pt-8 border-t border-gray-200">
+    <a href="02-hardware.html" class="text-orange-500 hover:underline"><i class="fas fa-arrow-left mr-1"></i>上一篇：硬件</a>
+    <span class="mx-3">·</span><span>03 / 09 · 固件</span>
+    <span class="mx-3">·</span><a href="04-backend-agent.html" class="text-orange-500 hover:underline">下一篇：后端 Agent <i class="fas fa-arrow-right ml-1"></i></a>
+  </footer>
+</div>
+</main>
+
+<script>mermaid.initialize({ startOnLoad: true, theme: 'neutral' });</script>
+</body>
+</html>

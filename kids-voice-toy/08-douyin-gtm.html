@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>08 · 抖音冷启动打法 · 回声 Echo</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif; }
+    .sidebar { position: fixed; left: 0; top: 56px; bottom: 0; width: 230px; overflow-y: auto; border-right: 1px solid #f1f5f9; background: #fff; z-index: 40; }
+    .main-content { margin-left: 230px; padding-top: 56px; }
+    @media (max-width: 1024px) { .sidebar { display: none; } .main-content { margin-left: 0; } }
+    table.gt th { background: #f8fafc; }
+    table.gt th, table.gt td { border: 1px solid #e5e7eb; padding: 9px 13px; font-size: 0.875rem; vertical-align: top; }
+    table.gt { border-collapse: collapse; width: 100%; }
+    .script-card { border-left: 3px solid #f43f5e; }
+</style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+<nav class="fixed top-0 inset-x-0 z-50 bg-white/90 backdrop-blur border-b border-gray-200">
+  <div class="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between gap-4 overflow-x-auto">
+    <a href="index.html" class="flex items-center gap-2 shrink-0">
+      <span class="w-7 h-7 rounded-lg bg-gradient-to-br from-orange-400 to-pink-500 flex items-center justify-center text-white text-xs"><i class="fas fa-volume-up"></i></span>
+      <span class="font-bold text-gray-900 whitespace-nowrap">回声 Echo <span class="text-gray-400 font-normal text-sm hidden md:inline">· AI 儿童声音玩具全栈方案</span></span>
+    </a>
+    <div class="flex items-center gap-1 text-sm whitespace-nowrap">
+      <a href="index.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">总览</a>
+      <a href="01-prd.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">PRD</a>
+      <a href="02-hardware.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">硬件</a>
+      <a href="03-firmware.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">固件</a>
+      <a href="04-backend-agent.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">后端 Agent</a>
+      <a href="05-parent-web.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">家长端</a>
+      <a href="06-demo-mvp.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">Demo 路径</a>
+      <a href="07-cost-business.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">成本商业</a>
+      <a href="08-douyin-gtm.html" class="px-3 py-1.5 rounded-lg bg-orange-50 text-orange-600 font-semibold">抖音打法</a>
+      <a href="09-team-roadmap.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">团队路线</a>
+    </div>
+  </div>
+</nav>
+
+<aside class="sidebar hidden lg:block p-4">
+  <nav class="space-y-1 text-sm">
+    <a href="#overview" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">1. 打法总览与时间线</a>
+    <a href="#account" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">2. 账号定位</a>
+    <a href="#content" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">3. 内容三板斧与选题库</a>
+    <a href="#formula" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">4. 爆款视频结构公式</a>
+    <a href="#publish" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">5. 发布节奏与投流</a>
+    <a href="#convert" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">6. 转化路径与资质</a>
+    <a href="#burst" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">7. 爆单预案</a>
+    <a href="#defense" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">8. 风险与跟卖防御</a>
+  </nav>
+</aside>
+
+<main class="main-content">
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-14">
+
+  <header>
+    <div class="text-xs font-mono text-gray-400 mb-2">DOC 08 / 09</div>
+    <h1 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">抖音冷启动打法：内容先行，链接后被"打爆"</h1>
+    <p class="text-gray-600 leading-relaxed">增长策略一句话：<b class="text-gray-900">设备还在 Demo 阶段就开始做号蓄水；用"童言原声"做天然爆款素材；等链接挂上的那一天，流量直接落进转化池</b>——而不是先有货再找流量。你观察到的"淘宝链接被打爆"现象，本质是"强情感内容 × 即时可买"的同频共振，打法就是把这两件事的时序排对。</p>
+  </header>
+
+  <!-- 1 -->
+  <section id="overview">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">1</span>打法总览：四个阶段</h2>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      <div class="space-y-0">
+        <div class="flex gap-4 p-4 rounded-t-xl bg-rose-50 border border-rose-100">
+          <div class="w-20 shrink-0 text-center"><div class="text-2xl font-bold text-rose-500">S1</div><div class="text-[10px] text-rose-400 font-bold">W1–4 与 Demo 同步</div></div>
+          <p class="text-sm text-gray-700"><b class="text-gray-900">开号蓄水（零成本）：</b>Demo 期间就开号记录"我给女儿做了个会记住她说话的玩具"。不卖货、不挂链，纯过程记录 + 童言切片。此时唯一的 KPI：内容感和第一批粉丝。</p>
+        </div>
+        <div class="flex gap-4 p-4 bg-white border-x border-b border-gray-100">
+          <div class="w-20 shrink-0 text-center"><div class="text-2xl font-bold text-orange-500">S2</div><div class="text-[10px] text-orange-400 font-bold">W5–8 内测期</div></div>
+          <p class="text-sm text-gray-700"><b class="text-gray-900">种子内容放大：</b>10 个种子家庭的真实反应（惊讶/爆笑/落泪瞬间）成为素材主力；开始测试 DOU+（每条 ¥100–300）；简介挂"内测招募"沉淀私域群。</p>
+        </div>
+        <div class="flex gap-4 p-4 bg-white border-x border-b border-gray-100">
+          <div class="w-20 shrink-0 text-center"><div class="text-2xl font-bold text-amber-500">S3</div><div class="text-[10px] text-amber-500 font-bold">W9–16 首发期</div></div>
+          <p class="text-sm text-gray-700"><b class="text-gray-900">挂链收割：</b>抖音小店/淘宝链接就位（资质见第 6 节），预售制开卖；直播间自播（ bedtime 故事场景直播是天然内容）；DOU+ 对 GPM 达标视频放量。</p>
+        </div>
+        <div class="flex gap-4 p-4 rounded-b-xl bg-white border-x border-b border-gray-100">
+          <div class="w-20 shrink-0 text-center"><div class="text-2xl font-bold text-emerald-500">S4</div><div class="text-[10px] text-emerald-500 font-bold">M5+</div></div>
+          <p class="text-sm text-gray-700"><b class="text-gray-900">矩阵与复购：</b>达人分发（母婴/亲子类目佣金 20–30%）、矩阵号（AI 玩具测评位）、年度声音书档期营销。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section id="account">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">2</span>账号定位：妈妈记录号，不是科技号</h2>
+    <div class="grid md:grid-cols-2 gap-5">
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 text-sm text-gray-700">
+        <h3 class="font-bold text-gray-900 mb-3">人设：给女儿造玩具的妈妈/爸爸</h3>
+        <ul class="space-y-2">
+          <li>· 名字候选：@朵朵妈妈造玩具 / @回声妈妈 / @我女儿的时光机</li>
+          <li>· 简介："记录女儿的每一句童言 · 顺便做了个会记住它们的玩具"</li>
+          <li>· 出镜：可以只有手+玩具+女儿声音（孩子不露脸，规避肖像顾虑，还更有代入感）</li>
+        </ul>
+      </div>
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 text-sm text-gray-700">
+        <h3 class="font-bold text-gray-900 mb-3">为什么不是"AI 玩具测评号"</h3>
+        <ul class="space-y-2">
+          <li>· 测评号卷参数，妈妈号卷情感——我们的产品价值就在情感</li>
+          <li>· "造物过程"自带连续剧属性（今天做到哪了），完播与回访天然高</li>
+          <li>· 转化链路顺：看她做 → 想给自家娃 → 下单；测评号是比价心智</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section id="content">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">3</span>内容三板斧与 20 条选题库</h2>
+    <div class="grid md:grid-cols-3 gap-4 mb-6">
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <span class="text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-600 font-bold">A · 童言切片（流量款）</span>
+        <p class="text-sm text-gray-700 mt-2">字幕视频：孩子原声 + 大字幕 + 玩具反应。天然爆点，制作成本 15 分钟/条。这是主力弹药，占 60%。</p>
+      </div>
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <span class="text-xs px-2 py-0.5 rounded bg-pink-50 text-pink-600 font-bold">B · 时光胶囊（情感款）</span>
+        <p class="text-sm text-gray-700 mt-2">"玩具突然播放了女儿半年前说的话"——时间差的震撼是本产品独有素材，别人拍不了。占 20%，出圈靠它。</p>
+      </div>
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <span class="text-xs px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 font-bold">C · 造物记录（信任款）</span>
+        <p class="text-sm text-gray-700 mt-2">开发过程、踩坑、 Demo 翻车现场——建立"真实的人在认真做事"的信任，转化前置。占 20%。</p>
+      </div>
+    </div>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      <h3 class="font-bold text-gray-900 mb-4">选题库（第一批 20 条，按类型分组）</h3>
+      <div class="grid md:grid-cols-2 gap-x-8 gap-y-2 text-sm text-gray-700">
+        <div>
+          <p class="text-xs font-bold text-blue-500 uppercase tracking-wider mb-1.5">A · 童言切片</p>
+          <ol class="list-decimal list-inside space-y-1 text-gray-600">
+            <li>女儿问 AI："妈妈老了怎么办"（AI 的回答让全家沉默）</li>
+            <li>"月亮晚上也要开灯的"——AI 接住了她的想象</li>
+            <li>她给玩具起的名字，以及为什么</li>
+            <li>"我上学的时候你会想我吗？" 玩具的回答</li>
+            <li>童言无忌合集：一周最可爱的 5 句话（每周精选直接复用）</li>
+            <li>她教玩具说家乡话</li>
+            <li>"你晚上睡觉吗？""我不睡，我要记住你说的每句话"</li>
+            <li>妹妹/弟弟出生后，她对玩具说的话变化</li>
+          </ol>
+        </div>
+        <div>
+          <p class="text-xs font-bold text-pink-500 uppercase tracking-wider mb-1.5">B · 时光胶囊</p>
+          <ol class="list-decimal list-inside space-y-1 text-gray-600" start="9">
+            <li>半年后回放：她还记得自己说过的"要当宇航员"吗</li>
+            <li>生日当天：玩具送上"一年前的今天你说…"</li>
+            <li>爸爸出差回来，玩具播放这半个月女儿的悄悄话</li>
+            <li>"我把女儿 4 岁的声音做成了唱片"</li>
+          </ol>
+          <p class="text-xs font-bold text-emerald-500 uppercase tracking-wider mt-4 mb-1.5">C · 造物记录</p>
+          <ol class="list-decimal list-inside space-y-1 text-gray-600" start="13">
+            <li>为什么市面 AI 玩具都吃灰？我发现了例外</li>
+            <li>拆开 ¥168 的竞品：看到"Token 不足请充值"的设计</li>
+            <li>两周 Demo 全过程（快剪）</li>
+            <li>让女儿测试第一版，她的反馈改变了我的设计</li>
+            <li>内测妈妈们的真实反应（第 3 天 vs 第 30 天）</li>
+            <li>开模!第一只量产外壳出炉</li>
+            <li>第一批发货：打包 500 台的通宵</li>
+            <li>创业复盘：一个人做儿童玩具的 100 天</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section id="formula">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">4</span>爆款视频结构公式（童声前置）</h2>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-center text-xs mb-5">
+        <div class="p-3 rounded-xl bg-rose-50 border border-rose-100"><b class="block text-sm text-gray-900">0–3s 钩子</b>童声原声开场，画面=孩子剪影或玩具特写；字幕大字抛问题</div>
+        <div class="p-3 rounded-xl bg-orange-50 border border-orange-100"><b class="block text-sm text-gray-900">3–15s 展开</b>玩具的回应/时光回放；冲突或反差（原声 vs 现在的她）</div>
+        <div class="p-3 rounded-xl bg-pink-50 border border-pink-100"><b class="block text-sm text-gray-900">15–35s 情感落点</b>妈妈视角旁白一句："还好我全录下来了"</div>
+        <div class="p-3 rounded-xl bg-gray-50 border border-gray-100"><b class="block text-sm text-gray-900">结尾引导</b>"你家孩子说过什么惊人的话？评论区聊聊"（评论=二创素材池）</div>
+      </div>
+      <div class="p-4 rounded-xl script-card bg-gray-50 text-sm text-gray-700">
+        <b class="text-gray-900">示范脚本（B 类·时光胶囊第一条，也是 06 篇 Day 12 拍的那条）：</b><br>
+        【0–3s】女儿半年前的原声："等我长大了，我要给妈妈买一个会说话的房子！"（黑屏大字幕：半年前 vs 今天）<br>
+        【3–15s】今天：按下玩具的回放键，玩具放出的正是这句；女儿听见自己半年前的声音，愣住 → 大笑："这是我说的！"<br>
+        【15–30s】玩具（AI 点评）："是你说哒，那时候你说完还偷偷笑了一下。" 妈妈旁白："有些话，她说过就忘了。幸好它都记得。"<br>
+        【结尾】字幕：把孩子的每一句话都留住。——评论区：你家娃最近说了什么金句？
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section id="publish">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">5</span>发布节奏与投流纪律</h2>
+    <div class="grid md:grid-cols-2 gap-5">
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 text-sm text-gray-700 space-y-2.5">
+        <h3 class="font-bold text-gray-900">发布节奏</h3>
+        <ul class="space-y-2">
+          <li>· 日更 1 条（童言切片成本低可日更），每周 1–2 条重内容（B/C 类）</li>
+          <li>· 黄金时段：12:00–13:00 / 18:00–19:00 / 21:00–22:00（宝妈刷手机时段）</li>
+          <li>· 标签：#童言无忌 #育儿日常 #AI玩具 #记录孩子成长 + 当下热点标签</li>
+          <li>· 评论区运营：前 30 分钟逐条回复（评论权重新手期权重高）</li>
+        </ul>
+      </div>
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 text-sm text-gray-700 space-y-2.5">
+        <h3 class="font-bold text-gray-900">DOU+ 纪律（防止烧钱自我感动）</h3>
+        <ul class="space-y-2">
+          <li>· 只投"自然数据已达线"的视频：完播 &gt; 25% 或点赞率 &gt; 4%</li>
+          <li>· 测试：每条 ¥300，投"宝妈 25–40 + 母婴兴趣"，看 GPM（千次播放成交额）</li>
+          <li>· <b>GPM &gt; ¥1000 才放量追投；&lt; ¥500 果断停</b>（转化素材不行，投了也白投）</li>
+          <li>· 首发 LAUNCH 预算池：¥1–2 万分 3–5 条达标视频，而不是押一条</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section id="convert">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">6</span>转化路径与资质（3C 前后的两条路）</h2>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 overflow-x-auto mb-4">
+      <table class="gt">
+        <thead><tr><th style="width:160px">路径</th><th style="width:220px">前置资质</th><th>操作与说明</th></tr></thead>
+        <tbody>
+          <tr class="bg-green-50/50"><td><b>正路：抖音小店挂车</b></td><td>营业执照 + 玩具类目 3C（或质检报告，视类目要求）+ 保证金</td><td>视频挂小黄车 + 自播间购物车，转化链路最短；3C 完成后（W9–16）走这条</td></tr>
+          <tr><td>过渡 A：淘宝店承接</td><td>淘宝企业店/个体店；玩具类目同样查 3C——未出证前以"智能录音硬件/DIY 套件"类目上架需谨慎评估合规表述</td><td>视频火 → 评论区/简介"同款在淘宝"引导搜索；适合小批量预售测款</td></tr>
+          <tr><td>过渡 B：私域预售（最稳）</td><td>无硬性资质（微店/群接龙）</td><td>S1/S2 期把流量沉淀进群，小批量 100–300 台直接群里预售——<b>既测了需求又零合规风险</b>，强烈建议首发前这样跑一轮</td></tr>
+          <tr><td>放大：达人分发</td><td>同小店资质（走联盟）</td><td>母婴/亲子达人佣金 20–30% 送测；优先"爸爸测评""宝妈种草"类账号</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="p-4 rounded-xl bg-amber-50 border border-amber-100 text-sm text-gray-700">
+      <b class="text-gray-900"><i class="fas fa-scale-balanced text-amber-500 mr-2"></i>合规底线提醒：</b>① 儿童玩具类目 3C 是硬门槛，<b>不要用"礼品/摆件/录音盒"名义长期规避玩具类目销售</b>——被平台抽查下架+罚款+客诉三连；过渡期规模控制在百台级并同步推进认证。② 自家孩子出镜拍"使用记录"属正常内容；用 UGC（客户孩子）素材需家长书面授权。③ 宣传话术避免"教育效果承诺"（广告法），主打"记录与陪伴"。
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section id="burst">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">7</span>爆单预案（链接被打爆之前就要想好的事）</h2>
+    <div class="grid md:grid-cols-2 gap-4 text-sm">
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5"><b class="text-gray-900 block mb-1">① 库存与发货</b>预售制（付款后 7 日发）；库存深度与放量预算绑定（DOU+ 追投金额 ≤ 可发货库存 × 售价 × 30%）；方案商备产能协议（周补货能力书面确认）。</div>
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5"><b class="text-gray-900 block mb-1">② 客服与差评</b>最大差评源是配网失败（2.4G WiFi）。对策：包装内"三步开机卡" + 置顶视频《2 分钟联网教程》 + 客服话术库；48h 内未联网的订单主动电话。</div>
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5"><b class="text-gray-900 block mb-1">③ 服务过载</b>爆单时云端并发预案（04 篇扩容路径提前演练）；AI 服务故障时设备自动降级本地故事（体验红线兜底反而防差评）。</div>
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5"><b class="text-gray-900 block mb-1">④ 断货话术</b>断货期视频评论区置顶"下一批 xx 号开抢"，把断货变成稀缺营销而非差评现场。</div>
+    </div>
+  </section>
+
+  <!-- 8 -->
+  <section id="defense">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">8</span>风险清单与跟卖防御</h2>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 overflow-x-auto mb-4">
+      <table class="gt">
+        <thead><tr><th style="width:170px">风险</th><th style="width:80px">等级</th><th>对策</th></tr></thead>
+        <tbody>
+          <tr><td>华强北跟卖（硬件易抄）</td><td class="text-red-500 font-bold">高</td><td>硬件本来防不住；护城河=①声音记忆数据不可迁移 ②家长端账号体系 ③内容账号心智。竞品抄走壳，抄不走孩子三年的录音</td></tr>
+          <tr><td>大厂下场（火火兔+AI）</td><td class="text-amber-500 font-bold">中</td><td>速度；且大厂大概率做"内容平台"惯性而非"私人记忆"定位——把情感叙事先占住</td></tr>
+          <tr><td>儿童隐私舆情</td><td class="text-red-500 font-bold">高</td><td>05/04 篇隐私工程全项落地；主动公示《儿童数据保护白皮书》变风险为卖点</td></tr>
+          <tr><td>AI 内容事故（说错话）</td><td class="text-amber-500 font-bold">中</td><td>04 篇双向过滤+兜底话术；出格内容小时级热修（人设配置热更）</td></tr>
+          <tr><td>平台政策（导流限制）</td><td class="text-amber-500 font-bold">中</td><td>私域引导话术合规化；尽快转正小店挂车减少站外依赖</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="p-4 rounded-xl bg-rose-50 border border-rose-100 text-sm text-gray-700">
+      <b class="text-gray-900">本篇最重要的一句话：</b>抖音打法的真正杠杆不是投放技巧，而是<b>"产品会自己生产内容"——每周童言精选既是留存功能，也是内容工厂</b>（07 篇付费点、05 篇推送、08 篇素材，三者是同一份数据）。产品设计时就为内容预留了出口，增长才可持续。
+    </div>
+  </section>
+
+  <footer class="text-center text-sm text-gray-400 pt-8 border-t border-gray-200">
+    <a href="07-cost-business.html" class="text-orange-500 hover:underline"><i class="fas fa-arrow-left mr-1"></i>上一篇：成本商业</a>
+    <span class="mx-3">·</span><span>08 / 09 · 抖音打法</span>
+    <span class="mx-3">·</span><a href="09-team-roadmap.html" class="text-orange-500 hover:underline">下一篇：团队路线 <i class="fas fa-arrow-right ml-1"></i></a>
+  </footer>
+</div>
+</main>
+
+</body>
+</html>

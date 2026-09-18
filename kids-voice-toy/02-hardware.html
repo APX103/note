@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>02 · 硬件方案 · 回声 Echo</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif; }
+    .sidebar { position: fixed; left: 0; top: 56px; bottom: 0; width: 230px; overflow-y: auto; border-right: 1px solid #f1f5f9; background: #fff; z-index: 40; }
+    .main-content { margin-left: 230px; padding-top: 56px; }
+    @media (max-width: 1024px) { .sidebar { display: none; } .main-content { margin-left: 0; } }
+    table.hw th { background: #f8fafc; }
+    table.hw th, table.hw td { border: 1px solid #e5e7eb; padding: 9px 13px; font-size: 0.875rem; vertical-align: top; }
+    table.hw { border-collapse: collapse; width: 100%; }
+    .total-row td { background: #fff7ed; font-weight: 700; }
+</style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+<nav class="fixed top-0 inset-x-0 z-50 bg-white/90 backdrop-blur border-b border-gray-200">
+  <div class="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between gap-4 overflow-x-auto">
+    <a href="index.html" class="flex items-center gap-2 shrink-0">
+      <span class="w-7 h-7 rounded-lg bg-gradient-to-br from-orange-400 to-pink-500 flex items-center justify-center text-white text-xs"><i class="fas fa-volume-up"></i></span>
+      <span class="font-bold text-gray-900 whitespace-nowrap">回声 Echo <span class="text-gray-400 font-normal text-sm hidden md:inline">· AI 儿童声音玩具全栈方案</span></span>
+    </a>
+    <div class="flex items-center gap-1 text-sm whitespace-nowrap">
+      <a href="index.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">总览</a>
+      <a href="01-prd.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">PRD</a>
+      <a href="02-hardware.html" class="px-3 py-1.5 rounded-lg bg-orange-50 text-orange-600 font-semibold">硬件</a>
+      <a href="03-firmware.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">固件</a>
+      <a href="04-backend-agent.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">后端 Agent</a>
+      <a href="05-parent-web.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">家长端</a>
+      <a href="06-demo-mvp.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">Demo 路径</a>
+      <a href="07-cost-business.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">成本商业</a>
+      <a href="08-douyin-gtm.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">抖音打法</a>
+      <a href="09-team-roadmap.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">团队路线</a>
+    </div>
+  </div>
+</nav>
+
+<aside class="sidebar hidden lg:block p-4">
+  <nav class="space-y-1 text-sm">
+    <a href="#principles" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">1. 设计原则</a>
+    <a href="#mcu" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">2. 主控选型：为什么是 ESP32-S3</a>
+    <a href="#tiers" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">3. 三档硬件配置</a>
+    <a href="#bom" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">4. BOM 成本明细</a>
+    <a href="#shell" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">5. 外壳：毛绒路线</a>
+    <a href="#audio" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">6. 音频链路与童安</a>
+    <a href="#power" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">7. 电源</a>
+    <a href="#supply" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">8. 供应链与采购指南</a>
+    <a href="#cert" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">9. 认证前置设计</a>
+  </nav>
+</aside>
+
+<main class="main-content">
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-14">
+
+  <header>
+    <div class="text-xs font-mono text-gray-400 mb-2">DOC 02 / 09</div>
+    <h1 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">硬件方案：三档配置，成本与最简 Demo 双优先</h1>
+    <p class="text-gray-600 leading-relaxed">硬件策略一句话：<b class="text-gray-900">Demo 用现成品（零焊接），内测用开发板（可定制按键），验证通过才做量产 BOM（目标 ≤ ¥60）</b>。绝不在验证前开模、打板、画原理图。</p>
+  </header>
+
+  <!-- 1 原则 -->
+  <section id="principles">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">1</span>设计原则</h2>
+    <div class="grid md:grid-cols-2 gap-4">
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-sm text-gray-700"><b class="text-gray-900 block mb-1"><i class="fas fa-cart-shopping text-orange-500 mr-2"></i>能买不焊</b>Demo 阶段一切硬件从淘宝/华强北买现成品。焊接、画板、3D 建模都是验证之后的事。</div>
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-sm text-gray-700"><b class="text-gray-900 block mb-1"><i class="fas fa-code-fork text-orange-500 mr-2"></i>跟着生态走</b>选小智（xiaozhi-esp32）生态成熟的硬件形态——现成固件直接支持，服务器零适配，社区踩过的坑我们不用再踩。</div>
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-sm text-gray-700"><b class="text-gray-900 block mb-1"><i class="fas fa-yen-sign text-orange-500 mr-2"></i>成本红线倒推</b>目标零售 ¥199–249，渠道+毛利倒推 BOM ≤ ¥60。凡是把这根线顶爆的配置（屏幕、摄像头、大喇叭、金属外壳）一律砍。</div>
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-sm text-gray-700"><b class="text-gray-900 block mb-1"><i class="fas fa-certificate text-orange-500 mr-2"></i>为认证而设计</b>量产件从第一天就按 3C/GB 6675 的要求选（模块带 SRRC、电池带认证、阻燃外壳），认证是时间问题，别让硬件变成死局。</div>
+    </div>
+  </section>
+
+  <!-- 2 MCU -->
+  <section id="mcu">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">2</span>主控选型：为什么是 ESP32-S3</h2>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 overflow-x-auto mb-5">
+      <table class="hw">
+        <thead><tr><th style="width:150px">候选</th><th>优势</th><th>劣势</th><th style="width:90px">结论</th></tr></thead>
+        <tbody>
+          <tr class="bg-orange-50/60"><td><b>ESP32-S3</b><br>(WROOM-1 N16R8)</td><td>小智生态第一公民（固件/服务器全现成）；PSRAM 8MB 满足音频缓冲与 Opus 编码；向量指令可跑离线唤醒词；模组厂（乐鑫/安信可）已带 SRRC 认证；量大单价 ¥12–18</td><td>非国产芯片；深度定制音频 DSP 不如专业方案</td><td class="font-bold text-green-600">选定</td></tr>
+          <tr><td>ESP32-C3 / 经典 ESP32</td><td>更便宜（¥6–10）</td><td>无 PSRAM/无向量指令，小智固件支持差，音频缓冲吃紧</td><td>否决</td></tr>
+          <tr><td>博通集成 / 云知声等玩具 AI 方案芯片</td><td>玩具厂标配、出货量大价低</td><td>封闭生态，绑定方案商，无法自建 Agent 与数据资产——与"声音记忆是我们的"根本冲突</td><td>否决</td></tr>
+          <tr><td>树莓派 / Linux 类</td><td>算力自由</td><td>BOM ¥80+、功耗高、续航差、系统运维重</td><td>否决</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="p-4 rounded-xl bg-blue-50 border border-blue-100 text-sm text-gray-700">
+      <b class="text-gray-900"><i class="fas fa-lightbulb text-blue-500 mr-2"></i>关键决策说明：</b>选 ESP32-S3 不是因为它"最强"，而是因为<b>它把固件研发成本降到接近零</b>——小智固件已实现 I2S 采集、Opus 编解码、WebSocket 协议、OTA、配网全家桶。我们省下的 2–3 个月固件从零开发时间，正是"两周出 Demo"的根基（见 03 篇）。
+    </div>
+  </section>
+
+  <!-- 3 三档 -->
+  <section id="tiers">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">3</span>三档硬件配置</h2>
+    <div class="space-y-5">
+      <div class="bg-white rounded-2xl border-2 border-green-200 shadow-sm p-6">
+        <div class="flex flex-wrap items-center gap-3 mb-3">
+          <span class="px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs font-bold">档位 A · Demo 用（强烈推荐起步）</span>
+          <span class="text-2xl font-bold text-gray-900">¥79–168</span>
+          <span class="text-xs text-gray-400">单台，含物流</span>
+        </div>
+        <p class="text-sm text-gray-700 mb-3"><b class="text-gray-900">做法：淘宝直接买"小智 AI"兼容整机</b>（ESP32-S3 核心的桌面机器人/音箱形态），到手重新指向我们自建的服务器即可。零焊接、零外壳、零结构设计。</p>
+        <ul class="text-sm text-gray-600 space-y-1.5">
+          <li><i class="fas fa-check text-green-500 mr-2"></i>采购关键词：<code class="bg-gray-100 px-1.5 py-0.5 rounded text-xs">小智AI 聊天机器人 ESP32-S3</code>、<code class="bg-gray-100 px-1.5 py-0.5 rounded text-xs">xiaozhi AI 桌面机器人</code></li>
+          <li><i class="fas fa-check text-green-500 mr-2"></i>买前必问客服三件事：① 是否 ESP32-S3 带 PSRAM；② 能否自行刷固件/改服务器地址（有的锁死，见 06 篇避坑）；③ 有无独立按键（对话键/音量键）</li>
+          <li><i class="fas fa-check text-green-500 mr-2"></i>自带：麦克风、扬声器、充电电池、按键、外壳——Demo 需要的一切</li>
+          <li><i class="fas fa-exclamation-circle text-amber-500 mr-2"></i>局限：按键布局固定，无法实现"多段录音+单独发送"，Demo 阶段用"按住说话松开发送"先验证核心价值</li>
+        </ul>
+      </div>
+      <div class="bg-white rounded-2xl border border-amber-200 shadow-sm p-6">
+        <div class="flex flex-wrap items-center gap-3 mb-3">
+          <span class="px-3 py-1 rounded-full bg-amber-100 text-amber-700 text-xs font-bold">档位 B · 内测/种子家庭用</span>
+          <span class="text-2xl font-bold text-gray-900">≈ ¥90–120</span>
+          <span class="text-xs text-gray-400">单台 DIY</span>
+        </div>
+        <p class="text-sm text-gray-700 mb-3"><b class="text-gray-900">做法：ESP32-S3 开发板 + I2S 麦克风/功放 + 独立按键</b>，面包板或洞洞板连接，3D 打印简易外壳或塞进毛绒公仔。可完整实现我们的 3 键交互。</p>
+        <ul class="text-sm text-gray-600 space-y-1.5">
+          <li><i class="fas fa-microchip text-amber-500 mr-2"></i>ESP32-S3-DevKitC-1（N16R8）≈ ¥45–60 · 或用面包板伴侣型（如 S3 Zero + 扩展板）更小</li>
+          <li><i class="fas fa-microphone text-amber-500 mr-2"></i>INMP441 全向 I2S 麦克风模块 ≈ ¥6–10</li>
+          <li><i class="fas fa-volume-up text-amber-500 mr-2"></i>MAX98357A I2S 功放模块 + 2W/4Ω 全频喇叭 ≈ ¥12–18</li>
+          <li><i class="fas fa-circle-dot text-amber-500 mr-2"></i>轻触按键 ×3 + 自锁开关 + WS2812 RGB 灯（状态灯效）≈ ¥5</li>
+          <li><i class="fas fa-battery-three-quarters text-amber-500 mr-2"></i>18650 电池盒（带 Type-C 充电保护一体板）+ 2000mAh 电芯 ≈ ¥15–20</li>
+          <li><i class="fas fa-teddy-bear text-amber-500 mr-2"></i>外壳：¥10–20 的现成毛绒公仔（掏空塞入，网布透声）或 3D 打印 ≈ ¥5–15</li>
+        </ul>
+      </div>
+      <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+        <div class="flex flex-wrap items-center gap-3 mb-3">
+          <span class="px-3 py-1 rounded-full bg-gray-100 text-gray-600 text-xs font-bold">档位 C · 量产 BOM（1k–10k 台）</span>
+          <span class="text-2xl font-bold text-gray-900">≈ ¥45–60</span>
+          <span class="text-xs text-gray-400">含组装测试与包装，不含开模费</span>
+        </div>
+        <p class="text-sm text-gray-700">验证通过后再启动。核心动作：找方案商/代工厂定制 PCB（把开发板上的芯片直贴）、开注塑模具或毛绒模具、贴牌组装。明细见下节 BOM 表；供应链路径见第 8 节。<b>开模（¥3–8 万）是本档位最大的一次性投入，必须在小批量验证数据支撑下再拍板。</b></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 BOM -->
+  <section id="bom">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">4</span>量产 BOM 成本明细（1k 台量级估算）</h2>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 overflow-x-auto">
+      <table class="hw">
+        <thead><tr><th>物料</th><th style="width:200px">规格建议</th><th style="width:100px">单价(¥)</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td>主控模组</td><td>ESP32-S3-WROOM-1-N16R8</td><td>13–18</td><td>带 SRRC 认证模组；1k 量可与安信可/乐鑫代理谈价</td></tr>
+          <tr><td>麦克风</td><td>INMP441（或国产兼容 I2S MEMS）</td><td>1.5–3</td><td>量产直接贴 MEMS 芯片 + 麦克风开孔防尘设计</td></tr>
+          <tr><td>功放</td><td>MAX98357A 芯片直贴（3W D 类）</td><td>1.5–3</td><td>省掉模块板费</td></tr>
+          <tr><td>扬声器</td><td>2W / 4Ω 全频 40–50mm</td><td>2–3</td><td>人声优先频响，无需重低音</td></tr>
+          <tr><td>电池</td><td>18650 2000mAh（带认证）或软包 2500mAh</td><td>4–7</td><td>必须 GB 31241 + UN38.3 报告齐全的供应商</td></tr>
+          <tr><td>充电管理</td><td>TP4056 + 保护板 / 一体 PMIC</td><td>1–2</td><td>Type-C 口，过充过放保护</td></tr>
+          <tr><td>PCB + SMT + 阻容</td><td>单板双面贴</td><td>4–6</td><td>深圳 SMT 小批量成熟报价</td></tr>
+          <tr><td>按键 + 开关 + LED</td><td>3 轻触 + 1 拨动 + WS2812</td><td>1–2</td><td>按键选带凸帽可盲操作的</td></tr>
+          <tr><td>外壳（毛绒+内胆）</td><td>毛绒公仔 + ABS 内胆支架</td><td>8–14</td><td>毛绒模具比注塑便宜；内胆可 3D 打印小批量过渡</td></tr>
+          <tr><td>包装</td><td>彩盒 + 说明书</td><td>2.5–4</td><td>说明书含扫码绑定引导（降低退货，见 08 篇）</td></tr>
+          <tr><td>组装 + 测试</td><td>手工作业线</td><td>3–5</td><td>烧录+联网+出声 三检</td></tr>
+          <tr class="total-row"><td>合计</td><td>—</td><td>43–64</td><td>目标控制在 ¥55 以内（规格取舍后）</td></tr>
+        </tbody>
+      </table>
+      <p class="text-xs text-gray-400 mt-4">价格基于 2026 年华强北/1688 常见报价区间，实际以询价为准；10k 量级整体可再降 15–20%。一次性投入另计：注塑/毛绒开模 ¥3–8 万、3C 认证 ¥3–6 万（见 09 篇预算）。</p>
+    </div>
+  </section>
+
+  <!-- 5 外壳 -->
+  <section id="shell">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">5</span>外壳：毛绒优先的三个理由</h2>
+    <div class="grid md:grid-cols-3 gap-4 mb-4">
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-sm"><b class="text-gray-900 block mb-1">① 成本与安全</b>毛绒+短绒面料单价低于注塑加喷涂；天然满足 GB 6675 对边缘/尖点的严格要求（没有硬棱角）；跌落不坏。</div>
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-sm"><b class="text-gray-900 block mb-1">② 儿童亲和</b>3–8 岁对"抱的"比"摆的"更有依恋——情感联结正是本产品黏性来源；毛绒=睡眠场景入场券（睡前故事）。</div>
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-sm"><b class="text-gray-900 block mb-1">③ 透声天然友好</b>网布/短绒区域即是免结构设计的"扬声器开孔+麦克风开孔"；省掉防水格栅等结构件。</div>
+    </div>
+    <div class="p-4 rounded-xl bg-orange-50 border border-orange-100 text-sm text-gray-700">
+      <b class="text-gray-900">实施路径：</b>Demo 买现成公仔掏空塞开发板（麦克风/喇叭对准网布区）；小批量用东莞毛绒厂现成公仔改内胆；量产开毛绒模具（比注塑便宜）。电子部分用<b> ABS 内胆盒 + 螺丝固定</b>（电池仓不可徒手打开，3C 硬要求），按键穿过内胆露在公仔手脚部位（大凸键，好按好找）。
+    </div>
+  </section>
+
+  <!-- 6 音频 -->
+  <section id="audio">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">6</span>音频链路与童安设计</h2>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      <div class="flex flex-col md:flex-row items-stretch gap-3 text-center text-xs mb-5">
+        <div class="flex-1 p-3 rounded-xl bg-blue-50 border border-blue-100"><b class="block text-sm text-gray-900 mb-1">拾音</b>INMP441 I2S 麦<br>16kHz 采样 · 全向<br>（量产：MEMS 贴板 + 防尘网）</div>
+        <div class="flex items-center justify-center text-gray-300"><i class="fas fa-arrow-right"></i></div>
+        <div class="flex-1 p-3 rounded-xl bg-emerald-50 border border-emerald-100"><b class="block text-sm text-gray-900 mb-1">处理</b>ESP32-S3<br>Opus 16–24kbps 编码<br>AGC 自动增益 + VAD 静默检测</div>
+        <div class="flex items-center justify-center text-gray-300"><i class="fas fa-arrow-right"></i></div>
+        <div class="flex-1 p-3 rounded-xl bg-violet-50 border border-violet-100"><b class="block text-sm text-gray-900 mb-1">上行</b>WebSocket 二进制流<br>→ Agent 服务器<br>（录音同时服务器全量落盘）</div>
+        <div class="flex items-center justify-center text-gray-300"><i class="fas fa-arrow-right"></i></div>
+        <div class="flex-1 p-3 rounded-xl bg-orange-50 border border-orange-100"><b class="block text-sm text-gray-900 mb-1">下行播放</b>Opus 解码 → MAX98357A<br>→ 2W 喇叭<br><b>软件限幅 ≤ 85dB</b></div>
+      </div>
+      <ul class="space-y-2.5 text-sm text-gray-700">
+        <li><b class="text-gray-900">音量童锁：</b>软件限制最大输出电平（出厂校准），家长端可再调低；无论孩子怎么按，不超 85dB（GB 6675 声级要求）。</li>
+        <li><b class="text-gray-900">AGC：</b>孩子说话忽大忽小、距离忽远忽近，自动增益保证 ASR 识别率（对"断断续续说话"场景尤其重要）。</li>
+        <li><b class="text-gray-900">回声处理：</b>玩具自己说话时孩子抢话是常态。Demo 阶段用"半双工"（播放时按键录音排队）；量产版启用 ESP32-S3 AEC 库实现全双工打断。</li>
+        <li><b class="text-gray-900">静默检测（VAD）：</b>多段录音"自动封口"（静默 5s）由它驱动，无需孩子理解"结束"概念。</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 7 电源 -->
+  <section id="power">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">7</span>电源</h2>
+    <div class="grid md:grid-cols-2 gap-5">
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 text-sm text-gray-700 space-y-2.5">
+        <h3 class="font-bold text-gray-900">方案：单 18650 + Type-C</h3>
+        <p>2000mAh ≈ 中度使用 8–10h（待机为主、交互间歇）。充电 2.5h，支持边充边用——<b>睡前故事场景大概率是插电状态</b>，续航压力比想象小，不必上大电池。</p>
+        <p>低电量红色快闪 + 童声提示；电量上报服务器（家长端可见）。</p>
+      </div>
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 text-sm text-gray-700 space-y-2.5">
+        <h3 class="font-bold text-gray-900">童安要点（3C 审查项）</h3>
+        <ul class="space-y-1.5">
+          <li>电池仓螺丝固定，儿童无法徒手取出电芯</li>
+          <li>电芯必须带认证（GB 31241 / UN38.3），加 PCM 保护板</li>
+          <li>Type-C 口带 ESD 保护；充电中限制使用温度检测</li>
+          <li>整体工作电流与发热：满负荷外壳表面温升 &lt; 限值</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8 供应链 -->
+  <section id="supply">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">8</span>供应链与采购指南</h2>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 overflow-x-auto">
+      <table class="hw">
+        <thead><tr><th style="width:130px">阶段</th><th style="width:190px">去哪买/找谁</th><th>关键动作</th></tr></thead>
+        <tbody>
+          <tr><td>Demo（1–3 台）</td><td>淘宝搜"小智AI ESP32-S3"</td><td>买前确认可刷机、可改服务器地址（详见 06 篇避坑清单）；一次买 2 台防翻车</td></tr>
+          <tr><td>内测（10–50 台）</td><td>淘宝/1688 散件 + 华强北电子市场</td><td>开发板+麦+功放按档位 B 清单采购；外壳用现成毛绒公仔改造</td></tr>
+          <tr><td>小批量（100–500 台）</td><td>深圳方案商（华强北/华强广场写字楼）</td><td>找"AI 玩具方案商"贴牌：他们有现成整机（含认证过的部分结构件），刷我们固件、换毛绒壳；谈 MOQ 与交期，<b>签数据与固件归属协议</b></td></tr>
+          <tr><td>量产（1k+）</td><td>方案商转东莞/深圳代工厂</td><td>定制 PCB 直贴 + 开模 + 组装测试线；同时启动 3C 认证（周期 4–8 周，提前启动！）</td></tr>
+        </tbody>
+      </table>
+      <div class="mt-4 p-4 rounded-xl bg-amber-50 border border-amber-100 text-sm text-gray-700">
+        <b class="text-gray-900"><i class="fas fa-handshake text-amber-500 mr-2"></i>与方案商合作的底线：</b>固件必须能自己刷写升级、服务器地址必须指向自己域名、<b>设备数据（录音）必须归我们</b>。方案商只挣硬件的钱，数据资产一分不碰——这是"声音记忆"商业模式的生命线，签合同前逐条确认。
+      </div>
+    </div>
+  </section>
+
+  <!-- 9 认证 -->
+  <section id="cert">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">9</span>认证前置设计（现在选型，未来少花冤枉钱）</h2>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 overflow-x-auto">
+      <table class="hw">
+        <thead><tr><th style="width:200px">认证/合规项</th><th style="width:110px">阶段</th><th>硬件选型对策</th></tr></thead>
+        <tbody>
+          <tr><td>电玩具 3C（GB 6675 / GB 19865）</td><td>量产前必须</td><td>无棱角（毛绒天然满足）、电池仓螺丝、阻燃材料选择 VL-94 等级、声压 ≤ 85dB、拉力测试件（按键/绒毛）</td></tr>
+          <tr><td>SRRC（无线电型号核准）</td><td>量产前必须</td><td>只用已带 SRRC 的 ESP32 模组（乐鑫/安信可模组自带），不做板载天线设计——省 ¥2–5 万和 8 周周期</td></tr>
+          <tr><td>电池 UN38.3 / GB 31241</td><td>物流+3C 前置</td><td>只采购认证电芯成品，索要报告随货</td></tr>
+          <tr><td>质检报告（平台入驻）</td><td>开店铺时</td><td>抖音小店/淘宝玩具类目需 3C 或质检报告；DIY 智能硬件类目门槛不同（见 08 篇合规路径）</td></tr>
+          <tr><td>生成式 AI / 深度合成备案</td><td>放量前</td><td>面向未成年人提供 AIGC 服务的合规评估；用大厂 API（豆包/通义）可借用其内容安全能力，降低自建成本</td></tr>
+        </tbody>
+      </table>
+      <p class="text-xs text-gray-400 mt-4">Demo 与内测阶段（自用/种子家庭免费体验）不涉及销售，无需认证；从收费那一刻起进入合规区间——时间线在 09 篇路线图中与开模并行安排。</p>
+    </div>
+  </section>
+
+  <footer class="text-center text-sm text-gray-400 pt-8 border-t border-gray-200">
+    <a href="01-prd.html" class="text-orange-500 hover:underline"><i class="fas fa-arrow-left mr-1"></i>上一篇：PRD</a>
+    <span class="mx-3">·</span><span>02 / 09 · 硬件</span>
+    <span class="mx-3">·</span><a href="03-firmware.html" class="text-orange-500 hover:underline">下一篇：固件 <i class="fas fa-arrow-right ml-1"></i></a>
+  </footer>
+</div>
+</main>
+
+</body>
+</html>

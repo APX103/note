@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>05 · 家长端方案 · 回声 Echo</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif; }
+    .sidebar { position: fixed; left: 0; top: 56px; bottom: 0; width: 230px; overflow-y: auto; border-right: 1px solid #f1f5f9; background: #fff; z-index: 40; }
+    .main-content { margin-left: 230px; padding-top: 56px; }
+    @media (max-width: 1024px) { .sidebar { display: none; } .main-content { margin-left: 0; } }
+    table.pw th { background: #f8fafc; }
+    table.pw th, table.pw td { border: 1px solid #e5e7eb; padding: 9px 13px; font-size: 0.875rem; vertical-align: top; }
+    table.pw { border-collapse: collapse; width: 100%; }
+    .phone { width: 260px; border: 10px solid #1e293b; border-radius: 32px; overflow: hidden; background: #fff; box-shadow: 0 20px 40px rgba(0,0,0,.15); }
+</style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+<nav class="fixed top-0 inset-x-0 z-50 bg-white/90 backdrop-blur border-b border-gray-200">
+  <div class="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between gap-4 overflow-x-auto">
+    <a href="index.html" class="flex items-center gap-2 shrink-0">
+      <span class="w-7 h-7 rounded-lg bg-gradient-to-br from-orange-400 to-pink-500 flex items-center justify-center text-white text-xs"><i class="fas fa-volume-up"></i></span>
+      <span class="font-bold text-gray-900 whitespace-nowrap">回声 Echo <span class="text-gray-400 font-normal text-sm hidden md:inline">· AI 儿童声音玩具全栈方案</span></span>
+    </a>
+    <div class="flex items-center gap-1 text-sm whitespace-nowrap">
+      <a href="index.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">总览</a>
+      <a href="01-prd.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">PRD</a>
+      <a href="02-hardware.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">硬件</a>
+      <a href="03-firmware.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">固件</a>
+      <a href="04-backend-agent.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">后端 Agent</a>
+      <a href="05-parent-web.html" class="px-3 py-1.5 rounded-lg bg-orange-50 text-orange-600 font-semibold">家长端</a>
+      <a href="06-demo-mvp.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">Demo 路径</a>
+      <a href="07-cost-business.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">成本商业</a>
+      <a href="08-douyin-gtm.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">抖音打法</a>
+      <a href="09-team-roadmap.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">团队路线</a>
+    </div>
+  </div>
+</nav>
+
+<aside class="sidebar hidden lg:block p-4">
+  <nav class="space-y-1 text-sm">
+    <a href="#principle" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">1. 定位与原则</a>
+    <a href="#screens" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">2. 三屏信息架构</a>
+    <a href="#wireframe" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">3. 核心页面线框</a>
+    <a href="#tech" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">4. 技术实现（最简）</a>
+    <a href="#push" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">5. 推送与留存抓手</a>
+    <a href="#privacy" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">6. 隐私功能设计</a>
+    <a href="#evolve" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">7. 演进路径与工作量</a>
+  </nav>
+</aside>
+
+<main class="main-content">
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-14">
+
+  <header>
+    <div class="text-xs font-mono text-gray-400 mb-2">DOC 05 / 09</div>
+    <h1 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">家长端：手机 H5 三屏起步，不做 App</h1>
+    <p class="text-gray-600 leading-relaxed">家长端策略一句话：<b class="text-gray-900">一个移动端优先的 H5 网页，只做三个屏——绑定、时间线、精选——两周内和 Demo 设备一起跑起来</b>。App、小程序、成长报告全部等验证后再投入。</p>
+  </header>
+
+  <!-- 1 -->
+  <section id="principle">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">1</span>定位与原则</h2>
+    <div class="grid md:grid-cols-2 gap-4">
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-sm text-gray-700"><b class="text-gray-900 block mb-1"><i class="fas fa-mobile-screen text-cyan-500 mr-2"></i>H5 而不是 App</b>家长的使用是"低频高情感"（每晚/每周看几分钟），不值得装 App；扫码即用、微信内直接打开、分享零阻力——H5 完胜。Demo 阶段连小程序都不做（审核周期会拖慢验证）。</div>
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-sm text-gray-700"><b class="text-gray-900 block mb-1"><i class="fas fa-heart text-pink-500 mr-2"></i>设计语言：情感相册，不是后台系统</b>视觉参考"亲宝宝/时光小屋"：大圆角、暖色、日期分组、原声播放器是主角。<b>不做图表仪表盘</b>——妈妈要的是"翻相册的心动"，不是"看数据"。</div>
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-sm text-gray-700"><b class="text-gray-900 block mb-1"><i class="fas fa-bolt text-orange-500 mr-2"></i>原声优先原则</b>一切页面围绕"点开就能听到孩子声音"设计：列表页直接内嵌播放按钮，一点就响，绝不让用户翻两屏才找到声音。</div>
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-sm text-gray-700"><b class="text-gray-900 block mb-1"><i class="fas fa-shield-halved text-green-600 mr-2"></i>隐私是前置功能不是设置页</b>监护人同意流程内置于首次绑定；删除/导出/成员管理放在首页可达的一级入口——合规要求同时是信任卖点。</div>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section id="screens">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">2</span>三屏信息架构（Demo 版）</h2>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 overflow-x-auto">
+      <table class="pw">
+        <thead><tr><th style="width:110px">屏</th><th style="width:190px">名称</th><th>内容与操作</th></tr></thead>
+        <tbody>
+          <tr><td>屏 0</td><td>绑定与同意</td><td>扫玩具底部二维码 → 手机号验证码登录 → 填孩子昵称/生日 → <b>监护人同意书</b>（儿童个人信息收集告知，勾选才可继续）→ 完成</td></tr>
+          <tr><td>屏 1</td><td>声音时间线（首页）</td><td>按天分组倒序；每条卡片：播放按钮 + 转写文字 + 标签（开心/幼儿园/金句）+ 时长 + 收藏/删除；日期跳转；"今天她说了 14 句话"问候语</td></tr>
+          <tr><td>屏 2</td><td>本周精选 / 时光机</td><td>每周童言精选卡片（原声+文字，可生成分享图）；时光机日历视图："2026-03-18 她说过…"；家长点"在玩具上播放"远程触发回忆</td></tr>
+          <tr><td>屏 3（半个）</td><td>我的 / 隐私</td><td>设备管理（WiFi 状态/电量/音量上限/免打扰时段）、成员邀请、保留期设置、一键导出、注销删除</td></tr>
+        </tbody>
+      </table>
+      <p class="text-xs text-gray-400 mt-3">严格说 Demo 只需要屏 1 能用、屏 2 能看、屏 0 能走通；屏 3 用一个最简设置页占位。</p>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section id="wireframe">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">3</span>核心页面线框：声音时间线</h2>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 flex flex-col md:flex-row gap-10 items-center justify-center">
+      <div class="phone shrink-0">
+        <div class="bg-gradient-to-b from-orange-50 to-white p-4">
+          <div class="flex items-center justify-between mb-3">
+            <div><div class="text-xs text-gray-400">9月18日 星期五</div><div class="font-bold text-gray-900">今天，朵朵说了 14 句话</div></div>
+            <div class="w-9 h-9 rounded-full bg-pink-100 text-pink-500 flex items-center justify-center"><i class="fas fa-child"></i></div>
+          </div>
+          <div class="space-y-2.5">
+            <div class="p-3 rounded-xl bg-white border border-gray-100 shadow-sm">
+              <div class="flex items-center gap-2.5">
+                <button class="w-10 h-10 rounded-full bg-orange-500 text-white flex items-center justify-center shrink-0"><i class="fas fa-play text-xs ml-0.5"></i></button>
+                <div class="min-w-0">
+                  <p class="text-sm text-gray-800 truncate">"妈妈，你知道吗，月亮晚上也要开灯的"</p>
+                  <p class="text-[10px] text-gray-400 mt-0.5">15:42 · 8秒 · <span class="text-orange-400">金句</span> <span class="text-pink-400">想象力</span></p>
+                </div>
+                <i class="fas fa-heart text-gray-300 ml-auto"></i>
+              </div>
+            </div>
+            <div class="p-3 rounded-xl bg-white border border-gray-100 shadow-sm">
+              <div class="flex items-center gap-2.5">
+                <button class="w-10 h-10 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center shrink-0"><i class="fas fa-play text-xs ml-0.5"></i></button>
+                <div class="min-w-0">
+                  <p class="text-sm text-gray-800 truncate">"我今天在幼儿园有点想妈妈…后来又忘了"</p>
+                  <p class="text-[10px] text-gray-400 mt-0.5">16:05 · 12秒 · <span class="text-blue-400">幼儿园</span> <span class="text-amber-400">小情绪</span></p>
+                </div>
+                <i class="fas fa-heart text-pink-400 ml-auto"></i>
+              </div>
+            </div>
+            <div class="p-3 rounded-xl bg-pink-50 border border-pink-100">
+              <div class="text-[11px] text-pink-500 font-bold mb-1"><i class="fas fa-star mr-1"></i>本周精选 · 每周日晚更新</div>
+              <p class="text-sm text-gray-700">"等我长大了，我要给妈妈买一个会说话的房子"</p>
+              <button class="mt-2 w-full py-1.5 rounded-lg bg-pink-500 text-white text-xs">听原声 · 生成分享卡片</button>
+            </div>
+            <div class="pt-1 text-center text-[10px] text-gray-300">2026-09-17 · 11 条 · 2026-09-16 · 23 条 …</div>
+          </div>
+        </div>
+      </div>
+      <div class="text-sm text-gray-700 space-y-3 max-w-sm">
+        <p><b class="text-gray-900">设计要点：</b></p>
+        <ul class="space-y-2">
+          <li><i class="fas fa-circle text-[6px] text-orange-400 mr-2 align-middle"></i>每条卡片 <b>3 秒内能听到声音</b>——圆形播放键是页面上最大的元素</li>
+          <li><i class="fas fa-circle text-[6px] text-orange-400 mr-2 align-middle"></i>转写文字是辅助（快速扫读），原声才是主菜（情感）</li>
+          <li><i class="fas fa-circle text-[6px] text-orange-400 mr-2 align-middle"></i>标签是 LLM 自动打的：既是筛选入口，也是"原来它真的在理解我孩子"的感知点</li>
+          <li><i class="fas fa-circle text-[6px] text-orange-400 mr-2 align-middle"></i>精选卡片可生成分享图（孩子头像剪影+金句+二维码）——自传播入口，直接喂抖音/朋友圈</li>
+          <li><i class="fas fa-circle text-[6px] text-orange-400 mr-2 align-middle"></i>首页顶部问候语每日变化，制造"今天她又说了什么"的开启动机</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section id="tech">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">4</span>技术实现（最简栈）</h2>
+    <div class="grid md:grid-cols-2 gap-5">
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 text-sm text-gray-700">
+        <h3 class="font-bold text-gray-900 mb-3">Demo 版（与后端同仓，2–3 天工作量）</h3>
+        <ul class="space-y-2">
+          <li>· <b>纯静态单页</b>：一个 HTML + 原生 JS（或 Vue CDN），移动端优先</li>
+          <li>· 音频播放：<code>&lt;audio&gt;</code> + 后端签名 URL</li>
+          <li>· 列表接口直接查 recordings 表（04 篇 API）</li>
+          <li>· 登录：手机号+验证码（或 Demo 期用家庭邀请码代替短信）</li>
+          <li>· 部署：与 Agent 服务同一台云主机 nginx 托管</li>
+        </ul>
+      </div>
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 text-sm text-gray-700">
+        <h3 class="font-bold text-gray-900 mb-3">量产版（小程序，验证后启动）</h3>
+        <ul class="space-y-2">
+          <li>· 微信小程序（Taro/uni-app 一套代码）+ 微信 OAuth 免密登录</li>
+          <li>· 订阅消息推送每周精选（H5 无法推送，这是转小程序的第一动因）</li>
+          <li>· 分享卡片生成、亲友邀请收听、成长报告</li>
+          <li>· 小程序需主体资质 + 类目（母婴/工具），与抖音店铺资质并行办理</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section id="push">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">5</span>推送与留存抓手（家长侧增长的发动机）</h2>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 overflow-x-auto">
+      <table class="pw">
+        <thead><tr><th style="width:170px">触点</th><th style="width:180px">时机</th><th>内容</th></tr></thead>
+        <tbody>
+          <tr><td>每日一句（Demo 可选）</td><td>每晚 21:00</td><td>"今天朵朵说了一句特别可爱的话，点开听听"——只推一条最强的，不轰炸</td></tr>
+          <tr><td>每周童言精选</td><td>每周日 20:00</td><td>Top 3–5 金句卡片 + 分享图生成（P1 核心功能）</td></tr>
+          <tr><td>时光胶囊提醒</td><td>去年今天 / 指定纪念日</td><td>"一年前的今天，她说…"+ 原声——最强情感触点，抖音素材固定来源</td></tr>
+          <tr><td>里程碑</td><td>累计 100 条/500 条录音</td><td>"您已经为孩子珍藏了 100 条童言，可以导出留念了"</td></tr>
+          <tr><td>异常通知</td><td>安全事件触发时</td><td>内容安全严重信号（04 篇第 5 节），即时推送，措辞克制专业</td></tr>
+        </tbody>
+      </table>
+      <p class="text-xs text-gray-400 mt-3">推送频控：非异常类每日 ≤ 1 条，可在设置关闭全部——体验克制本身就是差异化（对比教培类 APP 的轰炸）。</p>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section id="privacy">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">6</span>隐私功能设计（合规动作产品化）</h2>
+    <div class="grid md:grid-cols-2 gap-4">
+      <div class="bg-green-50 rounded-2xl border border-green-100 p-5 text-sm text-gray-700 space-y-2">
+        <b class="text-gray-900 block mb-1">首次绑定 = 监护人同意流程</b>
+        <p>《儿童个人信息网络保护规定》要求收集儿童个人信息需监护人<b>单独同意</b>。绑定流程第三步呈现儿童化白话版告知（收集什么/用来什么/存多久/谁能听/怎么删），监护人勾选确认——把合规动作做成"我们很认真保护你孩子"的信任时刻。</p>
+      </div>
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-sm text-gray-700 space-y-2">
+        <b class="text-gray-900 block mb-1">四项家长数据权利（一级入口）</b>
+        <ul class="space-y-1.5">
+          <li>· <b>听：</b>成员权限分级（爸爸可听/奶奶仅收藏/亲友仅精选）</li>
+          <li>· <b>删：</b>单条删除 / 全部清空（30 天物理清除含备份）</li>
+          <li>· <b>取：</b>一键导出 zip（音频+转写+时间线）——离线永远可留</li>
+          <li>· <b>改：</b>保留期（1/3/5 年）、昵称生日、免打扰时段</li>
+        </ul>
+      </div>
+    </div>
+    <div class="mt-4 p-4 rounded-xl bg-gray-100 border border-gray-200 text-sm text-gray-600">
+      数据承诺三条（写进隐私政策首页）：① 录音仅用于回听与记忆功能，<b>绝不用于模型训练或任何二次利用</b>；② 员工不可收听（权限隔离+审计日志）；③ 公司主体变更需重新征得同意。儿童数据业务里，信任崩塌只需一次事件。
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section id="evolve">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">7</span>演进路径与工作量</h2>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 overflow-x-auto">
+      <table class="pw">
+        <thead><tr><th style="width:160px">版本</th><th style="width:130px">工作量</th><th>范围</th></tr></thead>
+        <tbody>
+          <tr><td>Demo H5（06 篇 D5–6 交付）</td><td>2–3 人日</td><td>手机号登录 + 时间线 + 播放 + 收藏；一个页面搞定</td></tr>
+          <tr><td>内测版</td><td>+3 人日</td><td>每周精选页、时光机日历、导出、隐私设置、成员邀请</td></tr>
+          <tr><td>量产小程序 v1</td><td>2–3 人周</td><td>uni-app 重写 + 订阅消息 + 分享卡片 + 支付（会员）</td></tr>
+          <tr><td>v2 增值</td><td>持续</td><td>成长报告、年度声音书（实体周边下单）、亲友点播故事</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer class="text-center text-sm text-gray-400 pt-8 border-t border-gray-200">
+    <a href="04-backend-agent.html" class="text-orange-500 hover:underline"><i class="fas fa-arrow-left mr-1"></i>上一篇：后端 Agent</a>
+    <span class="mx-3">·</span><span>05 / 09 · 家长端</span>
+    <span class="mx-3">·</span><a href="06-demo-mvp.html" class="text-orange-500 hover:underline">下一篇：Demo 路径 <i class="fas fa-arrow-right ml-1"></i></a>
+  </footer>
+</div>
+</main>
+
+</body>
+</html>

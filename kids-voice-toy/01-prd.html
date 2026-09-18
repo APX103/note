@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>01 · 产品需求文档（PRD）· 回声 Echo</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif; }
+    .sidebar { position: fixed; left: 0; top: 56px; bottom: 0; width: 230px; overflow-y: auto; border-right: 1px solid #f1f5f9; background: #fff; z-index: 40; }
+    .main-content { margin-left: 230px; padding-top: 56px; }
+    @media (max-width: 1024px) { .sidebar { display: none; } .main-content { margin-left: 0; } }
+    table.prd th { background: #f8fafc; }
+    table.prd th, table.prd td { border: 1px solid #e5e7eb; padding: 10px 14px; font-size: 0.875rem; vertical-align: top; }
+    table.prd { border-collapse: collapse; width: 100%; }
+    .p0 { background:#fef2f2; color:#dc2626; } .p1 { background:#fffbeb; color:#d97706; } .p2 { background:#f0fdf4; color:#16a34a; }
+</style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+<nav class="fixed top-0 inset-x-0 z-50 bg-white/90 backdrop-blur border-b border-gray-200">
+  <div class="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between gap-4 overflow-x-auto">
+    <a href="index.html" class="flex items-center gap-2 shrink-0">
+      <span class="w-7 h-7 rounded-lg bg-gradient-to-br from-orange-400 to-pink-500 flex items-center justify-center text-white text-xs"><i class="fas fa-volume-up"></i></span>
+      <span class="font-bold text-gray-900 whitespace-nowrap">回声 Echo <span class="text-gray-400 font-normal text-sm hidden md:inline">· AI 儿童声音玩具全栈方案</span></span>
+    </a>
+    <div class="flex items-center gap-1 text-sm whitespace-nowrap">
+      <a href="index.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">总览</a>
+      <a href="01-prd.html" class="px-3 py-1.5 rounded-lg bg-orange-50 text-orange-600 font-semibold">PRD</a>
+      <a href="02-hardware.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">硬件</a>
+      <a href="03-firmware.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">固件</a>
+      <a href="04-backend-agent.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">后端 Agent</a>
+      <a href="05-parent-web.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">家长端</a>
+      <a href="06-demo-mvp.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">Demo 路径</a>
+      <a href="07-cost-business.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">成本商业</a>
+      <a href="08-douyin-gtm.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">抖音打法</a>
+      <a href="09-team-roadmap.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">团队路线</a>
+    </div>
+  </div>
+</nav>
+
+<aside class="sidebar hidden lg:block p-4">
+  <nav class="space-y-1 text-sm">
+    <a href="#background" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">1. 背景与洞察</a>
+    <a href="#positioning" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">2. 产品定位</a>
+    <a href="#personas" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">3. 用户画像</a>
+    <a href="#stories" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">4. 用户故事</a>
+    <a href="#features" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">5. 功能需求 P0/P1/P2</a>
+    <a href="#interaction" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">6. 交互规格</a>
+    <a href="#nfr" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">7. 非功能需求</a>
+    <a href="#redline" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">8. 产品红线与 No-go</a>
+    <a href="#competitors" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">9. 竞品对照</a>
+    <a href="#metrics" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">10. 成功指标</a>
+  </nav>
+</aside>
+
+<main class="main-content">
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-14">
+
+  <header>
+    <div class="text-xs font-mono text-gray-400 mb-2">DOC 01 / 09</div>
+    <h1 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">产品需求文档（PRD）</h1>
+    <p class="text-gray-600 leading-relaxed">产品名（候选）：<b>小回声 / 回声宝 / 留声鹅 / 时光蛋</b> · 项目代号 <b>Echo</b>。本文回答"做什么、为谁做、做到什么程度"，是后续所有技术方案的需求源头。</p>
+  </header>
+
+  <!-- 1 背景 -->
+  <section id="background">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">1</span>背景与洞察</h2>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5 text-sm leading-relaxed text-gray-700">
+      <p><b class="text-gray-900">市场现象：AI 玩具大量"吃灰"。</b>一位从事 AI 测评的宝妈为女儿买过市面多数 AI 玩具，绝大多数玩几天就失去兴趣。AI 对话的新鲜感衰减极快——"聊什么都能聊"很快变成"没什么可聊"。</p>
+      <p><b class="text-gray-900">例外：一个会留存状态的小相机（华强北购入）。</b>女儿持续玩了很久，原因是它拍下的内容<b>一直存在</b>：很久之后还能回看过去拍的东西，并且带有"对过去的思考"。这说明儿童玩具的长留存不来自更强的对话能力，而来自<b class="text-gray-900">状态的积累与重温</b>——玩具随着使用时间变得越来越"有内容"。</p>
+      <p><b class="text-gray-900">机会：把这个机制移植到声音。</b>做一个声音版"时光机"：孩子可以随时对它说话、听故事；<b>孩子说过的每一句都被留存</b>，很久之后可以重新回听，并带着 AI 的回忆视角；家长也可以在手机上回听孩子的童言，长大后导出留念。</p>
+      <p><b class="text-gray-900">反面教材（必须规避）：</b>同类付费产品讲故事讲到一半播报"Token 不足了，快叫妈妈充值吧"。体验崩塌 + 亲子尴尬 + 家长反感。任何情况下，故事与对话不允许停在半路。</p>
+      <div class="p-4 rounded-xl bg-orange-50 border border-orange-100 text-gray-800">
+        <b><i class="fas fa-key text-orange-500 mr-2"></i>核心结论：</b>AI 陪聊只是入口功能，<b>"留住童年的声音"</b>才是产品本体。聊天会腻，回忆不会——录音数据随时间增值，用户随时间黏住。
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 定位 -->
+  <section id="positioning">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">2</span>产品定位</h2>
+    <div class="bg-gradient-to-r from-orange-500 to-pink-500 rounded-2xl p-8 text-white shadow-lg mb-6">
+      <p class="text-xl md:text-2xl font-bold leading-relaxed">"孩子的玩伴，父母的声音日记。"</p>
+      <p class="mt-3 text-white/90">一个无屏幕、按键操作的 AI 声音玩具：孩子按住它说话，它用可爱的童声回应、讲故事；孩子说过的每一句话都被珍藏，随时可以回听——是孩子成长的"声音时光机"。</p>
+    </div>
+    <div class="grid md:grid-cols-2 gap-5">
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <h3 class="font-bold text-gray-900 mb-3"><i class="fas fa-child text-blue-500 mr-2"></i>孩子侧：好玩的伙伴</h3>
+        <ul class="space-y-2 text-sm text-gray-700">
+          <li>按住就能说，松开/发送就有回应——低门槛、即时反馈</li>
+          <li>童声回复，语气像同龄小伙伴，不说教</li>
+          <li>会讲爱听的故事，还能接着孩子的想法编</li>
+          <li>"还记得我上次说的话"——玩具记得我，情感联结</li>
+        </ul>
+      </div>
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <h3 class="font-bold text-gray-900 mb-3"><i class="fas fa-heart text-pink-500 mr-2"></i>家长侧：情感价值（真正的购买动机）</h3>
+        <ul class="space-y-2 text-sm text-gray-700">
+          <li>童言无忌全量留存，手机随时回听、永久导出</li>
+          <li>每周"童言精选"自动推送——育儿生活里的高光时刻</li>
+          <li>一年后回放"她 4 岁时说的话"——时光胶囊式情感杀</li>
+          <li>隐私可控：谁能听、可删除、可导出，数据归家长</li>
+        </ul>
+        <p class="mt-3 text-xs text-gray-400">注：访谈显示妈妈对"留声"价值一秒 get，爸爸常 get 不到。营销素材与详情页要面向<b>感性记录型家长</b>，而非参数党。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 用户画像 -->
+  <section id="personas">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">3</span>用户画像</h2>
+    <div class="grid md:grid-cols-3 gap-5">
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <div class="w-12 h-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xl mb-3"><i class="fas fa-child-reaching"></i></div>
+        <h3 class="font-bold text-gray-900">使用用户：孩子（3–8 岁）</h3>
+        <p class="text-xs text-gray-400 mb-3">User · 玩的人</p>
+        <ul class="space-y-2 text-sm text-gray-700">
+          <li>语言表达期，话多、爱重复、爱问"为什么"</li>
+          <li>注意力短，需要即时反馈与具象交互（按键/灯效/声音）</li>
+          <li>不识字：零文字 UI，全靠声音与按键</li>
+          <li>黏性来源：被记住、被回应、仪式感（睡前故事）</li>
+        </ul>
+      </div>
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <div class="w-12 h-12 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center text-xl mb-3"><i class="fas fa-user-heart"></i></div>
+        <h3 class="font-bold text-gray-900">购买用户：妈妈（25–38 岁为主）</h3>
+        <p class="text-xs text-gray-400 mb-3">Customer · 买单的人</p>
+        <ul class="space-y-2 text-sm text-gray-700">
+          <li>记录型家长：手机相册几万张，爱发朋友圈/相册书</li>
+          <li>情感驱动消费，对"留住童年""成长纪念"高度共鸣</li>
+          <li>决策顾虑：安全（内容+隐私+听力）、辐射、电池、耐摔</li>
+          <li>价格带敏感度：¥200–400 玩具可接受，¥39–59/月服务需强理由</li>
+        </ul>
+      </div>
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <div class="w-12 h-12 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center text-xl mb-3"><i class="fas fa-user-tie"></i></div>
+        <h3 class="font-bold text-gray-900">影响用户：爸爸 / 祖辈</h3>
+        <p class="text-xs text-gray-400 mb-3">Influencer · 影响决策</p>
+        <ul class="space-y-2 text-sm text-gray-700">
+          <li>爸爸：关注参数与隐私安全，是"质检员"不是"粉丝"——详情页要有安全与合规背书</li>
+          <li>祖辈：高频陪玩人，需要"插电即用"级简单，几乎零学习成本</li>
+          <li>远程祖辈/亲友：潜在"收听用户"，后期分享功能的付费点</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 用户故事 -->
+  <section id="stories">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">4</span>核心用户故事</h2>
+    <div class="space-y-4">
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div class="px-6 py-3 bg-blue-50 text-blue-700 text-sm font-semibold"><i class="fas fa-child mr-2"></i>孩子侧</div>
+        <ul class="p-6 space-y-3 text-sm text-gray-700">
+          <li class="flex gap-3"><span class="shrink-0 mt-0.5 w-6 h-6 rounded bg-blue-100 text-blue-600 text-xs flex items-center justify-center font-mono font-bold">S1</span><div><b>按住说话：</b>我想跟它说话时，按住大按钮开说；我说话断断续续，可以停下来想一下再继续说；说完按另一个按钮，它就回我。回复要快、声音可爱、像小伙伴。</div></li>
+          <li class="flex gap-3"><span class="shrink-0 mt-0.5 w-6 h-6 rounded bg-blue-100 text-blue-600 text-xs flex items-center justify-center font-mono font-bold">S2</span><div><b>听我刚才说的：</b>我可以说"听听我刚才说的"，或者按回放键，它会放我刚才说的话。（童年的"复读机"快乐）</div></li>
+          <li class="flex gap-3"><span class="shrink-0 mt-0.5 w-6 h-6 rounded bg-blue-100 text-blue-600 text-xs flex items-center justify-center font-mono font-bold">S3</span><div><b>讲故事：</b>我说"讲个小猪佩奇的故事"（或按下故事键），它就开讲；我能插话改变故事走向。断网了它也能讲本地存的故事。</div></li>
+          <li class="flex gap-3"><span class="shrink-0 mt-0.5 w-6 h-6 rounded bg-blue-100 text-blue-600 text-xs flex items-center justify-center font-mono font-bold">S4</span><div><b>它记得我：</b>我问"我上次说长大想当什么呀"，它能放我以前的原声录音，还会像朋友一样评论"那时候你说想当宇航员诶"。</div></li>
+        </ul>
+      </div>
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div class="px-6 py-3 bg-pink-50 text-pink-700 text-sm font-semibold"><i class="fas fa-heart mr-2"></i>家长侧</div>
+        <ul class="p-6 space-y-3 text-sm text-gray-700">
+          <li class="flex gap-3"><span class="shrink-0 mt-0.5 w-6 h-6 rounded bg-pink-100 text-pink-600 text-xs flex items-center justify-center font-mono font-bold">S5</span><div><b>回听：</b>扫码绑定后，我在手机上按日期回听孩子对玩具说的每一句话，带文字转写；可以收藏、下载、转发给爸爸/奶奶。</div></li>
+          <li class="flex gap-3"><span class="shrink-0 mt-0.5 w-6 h-6 rounded bg-pink-100 text-pink-600 text-xs flex items-center justify-center font-mono font-bold">S6</span><div><b>每周精选：</b>每周日晚上收到一条推送："本周最可爱的 3 句话"——自动从录音中挑出金句，附原声。</div></li>
+          <li class="flex gap-3"><span class="shrink-0 mt-0.5 w-6 h-6 rounded bg-pink-100 text-pink-600 text-xs flex items-center justify-center font-mono font-bold">S7</span><div><b>时光胶囊：</b>一年后的今天，收到"去年今天她说过……"的提醒，附原声；18 岁时可以导出一本"声音成长书"。</div></li>
+          <li class="flex gap-3"><span class="shrink-0 mt-0.5 w-6 h-6 rounded bg-pink-100 text-pink-600 text-xs flex items-center justify-center font-mono font-bold">S8</span><div><b>安全与隐私：</b>我能设置哪些内容不可回放、一键删除任意录音、随时导出全部数据；孩子问出敏感问题（死亡/暴力等）时，玩具会用儿童友好的方式回应，并给我一条提示。</div></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 功能需求 -->
+  <section id="features">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">5</span>功能需求清单</h2>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 overflow-x-auto">
+      <table class="prd">
+        <thead><tr><th style="width:60px">优先级</th><th style="width:150px">模块</th><th>需求描述</th><th style="width:170px">对应故事</th></tr></thead>
+        <tbody>
+          <tr><td class="p0">P0</td><td>按键对话</td><td>按住录音键录音，支持<b>多段拼接</b>（松开可暂停续录，超时自动封口）；按发送键上传并获取 AI 回复；本地回放键播放刚才的录音</td><td>S1 / S2</td></tr>
+          <tr><td class="p0">P0</td><td>童声回复</td><td>AI 回复使用可爱童声/软萌女声，语速适当放慢；首响延迟 ≤ 2.5s</td><td>S1</td></tr>
+          <tr><td class="p0">P0</td><td>内容安全</td><td>输入（ASR 文本）与输出（LLM 回复）双向内容安全过滤；敏感话题儿童友好兜底话术；触发时通知家长（P1）</td><td>S8</td></tr>
+          <tr><td class="p0">P0</td><td>全量录音存档</td><td>孩子说的每段话：原始音频（OPUS/WAV）存 OSS + ASR 转写 + 时间/标签元数据入库；存储加密，保留策略可配置</td><td>S5 / S7</td></tr>
+          <tr><td class="p0">P0</td><td>家长回听</td><td>家长网页（Demo）/小程序（量产）：扫码绑定设备，按日期时间线回听，带转写文字；支持收藏与下载</td><td>S5</td></tr>
+          <tr><td class="p0">P0</td><td>讲故事</td><td>语音点播故事：预置热门故事包（云端+设备本地缓存，断网可用）+ 生成式互动故事（LLM 接龙）；<b>永不因计费中断</b></td><td>S3</td></tr>
+          <tr><td class="p1">P1</td><td>时光机回放</td><td>孩子语音触发（"听听我以前说的话"）或家长端触发：检索历史录音，播放原声 + AI 回忆点评（"三个月前的你说……"）</td><td>S4 / S7</td></tr>
+          <tr><td class="p1">P1</td><td>每周童言精选</td><td>每周自动挑选 3–5 条"金句"（LLM 评分），推送家长（微信服务号/小程序订阅消息）</td><td>S6</td></tr>
+          <tr><td class="p1">P1</td><td>数据管理</td><td>家长可删除任意录音、设置保留期限、一键导出（音频+转写打包下载）</td><td>S8</td></tr>
+          <tr><td class="p1">P1</td><td>设备配网</td><td>首次蓝牙/热点配网，扫码绑定家庭；断网自动重连、断网降级（本地故事+本地录音暂存）</td><td>—</td></tr>
+          <tr><td class="p2">P2</td><td>成长报告</td><td>月度/年度成长报告：词汇量变化、高频话题、最爱的故事；年度实体"声音书"周边（付费）</td><td>S7</td></tr>
+          <tr><td class="p2">P2</td><td>亲友共享</td><td>邀请爸爸/祖辈/亲友收听与点赞；远程祖辈点播故事给孩子（付费点）</td><td>S5</td></tr>
+          <tr><td class="p2">P2</td><td>多孩档案</td><td>一台设备声纹区分多个孩子档案；或一家庭多台设备归入同一档案</td><td>—</td></tr>
+        </tbody>
+      </table>
+      <p class="text-xs text-gray-400 mt-4">P0 = Demo 必须验证；P1 = 小批量版本必备；P2 = 量产增值/商业化功能。</p>
+    </div>
+  </section>
+
+  <!-- 6 交互规格 -->
+  <section id="interaction">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">6</span>按键交互规格</h2>
+    <div class="grid md:grid-cols-2 gap-5 mb-6">
+      <div class="bg-white rounded-2xl border-2 border-orange-200 shadow-sm p-6">
+        <span class="text-xs px-2 py-0.5 rounded bg-orange-100 text-orange-600 font-semibold">推荐 · 方案 A（3 键 + 开关）</span>
+        <h3 class="font-bold text-gray-900 mt-3 mb-3">适配"断断续续说话"的多段录音</h3>
+        <ul class="space-y-2.5 text-sm text-gray-700">
+          <li><b class="text-gray-900">① 录音键（大圆键）：</b>按住录音，松开暂停（3s 内可续录拼接）；静默 5s 自动封口；封口后"滴"提示音</li>
+          <li><b class="text-gray-900">② 发送键：</b>把刚录的（一段或多段拼接）发出去，AI 回复扬声器播放</li>
+          <li><b class="text-gray-900">③ 回放键：</b>本地立即重播刚才的录音（不经云端，孩子最爱）</li>
+          <li><b class="text-gray-900">④ 电源开关：</b>拨动开关，物理断电（家长安心）</li>
+          <li class="text-gray-500 text-xs pt-2 border-t border-gray-100">长按发送键 2s = 讲故事（进入故事模式，可语音点播）；长按回放键 2s = 时光机（随机回放历史录音+AI 点评）</li>
+        </ul>
+      </div>
+      <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+        <span class="text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-500 font-semibold">参考 · 方案 B（子豪 4 键）</span>
+        <h3 class="font-bold text-gray-900 mt-3 mb-3">录音键按住说话、松开即发送</h3>
+        <ul class="space-y-2.5 text-sm text-gray-700">
+          <li><b class="text-gray-900">① 讲话键：</b>按住说话，松开直接发送</li>
+          <li><b class="text-gray-900">② 回放键：</b>完整播放刚才的录音</li>
+          <li><b class="text-gray-900">③ 确认键：</b>确定要不要让 AI 发送</li>
+          <li><b class="text-gray-900">④ 开关：</b>电源</li>
+          <li class="text-gray-500 text-xs pt-2 border-t border-gray-100">差异点评：B 的"松开即发"更干脆，但不支持断续说话的孩子（说一半停住思考就误发送）；A 更贴合 3–5 岁语言节奏。Demo 阶段两种交互都可以让种子家庭试用后定稿。</li>
+        </ul>
+      </div>
+    </div>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      <h3 class="font-bold text-gray-900 mb-4">状态灯效（唯一可视化反馈，替代屏幕）</h3>
+      <table class="prd">
+        <thead><tr><th style="width:160px">状态</th><th>灯效</th><th>声音反馈</th></tr></thead>
+        <tbody>
+          <tr><td>待机</td><td>白光呼吸（缓慢）</td><td>无</td></tr>
+          <tr><td>录音中</td><td>黄色常亮，随音量微闪</td><td>开始"叮"一声</td></tr>
+          <tr><td>上传/AI 思考</td><td>蓝色呼吸（快）</td><td>无（≤2.5s 内必须出声）</td></tr>
+          <tr><td>AI 播报</td><td>蓝色常亮</td><td>童声回复</td></tr>
+          <tr><td>讲故事</td><td>暖橙色呼吸</td><td>故事音频</td></tr>
+          <tr><td>网络异常</td><td>红色慢闪</td><td>"我连不上网啦，先听本地故事吧"→ 自动降级</td></tr>
+          <tr><td>电量低</td><td>红色快闪 3 次/分钟</td><td>低电量提示音</td></tr>
+        </tbody>
+      </table>
+      <div class="mt-4 p-4 rounded-xl bg-gray-50 border border-gray-100 text-sm text-gray-600">
+        <b class="text-gray-900">儿童产品设计约束：</b>音量上限 ≤ 85dB（GB 6675 听力保护），软件限幅 + 出厂锁定；错误提示一律童声拟人化（不说"错误代码 404"，说"我打个盹儿了，再按一次嘛"）；所有按键支持盲操作（凸起/纹理区分）。
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 非功能 -->
+  <section id="nfr">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">7</span>非功能需求</h2>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 overflow-x-auto">
+      <table class="prd">
+        <thead><tr><th style="width:130px">维度</th><th>要求</th></tr></thead>
+        <tbody>
+          <tr><td><b>性能</b></td><td>按发送到首次出声 ≤ 2.5s（P95）；讲故事点播 ≤ 3s；本地回放 &lt; 0.5s</td></tr>
+          <tr><td><b>续航</b></td><td>2000mAh 锂电：中度使用（日均 40min 交互）≥ 8h；支持边充边用（睡前故事场景常插电）</td></tr>
+          <tr><td><b>可靠性</b></td><td>断网：本地故事可讲 + 本地录音暂存（≥ 500 段），联网后自动补传；7×24 服务可用性 ≥ 99.5%</td></tr>
+          <tr><td><b>内容安全</b></td><td>双向过滤（输入 ASR 文本、输出 LLM 文本）经内容安全 API；拦截率目标 ≥ 99%；敏感问题走儿童友好兜底话术库</td></tr>
+          <tr><td><b>隐私合规</b></td><td>儿童语音=敏感个人信息：监护人单独同意（绑定流程内置）、最小化收集、传输与存储加密、家长可删除/导出、明确保留期限；《儿童个人信息网络保护规定》+《个人信息保护法》</td></tr>
+          <tr><td><b>硬件安全</b></td><td>电玩具 3C（GB 6675 / GB 19865）；电池 GB 31241 + UN38.3；无线模块用已认证 ESP32 模块（SRRC）；电池仓螺丝固定不可徒手拆</td></tr>
+          <tr><td><b>成本红线</b></td><td>量产 BOM ≤ ¥60；单台月云边际成本 ≤ ¥8（重度用户），商业模式覆盖（详见 07 篇）</td></tr>
+          <tr><td><b>可维护</b></td><td>设备 OTA；服务端配置热更（人设/话术/故事包）；设备端日志回捞（家长授权后）</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 8 红线 -->
+  <section id="redline">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">8</span>产品红线与 No-go</h2>
+    <div class="grid md:grid-cols-2 gap-5">
+      <div class="bg-red-50 rounded-2xl border border-red-100 p-6">
+        <h3 class="font-bold text-red-700 mb-3"><i class="fas fa-ban mr-2"></i>五条红线（违反=失败）</h3>
+        <ul class="space-y-2.5 text-sm text-gray-700">
+          <li><b>1. 体验永不因计费中断：</b>绝不出现"Token 不足，快叫妈妈充值"。额度用尽 → 无缝切换本地故事库 + 温和提示家长端续费（只发给家长，不播给孩子）。</li>
+          <li><b>2. 不对孩子做商业话术：</b>不引导孩子要求家长购买任何东西。</li>
+          <li><b>3. 不说教、不评判：</b>孩子说"我不想上幼儿园"，回应是共情而非教育；家长要的教育功能走家长端（P2）。</li>
+          <li><b>4. 隐私默认最强：</b>录音默认仅绑定的家庭可见；任何分享需家长显式操作；不做录音数据二次利用。</li>
+          <li><b>5. 安全兜底优先于有趣：</b>过滤有误杀没关系，漏放一次就是灾难。</li>
+        </ul>
+      </div>
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <h3 class="font-bold text-gray-900 mb-3"><i class="fas fa-times-circle text-gray-400 mr-2"></i>明确不做（v1 No-go）</h3>
+        <ul class="space-y-2.5 text-sm text-gray-700">
+          <li><b>摄像头/图像/视频：</b>成本、隐私风险、场景（家长明确说不需要）三重否决</li>
+          <li><b>屏幕：</b>加成本、抢注意力、护眼争议；声音玩具就该"看不见"</li>
+          <li><b>教育课程属性：</b>不做"学英语/识字"卖点——防内卷焦虑定位，这是玩具不是教具</li>
+          <li><b>开放唤醒词全时监听（v1）：</b>按键交互 = 明确的录音边界，隐私上更站得住，功耗也更低；语音唤醒留待 v2 做可选开关</li>
+          <li><b>App 重客户端：</b>家长端 H5 → 小程序，不做独立 App</li>
+          <li><b>自研大模型/自建 ASR：</b>全部用成熟 API，差异化在记忆层与体验层</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9 竞品 -->
+  <section id="competitors">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">9</span>竞品对照</h2>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 overflow-x-auto">
+      <table class="prd">
+        <thead><tr><th>产品</th><th style="width:130px">类型/价位</th><th>核心能力</th><th>他们的弱点 = 我们的机会</th></tr></thead>
+        <tbody>
+          <tr><td>火火兔 / 牛听听</td><td>内容型早教机<br>¥69–299</td><td>儿歌/故事内容库，硬件成熟</td><td>无对话、无个性化；内容是"台的"不是"孩子的"</td></tr>
+          <tr><td>BubblePal（跃然）等挂坠 AI</td><td>AI 对话挂坠<br>¥399+</td><td>LLM 对话、角色扮演，营销强</td><td>对话会腻（吃灰主因）；<b>无录音留存价值</b>；订阅制体验断供争议</td></tr>
+          <tr><td>Folotoy / 米家等 AI 陪伴</td><td>AI 玩偶/音箱<br>¥199–599</td><td>开源生态或平台对话</td><td>同上：重"聊"轻"存"；家长侧几乎无情感产品</td></tr>
+          <tr><td>故事机 + 云内容订阅</td><td>订阅内容<br>内容月费 ¥10–30</td><td>内容丰富</td><td>"讲到一半要充值"式体验崩塌正是用户吐槽点</td></tr>
+          <tr class="bg-orange-50/60"><td><b>回声 Echo（本方案）</b></td><td>AI 声音玩具<br>¥199–249 买断</td><td>按键对话 + 童声 + 故事（与竞品同格）</td><td><b>独有：全量留声 + 时光机回放 + 每周童言精选</b>——卖的不是对话，是"留住童年"</td></tr>
+        </tbody>
+      </table>
+      <p class="text-xs text-gray-400 mt-4">一句话竞争策略：别人卷"聊得多好"，我们卷"记得多深"。对话能力用 API 追平不难，<b>数据积累的时间壁垒</b>才是护城河——用得越久，越离不开。</p>
+    </div>
+  </section>
+
+  <!-- 10 指标 -->
+  <section id="metrics">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">10</span>成功指标（Demo → 量产）</h2>
+    <div class="grid md:grid-cols-3 gap-5">
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <h4 class="font-bold text-gray-900 mb-1 text-sm uppercase tracking-wider text-gray-400">孩子侧（产品力）</h4>
+        <ul class="mt-3 space-y-2.5 text-sm text-gray-700">
+          <li>7 日后仍主动使用（反"吃灰"核心指标）</li>
+          <li>日均主动交互 ≥ 3 次</li>
+          <li>单次会话中位数 ≥ 3 轮对话</li>
+          <li>故事功能周使用 ≥ 2 次（睡前场景渗透）</li>
+        </ul>
+      </div>
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <h4 class="font-bold text-gray-900 mb-1 text-sm uppercase tracking-wider text-gray-400">家长侧（价值验证）</h4>
+        <ul class="mt-3 space-y-2.5 text-sm text-gray-700">
+          <li>家长周回听 ≥ 3 次（时光机价值成立）</li>
+          <li>每周精选打开率 ≥ 40%</li>
+          <li>愿意推荐给朋友的比例（NPS）≥ 40</li>
+          <li>绑定时隐私同意流程完成率 ≥ 95%</li>
+        </ul>
+      </div>
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <h4 class="font-bold text-gray-900 mb-1 text-sm uppercase tracking-wider text-gray-400">商业侧（放量判据）</h4>
+        <ul class="mt-3 space-y-2.5 text-sm text-gray-700">
+          <li>退货率 ≤ 5%（联网配置是最大风险源，见 08 篇）</li>
+          <li>抖音视频 GPM ≥ 1000 再放量投流</li>
+          <li>首年会员转化率 ≥ 20%</li>
+          <li>单台首年云成本 ≤ 硬件毛利 30%</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <footer class="text-center text-sm text-gray-400 pt-8 border-t border-gray-200">
+    <a href="index.html" class="text-orange-500 hover:underline"><i class="fas fa-arrow-left mr-1"></i>系列总览</a>
+    <span class="mx-3">·</span><span>01 / 09 · PRD</span>
+    <span class="mx-3">·</span><a href="02-hardware.html" class="text-orange-500 hover:underline">下一篇：硬件方案 <i class="fas fa-arrow-right ml-1"></i></a>
+  </footer>
+</div>
+</main>
+
+</body>
+</html>

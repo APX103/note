@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>09 · 团队与路线图 · 回声 Echo</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif; }
+    .sidebar { position: fixed; left: 0; top: 56px; bottom: 0; width: 230px; overflow-y: auto; border-right: 1px solid #f1f5f9; background: #fff; z-index: 40; }
+    .main-content { margin-left: 230px; padding-top: 56px; }
+    @media (max-width: 1024px) { .sidebar { display: none; } .main-content { margin-left: 0; } }
+    table.tm th { background: #f8fafc; }
+    table.tm th, table.tm td { border: 1px solid #e5e7eb; padding: 9px 13px; font-size: 0.875rem; vertical-align: top; }
+    table.tm { border-collapse: collapse; width: 100%; }
+    .mermaid { background: #f8fafc; border-radius: 0.75rem; padding: 1rem; }
+</style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+<nav class="fixed top-0 inset-x-0 z-50 bg-white/90 backdrop-blur border-b border-gray-200">
+  <div class="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between gap-4 overflow-x-auto">
+    <a href="index.html" class="flex items-center gap-2 shrink-0">
+      <span class="w-7 h-7 rounded-lg bg-gradient-to-br from-orange-400 to-pink-500 flex items-center justify-center text-white text-xs"><i class="fas fa-volume-up"></i></span>
+      <span class="font-bold text-gray-900 whitespace-nowrap">回声 Echo <span class="text-gray-400 font-normal text-sm hidden md:inline">· AI 儿童声音玩具全栈方案</span></span>
+    </a>
+    <div class="flex items-center gap-1 text-sm whitespace-nowrap">
+      <a href="index.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">总览</a>
+      <a href="01-prd.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">PRD</a>
+      <a href="02-hardware.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">硬件</a>
+      <a href="03-firmware.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">固件</a>
+      <a href="04-backend-agent.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">后端 Agent</a>
+      <a href="05-parent-web.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">家长端</a>
+      <a href="06-demo-mvp.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">Demo 路径</a>
+      <a href="07-cost-business.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">成本商业</a>
+      <a href="08-douyin-gtm.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">抖音打法</a>
+      <a href="09-team-roadmap.html" class="px-3 py-1.5 rounded-lg bg-orange-50 text-orange-600 font-semibold">团队路线</a>
+    </div>
+  </div>
+</nav>
+
+<aside class="sidebar hidden lg:block p-4">
+  <nav class="space-y-1 text-sm">
+    <a href="#roadmap" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">1. 五阶段路线图</a>
+    <a href="#phases" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">2. 各阶段目标与判据</a>
+    <a href="#team" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">3. 最小团队配置</a>
+    <a href="#outsource" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">4. 自建 vs 外包决策</a>
+    <a href="#hiring" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">5. 合伙人与招聘节奏</a>
+    <a href="#risks" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">6. 风险登记册</a>
+    <a href="#actions" class="block px-3 py-2 rounded-md text-gray-600 hover:bg-gray-100 font-medium">7. 本周行动清单</a>
+  </nav>
+</aside>
+
+<main class="main-content">
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-14">
+
+  <header>
+    <div class="text-xs font-mono text-gray-400 mb-2">DOC 09 / 09</div>
+    <h1 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">团队与路线图："一个人做不了"的解法</h1>
+    <p class="text-gray-600 leading-relaxed">组织策略一句话：<b class="text-gray-900">前两个阶段你一个人 + AI 编程工具就够（本方案已把工作量收敛到这个规模）；从 Phase 2 起按验证数据逐人加编——先加内容运营（增长瓶颈先解），再加硬件固件（量产瓶颈后解），全程用外包替代重资产</b>。</p>
+  </header>
+
+  <!-- 1 -->
+  <section id="roadmap">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">1</span>五阶段路线图（16 周到首发）</h2>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      <div class="mermaid">
+gantt
+    title 回声 Echo · 2026-09 启动版
+    dateFormat YYYY-MM-DD
+    axisFormat %m/%d
+    section P0 验证
+    Demo 14天（06篇）           :p0a, 2026-09-21, 14d
+    Go/NoGo 复盘                :milestone, 2026-10-05, 1d
+    section P1 内测
+    L1固件+种子家庭10台          :p1a, 2026-10-05, 14d
+    抖音开号蓄水                 :p1b, 2026-10-05, 14d
+    section P2 小批量
+    方案商贴牌100-300台          :p2a, 2026-10-19, 28d
+    3C/认证启动                  :p2b, 2026-10-19, 42d
+    私域预售测款                  :p2c, 2026-11-09, 14d
+    section P3 首发
+    开模+首批500台               :p3a, 2026-11-16, 42d
+    抖音挂链+自播                :p3b, 2026-12-07, 28d
+    section P4 放量
+    达人分发+会员+声音书          :p4a, 2027-01-04, 60d
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section id="phases">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">2</span>各阶段：目标 / 交付物 / 预算 / Go 判据</h2>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 overflow-x-auto">
+      <table class="tm">
+        <thead><tr><th style="width:130px">阶段</th><th>目标与交付物</th><th style="width:110px">预算</th><th style="width:200px">进入下一阶段的判据</th></tr></thead>
+        <tbody>
+          <tr><td><b>P0 Demo</b><br>W1–2</td><td>成品机+自建服务器+录音留存+单页 H5；交给宝妈家庭 7 天</td><td>&lt;¥0.1万</td><td>06 篇第 4 节 5 项判据 ≥4 项 Go</td></tr>
+          <tr><td><b>P1 内测</b><br>W3–4</td><td>10 台 DIY 设备进 5–10 家庭；L1 固件（离线故事+限幅）；抖音号开更（S1 内容）</td><td>¥0.5万</td><td>≥7 家庭连续使用 2 周；抖音出现 1 条 &gt;5w 播放</td></tr>
+          <tr><td><b>P2 小批量</b><br>W5–8</td><td>方案商贴牌 100–300 台；私域预售回收数据；3C 启动；种子 UGC 素材库</td><td>¥3–6万</td><td>私域预售 ≥100 台售罄；退货意向 ≤5%；内容 GPM 趋势向好</td></tr>
+          <tr><td><b>P3 首发</b><br>W9–16</td><td>开模量产首批 500；抖音小店挂链 + 自播；会员上线</td><td>¥8–15万</td><td>首批 30 天售罄；退货率 ≤5%；NPS ≥40</td></tr>
+          <tr><td><b>P4 放量</b><br>M5+</td><td>达人分发、矩阵号、年度声音书档期；二代产品立项（声纹多孩/唤醒词）</td><td>滚动</td><td>月销 ≥2000 台；会员转化 ≥20%；现金流为正</td></tr>
+        </tbody>
+      </table>
+      <p class="text-xs text-gray-400 mt-3">原则：每一阶段花的是上一阶段验证赚来的确定性。任何判据不达标→停在当前阶段修，不预支下一阶段的钱。</p>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section id="team">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">3</span>最小团队配置（3 人 + 外部资源）</h2>
+    <div class="space-y-4">
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <div class="grid md:grid-cols-3 gap-4 text-sm">
+          <div class="p-4 rounded-xl bg-indigo-50 border border-indigo-100">
+            <b class="block text-gray-900 mb-1">角色 1 · 你</b>
+            <p class="text-gray-600">产品定义 + 后端/Agent/家长端（本方案 04/05 篇工作量，AI 辅助下完全可行）+ 供应链对接 + 种子用户运营。P0–P1 你就是整个公司。</p>
+          </div>
+          <div class="p-4 rounded-xl bg-emerald-50 border border-emerald-100">
+            <b class="block text-gray-900 mb-1">角色 2 · 硬件/固件（P2 进入）</b>
+            <p class="text-gray-600">L2 固件改造 + 方案商对接 + 产测。路径 a：外包（¥1.5–3 万，03 篇工作量清单就是验收标准）；路径 b：兼职合伙人/熟人工程师按里程碑绑定。</p>
+          </div>
+          <div class="p-4 rounded-xl bg-rose-50 border border-rose-100">
+            <b class="block text-gray-900 mb-1">角色 3 · 内容运营（P1 末进入）</b>
+            <p class="text-gray-600">抖音日更剪片 + 评论区 + 私域群 + 客服。兼职可起步（宝妈大学生性价比高）；她自己就是目标用户更好。</p>
+          </div>
+        </div>
+      </div>
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <h3 class="font-bold text-gray-900 mb-3 text-sm">外部资源（用钱和合同解决，不招人）</h3>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs text-gray-600">
+          <div class="p-3 rounded-lg bg-gray-50 border border-gray-100"><b class="block text-gray-800">华强北方案商</b>贴牌整机、产能、部分认证件；用 02 篇第 8 节合同底线条款</div>
+          <div class="p-3 rounded-lg bg-gray-50 border border-gray-100"><b class="block text-gray-800">认证代理</b>3C/SRRC/质检打包代办，¥3–6 万，周期 4–8 周（P2 就要启动）</div>
+          <div class="p-3 rounded-lg bg-gray-50 border border-gray-100"><b class="block text-gray-800">东莞毛绒厂</b>外壳开模与批量；报价前拿 02 篇结构要求去询</div>
+          <div class="p-3 rounded-lg bg-gray-50 border border-gray-100"><b class="block text-gray-800">兼职插画/设计</b>详情页、包装、H5 视觉（按件 ¥3–8 千）</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section id="outsource">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">4</span>自建 vs 外包决策表</h2>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 overflow-x-auto">
+      <table class="tm">
+        <thead><tr><th>事项</th><th style="width:110px">决策</th><th>理由</th></tr></thead>
+        <tbody>
+          <tr><td>后端/Agent/家长端</td><td class="text-green-600 font-bold">自建</td><td>差异化核心（记忆层/人设/安全），迭代频率高，外包改不动</td></tr>
+          <tr><td>L0/L1 固件</td><td class="text-green-600 font-bold">自建</td><td>改配置级工作量（03 篇），AI 辅助够用</td></tr>
+          <tr><td>L2 固件（多段录音等）</td><td class="text-amber-500 font-bold">外包/合伙人</td><td>有嵌入式门槛；03 篇状态机文档即外包需求说明书</td></tr>
+          <tr><td>PCB/量产结构</td><td class="text-amber-500 font-bold">方案商</td><td>成熟供应链一分钱一分货，别自己踩坑</td></tr>
+          <tr><td>外壳模具</td><td class="text-amber-500 font-bold">代工厂</td><td>同上</td></tr>
+          <tr><td>抖音内容剪辑</td><td class="text-green-600 font-bold">先自后兼</td><td>P0–P1 自己剪找手感（人设是你的），P2 交兼职</td></tr>
+          <tr><td>认证</td><td class="text-amber-500 font-bold">代理</td><td>流程活，专业的人 4–8 周搞定</td></tr>
+          <tr><td>客服</td><td class="text-green-600 font-bold">先自后兼</td><td>早期客服=用户研究，别外包掉这个信息源</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section id="hiring">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">5</span>合伙人与招聘节奏</h2>
+    <div class="grid md:grid-cols-2 gap-4 text-sm text-gray-700">
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5"><b class="text-gray-900 block mb-1">什么时候加第一个人</b>判据不是"忙不过来"，而是<b>瓶颈类型切换</b>：当你每天的时间从"写代码/对接方案商"被"剪视频/回评论/拉群"吃掉 &gt; 40% 时，招内容运营（P1 末/P2 初，通常第 4–6 周）。</div>
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5"><b class="text-gray-900 block mb-1">固件合伙人 or 外包</b>首发前用外包（交付物导向，03 篇清单验收）；月销稳定 2000+ 后再考虑全职——硬件人才贵，别让固定成本跑在收入前面。</div>
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5"><b class="text-gray-900 block mb-1">股权建议</b>早期合伙人建议 5–15% 里程碑对赌（内测达标/首发达标解锁），不裸给；外包一律现金结。你自己保留绝对控制权到 P3 结束。</div>
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5"><b class="text-gray-900 block mb-1">宝妈是天然盟友</b>访谈的宝妈（AI 测评背景）= 首席种子用户 + 内容顾问的完美人选；这个产品的第一批员工/合伙人就该从目标用户里长出来。</div>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section id="risks">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">6</span>风险登记册（全阶段 Top 10）</h2>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 overflow-x-auto">
+      <table class="tm">
+        <thead><tr><th style="width:200px">风险</th><th style="width:70px">概率</th><th style="width:70px">影响</th><th>对策（谁负责·何时）</th></tr></thead>
+        <tbody>
+          <tr><td>Demo 假设不成立（孩子不吃留声这套）</td><td>中</td><td class="text-red-500 font-bold">致命</td><td>06 篇判据冷静复盘；沉没成本不恋战——但"相机玩具"先例提示概率偏低</td></tr>
+          <tr><td>ASR 童声识别太差毁体验</td><td>中</td><td class="text-red-500 font-bold">高</td><td>P0 就测（避坑④）；备选模型双轨；Prompt 容错设计</td></tr>
+          <tr><td>成品机买来刷不了</td><td>中</td><td>中</td><td>买 2 台+买前确认（02/06 篇清单）；48h 内验证</td></tr>
+          <tr><td>3C 周期拖垮首发节奏</td><td>中</td><td class="text-red-500 font-bold">高</td><td>P2 即启动认证；首发用私域预售不等证（小规模）；时间线留 4 周缓冲</td></tr>
+          <tr><td>方案商抢单/抄品</td><td>中</td><td>中</td><td>合同数据归属条款（02 篇）；品牌与内容心智先建（08 篇防御）</td></tr>
+          <tr><td>爆单断货差评反噬</td><td>中</td><td class="text-red-500 font-bold">高</td><td>预售制 + 投放与库存绑定（08 篇预案）</td></tr>
+          <tr><td>儿童隐私舆情事件</td><td>低</td><td class="text-red-500 font-bold">致命</td><td>隐私工程全项（04/05 篇）+ 主动白皮书 + 应急预案演练</td></tr>
+          <tr><td>AI 说错话截图传播</td><td>中</td><td>高</td><td>双向过滤+热修通道+公开回应SOP</td></tr>
+          <tr><td>云成本失控（重度用户）</td><td>低</td><td>中</td><td>故事缓存架构（07 篇）+ 公平使用条款 + 音频生命周期分层</td></tr>
+          <tr><td>团队单点（你自己）过载</td><td>高</td><td>中</td><td>严格按第 3 节节奏放权；文档化（本系列即交接文档）</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section id="actions">
+    <h2 class="text-2xl font-bold text-gray-900 mb-5 flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm">7</span>本周行动清单（2026-09-21 那周就做这 7 件）</h2>
+    <div class="bg-gradient-to-br from-orange-500 to-pink-500 rounded-2xl p-6 text-white">
+      <ol class="space-y-2.5 text-sm md:text-base">
+        <li class="flex gap-3"><span class="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center font-bold text-xs shrink-0">1</span>淘宝下单 2 台小智兼容机（按 02 篇买前三问）</li>
+        <li class="flex gap-3"><span class="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center font-bold text-xs shrink-0">2</span>注册 DeepSeek / 火山引擎 / 轻量云，充 ¥50</li>
+        <li class="flex gap-3"><span class="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center font-bold text-xs shrink-0">3</span>把这份方案发给宝妈（你的第一位种子用户+产品合伙人候选），约 30 分钟过一遍 PRD</li>
+        <li class="flex gap-3"><span class="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center font-bold text-xs shrink-0">4</span>抖音号注册 + 发第一条（选题 11：为什么市面 AI 玩具都吃灰）</li>
+        <li class="flex gap-3"><span class="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center font-bold text-xs shrink-0">5</span>云上部署 xiaozhi-esp32-server 并跑通第一轮对话（06 篇 D3–4 提前热身）</li>
+        <li class="flex gap-3"><span class="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center font-bold text-xs shrink-0">6</span>列种子家庭候选名单（宝妈圈子 5–10 家）</li>
+        <li class="flex gap-3"><span class="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center font-bold text-xs shrink-0">7</span>给 14 天后的复盘会定好日历邀请（判据已写在 06 篇，不可临时放水）</li>
+      </ol>
+    </div>
+  </section>
+
+  <footer class="text-center text-sm text-gray-400 pt-8 border-t border-gray-200">
+    <a href="08-douyin-gtm.html" class="text-orange-500 hover:underline"><i class="fas fa-arrow-left mr-1"></i>上一篇：抖音打法</a>
+    <span class="mx-3">·</span><span>09 / 09 · 团队路线</span>
+    <span class="mx-3">·</span><a href="index.html" class="text-orange-500 hover:underline">返回系列总览 <i class="fas fa-arrow-right ml-1"></i></a>
+  </footer>
+</div>
+</main>
+
+<script>mermaid.initialize({ startOnLoad: true, theme: 'neutral' });</script>
+</body>
+</html>
