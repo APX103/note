@@ -1,0 +1,172 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="HiDiTing（谛听）V100 开发板 fbb CLI 调研：命令能力全景、AI Agent 友好设计、macOS Apple Silicon 部署可行性证据链与完整部署步骤。"><title>HiDiTing · fbb CLI 调研与 Mac 部署可行性</title>
+<style>
+:root{--bg:#f5f7fa;--paper:#fff;--ink:#1c293d;--muted:#52627a;--line:#dce3ec;--blue:#315cc5;--green:#067465;--amber:#925411;--code:#101d30}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:24px}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.85 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}a{color:var(--blue);text-underline-offset:3px}a:hover{text-decoration-thickness:2px}a:focus-visible,summary:focus-visible{outline:3px solid var(--blue);outline-offset:4px}p{margin:12px 0 18px}strong{font-weight:650}code,pre{font-family:ui-monospace,SFMono-Regular,Consolas,monospace}code{font-size:.86em;background:#edf1f7;padding:2px 5px;border-radius:4px;overflow-wrap:anywhere}pre{background:var(--code);color:#e5edf9;padding:22px;border-radius:12px;overflow:auto;font-size:13px;line-height:1.75}pre code{background:none;padding:0;font-size:inherit;overflow-wrap:normal}h1,h2,h3{line-height:1.35}h1{font-size:clamp(30px,4vw,46px);letter-spacing:-1.6px;margin:20px 0}h2{font-size:27px;letter-spacing:-.6px;margin:0 0 24px}h3{font-size:19px;margin:28px 0 12px}ul,ol{padding-left:24px}li{margin:6px 0}small,.muted{color:var(--muted)}.wrap{max-width:1260px;margin:auto;padding:0 36px}.top{padding:25px 0;font-size:14px}.top a{text-decoration:none}.hero{padding:26px 0 42px;border-bottom:1px solid var(--line)}.eyebrow{color:var(--green);font:600 12px/1.5 ui-monospace,monospace;letter-spacing:2px}.hero p{max-width:780px;font-size:18px;color:var(--muted)}.meta{display:flex;flex-wrap:wrap;gap:8px 20px;font-size:13px;color:var(--muted)}.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:32px}.metric{padding:19px 20px;background:var(--paper);border:1px solid var(--line);border-radius:12px}.metric b{display:block;font-size:28px;line-height:1.4;letter-spacing:-.8px}.metric span{font-size:12px;color:var(--muted)}.layout{display:grid;grid-template-columns:205px minmax(0,1fr);gap:44px;padding:42px 0 60px}aside{position:sticky;top:24px;align-self:start}aside b{font-size:12px;color:var(--muted);letter-spacing:2px}nav{display:grid;gap:0;margin-top:14px}nav a{font-size:13px;text-decoration:none;color:var(--muted);padding:4px 10px;border-left:2px solid var(--line)}nav a:hover{color:var(--blue);border-color:var(--blue);background:#eaf0fb}main{min-width:0}section{padding:32px;background:var(--paper);border:1px solid var(--line);border-radius:15px;margin-bottom:24px}h2 .n{font-size:13px;display:block;letter-spacing:2px;color:var(--green);margin-bottom:7px}.table{overflow-x:auto;margin:20px 0;border:1px solid var(--line);border-radius:9px}table{border-collapse:collapse;width:100%;font-size:14px;min-width:570px}th,td{padding:13px 15px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{background:#edf2f8;font-size:12px;color:#3c506b}tr:last-child td{border-bottom:0}td:first-child{font-weight:550}.badge{display:inline-block;padding:2px 8px;border-radius:5px;font-size:12px;white-space:nowrap;background:#e9f1fe;color:#2854a8}.ok{background:#e3f4ee;color:#075e4b}.pending{background:#fff0dc;color:#825015}.removed{background:#f0edf5;color:#64566d}.callout{padding:17px 20px;border-left:4px solid var(--green);background:#eef8f5;border-radius:0 9px 9px 0;margin:22px 0}.callout.warn{border-color:#c08631;background:#fff7e9}.callout p{margin:4px 0}.flow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:22px 0}.node{border:1px solid var(--line);border-top:3px solid var(--blue);border-radius:8px;padding:15px 12px;background:#f8faff;font-size:13px}.node b{display:block;margin-bottom:6px}.node em{font-style:normal;font-size:11px;color:var(--green);display:block}.source{font-size:12px;color:var(--muted)}.sources li{font-size:14px;padding-bottom:8px;overflow-wrap:anywhere}details{border:1px solid var(--line);border-radius:9px;padding:15px 18px;margin:16px 0}summary{cursor:pointer;font-weight:600}details p:last-child{margin-bottom:0}.foot{padding:4px 0 40px;color:var(--muted);font-size:13px}.skip{position:absolute;left:16px;top:-80px;background:white;padding:10px;z-index:2}.skip:focus{top:10px}
+.code-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:22px 0 -10px;padding:10px 15px;background:#e8eef7;border-radius:9px 9px 0 0;font-size:12px;color:#344b69}
+.copy{font:inherit;border:1px solid #b8c8df;border-radius:5px;padding:5px 10px;background:white;color:#214a88;cursor:pointer;flex-shrink:0}.copy:focus-visible{outline:3px solid var(--blue);outline-offset:3px}
+.code-head+pre{border-top-left-radius:0;border-top-right-radius:0}.terminal{font-weight:700}.result{font-size:14px;border-left:3px solid #93b0ce;padding:5px 14px;margin:12px 0 24px;color:var(--muted)}
+@media(max-width:960px){.layout{grid-template-columns:1fr;gap:24px}aside{position:static}nav{grid-template-columns:repeat(3,1fr)}.wrap{padding:0 24px}h1{letter-spacing:-1px}}
+@media(max-width:600px){body{font-size:15px}.wrap{padding:0 16px}.hero{padding-top:10px}.hero p{font-size:16px}.metrics{grid-template-columns:1fr;gap:10px}.metric{padding:14px}.metric b{font-size:23px}nav{grid-template-columns:1fr 1fr}.layout{padding-top:26px}section{padding:22px 18px;border-radius:12px}h2{font-size:23px}.flow{grid-template-columns:1fr 1fr}.node{font-size:12px}pre{padding:16px;font-size:12px}.meta{font-size:12px}.code-head{font-size:11px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+@media print{body{background:white;font-size:11pt}.wrap{max-width:none;padding:0}.top,aside,.skip{display:none}.hero{padding:0 0 20px}.hero p{font-size:12pt}.layout{display:block;padding:20px 0}section{border:0;padding:18px 0;margin:0;border-radius:0}h2,h3{break-after:avoid}tr,.callout,.metric,.node{break-inside:avoid}.table,pre{overflow:visible}table{min-width:0;font-size:9pt}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#edf1f7;color:#14243d}a{color:inherit}details{display:block}.foot{padding-top:20px}.copy{display:none}}
+</style></head><body><a class="skip" href="#tldr">跳到正文</a><div class="wrap"><div class="top"><a href="../index.html">← Notes</a> / hispark-hi3322</div><header class="hero"><div class="eyebrow">HIDITING V100 / FBB CLI RESEARCH</div><h1>官方 CLI 是给 AI Agent 用的，<br>Mac 也能跑。</h1><p class="lead">对 HiSpark <code>hs-fbb</code>（谛听 HiDiTing SDK）与 <code>fbb</code> 一站式 CLI 的调研：它具备哪些能力、为什么说它是为 Agent 编程设计的、以及在你的 Apple Silicon Mac 上部署开发环境的完整证据链与步骤。</p><div class="meta"><span>整理：2026-09-18</span><span>HiDiTing V100 社区开发板 · Hi3322 · OpenHarmony 5.1</span><span>调研基线：hs-fbb master（V26.09.1 前夕，commit 306f579d6）</span></div><div class="metrics"><div class="metric"><b>Apple Silicon ✓</b><span>毕昇 26.08.1 起提供 darwin-arm64 工具链</span></div><div class="metric"><b>JSON-first</b><span>fbb 全链路 --json-summary + 稳定退出码</span></div><div class="metric"><b>26.08.1</b><span>新旧分水岭：此前 mac 无编译器包</span></div></div></header><div class="layout"><aside><b>调研目录</b><nav aria-label="报告目录"><a href="#tldr">00 · 结论速览与可行性判定</a><a href="#background">01 · 对象：hs-fbb 与 HiDiTing 板</a><a href="#cli">02 · fbb CLI 能力全景</a><a href="#agent">03 · AI Agent 友好设计</a><a href="#mac">04 · Mac 支持证据链</a><a href="#pitfalls">05 · 坑与注意事项</a><a href="#deploy">06 · Mac 部署步骤</a><a href="#compare">07 · 与 CV610 路线对比</a><a href="#sources">08 · 信息来源与版本快照</a></nav></aside><main>
+
+<section id="tldr"><h2><span class="n">00 / TL;DR</span>结论速览与可行性判定</h2>
+<p><strong>可以在 Apple Silicon Mac 上部署 HiDiTing 的完整开发环境（编译、烧录、监视、调试），且官方 CLI <code>fbb</code> 本身就是按"AI Agent 驱动开发"的目标设计的。</strong>官方 README 对 CLI 的定位原话："fbb is the <strong>mechanism layer</strong>. Skills are the <strong>policy layer</strong>"——fbb 是机制层，Agent 技能是策略层。GitCode 仓库描述也直接写着"AI Agent 友好"。</p>
+<div class="table"><table><thead><tr><th>环节</th><th>Mac 状态</th><th>依据</th></tr></thead><tbody>
+<tr><td>CLI 安装（fbb + uv + Python）</td><td><span class="badge ok">支持</span></td><td>bootstrap.sh 注释明确 "for Linux / macOS"，uv/python 均有 darwin-arm64 包</td></tr>
+<tr><td>交叉编译（毕昇 RISC-V clang）</td><td><span class="badge ok">26.08.1 起支持</span></td><td>官方工具源提供 bisheng 26.08.1 darwin-arm64；仅 Apple Silicon</td></tr>
+<tr><td>SDK 构建脚本（CMake/Ninja/签名）</td><td><span class="badge ok">支持</span></td><td>构建 cmake 有完整 darwin 分支，仓库内置 sign_tool/lzma/7zr 的 macos_universal 二进制</td></tr>
+<tr><td>烧录（hs-flash）</td><td><span class="badge ok">支持</span></td><td>hs-flash 26.08.1 darwin-universal2，串口与 USB DFU 两条路</td></tr>
+<tr><td>串口监视 / GDB / OpenOCD</td><td><span class="badge ok">支持</span></td><td>monitor 为 Python 实现；gdb-riscv32 与 openocd 均有 darwin-arm64 包</td></tr>
+<tr><td>Intel Mac</td><td><span class="badge removed">不支持</span></td><td>毕昇编译器只有 darwin-arm64，无 darwin-x86_64</td></tr>
+<tr><td>本机已有的 9 月 8 日手动克隆</td><td><span class="badge removed">不能用于 mac 编译</span></td><td>钉的工具链是 26.03.1（无 mac 包），需用 fbb 重装最新 SDK</td></tr>
+</tbody></table></div>
+<div class="callout"><p><strong>一句话行动项：</strong>在另一台 Mac 上执行 <code>curl -fsSL https://dl.hispark.hisilicon.com/bootstrap.sh | sh</code>，然后 <code>fbb sdk install hiditing</code> → <code>fbb build pack_diting_community</code> → <code>fbb flash … --chip 3322</code>。不要复用 <code>/Volumes/ssd/main_link/work/hs-fbb</code> 这个旧克隆做 mac 原生编译。</p></div>
+</section>
+
+<section id="background"><h2><span class="n">01 / WHAT &amp; WHERE</span>对象：hs-fbb 仓库与 HiDiTing 开发板</h2>
+<p><strong>hs-fbb</strong>（gitcode.com/HiSpark/hs-fbb）是海思 HiSpark 开源的「谛听 HiDiTing」软硬件一体化方案 SDK，面向轻智能终端（手表/穿戴形态为主）。本机克隆位置 <code>/Volumes/ssd/main_link/work/hs-fbb</code>，此前用于手动编译验证。</p>
+<ul>
+<li><strong>芯片 Hi3322</strong>：CPU/GPU/DSP 多核 + 端侧 NPU（50 GOPS）、星闪 SLE 2.0（16 Mbps 双向）、仿 3D GPU、H.264 播放、AI 降噪与模糊命令词识别；运行 OpenHarmony 5.1（LiteOS 内核适配层）。</li>
+<li><strong>社区开发板</strong>：引出蓝牙、星闪、LTE Cat1、GNSS、显示、音频、USB、UART、I2C、SPI、GPIO。</li>
+<li><strong>仓库内容</strong>：<code>src/</code> SDK 源码（build.py 一键编译入口）、<code>samples/</code>（JS 应用 + Native C 示例）、<code>docs/</code>（中文官方文档，在线版 docs.hisilicon.com/projects/hs-fbb）、<code>tools/</code>、<code>vendor/HiDiTingV100</code> 板级适配。</li>
+<li><strong>默认验证固件</strong>：发行版自带 <code>diting-community.fwpkg</code>（pack_diting_community 目标组，穿戴资源组），首次上板建议直接烧它。</li>
+</ul>
+<p>官方支持三条开发环境路线：一站式 CLI（Linux/Windows，macOS 经工具链支持已可用）、HiSpark Studio for VS Code 插件（Windows / Linux / <strong>macOS Apple Silicon</strong>）、WSL + Docker（Windows/Linux 容器构建）。CLI 是其中唯一为脚本与 Agent 设计的入口。</p>
+</section>
+
+<section id="cli"><h2><span class="n">02 / CAPABILITY MAP</span>fbb CLI 能力全景</h2>
+<p><code>fbb</code>（源码仓库 gitcode.com/HiSpark/hs-fbb-cli，Python，uv wheel 分发）是 HiSpark fbb 框架全系 SDK 的统一命令行，装一次即可操作 fbb_ws63、fbb_bs2x、hs-fbb 等所有 SDK。命令分三组：</p>
+<div class="table"><table><thead><tr><th>分组</th><th>命令</th><th>作用</th></tr></thead><tbody>
+<tr><td rowspan="5">环境</td><td><code>fbb setup</code> / <code>doctor</code> / <code>describe</code></td><td>一键配置构建环境（uv + Python 3.12 venv + ccache + Git + 按需工具链）、诊断、环境快照</td></tr>
+<tr><td><code>fbb sdk install &lt;名&gt;[@tag]</code></td><td>按芯片名或仓庘认装 SDK 到 <code>~/hispark/&lt;repo&gt;/&lt;ref&gt;</code>，支持 <code>sdk versions/list/uninstall</code> 与版本共存</td></tr>
+<tr><td><code>fbb env --print sh|json</code></td><td>输出环境激活片段（IDE/CI 集成），平时无需手动激活——每条 fbb 命令自激活</td></tr>
+<tr><td><code>fbb run -- &lt;cmd&gt;</code> / <code>fbb shell</code></td><td>在激活的构建环境里执行任意命令 / 交互子 shell</td></tr>
+<tr><td><code>fbb monitor</code></td><td>串口监视器：<code>--until 正则</code> 命中退出 0、<code>--timeout</code> 超时退出 4、<code>--log</code> 落盘、<code>--reset</code> 复位</td></tr>
+<tr><td rowspan="4">构建</td><td><code>fbb build [target]</code></td><td>增量编译，<code>--clean</code> 全量；树内/树外工程自动识别（树外靠 <code>fbb-project.toml</code>）</td></tr>
+<tr><td><code>fbb menuconfig &lt;目标&gt;</code></td><td>交互式 Kconfig 图形裁剪（仅人用；Agent 禁用）</td></tr>
+<tr><td><code>fbb config get/set/unset</code></td><td>非交互读写单个 Kconfig 选项，choice 互斥自动处理</td></tr>
+<tr><td><code>fbb create-project / create-component / create-project-from-example / list-examples / list-targets / set-target</code></td><td>工程与组件脚手架、示例克隆、目标管理</td></tr>
+<tr><td rowspan="3">芯片动作</td><td><code>fbb flash</code></td><td>调用 hs-flash 烧录 .fwpkg：串口（<code>-p</code>）与 USB DFU（<code>-d</code>）双通道，<code>--then-monitor</code> 烧完自动接监视，<code>--trigger-port</code> AT 探测，<code>--manual-reset</code> 手动进下载模式</td></tr>
+<tr><td><code>fbb openocd</code> / <code>fbb gdb</code></td><td>JLink/FTDI 探针调试会话；gdb 有 <code>--mode agent</code>（见下节）</td></tr>
+<tr><td><code>fbb add / search / sync / lock / board select / publish</code></td><td>组件管理器：Component / Board / Sample / Solution 四类资产的注册表与依赖管理（<code>dependencies.lock</code> + CAS 校验）</td></tr>
+</tbody></table></div>
+<p>HiDiTing 相关的目标（<code>fbb list-targets</code>）：单目标 8 个（3322-loaderboot、3322-recovery、3322-ssb、diting-community、diting-community-bike / -native-js / -xts 等），目标组 4 个（<code>pack_diting_community</code> 等）。社区固件产物路径固定为 <code>output/3322/fwpkg/diting-community.fwpkg</code>。</p>
+</section>
+
+<section id="agent"><h2><span class="n">03 / AGENT-FIRST DESIGN</span>AI Agent 友好设计（"CLI + AI"的落点）</h2>
+<p>这套 CLI 对 Agent 的支持不是附带的，而是接口契约级的设计。README 专设 "For AI agents &amp; skills" 一章，明确了四层机制：</p>
+<div class="flow"><div class="node"><em>接口层</em><b>--json-summary</b>每条命令末行输出结构化 JSON：verb / success / duration / error</div><div class="node"><em>语义层</em><b>退出码 + error.code</b>0/1/2/3/4 五类退出码；错误码枚举与 recoverable 标志</div><div class="node"><em>感知层</em><b>fbb describe --json</b>一次调用拿到环境/工具链/SDK/目标/示例全量快照</div><div class="node"><em>执行层</em><b>gdb --mode agent</b>机器可控 GDB 会话：send/status/interrupt/shutdown</div></div>
+<div class="table"><table><thead><tr><th>退出码</th><th>含义</th></tr></thead><tbody><tr><td>0</td><td>成功</td></tr><tr><td>1</td><td>命令失败（编译错误、烧录失败…）</td></tr><tr><td>2</td><td>用法错误（参数、未知动词）</td></tr><tr><td>3</td><td>资源缺失（无串口、无 fwpkg、无 SDK、无烧录器）</td></tr><tr><td>4</td><td>配置错误（chip JSON 缺段、--until 超时…）</td></tr></tbody></table></div>
+<ul>
+<li><strong>错误码可编程分支</strong>：flash 的 <code>error.code</code> 枚举 15 个（<code>DEVICE_NOT_RESPONDING</code> 带 <code>recoverable: true</code>，官方推荐流程是提示用户按 RESET 后带 <code>--manual-reset</code> 重试一次）。文档明确"automation should branch on success and error.code rather than human-readable log text"。</li>
+<li><strong>配置写入防呆</strong>：文档要求 Agent 一律用 <code>fbb config set/get/unset</code>，禁止手改 <code>.config</code>——set 底层走 kconfiglib <code>set_value</code>，启用 choice 组内某项会自动反选兄弟项。</li>
+<li><strong>无状态调用</strong>：每条 fbb 命令自激活环境，Agent 不需要跨调用维持 shell 状态；SDK 定位也有确定顺序（--sdk-dir → FBB_SDK_DIR → 向上找 build.py）。</li>
+<li><strong>监视即断言</strong>：<code>fbb monitor --until "APP\|run:" --timeout 45</code> 把"固件真的启动了"变成一条可判定的命令，适合 Agent 的"编译→烧录→验证"闭环。</li>
+</ul>
+<div class="callout"><p><strong>对 Agent 编程的含义：</strong>把 fbb 当工具层（mechanism），上层 Agent/Skill 只需要读 JSON 摘要和退出码做决策。结合 <code>fbb create-project-from-example</code>（改示例起步）、<code>fbb config set</code>（裁剪）、<code>fbb build/flash/monitor</code>（闭环）、<code>fbb gdb --mode agent</code>（深排障），Agent 可以覆盖从建工程到断点调试的完整开发循环。</p></div>
+</section>
+
+<section id="mac"><h2><span class="n">04 / EVIDENCE</span>Mac 支持证据链</h2>
+<p>官方文档表格只写"Windows / Linux"，但 macOS 支持在 <strong>V26.08.1（2026-09 初）</strong>随工具链补齐，以下证据按重要度排列：</p>
+<div class="table"><table><thead><tr><th>#</th><th>证据</th><th>内容</th></tr></thead><tbody>
+<tr><td>1</td><td>官方工具源 tools.json</td><td><code>dl.hispark.hisilicon.com/tools.json</code> 中：bisheng 26.08.1 有 <strong>darwin-arm64</strong>；hs-flash 26.08.1 有 <strong>darwin-universal2</strong>；uv / python / ccache / gdb-riscv32 / openocd 均有 darwin 包</td></tr>
+<tr><td>2</td><td>bootstrap.sh</td><td>脚本头注释 "fbb one-shot bootstrap <strong>for Linux / macOS</strong>"，安装路径对 mac 完全适配</td></tr>
+<tr><td>3</td><td>SDK 构建脚本</td><td>master 的 build_script.cmake / build_command.cmake / build_core.cmake 均有 darwin 分支；仓库内置 <code>sign_tool_pltuni_macos_universal</code>、<code>lzma_tool_macos_universal</code>、<code>7zr_macos_universal</code></td></tr>
+<tr><td>4</td><td>芯片配置</td><td><code>3322.json</code> 的 requires.toolchains 已从 26.03.1 升至 <strong>26.08.1</strong>（26.03.1 及更早没有 mac 编译器包——这是新旧分水岭）</td></tr>
+<tr><td>5</td><td>VS Code 插件</td><td>HiSpark Studio 使用指南前置条件明确列出 "macOS Apple Silicon 架构"，工具链（python/hsflash）由插件自动下载</td></tr>
+<tr><td>6</td><td>CLI 文档</td><td>hs-fbb-cli README 多处给 "Linux or macOS" 用法示例；macOS 上建议使用签名工具包、按系统策略放行 USB</td></tr>
+</tbody></table></div>
+<details><summary>展开：官方工具源中与 HiDiTing 相关的 mac 包（2026-09-18 快照）</summary>
+<div class="table"><table><thead><tr><th>工具</th><th>版本</th><th>mac 包</th></tr></thead><tbody>
+<tr><td>bisheng（毕昇 RISC-V clang）</td><td>26.08.1</td><td>darwin-arm64 ✓（26.03.1 / 25.09.1 无）</td></tr>
+<tr><td>hs-flash（烧录器）</td><td>26.08.1</td><td>darwin-universal2 ✓（26.07.1 无）</td></tr>
+<tr><td>uv</td><td>0.11.17</td><td>darwin-arm64 ✓</td></tr>
+<tr><td>python</td><td>3.12.10</td><td>darwin-arm64 ✓</td></tr>
+<tr><td>ccache</td><td>4.13.6</td><td>darwin-arm64 / darwin-x86_64 ✓</td></tr>
+<tr><td>gdb-riscv32-unknown-elf</td><td>26.08.1</td><td>darwin-arm64 ✓</td></tr>
+<tr><td>openocd</td><td>26.9.1</td><td>darwin-arm64 ✓</td></tr>
+<tr><td>burntool（旧烧录器，已退役）</td><td>—</td><td>仅 linux/windows（被 hs-flash 取代，无影响）</td></tr>
+</tbody></table></div></details>
+<p class="source">注：SDK 内 install_bisheng.py 的 --platform 参数仍只有 auto/linux/windows（auto 在 mac 上会误判为 linux），但实际工具链供给由 fbb CLI 按 tools.json 清单和当前平台标签解析，走 fbb 安装不受此影响。</p>
+</section>
+
+<section id="pitfalls"><h2><span class="n">05 / PITFALLS</span>坑与注意事项</h2>
+<div class="callout warn"><p><strong>最大的坑：旧克隆。</strong>本机 <code>/Volumes/ssd/main_link/work/hs-fbb</code> 是 2026-09-08 拉取的（HEAD eec8a6dd4），芯片配置钉在 bisheng 26.03.1，且仓库里还没有 mac 签名/压缩工具。在 mac 上做原生编译必须走 <code>fbb sdk install hiditing</code> 装最新版（默认装到 <code>~/hispark/hs-fbb/&lt;ref&gt;</code>，与手动克隆互不干扰），或把旧克隆 <code>git pull</code> 到 V26.08.1 之后再用。</p></div>
+<ul>
+<li><strong>仅 Apple Silicon</strong>：毕昇编译器只有 darwin-arm64，Intel Mac 无法原生编译（hs-flash 是 universal2 不受影响，即 Intel Mac 只能当"烧录机"）。</li>
+<li><strong>Gatekeeper</strong>：首次运行下载的工具链/hsflash 可能被 macOS 拦截，<code>xattr -dr com.apple.quarantine &lt;工具路径&gt;</code> 放行；fbb 本身不改动系统安全设置。</li>
+<li><strong>烧录时序</strong>：Hi3322 实测需要 <code>--manual-reset</code>——命令提示等待烧写后，给板子断电重新上电进入下载模式；文档给的整体超时建议 <code>--timeout 600</code>。</li>
+<li><strong>低功耗固件</strong>：USB 烧写提示 <code>specify --trigger-port; AT probe saw none</code> 时，先经 AT 串口执行 <code>AT+PM=0</code> 关闭低功耗再烧。</li>
+<li><strong>串口驱动</strong>：CH340/CH34x 类芯片 macOS 基本自带驱动，插板后 <code>ls /dev/cu.*</code> 确认节点名；Linux 的 dialout 组权限问题在 mac 不存在，Windows 的 UAC 也没有。</li>
+<li><strong>路径限制</strong>：SDK 路径不能含空格或中文；树外工程路径过长可能导致 Ninja .rsp 文件失败，建议短路径。</li>
+<li><strong>日志波特率</strong>：社区板监视日志可能为 750000（烧写信号波特率同值），若乱码改 <code>--baud 115200</code>。</li>
+<li><strong>SDK 工作区副作用</strong>：构建脚本可能更新 SDK 内预编译库/签名文件/缓存，构建后用 <code>git status --short</code> 区分源码改动与生成物。</li>
+</ul>
+</section>
+
+<section id="deploy"><h2><span class="n">06 / DEPLOY ON MAC</span>Mac 部署步骤</h2>
+<p>以下在目标 Mac（Apple Silicon）上执行，全部命令对 Agent 友好（关键步骤加 <code>--json-summary</code>）。</p>
+<div class="code-head"><span class="terminal">① 一键环境：uv + fbb CLI + fbb setup</span><button class="copy" type="button" aria-label="复制下方代码">复制</button></div>
+<pre><code class="language-sh">curl -fsSL https://dl.hispark.hisilicon.com/bootstrap.sh | sh
+# 新开终端后自检
+fbb doctor</code></pre>
+<div class="result">成功标志：doctor 各项通过，输出修复建议为空。fbb 安装在 ~/.local/bin，托管环境在 ~/.hs-fbb/。</div>
+<div class="code-head"><span class="terminal">② 安装 HiDiTing SDK（识别芯片名 hiditing）</span><button class="copy" type="button" aria-label="复制下方代码">复制</button></div>
+<pre><code class="language-sh">fbb sdk versions hiditing          # 先看可用 tag / 分支
+fbb sdk install hiditing            # 默认最新 release，装到 ~/hispark/hs-fbb/&lt;ref&gt;/
+cd "$(ls -d ~/hispark/hs-fbb/*/src | tail -1)"   # 或按安装完成的 Done. Next: 提示 cd</code></pre>
+<div class="code-head"><span class="terminal">③ 编译社区固件并烧录验证</span><button class="copy" type="button" aria-label="复制下方代码">复制</button></div>
+<pre><code class="language-sh">fbb build pack_diting_community --json-summary
+# 产物 output/3322/fwpkg/diting-community.fwpkg
+
+# 串口烧录（提示等待后给板子断电重新上电）
+ls /dev/cu.*                        # 确认串口节点
+fbb flash -f output/3322/fwpkg/diting-community.fwpkg \
+  --chip 3322 -p /dev/cu.usbserial-XXXX \
+  --manual-reset --timeout 600 --json-summary
+
+# 监视启动（FLASH_RC/JSON success=true 后）
+fbb monitor -p /dev/cu.usbserial-XXXX --baud 750000 \
+  --until "APP\|run:" --timeout 45 --json-summary</code></pre>
+<div class="result">成功标志：flash JSON 摘要 success=true；monitor 匹配到 <code>APP|run:</code> 退出码 0。USB 烧录可改用 <code>-d</code>（自动探测 AT 口）。</div>
+<div class="code-head"><span class="terminal">④ Agent 开发循环示例（供 Skill/Agent 参考）</span><button class="copy" type="button" aria-label="复制下方代码">复制</button></div>
+<pre><code class="language-sh">fbb describe --json                                   # 环境态势感知
+fbb create-project-from-example helloworld --name my_hello
+cd my_hello &amp;&amp; fbb set-target pack_diting_community
+fbb config --target diting-community get CONFIG_CODE_MINIATURE_ENABLE
+fbb build --json-summary
+fbb flash --then-monitor --baud 750000 --until "APP\|run:" --timeout 45 --json-summary
+fbb gdb --mode agent --connect localhost:3333 --json-summary   # 需先 fbb openocd --chip 3322</code></pre>
+</section>
+
+<section id="compare"><h2><span class="n">07 / CV610 vs HIDITING</span>与 CV610 路线对比</h2>
+<p>两块板都在这台 Mac 上调研过，路线差异很大，选型时不要混淆：</p>
+<div class="table"><table><thead><tr><th>维度</th><th>CV610（hi_aiot_solution）</th><th>HiDiTing（hs-fbb）</th></tr></thead><tbody>
+<tr><td>目标系统</td><td>Linux（ARMv7，可跑完整程序）</td><td>OpenHarmony 5.1 / LiteOS（RISC-V）</td></tr>
+<tr><td>Mac 编译方式</td><td>官方 Docker 镜像（amd64 容器）+ 串口传 ELF</td><td>官方 darwin-arm64 工具链原生编译，fbb 一条龙</td></tr>
+<tr><td>部署单元</td><td>单个应用 ELF/so（板子已有系统）</td><td>整包固件 .fwpkg（编译即打包烧录）</td></tr>
+<tr><td>Agent 接口</td><td>自写串口助手 + shell 命令</td><td>fbb 原生 JSON 契约 + gdb agent 模式</td></tr>
+<tr><td>详见</td><td><a href="../hispark-cv610/mac-development-guide.html">CV610 Mac 开发教程</a></td><td>本文 + fbb CLI README</td></tr>
+</tbody></table></div>
+<p>简单说：CV610 是"容器编译 + 手工搬运"，HiDiTing 是"原生工具链 + 官方 Agent 契约"，后者的自动化程度高一个量级。</p>
+</section>
+
+<section id="sources"><h2><span class="n">08 / SOURCES</span>信息来源与版本快照</h2>
+<ul class="sources">
+<li>本机克隆：<code>/Volumes/ssd/main_link/work/hs-fbb</code>（2026-09-08 拉取，eec8a6dd4；调研时 fetch 至 origin/master 306f579d6，含 V26.09.1 版本说明）</li>
+<li>同目录 <a href="index.md">index.md</a>：2026-09-08 的板卡级调研（芯片规格、板型、资料入口），其中"macOS 为零"的适配结论已被本报告更新</li>
+<li>SDK 仓库：<a href="https://gitcode.com/HiSpark/hs-fbb">gitcode.com/HiSpark/hs-fbb</a> · 在线文档 <a href="https://docs.hisilicon.com/projects/hs-fbb/master/">docs.hisilicon.com/projects/hs-fbb</a></li>
+<li>CLI 仓库与 README：<a href="https://gitcode.com/HiSpark/hs-fbb-cli">gitcode.com/HiSpark/hs-fbb-cli</a>（命令参考 / JSON 契约 / For AI agents &amp; skills 章）</li>
+<li>官方工具清单（mac 包证据）：<a href="https://dl.hispark.hisilicon.com/tools.json">dl.hispark.hisilicon.com/tools.json</a>（2026-09-18 快照）</li>
+<li>一键脚本：<a href="https://dl.hispark.hisilicon.com/bootstrap.sh">bootstrap.sh</a>（Linux/macOS）· <a href="https://dl.hispark.hisilicon.com/bootstrap.ps1">bootstrap.ps1</a>（Windows）</li>
+<li>SDK 内文档：一站式 CLI 开发环境使用指南、HiSpark Studio for VS Code 使用指南、BurnTool 工具使用指南（docs/zh-CN/HiDiTingV100）</li>
+<li>关键文件：src/build/config/target_config/3322/3322.json（requires.toolchains 26.08.1）、src/build/cmake/build_script.cmake（darwin 分支）、src/tools/bin/sign_tool/（macos_universal）、src/tools/bin/fbb_tool/install_bisheng.py（平台判定）</li>
+</ul>
+<p class="source">调研方法：本机仓库 git 取证 + 官方工具源/脚本/远端 master 对比交叉验证；未在 mac 上实际执行构建（待另一台机器部署时按第 06 节验证，验证点：fbb doctor 全绿、bisheng darwin-arm64 落盘、pack_diting_community 出包、串口烧录 FLASH_RC=0）。</p>
+</section>
+
+</main></div><div class="foot">APX103 · note · hispark-hi3322 · 2026-09-18</div></div>
+<script>document.addEventListener('click',function(e){var b=e.target.closest('.copy');if(!b)return;var pre=b.closest('.code-head').nextElementSibling;var txt=pre.innerText;navigator.clipboard.writeText(txt).then(function(){b.textContent='已复制';setTimeout(function(){b.textContent='复制'},1600)},function(){b.textContent='复制失败'})});</script>
+</body></html>
