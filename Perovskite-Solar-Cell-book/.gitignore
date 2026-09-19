@@ -1,0 +1,9 @@
+# 编译产物（PDF 由 build.py 从 .md 源生成，不纳入版本库）
+*.pdf
+
+# 构建中间文件
+build/
+
+# macOS
+.DS_Store
+._*

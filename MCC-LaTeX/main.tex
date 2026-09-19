@@ -1,0 +1,48 @@
+% !TEX program = xelatex
+% main.tex —— 《内存一致性和缓存连贯性理论》主文件
+% 编译：tectonic main.tex
+
+\documentclass[
+  UTF8,
+  scheme=plain,
+  fontsize=10.5pt,
+  openany,
+  oneside
+]{ctexbook}
+
+\input{preamble.tex}
+
+\title{内存一致性和缓存连贯性理论}
+\author{李佳伦}
+
+\begin{document}
+
+% ---------- 封面 ----------
+\input{titlepage.tex}
+
+% ---------- 前置部分 ----------
+\frontmatter
+\pagenumbering{roman}
+
+% ---------- 目录 ----------
+\cleardoublepage
+\tableofcontents
+
+% ---------- 正文 ----------
+\cleardoublepage
+\mainmatter
+\pagenumbering{arabic}
+
+\input{chapters/ch01.tex}
+\input{chapters/ch02.tex}
+\input{chapters/ch03.tex}
+\input{chapters/ch04.tex}
+\input{chapters/ch05.tex}
+\input{chapters/ch06.tex}
+\input{chapters/ch07.tex}
+\input{chapters/ch08.tex}
+\input{chapters/ch09.tex}
+\input{chapters/ch10.tex}
+\input{chapters/ch11.tex}
+
+\end{document}

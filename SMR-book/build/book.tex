@@ -1,0 +1,7136 @@
+% template.tex —— SMR-book 自定义 Pandoc LaTeX 模板
+% 古典学术风（宋体正文 + 黑体标题 + 朱砂点缀）
+% 编译：tectonic (XeLaTeX 模式)
+
+% ----- 文档类（ctexbook 自带 CJK 支持） -----
+\documentclass[
+  UTF8,
+  scheme=plain,
+  fontsize=10pt,
+  openany
+]{ctexbook}
+
+% ----- 元信息 -----
+
+
+
+
+% ----- 导言区（字体/版式/颜色/宏） -----
+\input{header.tex}
+
+% =========================================================
+\begin{document}
+
+% ----- 封面 -----
+\input{cover.tex}
+
+% ----- 前置部分（罗马数字页码） -----
+\frontmatter
+\pagenumbering{roman}
+
+\cleardoublepage
+\tableofcontents
+
+% ----- 正文部分（阿拉伯数字页码） -----
+\cleardoublepage
+\mainmatter
+\pagenumbering{arabic}
+
+\cleardoublepage
+
+\chapter*{前言}\label{ux524dux8a00}
+\addcontentsline{toc}{chapter}{前言}
+
+\begin{epigraph}
+
+本电子书根据公开教材的目录框架，由 AI 综合
+IAEA、NEA、DOE-NE、中国核学会等公开资料整理编写，供学习参考之用。
+
+⚠️
+\textbf{免责声明}：本书为基于公开资料的科普性整理稿，不构成工程设计与商业决策依据。所有技术参数以各国监管机构与厂商公开文件为准。
+
+\end{epigraph}
+
+\section*{编者简介}\label{ux7f16ux8005ux7b80ux4ecb}
+\addcontentsline{toc}{section}{编者简介}
+
+\textbf{李佳伦}　本书编者。本书内容基于公开教材的目录框架，由 AI
+综合国际原子能机构（IAEA）、经济合作与发展组织核能署（OECD/NEA）、美国能源部核能办公室（DOE-NE）、中国核学会等机构与厂商的公开资料整理编写而成，仅供学习参考。
+
+\section*{全书结构}\label{ux5168ux4e66ux7ed3ux6784}
+\addcontentsline{toc}{section}{全书结构}
+
+全书分为 4 个部分，共 20 章：
+
+\subsection*{第一部分　SMR 技术与 IPWR
+综述}\label{ux7b2cux4e00ux90e8ux5206-smr-ux6280ux672fux4e0e-ipwr-ux7efcux8ff0}
+\addcontentsline{toc}{subsection}{第一部分　SMR 技术与 IPWR 综述}
+
+\begin{itemize}
+\tightlist
+\item
+  第 1 章　SMR 介绍
+\item
+  第 2 章　SMR 全球研发现状
+\item
+  第 3 章　IPWR 技术综述
+\end{itemize}
+
+\subsection*{第二部分　IPWR
+关键技术}\label{ux7b2cux4e8cux90e8ux5206-ipwr-ux5173ux952eux6280ux672f}
+\addcontentsline{toc}{subsection}{第二部分　IPWR 关键技术}
+
+\begin{itemize}
+\tightlist
+\item
+  第 4 章　IPWR 堆芯和燃料
+\item
+  第 5 章　IPWR 系统和部件
+\item
+  第 6 章　IPWR 仪表和控制（I\&C）
+\item
+  第 7 章　SMR 人机界面（HSI）
+\item
+  第 8 章　IPWR 安全性
+\item
+  第 9 章　SMR 防扩散和实物保护
+\end{itemize}
+
+\subsection*{第三部分　SMR
+商业部署}\label{ux7b2cux4e09ux90e8ux5206-smr-ux5546ux4e1aux90e8ux7f72}
+\addcontentsline{toc}{subsection}{第三部分　SMR 商业部署}
+
+\begin{itemize}
+\tightlist
+\item
+  第 10 章　SMR 经济性和融资方面
+\item
+  第 11 章　SMR 许可
+\item
+  第 12 章　SMR 施工
+\item
+  第 13 章　SMR 综合能源系统
+\end{itemize}
+
+\subsection*{第四部分　SMR
+全球发展和部署}\label{ux7b2cux56dbux90e8ux5206-smr-ux5168ux7403ux53d1ux5c55ux548cux90e8ux7f72}
+\addcontentsline{toc}{subsection}{第四部分　SMR 全球发展和部署}
+
+\begin{itemize}
+\tightlist
+\item
+  第 14 章　美国 SMR 技术
+\item
+  第 15 章　韩国 SMR 技术
+\item
+  第 16 章　阿根廷 SMR 技术
+\item
+  第 17 章　俄罗斯 SMR 技术
+\item
+  第 18 章　中国 SMR 技术
+\item
+  第 19 章　日本 SMR 技术
+\item
+  第 20 章　发展中国家的 SMR
+\end{itemize}
+
+\section*{主要参考资料来源}\label{ux4e3bux8981ux53c2ux8003ux8d44ux6599ux6765ux6e90}
+\addcontentsline{toc}{section}{主要参考资料来源}
+
+\begin{itemize}
+\tightlist
+\item
+  IAEA《Advances in Small Modular Reactor Technology
+  Developments》年度增刊
+\item
+  OECD/NEA 报告（如 \emph{Small Modular Reactors: Nuclear Energy Market
+  Potential}）
+\item
+  美国能源部 DOE-NE、NuScale / X-energy / TerraPower 公开文件
+\item
+  IOP 出版社 \emph{Small Modular Reactors} (T.L. Sanders 编辑) 系列论文
+\item
+  中国国家原子能机构、中核集团、中广核、国家电投公开资料
+\item
+  韩国原子力研究院（KAERI）、阿根廷 CNEA、俄罗斯 OKBM/Rosatom 公开资料
+\item
+  日本原子力机构（JAEA）、三菱重工公开资料
+\end{itemize}
+
+\section*{阅读建议}\label{ux9605ux8bfbux5efaux8bae}
+\addcontentsline{toc}{section}{阅读建议}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{核工程背景读者}：可按章节顺序通读，关注第二部分 IPWR
+  技术细节。
+\item
+  \textbf{政策/经济背景读者}：建议先读第 1、3、10、11、20 章。
+\item
+  \textbf{快速了解者}：先读第 1、2 章，再按国家章节（第 14--19
+  章）快速浏览。
+\end{itemize}
+
+\cleardoublepage
+
+\chapter{SMR 介绍}\label{smr-ux4ecbux7ecd}
+
+\begin{epigraph}
+
+\textbf{核心命题}　小型模块化反应堆（Small Modular Reactor,
+SMR）代表了核能工业在 21
+世纪最重要的范式转变之一：从''追求规模经济''走向''通过工厂制造与模块化部署实现经济性''，同时通过非能动安全和固有安全特征显著降低堆芯损坏频率。
+
+\end{epigraph}
+
+\section{引言}\label{ux5f15ux8a00}
+
+自 20 世纪 50
+年代核电商业化以来，主流轻水堆（LWR）的装机容量经历了从几十 MWe 到 1600
+MWe 以上的持续扩张。这一''规模经济（Economies of
+Scale）``路线的逻辑是：单位装机容量的投资和运维成本随反应堆功率上升而摊薄。然而，进入
+21 世纪后，大型核电站（如法国 EPR、美国
+AP1000）暴露出工程造价大幅超支、工期严重拖延、融资门槛过高、应急计划区（EPZ）过大等问题。
+
+在此背景下，\textbf{小型模块化反应堆（SMR）}应运而生。IAEA
+给出的定义是：\textbf{单机发电功率通常不超过 300 MWe
+的新型反应堆}，其设计目标是可通过模块化制造、运输和现场组装实现经济性，同时具备与非能动安全、固有安全相关的优异特征。
+
+SMR 并不是 1950
+年代小型反应堆的简单回归，而是把现代信息技术、先进制造、数字化仪控、非能动安全等当代工程成果集成到一个紧凑的核蒸汽供应系统（NSSS）中。它的应用场景从基荷电力扩展到：
+
+\begin{itemize}
+\tightlist
+\item
+  偏远地区、岛屿、矿区供电供热
+\item
+  海水淡化与工业制氢
+\item
+  与可再生能源耦合的混合能源系统
+\item
+  海上浮动核电站与可移动核电源
+\end{itemize}
+
+\section{SMR
+商业部署的推动力和挑战}\label{smr-ux5546ux4e1aux90e8ux7f72ux7684ux63a8ux52a8ux529bux548cux6311ux6218}
+
+\subsection{推动力}\label{ux63a8ux52a8ux529b}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.5000}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.5000}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+推动力
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+说明
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\textbf{初始投资低} & 单台 SMR 资本成本远低于大型核电站，降低融资门槛 \\
+\textbf{模块化制造} &
+在工厂流水线上完成压力容器、蒸汽发生器等大件，缩短现场工期 \\
+\textbf{非能动安全} &
+重力、自然循环、压缩气体等实现事故后长时间免操纵冷却 \\
+\textbf{灵活选址} &
+较小的应急计划区、更低的功率密度，允许接近负荷中心 \\
+\textbf{多机组叠加} & 同一厂址可分期安装多台机组，与负荷增长匹配 \\
+\textbf{供应链与人才延续} &
+给老化中的核工业供应链提供新订单，缓解人才流失 \\
+\end{longtable}
+}
+
+\subsection{挑战}\label{ux6311ux6218}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{规模不经济}：单位 kWe
+  资本成本通常高于大型核电站，需通过\textbf{多机组建造 +
+  系列化生产（FOAK→NOAK）}摊薄。
+\item
+  \textbf{首堆（FOAK）风险}：监管机构要求大量试验验证（如 NuScale 的 NRC
+  审查），首堆造价和周期不可控。
+\item
+  \textbf{许可不确定性}：现行监管框架（如 10 CFR
+  50/52）针对大型轻水堆设计，对厂址源项、应急计划区、安全等级划分需要重新解释。
+\item
+  \textbf{商业模式待验证}：多机组叠加运行、备品备件共享等新模式尚未经过长期工程实践。
+\item
+  \textbf{高富集度铀（HALEU）燃料供应}：许多先进 SMR 需要 5\%--20\%
+  富集度的 HALEU，目前商业供应链尚未成熟（尤其在美、欧）。
+\item
+  \textbf{公众接受度}：公众对核能的疑虑并不因反应堆小型化而消失。
+\end{enumerate}
+
+\section{SMR 的类别}\label{smr-ux7684ux7c7bux522b}
+
+SMR
+的分类方式有多种。最常用的是按\textbf{冷却剂类型}和\textbf{中子能谱}分类。
+
+\subsection{按冷却剂分类}\label{ux6309ux51b7ux5374ux5242ux5206ux7c7b}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+冷却剂
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+代表机型
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+特点
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\textbf{轻水（LWR-SMR）} & NuScale、mPower、SMART、玲龙一号（ACP100） &
+技术成熟度最高（TRL 8--9），可借鉴现有 LWR 工业基础 \\
+\textbf{重水（HWR-SMR）} & 印度 AHWR（300 MWe 级） &
+天然铀燃料、在线加料 \\
+\textbf{气冷（GCR-SMR）} & HTR-PM、Xe-100、HTTR & TRISO
+包覆颗粒燃料，耐高温，氦气冷却 \\
+\textbf{液态金属（LMR-SMR）} &
+4S（Na）、PRISM、SVBR-100（Pb-Bi）、BREST-OD-300 &
+快中子能谱，可闭式燃料循环 \\
+\end{longtable}
+}
+
+\subsection{按中子能谱分类}\label{ux6309ux4e2dux5b50ux80fdux8c31ux5206ux7c7b}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{热中子谱}：轻水、重水、石墨气冷
+\item
+  \textbf{快中子谱}：液态金属冷却（钠、铅、铅铋）
+\item
+  \textbf{超热谱}：部分熔盐堆
+\end{itemize}
+
+\subsection{按模块化程度分类}\label{ux6309ux6a21ux5757ux5316ux7a0bux5ea6ux5206ux7c7b}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{一体化压水堆（IPWR）}：堆芯、蒸汽发生器、稳压器、主泵集成于同一压力容器内（详见第
+  3 章）。
+\item
+  \textbf{模块式高温气冷堆（MHTGR）}：以''棱柱或球床燃料 +
+  氦气''模块为单位。
+\item
+  \textbf{池式液态金属堆}：一回路浸没于池式容器内，二回路输出蒸汽。
+\end{itemize}
+
+\section{SMR
+的公共健康与环境影响}\label{smr-ux7684ux516cux5171ux5065ux5eb7ux4e0eux73afux5883ux5f71ux54cd}
+
+相较于化石能源，SMR 在以下方面具有显著优势：
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{温室气体排放}：全寿期碳排放约 11--12
+  gCO₂eq/kWh，与风电、光伏相当，远低于天然气（约 490 g）和煤电（约 820
+  g）。
+\item
+  \textbf{常规污染物}：运行期 SO₂、NOx、PM2.5 近乎为零。
+\item
+  \textbf{土地利用}：单位发电量所需土地约为光伏的 1/50、风电的 1/100。
+\item
+  \textbf{乏燃料体积}：与大型 LWR 单位电能产生的乏燃料体积相近（轻水 SMR
+  略高，因中子经济性稍差）。
+\end{itemize}
+
+但公众健康关切依然存在，主要包括：
+
+\begin{itemize}
+\tightlist
+\item
+  放射性废物的长期处置
+\item
+  事故应急计划区（EPZ）的边界界定
+\item
+  放射性流出物对周边人群的剂量
+\item
+  防扩散与实物保护（详见第 9 章）
+\end{itemize}
+
+许多 SMR 设计通过\textbf{堆芯吊装整体更换 +
+整体返回工厂}的运营模式，使厂址仅保留低放废物，将高放废物问题集中到少数专业化设施中处理。
+
+\section{SMR 的现状}\label{smr-ux7684ux73b0ux72b6}
+
+截至 2026 年初，全球已运行的 SMR 包括：
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{俄罗斯''罗蒙诺索夫号''浮动核电站}（KLT-40S，2 × 35 MWe），2019
+  年投入商业运行。
+\item
+  \textbf{中国 HTR-PM 高温气冷堆示范工程}（石岛湾，2 × 211 MWt / 210
+  MWe），2023 年商运。
+\item
+  \textbf{中国玲龙一号（ACP100）陆上示范项目}（海南昌江），2026
+  年预计并网投运。
+\end{itemize}
+
+正在许可证审批或首堆建设中的项目：
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{美国 NuScale（VOYGR）}：已获 NRC 设计认证，但 2023 年 11 月
+  UAMPS 的 Carbon Free Power Project 因成本上升被终止；NuScale
+  继续推进其他项目（如 RoPower 罗马尼亚）。
+\item
+  \textbf{美国 GE Hitachi BWRX-300}：加拿大 OPG 的 Darlington
+  项目已开工（2024 年起），目标 2028--2029 年投运。
+\item
+  \textbf{美国 TerraPower Natrium（钠冷）}：Wyoming 首堆 2024 年开建。
+\item
+  \textbf{美国 X-energy Xe-100（高温气冷）}：Dow Chemical 项目推进。
+\item
+  \textbf{韩国 SMART}：与沙特合作推进，本土尚未首堆。
+\item
+  \textbf{阿根廷 CAREM-25}：原型堆建造中，进度滞后。
+\end{itemize}
+
+IAEA 的 ARIS 数据库跟踪了全球 80 余种 SMR 设计，其中约 20
+余种处于较成熟的设计/许可阶段。
+
+\section{结论}\label{ux7ed3ux8bba}
+
+SMR
+不是大型核电站的''小型翻版''，而是从\textbf{设计哲学}到\textbf{商业模式}到\textbf{监管框架}的系统性创新。本章梳理了
+SMR 的定义、分类、推动力与挑战。后续章节将依次展开：
+
+\begin{itemize}
+\tightlist
+\item
+  第 2 章对全球 SMR 研发现状进行系统盘点
+\item
+  第 3 章深入一体化压水堆（IPWR）这一最具商业前景的技术路线
+\item
+  第 4--9 章剖析 IPWR 的关键技术
+\item
+  第 10--13 章讨论商业部署
+\item
+  第 14--20 章介绍各国进展
+\end{itemize}
+
+\section{参考文献}\label{ux53c2ux8003ux6587ux732e}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  IAEA. \emph{Advances in Small Modular Reactor Technology Developments:
+  A Supplement to IAEA Advanced Reactors Information System (ARIS)}.
+  Vienna: IAEA, 2022/2024.
+\item
+  OECD/NEA. \emph{Small Modular Reactors: Nuclear Energy Market
+  Potential and Near-term Prospects}. NEA No.~7528, 2024.
+\item
+  Carelli M. D. et al.~``The design and safety features of the IRIS
+  reactor.'' \emph{Nuclear Engineering and Design}, 230 (2004):
+  151--167.
+\item
+  Ingersoll D. T. et al.~``Cost and economics of small modular
+  reactors.'' \emph{Progress in Nuclear Energy}, 2014.
+\item
+  IAEA-TECDOC-1536, \emph{Status of Small and Medium Sized Reactor
+  Designs}.
+\item
+  Lomonova G., \emph{Small Modular Reactors (SMRs): The Case for
+  Developing Countries}, IAEA Bulletin, 2019.
+\item
+  Office of Nuclear Energy, U.S. DOE. \emph{Advanced Small Modular
+  Reactors (SMRs)}, energy.gov.
+\end{enumerate}
+
+\section{缩略语和术语}\label{ux7f29ux7565ux8bedux548cux672fux8bed}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}ll@{}}
+\toprule\noalign{}
+缩略语 & 全称 / 中文 \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+SMR & Small Modular Reactor / 小型模块化反应堆 \\
+LWR & Light Water Reactor / 轻水堆 \\
+IPWR & Integral Pressurized Water Reactor / 一体化压水堆 \\
+HWR & Heavy Water Reactor / 重水堆 \\
+GCR & Gas-Cooled Reactor / 气冷堆 \\
+LMR & Liquid Metal Reactor / 液态金属冷却堆 \\
+NSSS & Nuclear Steam Supply System / 核蒸汽供应系统 \\
+EPZ & Emergency Planning Zone / 应急计划区 \\
+FOAK & First-Of-A-Kind / 首堆 \\
+NOAK & Nth-Of-A-Kind / 第 N 台（系列化） \\
+HALEU & High-Assay Low-Enriched Uranium / 高富集度低浓铀 \\
+TRISO & TRi-structural ISOtropic / 三重各向同性包覆燃料 \\
+TRL & Technology Readiness Level / 技术成熟度等级 \\
+O\&M & Operation and Maintenance / 运行维护 \\
+\end{longtable}
+}
+
+\cleardoublepage
+
+\chapter{SMR
+全球研发现状}\label{smr-ux5168ux7403ux7814ux53d1ux73b0ux72b6}
+
+\begin{epigraph}
+
+\textbf{核心命题}　全球 SMR 研发已形成''轻水堆快速跟进市场 +
+气冷堆示范投运 + 液态金属堆首堆开建 +
+重水/熔盐堆探索''的多路线并进格局。本章按冷却剂类型梳理全球进展。
+
+\end{epigraph}
+
+\section{引言}\label{ux5f15ux8a00-1}
+
+按 IAEA ARIS 数据库统计，全球约有 80 余种处于不同阶段的 SMR
+概念和设计。把它们按冷却剂分为四大类------\textbf{轻水堆、重水堆、气冷堆、液态金属冷却堆}------有助于建立全局认识。本章不追求穷举，而是给出每一类中的代表性设计、技术状态与里程碑事件。
+
+需要强调的是，``研发''不仅是设计图纸，更包括\textbf{材料试验、热工水力试验、燃料辐照、关键部件验证、安全分析、监管对话}等漫长的工程链条。一个
+SMR 从概念到首堆通常需要 15--20 年。
+
+\section{轻水堆（LWR-SMR）}\label{ux8f7bux6c34ux5806lwr-smr}
+
+轻水堆 SMR 是最接近商业化的路线，其优势在于可充分继承过去 60 余年积累的
+LWR 工业基础（燃料、材料、仪控、监管、人才）。
+
+\subsection{NuScale（美国）------首个获 NRC 设计认证的
+SMR}\label{nuscaleux7f8eux56fdux9996ux4e2aux83b7-nrc-ux8bbeux8ba1ux8ba4ux8bc1ux7684-smr}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{开发商}：NuScale Power（美国）
+\item
+  \textbf{类型}：一体化压水堆，自然循环
+\item
+  \textbf{功率}：单模块原设计 50 MWe（VOYGR-50），后升级为 77
+  MWe（VOYGR-77，即当前主推版本''NuScale Plus''），12 模块电站合计约 924
+  MWe
+\item
+  \textbf{关键特征}：12
+  模块共一个反应堆冷却剂池，全功率自然循环，事故下靠池水冷却 30
+  天无需交流电源。
+\item
+  \textbf{里程碑}：
+
+  \begin{itemize}
+  \tightlist
+  \item
+    2020 年 NRC 颁发设计认证（DCD）------史上首个 SMR DCD。
+  \item
+    2023 年 UAMPS CFPP 项目因成本从 53 亿美元上涨至 92 亿美元终止。
+  \item
+    NuScale 转向 RoPower（罗马尼亚）、Standard
+    Power、Kozloduy（保加利亚）等项目。
+  \end{itemize}
+\end{itemize}
+
+\subsection{GE Hitachi
+BWRX-300（美国/加拿大）}\label{ge-hitachi-bwrx-300ux7f8eux56fdux52a0ux62ffux5927}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{类型}：沸水堆，自然循环
+\item
+  \textbf{功率}：约 300 MWe
+\item
+  \textbf{特征}：极简设计，去掉主泵、再循环泵、安全级交流电源，依赖自然循环和非能动安全壳冷却。
+\item
+  \textbf{里程碑}：2021 年加拿大 OPG 选定 Darlington 厂址；2023 年完成
+  CNSC 工程服务审查；2024 年正式开工首堆，目标 2028--2029
+  投运。这是西方世界目前进度最快的轻水 SMR 项目。
+\end{itemize}
+
+\subsection{中国玲龙一号（ACP100 / Linglong
+One）}\label{ux4e2dux56fdux73b2ux9f99ux4e00ux53f7acp100-linglong-one}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{开发商}：中核集团（CNNC）
+\item
+  \textbf{类型}：一体化压水堆
+\item
+  \textbf{功率}：125 MWe
+\item
+  \textbf{特征}：内置蒸汽发生器、主泵、稳压器，非能动安全。
+\item
+  \textbf{里程碑}：2021 年 7 月海南昌江开工；2023 年压力容器吊装；目标
+  2026 年并网。\textbf{全球首个通过 IAEA 通用安全审查（GSR）的陆基
+  SMR}。
+\end{itemize}
+
+\subsection{韩国 SMART}\label{ux97e9ux56fd-smart}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{开发商}：KAERI
+\item
+  \textbf{功率}：330 MWt（约 90 MWe，可作海水淡化、供热、发电）
+\item
+  \textbf{特征}：一体化
+  PWR，专攻海水淡化（已通过韩国监管安全审查）；2012
+  年获韩国核安全委（KINS/SSC）设计认证。
+\item
+  \textbf{现状}：本土尚未首堆，但与沙特 K.A.CARE
+  联合开展预工程研究；同时也面向俄罗斯浮动核电站以外的海上和岸边市场。
+\end{itemize}
+
+\subsection{其他}\label{ux5176ux4ed6}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Holtec SMR-300}（美国，PWR）
+\item
+  \textbf{Westinghouse AP300}（2023 年公布）
+\item
+  \textbf{CNEA / INVAP CAREM-25}（阿根廷，详见第 16 章）
+\item
+  \textbf{Rolls-Royce SMR}（英国，470 MWe，相对偏大）
+\item
+  \textbf{中国中广核 ACPR50S}（海上浮动）
+\end{itemize}
+
+\section{重水堆（HWR-SMR）}\label{ux91cdux6c34ux5806hwr-smr}
+
+重水堆 SMR 数量较少，主要在印度：
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{AHWR300-LEU}（印度 Bhabha 原子研究中心）：300
+  MWe，垂直压力管式，重水慢化 + 轻水冷却，采用 Th-LEU 燃料，被动安全。
+\item
+  优势：天然铀或低富集度燃料，在线换料，钍资源利用。
+\item
+  劣势：重水成本高，重水管理复杂，国际市场竞争力弱。
+\end{itemize}
+
+\section{气冷堆（GCR-SMR）}\label{ux6c14ux51b7ux5806gcr-smr}
+
+气冷 SMR 多采用 \textbf{TRISO 包覆颗粒燃料 + 氦气冷却 +
+石墨慢化}，运行温度高（700--950 ℃），事故下燃料可耐受 1600
+℃而不破损，从而实现固有安全。
+
+\subsection{HTR-PM（中国）------已投运示范}\label{htr-pmux4e2dux56fdux5df2ux6295ux8fd0ux793aux8303}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{开发商}：清华大学 + 中核 + 华能
+\item
+  \textbf{功率}：2 × 250 MWt（合计 211 MWe）
+\item
+  \textbf{燃料}：球床 TRISO
+\item
+  \textbf{里程碑}：2021 年达到临界；2023
+  年商运，\textbf{全球首座模块式高温气冷堆示范工程}。
+\item
+  意义：验证了''模块式高温堆 + 商业电力''的可行性，并示范了固有安全。
+\end{itemize}
+
+\subsection{X-energy Xe-100（美国）}\label{x-energy-xe-100ux7f8eux56fd}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{功率}：单模块 80 MWe（4 模块组成 320 MWe 电站）
+\item
+  \textbf{特征}：球床 + 氦气透平；与 Dow Chemical
+  合作在墨西哥湾建首堆（2020 年 DOE 选中）。
+\end{itemize}
+
+\subsection{美国 Kairos Power
+KP-FHR}\label{ux7f8eux56fd-kairos-power-kp-fhr}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{类型}：氟盐冷却（FLiBe）+ TRISO 球床，本质上属高温堆新变种
+\item
+  \textbf{功率}：单堆 140 MWe
+\item
+  \textbf{里程碑}：2024 年获 NRC Hermes 示范堆建造许可（橡树岭
+  HERMES）。
+\end{itemize}
+
+\subsection{日本 HTTR 与
+GTHTR300}\label{ux65e5ux672c-httr-ux4e0e-gthtr300}
+
+\begin{itemize}
+\tightlist
+\item
+  HTTR 为日本 JAEA 的 30 MWt 试验堆，2004 年首次出口温度达 950 ℃。
+\item
+  GTHTR300 为商用 300 MWe 电站设计。
+\end{itemize}
+
+\section{液态金属冷却堆（LMR-SMR）}\label{ux6db2ux6001ux91d1ux5c5eux51b7ux5374ux5806lmr-smr}
+
+液态金属堆多为\textbf{快中子谱}，目标包括：闭式燃料循环、长寿命核素嬗变、提高铀资源利用率。其运行压力接近大气压，避免了大破口事故；但化学活泼性（钠遇水/空气反应）、腐蚀、光学不透明带来新的工程挑战。
+
+\subsection{钠冷快堆（SFR-SMR）}\label{ux94a0ux51b7ux5febux5806sfr-smr}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{TerraPower Natrium（美国）}：345 MWe + 1.8 GWh
+  熔盐储热，目标在 Wyoming 建首堆（已与 PacifiCorp 合作），2024 年开建。
+\item
+  \textbf{GE Hitachi PRISM}：311 MWe 模块，与 Natrium 同源。
+\item
+  \textbf{日本 4S（东芝/日立）}：10--50 MWe，钠冷，曾计划在
+  Galena（阿拉斯加）示范。
+\item
+  \textbf{俄罗斯 BREST-OD-300}：铅冷快堆（见 2.5.2），但同属 LM 一类。
+\item
+  \textbf{中国 CFR-600（霞浦示范快堆）}：单堆约 600
+  MWe，已开建（虽略大于 300 MWe 严格意义）。
+\end{itemize}
+
+\subsection{铅冷快堆（LFR-SMR）}\label{ux94c5ux51b7ux5febux5806lfr-smr}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{俄罗斯 BREST-OD-300}：300 MWe 铅冷，正在 Seversk
+  建造，是''PRORYV（突破）``项目核心；目标 2026--2027 投运。
+\item
+  \textbf{俄罗斯 SVBR-100}：铅铋共晶，100 MWe，原计划预可研。
+\item
+  \textbf{西欧/美国 Westinghouse LFR / LeadCold SEALER} 等。
+\end{itemize}
+
+\subsection{熔盐堆（MSR）}\label{ux7194ux76d0ux5806msr}
+
+\begin{itemize}
+\tightlist
+\item
+  虽然冷却剂不是''金属''，但常被归入先进非水冷堆：
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \textbf{Flibe Energy LFTR}（液氟钍堆）
+  \item
+    \textbf{TerraPower MCFR}（氯化熔盐快堆）
+  \item
+    \textbf{中国 TMSR-SF / TMSR-LF}（上海应物所）。
+  \end{itemize}
+\item
+  TRL 通常较低（4--6），距商业首堆尚需 10--15 年。
+\end{itemize}
+
+\section{发展趋势}\label{ux53d1ux5c55ux8d8bux52bf}
+
+汇总 2020 年以后的市场、技术、监管动态，可观察到下列趋势：
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{从单一路线向多路线并进}：LWR-SMR
+  抢占近期市场；气冷、液态金属堆抢占高价值应用（高温工业热源、闭式燃料循环）。
+\item
+  \textbf{首堆集中出现}：2023--2030 年是 SMR
+  首堆密集投运窗口（BREST-OD-300、HTR-PM
+  已运行、BWRX-300、Natrium、Xe-100、ACP100、CAREM-25 等）。
+\item
+  \textbf{HALEU 燃料供应链成为关键瓶颈}：美国
+  Centrus、TerraPower、X-energy 等通过公私合营推动国内 HALEU 生产。
+\item
+  \textbf{许可证流程革新}：加拿大 CNSC 的''Pre-Licensing Review of
+  Vendor Design''、英国 GDA、美国 10 CFR Part 53
+  草案都体现''风险指引、技术中立''的现代监管思路。
+\item
+  \textbf{多机组 + 多能互补}：多个 SMR 同址运行 +
+  与可再生能源/储能/海水淡化耦合的''综合能源系统''成为新方向（详见第 13
+  章）。
+\item
+  \textbf{公私合营（PPP）与新商业模式}：政府提供 FOAK 资金（如美国 DOE
+  2022 年拨款 32 亿美元支持
+  SMR），保证首堆建成；私企承担运行与未来复制。
+\item
+  \textbf{国际出口竞争}：美、俄、中、韩、法等多方都在争夺出口市场（中欧、东欧、中东、东南亚、非洲）。
+\end{enumerate}
+
+\section{参考文献}\label{ux53c2ux8003ux6587ux732e-1}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  IAEA. \emph{ARIS --- Advanced Reactors Information System}.
+  https://aris.iaea.org
+\item
+  IAEA. \emph{Advances in Small Modular Reactor Technology Developments,
+  2024 Edition}.
+\item
+  OECD/NEA. \emph{Small Modular Reactors: Nuclear Energy Market
+  Potential}, 2024.
+\item
+  World Nuclear Association. \emph{Small Nuclear Power Reactors}, 2024
+  update.
+\item
+  Rowinski M. K. et al.~``Small and medium sized reactors (SMR): A
+  review of technology.'' \emph{Renewable and Sustainable Energy
+  Reviews}, 44 (2015): 643--656.
+\item
+  carelli MD et al.~``The IRIS Project and the rationale for smaller is
+  better.'' \emph{Nuclear Engineering and Design}, 2010.
+\item
+  王大中等. 高温气冷堆，清华大学出版社。
+\item
+  核电中长期发展规划（中国），国家发改委/能源局，2007/2018。
+\end{enumerate}
+
+\cleardoublepage
+
+\chapter{IPWR 技术综述}\label{ipwr-ux6280ux672fux7efcux8ff0}
+
+\begin{epigraph}
+
+\textbf{核心命题}　一体化压水堆（Integral PWR,
+IPWR）通过把堆芯、蒸汽发生器、稳压器、主泵集成于同一压力容器，从根本上消除了一回路大破口事故，简化了系统结构，是非能动安全与固有安全理念在轻水
+SMR 中的典型体现。
+
+\end{epigraph}
+
+\section{引言}\label{ux5f15ux8a00-2}
+
+传统压水堆（PWR）的核蒸汽供应系统（NSSS）由分散的压力容器、热腿/冷腿、蒸汽发生器（SG）、稳压器、主泵组成。这种''分散式''布局带来一系列问题：
+
+\begin{itemize}
+\tightlist
+\item
+  大口径主管道是潜在的\textbf{大破口失水事故（LBLOCA）}源；
+\item
+  管道+ SG 大量结构增加了系统复杂性和抗震要求；
+\item
+  现场安装工时长，受施工质量波动影响大。
+\end{itemize}
+
+\textbf{一体化压水堆}把上述部件全部装入一个压力容器内，\textbf{消除了主管道}，从而：
+
+\begin{itemize}
+\tightlist
+\item
+  物理上消除 LBLOCA，使设计基准事故（DBA）大大简化；
+\item
+  提高一回路自然循环能力（堆芯在下、SG 在上，密度差驱动循环）；
+\item
+  缩短工期，简化厂内布置；
+\item
+  改善人因与维修可达性。
+\end{itemize}
+
+IPWR 是当前轻水 SMR 中的主流路线，代表机型包括
+NuScale、SMART、ACP100、mPower、CAREM-25、Holtec SMR-300 等。
+
+\section{必要性}\label{ux5fc5ux8981ux6027}
+
+为什么要''一体化''？根本原因可以从三个层面回答。
+
+\subsection{安全层面：消除大破口}\label{ux5b89ux5168ux5c42ux9762ux6d88ux9664ux5927ux7834ux53e3}
+
+主管道双端断裂（DEGB）是传统 PWR
+设计基准中最严重的事故之一，需要复杂的安全注入系统（SI）和应急堆芯冷却系统（ECCS）应对。IPWR
+通过\textbf{取消大口径管道}，使反应堆冷却剂系统（RCS）的破损只剩下小口径仪表管和贯穿件，事故后冷却剂装量损失有限。
+
+\subsection{经济层面：模块化制造}\label{ux7ecfux6d4eux5c42ux9762ux6a21ux5757ux5316ux5236ux9020}
+
+分散式 NSSS
+的部件来自不同工厂，需要在现场组装、焊接、检验；一体化设计可将整个压力容器作为一个整体模块在工厂完成，运输到现场吊装即可，大幅压缩现场施工的关键路径（CP）。
+
+\subsection{运维层面：减少维修与照射}\label{ux8fd0ux7ef4ux5c42ux9762ux51cfux5c11ux7ef4ux4feeux4e0eux7167ux5c04}
+
+减少管道焊缝、阀门、密封件意味着减少泄漏点和维修工作量；分散式 SG 的 U
+型管是 PWR 故障高发区，一体化设计采用直管或螺旋管
+SG，可改善可靠性并降低检修人员剂量。
+
+\section{一体化压水堆（IPWR）}\label{ux4e00ux4f53ux5316ux538bux6c34ux5806ipwr}
+
+\subsection{典型结构}\label{ux5178ux578bux7ed3ux6784}
+
+下图为典型 IPWR 的概念布局（文字描述）：
+
+\begin{verbatim}┌────────────────────────────┐
+│       压力容器顶盖          │  ← 稳压器（内置在容器顶部）
+│   ┌──────────────────┐     │
+│   │     蒸汽发生器     │     │  ← 直管/螺旋管 SG 环绕堆芯
+│   │  （围绕堆芯环形）  │     │
+│   │  ┌────────────┐  │     │
+│   │  │   堆芯     │  │     │  ← 紧凑堆芯，燃料组件数量少
+│   │  │  （底部）   │  │     │
+│   │  └────────────┘  │     │
+│   │   控制棒驱动机构  │     │  ↑ 向上抽出
+│   └──────────────────┘     │
+│         主泵（外置/内置）   │
+└────────────────────────────┘\end{verbatim}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{堆芯}位于压力容器下部，控制棒从顶部插入；
+\item
+  \textbf{蒸汽发生器}布置在堆芯上方的环形空间；
+\item
+  \textbf{稳压器}集成于容器顶盖内部；
+\item
+  \textbf{主泵}可以是内置式（如 NuScale 的''管内喷射''）或外置式（如
+  SMART 的全封闭泵）。
+\end{itemize}
+
+\subsection{典型机型比较}\label{ux5178ux578bux673aux578bux6bd4ux8f83}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 10\tabcolsep) * \real{0.1667}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 10\tabcolsep) * \real{0.1667}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 10\tabcolsep) * \real{0.1667}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 10\tabcolsep) * \real{0.1667}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 10\tabcolsep) * \real{0.1667}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 10\tabcolsep) * \real{0.1667}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+机型
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+国家
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+单机功率
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+SG 形式
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+主泵
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+循环方式
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+NuScale（VOYGR-50/77） & 美 & 50/77 MWe & 螺旋管 & 无泵（自然循环） &
+自然循环 \\
+GE Hitachi BWRX-300 & 美/加 & 300 MWe & （BWR） & 无泵 & 自然循环 \\
+SMART & 韩 & 100 MWt & 螺旋管 & 4 台全封闭泵 & 强制循环 \\
+ACP100（玲龙一号） & 中 & 125 MWe & 直管 DC SG & 4 台屏蔽泵 &
+强制循环 \\
+CAREM-25 & 阿 & 27/32 MWe & 螺旋管 & 12 台''水力柱塞泵''（自驱） &
+自加压 \\
+Holtec SMR-300 & 美 & 300 MWe & 直管 & 屏蔽泵 & 强制 \\
+Westinghouse AP300 & 美 & 300 MWe & 直管 & 屏蔽泵 & 强制 \\
+\end{longtable}
+}
+
+\subsection{关键工程问题}\label{ux5173ux952eux5de5ux7a0bux95eeux9898}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{SG 内置带来的检修可达性下降}：一旦发生 SG 管泄漏，难以像分散
+  PWR 那样整体更换 SG；多采用\textbf{冗余 + 在役检查（ISI）}策略。
+\item
+  \textbf{控制棒驱动机构（CRDM）与 SG 的空间冲突}：CRDM 须穿过 SG
+  区域，常采用\textbf{长驱动轴 + 顶部布置}或\textbf{侧向驱动}。
+\item
+  \textbf{压力容器尺寸受限}：一体化容器直径通常 3--6
+  m，需匹配大型锻造能力（中国一重、日本 JSW、韩国 Doosan 等具备）。
+\item
+  \textbf{主泵选型}：屏蔽泵寿命长但效率低；湿定子泵噪声小；NuScale
+  用''无泵''自然循环方案，是激进简化。
+\end{itemize}
+
+\section{安全性}\label{ux5b89ux5168ux6027}
+
+IPWR 的安全优势集中体现在：
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{消除 LBLOCA}：物理上不存在大破口途径，DBA 清单大幅简化。
+\item
+  \textbf{自然循环冷却}：堆芯在下、SG
+  在上，全功率自然循环可行（NuScale、BWRX-300）；事故下断电仍可长期冷却。
+\item
+  \textbf{低压差小破口}：一旦发生小破口，因装量大、压力下降缓慢，ECCS
+  注入压力低、容量小。
+\item
+  \textbf{源项减少}：堆芯功率密度低、燃料温度低，事故下裂变产物释放量显著降低，缩小应急计划区（EPZ）至厂址边界（部分设计目标）。
+\item
+  \textbf{多机厂址纵深防御}：单模块功率小，事故影响半径小，多模块间可互相支持冷却。
+\end{enumerate}
+
+详见第 8 章。
+
+\section{经济性}\label{ux7ecfux6d4eux6027}
+
+\subsection{资本成本构成}\label{ux8d44ux672cux6210ux672cux6784ux6210}
+
+IPWR 电站资本成本（OCC）主要分项：
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}ll@{}}
+\toprule\noalign{}
+分项 & 占比（参考） \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+直接成本：反应堆厂房、辅助厂房、汽轮机厂房 & 50--60\% \\
+间接成本：工程设计、采购、施工管理 & 20--25\% \\
+业主成本：项目开发、调试、首炉燃料 & 10--15\% \\
+不可预见费 + 融资利息 & 10--20\% \\
+\end{longtable}
+}
+
+IPWR 通过以下途径降低 OCC：
+
+\begin{itemize}
+\tightlist
+\item
+  工厂预制缩短现场工期（48 个月 → 36 个月以下）；
+\item
+  简化系统（少阀门、少管道、少泵）；
+\item
+  缩小安全壳与应急系统；
+\item
+  模块化运输，缩短现场关键路径。
+\end{itemize}
+
+\subsection{规模不经济的对抗}\label{ux89c4ux6a21ux4e0dux7ecfux6d4eux7684ux5bf9ux6297}
+
+IPWR 单机功率小，单位 kWe 资本成本通常比大型核电站高
+20--50\%。对抗''规模不经济''的途径：
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{系列化生产}：FOAK → NOAK，每倍产量学习率约 10\%（即成本下降
+  10\%）。
+\item
+  \textbf{多机组叠加}：同址安装 4--12
+  个模块，共享汽轮机厂房、控制室、冷却水系统。
+\item
+  \textbf{缩短建造周期}：缩短融资期，降低 IDC（利息在建期）。
+\item
+  \textbf{简化监管}：系列化设计认证 +
+  厂址许可一次到位，多台机组滚动审批。
+\end{itemize}
+
+\subsection{平准化电力成本（LCOE）}\label{ux5e73ux51c6ux5316ux7535ux529bux6210ux672clcoe}
+
+OECD/NEA 2024 年报告给出的 SMR LCOE 范围约：
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{NOAK 阶段}：60--100 USD/MWh；
+\item
+  \textbf{FOAK 阶段}：可能高达 120--180 USD/MWh；
+\item
+  \textbf{燃气联合循环 + CCS}：80--120 USD/MWh；
+\item
+  \textbf{陆上风电 + 储能}：60--110 USD/MWh。
+\end{itemize}
+
+可见 NOAK 阶段 SMR 在工业基荷电力上具备竞争力。
+
+\section{发展趋势}\label{ux53d1ux5c55ux8d8bux52bf-1}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{自然循环 + 非能动安全}是 IPWR
+  的设计主流（NuScale、BWRX-300、CAREM-25）。
+\item
+  \textbf{增大单机功率}（从 50 MWe 向 300
+  MWe）以摊薄单位投资和运维成本，是近期趋势（BWRX-300、SMR-300、AP300）。
+\item
+  \textbf{首堆快速进入市场}：2025--2030 年将有多台 IPWR
+  首堆并网，验证商业可行性。
+\item
+  \textbf{与可再生能源耦合}：通过蒸汽抽汽、储热、制氢等多样化负荷提升容量因子和
+  LCOE 表现。
+\item
+  \textbf{海上 / 移动式 IPWR}：俄罗斯 KLT-40S、中国 ACPR50S 把 IPWR
+  推向海上应用。
+\item
+  \textbf{数字孪生与智能运维}：基于 IoT 与 AI
+  的预测性维护将贯穿全寿命周期（见第 6、7 章）。
+\end{enumerate}
+
+\section{结论}\label{ux7ed3ux8bba-1}
+
+IPWR 是当前 SMR
+商业化的主流技术路线，它通过\textbf{结构一体化}实现了''消除大破口 +
+自然循环冷却 + 工厂模块化制造''三位一体的优势。第 4--9
+章将分别从堆芯燃料、系统部件、仪控、人机界面、安全、防扩散六个角度展开
+IPWR 的关键技术；第 10--13 章讨论其商业化路径。
+
+\section{参考文献}\label{ux53c2ux8003ux6587ux732e-2}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  Carelli M. D. et al.~``The IRIS Project: Status and Prospects.''
+  \emph{Nucl. Eng. Design}, 2010.
+\item
+  Cummins W. E. et al.~``Westinghouse AP1000 \ldots{} and SMR \ldots.''
+  \emph{ICAPP}, 2014.
+\item
+  Lee W. et al.~``SMART: The first licensed integral reactor.''
+  \emph{Nucl. Eng. Tech.}, 2011.
+\item
+  Cai Q. et al.~``Design and development of ACP100 SMR in China.''
+  \emph{Nucl. Eng. Design}, 2017.
+\item
+  IAEA-TECDOC-1943, \emph{Design Features and Operating Experience of
+  Integral Pressurized Water Reactors}.
+\item
+  Sadlon I. et al.~``CAREM: An Argentine SMR.'' \emph{ICAPP}, 2016.
+\item
+  Reyes J. ``NuScale Plant Safety Philosophy.'' \emph{NuScale Power
+  White Paper}, 2018.
+\end{enumerate}
+
+\cleardoublepage
+
+\chapter{IPWR 堆芯和燃料}\label{ipwr-ux5806ux82afux548cux71c3ux6599}
+
+\begin{epigraph}
+
+\textbf{核心命题}　IPWR
+堆芯设计的核心矛盾是''在受限的压力容器直径下，实现长换料周期（≥24
+个月）、低功率密度、固有安全与抗沸水稳定性''。本章从设计准则出发，讨论核设计、热工水力、燃料与材料。
+
+\end{epigraph}
+
+\section{引言}\label{ux5f15ux8a00-3}
+
+IPWR 堆芯受到两个外部约束：
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{压力容器直径受限}（一般 3--6 m），难以放置大量燃料组件；
+\item
+  \textbf{长期换料周期}（≥ 24
+  个月）以减少运维停堆次数，对燃料富集度（4.95\% 或更高，部分设计推向
+  HALEU 5\%--10\%）和燃耗深度（\textgreater{} 40 GWd/tHM）提出高要求。
+\end{enumerate}
+
+在这两个约束下，堆芯设计要同时满足\textbf{核设计}、\textbf{热工水力}、\textbf{安全}、\textbf{燃料可靠性}多维指标。
+
+\section{设计准则}\label{ux8bbeux8ba1ux51c6ux5219}
+
+IPWR 堆芯设计准则继承自大型压水堆，但有重要调整：
+
+\subsection{通用设计准则}\label{ux901aux7528ux8bbeux8ba1ux51c6ux5219}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{热工余量}：最小偏离泡核沸腾比（MDNBR）≥
+  1.3（设计瞬态）或厂商规定值。
+\item
+  \textbf{燃料温度限值}：中心温度 \textless{} 熔点（UO₂ 约 2800
+  ℃）；包壳温度 \textless{} 1204 ℃（事故）。
+\item
+  \textbf{线功率密度}：稳态线功率 \textless{} 限制（典型 13--17
+  kW/ft，约 430--560 W/cm）。
+\item
+  \textbf{反应性反馈}：负功率系数、负空泡系数、负温度系数（MTD），保证自调稳性。
+\item
+  \textbf{控制棒价值}：最大单棒价值 \textless{} 限制（如 \textless{} 1\%
+  Δk/k），防止弹棒事故反应性引入。
+\item
+  \textbf{功率分布}：径向功率峰因子 FΔH、轴向峰因子 Fz 应在限制内（如
+  FΔH \textless{} 1.5）。
+\end{itemize}
+
+\subsection{IPWR 特有准则}\label{ipwr-ux7279ux6709ux51c6ux5219}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{自然循环能力}：全功率自然循环可达（针对
+  NuScale、CAREM），冷却剂流量由密度差驱动。
+\item
+  \textbf{功率密度低}：典型 50--80 kW/L（大型 PWR 约 100
+  kW/L），增加热惯性，降低事故后温度峰值。
+\item
+  \textbf{长换料周期}：目标 24--36 个月。
+\item
+  \textbf{固有安全}：在失去所有交流电源（SBO）下，可通过自然循环维持冷却
+  ≥ 7 天（甚至 30 天）。
+\item
+  \textbf{物理上消除某些事故}：如主管道 LBLOCA 不存在。
+\end{itemize}
+
+\section{核设计准则}\label{ux6838ux8bbeux8ba1ux51c6ux5219}
+
+\subsection{反应性平衡方程}\label{ux53cdux5e94ux6027ux5e73ux8861ux65b9ux7a0b}
+
+堆芯有效增殖因子 k\_eff 必须在堆芯寿期初（BOL）保持 ≥ 1，反应性平衡：
+
+\begin{verbatim}k_eff = 1 + ρ_excess − ρ_Xe − ρ_Sm − ρ_temp − ρ_burnup + ...\end{verbatim}
+
+其中： - ρ\_excess：过剩反应性，由燃料富集度、可燃毒物决定； - ρ\_Xe /
+ρ\_Sm：氙、钐毒物反应性； - ρ\_temp：温度反馈反应性（必须为负）； -
+ρ\_burnup：燃耗反应性损失。
+
+\subsection{关键反馈系数}\label{ux5173ux952eux53cdux9988ux7cfbux6570}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+系数
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+典型值（PWR）
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+物理意义
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+慢化剂温度系数 MTC & −5 \textasciitilde{} −10 pcm/℃（运行期） &
+冷却剂升温 → 减速效果下降 → k 下降 \\
+燃料温度系数 Doppler & −3 pcm/℃ & 燃料升温 → ²³⁸U 共振吸收增宽 → k
+下降 \\
+空泡系数 & \textless{} 0（PWR） & 局部沸腾 → 慢化减少 → k 下降 \\
+\end{longtable}
+}
+
+所有系数必须为负，确保反应堆''自调自稳''。
+
+\subsection{可燃毒物}\label{ux53efux71c3ux6bd2ux7269}
+
+为实现长周期换料，须用可燃毒物（BP）压住 BOL
+过剩反应性，并在寿期中按计划消耗：
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{钆（Gd₂O₃）}：均匀混入部分燃料芯块，BP 内含 5\%--10\% Gd；
+\item
+  \textbf{硼（ZrB₂ 涂层 IFBA）}：集成燃料可燃吸收体；
+\item
+  \textbf{钆管（WABA）/ 硼玻璃}：用于部分压水堆。
+\end{itemize}
+
+IPWR 多采用钆掺杂 + 部分富集度燃料，由于堆芯小、组件数量少（10--40
+个），可燃毒物布置要精心优化。
+
+\section{IPWR
+堆芯核设计特点}\label{ipwr-ux5806ux82afux6838ux8bbeux8ba1ux7279ux70b9}
+
+\subsection{典型参数对比}\label{ux5178ux578bux53c2ux6570ux5bf9ux6bd4}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2000}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2000}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2000}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2000}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2000}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+参数
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+大型 PWR（参考）
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+SMART
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+ACP100
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+NuScale
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+热功率 & 3000 MWt & 330 MWt & 385 MWt & 160 MWt \\
+燃料组件数 & 157--241 & 57 & 37 & 37 \\
+组件形式 & 17×17 & 17×17 & 17×17（CF3） & 17×17 \\
+燃料富集度 & ≤ 4.95\% & ≤ 4.95\% & ≤ 4.95\% / HALEU & ≤ 4.95\% \\
+平均燃耗 & \textasciitilde{} 45 GWd/tHM & \textasciitilde{} 38 &
+\textasciitilde{} 36 & \textasciitilde{} 30--40 \\
+换料周期 & 18--24 个月 & 36 个月 & 24 个月 & 24 个月 \\
+平均线功率 & 175 W/cm & 130 & 110 & 100 \\
+\end{longtable}
+}
+
+\subsection{燃料组件}\label{ux71c3ux6599ux7ec4ux4ef6}
+
+IPWR 多采用 \textbf{17×17 PWR 燃料组件}（部分设计为 16×16 或
+12×12），与现有 LWR 燃料工业完全兼容，是降低技术风险的关键。组件包含：
+
+\begin{itemize}
+\tightlist
+\item
+  燃料棒：Zr-4 / Zirlo / M5 包壳 + UO₂ / UO₂-Gd₂O₃ 芯块；
+\item
+  定位格架：钒/镍基合金（如 Inconel 718），支撑燃料棒间距；
+\item
+  导向管：用于控制棒、可燃毒物棒或中子源；
+\item
+  上下管座：定位与流量分配。
+\end{itemize}
+
+\subsection{控制棒系统}\label{ux63a7ux5236ux68d2ux7cfbux7edf}
+
+\begin{itemize}
+\tightlist
+\item
+  控制棒组件（RCCA）：Ag-In-Cd 或 B₄C 吸收体；
+\item
+  驱动机构（CRDM）：步进磁力提升（传统）或磁阻马达（一体化设计）；
+\item
+  IPWR 因堆芯直径小，控制棒数量较少（如 ACP100 约 16 组，SMART 24 组）；
+\item
+  ``灰棒''用于负荷跟踪 / 频率调节（axial offset 控制）。
+\end{itemize}
+
+\subsection{堆芯功率分布优化}\label{ux5806ux82afux529fux7387ux5206ux5e03ux4f18ux5316}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{径向}：通过分区富集度 + 多循环燃料布置（in-out
+  装载）压平功率；
+\item
+  \textbf{轴向}：低富集度燃料置于堆芯中部或顶部（轴向 zonal）；
+\item
+  \textbf{可燃毒物}：径向与轴向同时压低 BOL 功率峰；
+\item
+  \textbf{长期循环平衡（EOC）}：到寿期末，剩余反应性低于临界，准备换料。
+\end{itemize}
+
+\subsection{堆芯热工水力}\label{ux5806ux82afux70edux5de5ux6c34ux529b}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{子通道分析}：用 VIPRE、COBRA-TF、CTF
+  等代码计算燃料棒束内流量、焓、空泡、DNB；
+\item
+  \textbf{临界热流密度（CHF）相关式}：W-3、Biasi、Groeneveld 2006；
+\item
+  \textbf{自然循环流量}：在稳态、瞬态下，需验证自然循环可带走衰变热；
+\item
+  \textbf{稳定性分析}：IPWR
+  流量低、密度波大，需评估''两相流不稳定性''（自然循环堆尤其重要）。
+\end{itemize}
+
+\subsection{事故下行为}\label{ux4e8bux6545ux4e0bux884cux4e3a}
+
+针对 LOCA、REA（弹棒）、ATWS、SBO
+等设计基准与超设计基准事故，堆芯须满足：
+
+\begin{itemize}
+\tightlist
+\item
+  燃料中心温度 \textless{} 熔点；
+\item
+  包壳温度 \textless{} 1204 ℃（大型 LOCA）；局部包壳氧化 \textless{}
+  17\%；
+\item
+  反应性引入量 \textless{} 1.3 \$（不超过瞬发临界）；
+\item
+  长期冷却可维持。
+\end{itemize}
+
+由于 IPWR 不存在 LBLOCA，事故分析的关键是小破口 LOCA（SBLOCA）+ SBO +
+ATWS。
+
+\section{结论}\label{ux7ed3ux8bba-2}
+
+IPWR 堆芯设计在''受限空间 + 长周期 + 低功率密度 +
+固有安全''四重约束下展开，核设计、热工水力、燃料、材料相互耦合。本章介绍了主要设计准则、典型参数、燃料组件、控制棒、可燃毒物和事故行为。第
+5 章将延伸到一回路系统与部件。
+
+\section{参考文献}\label{ux53c2ux8003ux6587ux732e-3}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  IAEA-TECDOC-1696, \emph{Innovative PWR Design}.
+\item
+  Tong L. S., Weisman J. \emph{Thermal Analysis of Pressurized Water
+  Reactors}, 3rd ed., ANS, 1996.
+\item
+  Cai Q. et al.~``Core Design of ACP100.'' \emph{Nucl. Eng. Design},
+  2017.
+\item
+  Kim K. et al.~``Core design and startup physics tests of SMART.''
+  \emph{Ann. Nucl. Energy}, 2013.
+\item
+  Reyes J. ``NuScale Core Design.'' NuScale White Paper, 2015.
+\item
+  Stainsby R. et al.~``Gas-cooled fast reactor core design.''
+  \emph{Prog. Nucl. Energy}, 2009.
+\item
+  IAEA. \emph{Thermohydraulic Relationships for Advanced Water Cooled
+  Reactors}, TECDOC-1203.
+\end{enumerate}
+
+\cleardoublepage
+
+\chapter{IPWR 系统和部件}\label{ipwr-ux7cfbux7edfux548cux90e8ux4ef6}
+
+\begin{epigraph}
+
+\textbf{核心命题}　IPWR
+通过''压力容器内一体化''重新组织了反应堆冷却剂系统（RCS），同时革新了蒸汽发生器、主泵、稳压器、安全壳等关键部件的设计。本章梳理这些部件的特征、技术挑战与发展趋势。
+
+\end{epigraph}
+
+\section{引言}\label{ux5f15ux8a00-4}
+
+传统 PWR 的反应堆冷却剂系统（RCS）由\textbf{压力容器 + 多个 SG + 稳压器
++ 主泵 + 大量管道}组成，这是''分散式'' NSSS 的标志。IPWR
+把这一切装入压力容器内（或紧贴容器），形成\textbf{一体化 NSSS}：
+
+\begin{verbatim}                ┌─ 顶盖（含稳压器内胆）
+                │
+压力容器 ──────│── SG（直管或螺旋管，环绕堆芯）
+一体化         │  
+                │── 堆芯
+                │
+                └─ 底封头（主泵或管路连接）\end{verbatim}
+
+本章先讲一体化部件（堆芯、SG、稳压器、主泵、压力容器本身），再讲相连系统部件（二回路、安全壳、辅助系统、安全系统）。
+
+\section{一体化部件}\label{ux4e00ux4f53ux5316ux90e8ux4ef6}
+
+\subsection{反应堆压力容器（RPV）}\label{ux53cdux5e94ux5806ux538bux529bux5bb9ux5668rpv}
+
+\textbf{主要特征}：
+
+\begin{itemize}
+\tightlist
+\item
+  直径 3--6 m，高度 12--25 m，壁厚约 150--250 mm；
+\item
+  顶盖 + 筒体 + 下封头三段；
+\item
+  材料为低合金钢（SA-508 Gr.3 Cl.1/2）+ 不锈钢堆焊层；
+\item
+  顶盖开口：用于换料、控制棒驱动机构、仪表贯穿件；
+\item
+  寿期：60 年，受快中子注量（EOL fluence）限制。
+\end{itemize}
+
+\textbf{IPWR 特有挑战}：
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{整体锻件}：尽量减少纵向焊缝（``整体锻造筒体''），降低 ISI
+  工作量；
+\item
+  \textbf{CRDM 穿越顶盖}：因 SG 在堆芯上方，CRDM 必须通过 SG
+  区域才能驱动堆芯控制棒，导致\textbf{CRDM 极长}（如
+  NuScale、ACP100）或采用\textbf{侧向驱动}（SMART）；
+\item
+  \textbf{高温疲劳}：低合金钢 + 316
+  不锈钢堆焊层在温度瞬变下产生热棘轮和疲劳；
+\item
+  \textbf{快中子注量}：堆芯小但功率密度不低，RPV
+  内壁快中子注量需要控制（在堆芯筒体区加屏蔽件）。
+\end{itemize}
+
+\subsection{蒸汽发生器（SG）}\label{ux84b8ux6c7dux53d1ux751fux5668sg}
+
+\textbf{IPWR 中 SG 的关键挑战}：
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  紧凑：要在压力容器与堆芯之间的环形空间内布置；
+\item
+  高效：单台功率 50--300 MWt；
+\item
+  可靠：管束泄漏检测困难，更换困难；
+\item
+  流动稳定性：自然循环或强制循环下，二回路侧两相流必须稳定。
+\end{enumerate}
+
+\textbf{主要形式}：
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{螺旋管 SG}：NuScale、SMART、CAREM、ACPR50S
+  等；管束螺旋缠绕，紧凑且热膨胀自补偿；
+\item
+  \textbf{直流直管 SG（OTSG）}：ACP100、mPower
+  等；二回路水一次通过即过热，结构简单、控制响应快，但对水质要求高；
+\item
+  \textbf{U 形管再循环式 SG}：在 IPWR 中较少见（因占用空间大）。
+\end{itemize}
+
+\textbf{设计要点}：
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{管材}：Inconel 690 TT（耐一次水 SCC），Incoloy
+  800（SMART），钛（海水冷却侧）；
+\item
+  \textbf{管径}：典型 φ12--20 mm；
+\item
+  \textbf{管壁厚}：1.0--1.5 mm；
+\item
+  \textbf{防振设计}：螺旋管束需防流动诱发振动（FIV）；
+\item
+  \textbf{隔离}：每个 SG 配独立隔离阀，便于堵塞泄漏的子模块。
+\end{itemize}
+
+\subsection{稳压器（PZR）}\label{ux7a33ux538bux5668pzr}
+
+\textbf{IPWR 中稳压器特征}：
+
+\begin{itemize}
+\tightlist
+\item
+  通常\textbf{集成于压力容器顶盖内部}，通过''喷雾管 +
+  加热器''控制一回路压力；
+\item
+  部分设计（如
+  CAREM-25）采用\textbf{自加压（Self-pressurization）}：利用一回路顶部汽空间自然形成饱和状态，无须喷雾；
+\item
+  \textbf{加热器}：电加热 50--500 kW；
+\item
+  \textbf{液位控制}：通过化学容积系统（CVCS）补/排冷却剂。
+\end{itemize}
+
+集成式稳压器的优点是消除外部喷雾管线，减少管道接口；缺点是稳压器容积受限，压力波动幅度相对较大。
+
+\subsection{反应堆冷却剂泵（RCP）}\label{ux53cdux5e94ux5806ux51b7ux5374ux5242ux6cf5rcp}
+
+\textbf{主要类型}：
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+类型
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+优点
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+缺点
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+应用
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\textbf{屏蔽泵（Canned Motor Pump）} & 无轴封泄漏、寿期长、维护少 &
+效率低（60--70\%）、成本高 & ACP100、SMR-300、AP1000 \\
+\textbf{湿定子泵} & 类似屏蔽泵，结构更紧凑 & 同上 & SMART \\
+\textbf{轴封泵} & 效率高（85\%） & 轴封泄漏风险、需轴封注水 & 传统
+PWR，IPWR 少用 \\
+\textbf{无泵（自然循环）} & 极致简化 & 功率上限低（\textless{} 300 MWt）
+& NuScale、BWRX-300、CAREM-25 \\
+\end{longtable}
+}
+
+\textbf{IPWR 中泵的特点}：
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{内置式}：直接装在压力容器内部或与容器焊成一体（如 NuScale
+  无泵，但 SMART 有外置屏蔽泵）；
+\item
+  \textbf{冗余}：通常 2--4 台泵，N+1 或 N+2 容错；
+\item
+  \textbf{惰转}：失去电源后惯性飞轮提供短期惯性流量；
+\item
+  \textbf{检修}：内置泵无法在线检修，依赖''长寿命设计 + 整体更换''策略。
+\end{itemize}
+
+\subsection{控制棒驱动机构（CRDM）}\label{ux63a7ux5236ux68d2ux9a71ux52a8ux673aux6784crdm}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{磁力提升（步进式）}：传统 PWR 标配，在 IPWR
+  中因顶盖高需加长驱动杆；
+\item
+  \textbf{磁阻马达（齿轮减速）}：通过旋转带动齿条，长度短、可靠性好；
+\item
+  \textbf{内部水力驱动}：如 CAREM-25 的二级冷却剂系统；
+\item
+  \textbf{永磁电机（直接驱动）}：开发中。
+\end{itemize}
+
+CRDM 须穿过 SG 区域才能到达堆芯顶部，因此 IPWR 中 CRDM 经常是''长杆 +
+顶部承压壳''结构。安装、检修、抗震分析是设计重点。
+
+\section{相连的系统部件}\label{ux76f8ux8fdeux7684ux7cfbux7edfux90e8ux4ef6}
+
+\subsection{二回路系统}\label{ux4e8cux56deux8defux7cfbux7edf}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{汽轮机}：饱和蒸汽（直管 SG）或微过热（OTSG）；典型参数 6--8
+  MPa，280--310 ℃；
+\item
+  \textbf{汽水分离再热器（MSR）}：饱和蒸汽机组必备；
+\item
+  \textbf{凝汽器}：钛管板，海水/淡水/空冷；
+\item
+  \textbf{给水系统}：凝泵 + 给水泵（多级离心）+ 给水加热器；
+\item
+  \textbf{给水流量控制}：随反应堆功率联动，IPWR 中控制响应要求高（OTSG
+  尤其敏感）。
+\end{itemize}
+
+\subsection{安全壳与厂内布置}\label{ux5b89ux5168ux58f3ux4e0eux5382ux5185ux5e03ux7f6e}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{钢制安全壳}：NuScale 用''σ = 钢制容器 +
+  水池冷却''的非能动安全壳冷却系统；
+\item
+  \textbf{混凝土 + 钢内衬}：ACP100、SMART 等；
+\item
+  \textbf{地下埋设}：多数 IPWR
+  把反应堆厂房埋于地下，减少飞机撞击、外部事件威胁；
+\item
+  \textbf{多机组共用大厅}：12 台模块共享一个厂房、一个控制室。
+\end{itemize}
+
+\subsection{辅助系统}\label{ux8f85ux52a9ux7cfbux7edf}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{化学容积系统（CVCS）}：补水、净化、硼酸调配；
+\item
+  \textbf{硼回收系统}：与大型 PWR 类似，但容量小；
+\item
+  \textbf{设备冷却水系统（CCWS）}：安全级冷却；
+\item
+  \textbf{重要厂用水系统（ESW）}：最终热阱；
+\item
+  \textbf{乏燃料水池}：与大型 PWR 共享或独立；
+\item
+  \textbf{废物处理系统}：液体废物、气体废物、固体废物；IPWR
+  因乏燃料量少，废物系统简化。
+\end{itemize}
+
+\subsection{专设安全系统}\label{ux4e13ux8bbeux5b89ux5168ux7cfbux7edf}
+
+IPWR 的专设安全系统显著简化：
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{应急堆芯冷却系统（ECCS）}：因无 LBLOCA，仅需应对
+  SBLOCA；多采用''被动式安全注入箱 +
+  蓄压箱''或''被动余热排出（PRHR）``；
+\item
+  \textbf{安全壳冷却}：钢制安全壳 + 顶部水池（被动蒸发/对流冷却，72 h
+  无需电源）；
+\item
+  \textbf{二次侧冷却}：通过 SG 辅助给水（AFW）实现 PRHR；
+\item
+  \textbf{可居留性系统}：控制室通风、应急电源（柴油 + 蓄电池）。
+\end{itemize}
+
+\subsection{典型安全分级}\label{ux5178ux578bux5b89ux5168ux5206ux7ea7}
+
+按 ASME BPVC 或 RCC-M、GB/T 16769：
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{安全 1 级（SC-1）}：RPV、SG 一次侧、稳压器；
+\item
+  \textbf{安全 2 级（SC-2）}：SG 二次侧、主蒸汽管道至隔离阀；
+\item
+  \textbf{安全 3 级（SC-3）}：CVCS、ECCS、AFW；
+\item
+  \textbf{非核级}：常规岛、汽轮机、电气系统。
+\end{itemize}
+
+\section{发展趋势}\label{ux53d1ux5c55ux8d8bux52bf-2}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{无泵自然循环}是 IPWR
+  设计的''激进派''，NuScale、BWRX-300、CAREM
+  已落地，未来可能扩展到更大功率（200--400 MWe）；
+\item
+  \textbf{OTSG 替代再循环
+  SG}：紧凑、控制快，但对水质和管理要求高，趋势是采用；
+\item
+  \textbf{整体锻件 RPV}：减少焊缝、降低 ISI 工作量，已成为新设计标配；
+\item
+  \textbf{CRDM 简化}：永磁直驱、内置水力驱动有望取代传统磁力提升；
+\item
+  \textbf{数字孪生与传感}：植入式传感器（如堆芯温度、流量、振动监测）将改变运行与维修模式（见第
+  6 章）；
+\item
+  \textbf{3D 打印关键部件}：燃料定位格架、SG
+  管板局部结构开始试用增材制造；
+\item
+  \textbf{共享系统 + 多机组冗余}：12 台 NuScale
+  模块共享一个控制室、辅助厂房，可显著降低单位投资。
+\end{enumerate}
+
+\section{参考文献}\label{ux53c2ux8003ux6587ux732e-4}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  ASME Boiler and Pressure Vessel Code, Section III, Division 1 \& 5.
+\item
+  IAEA-TECDOC-1696, \emph{Design and Development Status of Small and
+  Medium Sized Reactors}.
+\item
+  Smith S. et al.~``Compact steam generators for IRIS.'' \emph{Nucl.
+  Eng. Design}, 2008.
+\item
+  Reyes J. ``NuScale Module Description.'' NuScale Standard Design
+  Approval Submittal, 2017.
+\item
+  IAEA-TECDOC-1943, \emph{Integral Pressurized Water Reactor Design
+  Features}.
+\item
+  Westinghouse Electric Co.~``AP1000 Design Control Document,'' Rev.~19,
+  2011.
+\item
+  Mukin R. et al.~``Boiling water reactor stability analysis.''
+  \emph{Prog. Nucl. Energy}, 2020.
+\item
+  中国核工业集团. ACP100 设计总说明书（公开版本）.
+\end{enumerate}
+
+\cleardoublepage
+
+\chapter{IPWR
+仪表和控制（I\&C）}\label{ipwr-ux4eeaux8868ux548cux63a7ux5236ic}
+
+\begin{epigraph}
+
+\textbf{核心命题}　IPWR 的仪控系统通过\textbf{数字化 + 安全级 DCS +
+智能诊断}实现了对反应堆全寿期的精细管理；但仪控平台的多样性、隔离与软件共因故障（CCF）仍是核安全监管的重点关切。
+
+\end{epigraph}
+
+\section{引言}\label{ux5f15ux8a00-5}
+
+仪表与控制（Instrumentation \& Control,
+I\&C）系统是反应堆的''神经系统''，负责：
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{测量}：温度、压力、流量、液位、中子通量、辐射、振动等；
+\item
+  \textbf{控制}：维持运行参数在限值内，响应负荷变化；
+\item
+  \textbf{保护}：在事故工况下触发停堆、专设安全设施；
+\item
+  \textbf{监测}：设备健康、辐射、化学、人员剂量；
+\item
+  \textbf{信息}：为操纵员提供决策支持。
+\end{enumerate}
+
+IPWR 的 I\&C 系统相较大型 PWR 有以下特点：
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{共享与多机组}：12 个模块共享一个主控室，I\&C 须支持''独立 +
+  联动''双重逻辑；
+\item
+  \textbf{高自动化}：单堆人员少（如 NuScale 6 模块电站仅约 30
+  名操纵员）；
+\item
+  \textbf{数字孪生}：依托大量传感器数据，可在数字空间中镜像物理堆；
+\item
+  \textbf{退役 + 在役检查友好}：因模块化运输，I\&C 须支持''工厂级检修 +
+  现场热态调试''。
+\end{itemize}
+
+\section{系统 I\&C}\label{ux7cfbux7edf-ic}
+
+``系统 I\&C''指反应堆以外的厂级控制，包括：
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{汽轮机控制}：转速、负荷、并网、超速保护；
+\item
+  \textbf{凝汽器与给水控制}：液位、温度、流量；
+\item
+  \textbf{BOP 控制}：循环水、压缩空气、化学药剂、电气；
+\item
+  \textbf{辐射监测}：厂内、厂外、流出物；
+\item
+  \textbf{消防、安防、通信}。
+\end{itemize}
+
+通常采用\textbf{非安全级 DCS}（如 Emerson Ovation、Siemens
+SPPA-T3000、HollySys MACS），架构采用分层分布式：
+
+\begin{verbatim}┌────────────┐
+│ 厂级监视层  │ SCADA / 工程师站 / 操作员站
+├────────────┤
+│ 监督控制层  │ DCS 主控单元 / 历史数据库
+├────────────┤
+│ 现场控制层  │ 过程控制器（PLC / DCS CPU）+ 远程 I/O
+├────────────┤
+│ 现场仪表层  │ 变送器 / 阀门定位器 / 执行机构
+└────────────┘\end{verbatim}
+
+\section{核蒸汽供应系统
+I\&C}\label{ux6838ux84b8ux6c7dux4f9bux5e94ux7cfbux7edf-ic}
+
+NSSS I\&C
+是核安全的核心，分为\textbf{反应堆功率控制}、\textbf{反应堆保护}、\textbf{专设安全设施驱动}三大子系统。
+
+\subsection{反应堆功率控制系统}\label{ux53cdux5e94ux5806ux529fux7387ux63a7ux5236ux7cfbux7edf}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{功率量程探测器}：堆外电离室（4 节或 6 节），覆盖 10⁻³--10⁰
+  额定功率；
+\item
+  \textbf{中间量程}：γ 补偿电离室；
+\item
+  \textbf{源量程}：BF₃ / ³He 正比计数管（用于启堆）；
+\item
+  \textbf{堆芯功率分布}：移动式堆芯中子探测器（固定式 +
+  移动式联合），或自给能探测器（SPND）阵列。
+\end{itemize}
+
+\textbf{控制模式}：
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{模式 A（基荷）}：维持反应堆功率恒定；
+\item
+  \textbf{模式 B（负荷跟踪）}：灰棒调节反应性以匹配电网负荷；
+\item
+  \textbf{模式 C（频率调节）}：基于温度反馈的小幅调节；
+\item
+  \textbf{冷却剂平均温度控制}：T\_avg 程序 → 控制棒动作。
+\end{itemize}
+
+\subsection{反应堆保护系统（RPS）}\label{ux53cdux5e94ux5806ux4fddux62a4ux7cfbux7edfrps}
+
+RPS 是\textbf{安全级}系统，须满足：
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{冗余}：通常 4 通道（2/4 逻辑）；
+\item
+  \textbf{隔离}：通道间电气隔离 + 物理隔离；
+\item
+  \textbf{多样性}：硬件多样性 + 软件多样性，应对共因故障（CCF）；
+\item
+  \textbf{FPGA / 微处理器混合}：现代设计多采用 FPGA 实现核心保护逻辑（如
+  Westinghouse Common Q、Triconex、Rolls-Royce SPINLINE）；
+\item
+  \textbf{手动停堆}：硬接线按钮，绕过任何数字逻辑。
+\end{itemize}
+
+\textbf{典型保护参数}：
+
+\begin{itemize}
+\tightlist
+\item
+  高/低中子通量；
+\item
+  高/低冷却剂温度；
+\item
+  高/低稳压器压力；
+\item
+  低冷却剂流量；
+\item
+  SG 液位低；
+\item
+  安全壳压力高；
+\item
+  地震（触发 OBE/SSE 阈值停堆）。
+\end{itemize}
+
+\subsection{专设安全设施驱动系统（ESFAS）}\label{ux4e13ux8bbeux5b89ux5168ux8bbeux65bdux9a71ux52a8ux7cfbux7edfesfas}
+
+驱动 ECCS、AFW、安全壳喷淋、安全壳隔离等。逻辑与 RPS
+类似，但响应动作更复杂。
+
+\subsection{IPWR 特有 I\&C
+挑战}\label{ipwr-ux7279ux6709-ic-ux6311ux6218}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{多模块共享 I\&C}：12 个模块的 RPS
+  共存于同一安全级机柜群，须保证模块间\textbf{电气、功能、空间三重隔离}；
+\item
+  \textbf{无主泵自然循环}：失去主泵信号后，I\&C
+  须正确判断自然循环已建立，无须紧急干预；
+\item
+  \textbf{一体化 SG 控制}：OTSG
+  对给水扰动敏感，须高速响应的给水流量控制；
+\item
+  \textbf{远程支持与运维}：单堆人员少，I\&C 须支持远程诊断与专家协同。
+\end{itemize}
+
+\section{BOP 仪表}\label{bop-ux4eeaux8868}
+
+BOP（Balance of
+Plant）指汽轮机、凝汽器、给水、电气、冷却水等常规岛与辅助系统。其仪表与火电类似，但有如下特点：
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{质量等级}：部分系统须达核级（如主蒸汽管道至隔离阀的仪表）；
+\item
+  \textbf{冗余}：给水、循环水、电气保护系统须冗余；
+\item
+  \textbf{数字化程度高}：DCS 集中管理；
+\item
+  \textbf{网络安全}：BOP
+  与外部电网、调度、远程数据中心有数据交换，需严格的网络安全分区（参考
+  NIST 800-82、NEI 08-09）。
+\end{itemize}
+
+\section{故障诊断和预测}\label{ux6545ux969cux8bcaux65adux548cux9884ux6d4b}
+
+``预测性维护（Predictive Maintenance, PdM）''是 IPWR 智能化的重要方向。
+
+\subsection{数据来源}\label{ux6570ux636eux6765ux6e90}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{振动监测}：主泵、汽轮机、风机轴承振动谱；
+\item
+  \textbf{温度分布}：热电偶、分布式光纤（DTS）；
+\item
+  \textbf{流量与压力}：电磁流量计、Coriolis 质量流量计；
+\item
+  \textbf{辐射}：γ 谱仪、中子探测器；
+\item
+  \textbf{电气}：电机电流、谐波；
+\item
+  \textbf{化学}：在线电导率、pH、γ 谱；
+\item
+  \textbf{视觉}：摄像头（用于维修期间可达区域）。
+\end{itemize}
+
+\subsection{方法}\label{ux65b9ux6cd5}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{统计分析}：阈值告警、SPC；
+\item
+  \textbf{机器学习}：基于历史数据的异常检测（PCA、自编码器、LSTM、Transformer）；
+\item
+  \textbf{数字孪生}：用机理模型 + 实时数据驱动虚拟反应堆，与实测对比；
+\item
+  \textbf{专家系统 / 知识图谱}：嵌入工程经验和故障树；
+\item
+  \textbf{物理-数据融合}：模型预测 + 数据校正（如 Kalman 滤波）。
+\end{itemize}
+
+\subsection{典型应用}\label{ux5178ux578bux5e94ux7528}
+
+\begin{itemize}
+\tightlist
+\item
+  主泵轴承磨损预测；
+\item
+  SG 管泄漏早期检测；
+\item
+  控制棒卡涩检测；
+\item
+  流量分布异常识别（堆芯热工水力监测）；
+\item
+  汽轮机叶片裂纹早期预警；
+\item
+  燃料破损检测（\textbf{一回路放射性活度跟踪}）。
+\end{itemize}
+
+\section{信号处理电子设备}\label{ux4fe1ux53f7ux5904ux7406ux7535ux5b50ux8bbeux5907}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{变送器}：智能化变送器（4--20 mA + HART / Foundation Fieldbus /
+  Profibus）；
+\item
+  \textbf{数据采集}：远程 I/O、现场总线；
+\item
+  \textbf{数字滤波}：卡尔曼、自适应；
+\item
+  \textbf{隔离器 / 安全栅}：防爆、防浪涌、信号隔离；
+\item
+  \textbf{抗电磁干扰}：屏蔽、双绞、滤波；
+\item
+  \textbf{环境适应性}：耐辐照、耐温（电缆、电子设备）。
+\end{itemize}
+
+\section{电缆}\label{ux7535ux7f06}
+
+核级电缆分为：
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{1E 级（安全级）}：用于 RPS、ESFAS、安全级仪表；
+\item
+  \textbf{非 1E 级}：用于普通测控；
+\item
+  \textbf{特殊电缆}：耐火、低烟无卤、抗辐射。
+\end{itemize}
+
+\textbf{材料}：
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{绝缘}：XLPE（交联聚乙烯）、EPR（乙丙橡胶）、硅橡胶；
+\item
+  \textbf{护套}：CSPE、低烟无卤；
+\item
+  \textbf{耐辐照}：无机矿物绝缘电缆（MI）用于高辐照区。
+\end{itemize}
+
+IPWR
+因一体化、模块化，电缆路径简化，但每个模块仍需独立的信号穿越压力容器边界（\textbf{贯穿件}是核级电缆的关键设计点）。
+
+\section{未来发展趋势和挑战}\label{ux672aux6765ux53d1ux5c55ux8d8bux52bfux548cux6311ux6218}
+
+\subsection{趋势}\label{ux8d8bux52bf}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{FPGA + 数字混合架构}：FPGA 处理保护逻辑，CPU
+  处理诊断和操作员交互；
+\item
+  \textbf{完全数字化 + 远程支持}：操纵员 + 远程专家协同，借助 5G/6G
+  卫星通信；
+\item
+  \textbf{网络安全}：合规 NRC RG 5.71、IEC 62645；
+\item
+  \textbf{AI 辅助决策}：故障诊断、操纵员辅助（注意 AI
+  不能进入安全级决策链）；
+\item
+  \textbf{数字孪生驱动运维}：与设计、运行、退役全寿期数据贯通；
+\item
+  \textbf{小型化、嵌入式传感}：MEMS 传感器、自供能中子探测器。
+\end{enumerate}
+
+\subsection{挑战}\label{ux6311ux6218-1}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{软件共因故障（SWCCF）}：相同数字平台在所有通道内可能因相同软件
+  bug 同时失效，需要多样性平台；
+\item
+  \textbf{认证}：数字 I\&C 平台需通过 IEC 62566、IEC 61513
+  等认证，周期长；
+\item
+  \textbf{网络安全}：核设施是高价值攻击目标，纵深防御要求高；
+\item
+  \textbf{人员资质}：操纵员、维修工程师、I\&C 工程师短缺；
+\item
+  \textbf{IPWR 多机组的控制室人因}：单操纵员监督 12
+  台堆，认知负荷与人因可靠性分析（HRA）是研究热点（见第 7 章）。
+\end{itemize}
+
+\section{结论}\label{ux7ed3ux8bba-3}
+
+IPWR 的 I\&C 系统在大型 PWR
+数字化基础上更进一步：从''控制反应堆''演变为''管理全寿期资产''。本章从系统
+I\&C、NSSS I\&C、BOP、故障诊断、电子设备、电缆六个方面作了概述。第 7
+章将转入人机界面（HSI）主题。
+
+\section{参考文献}\label{ux53c2ux8003ux6587ux732e-5}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  IEC 61513, \emph{Nuclear power plants --- Instrumentation and control
+  important to safety --- General requirements}.
+\item
+  IEC 62566, \emph{Development of HDL-programmed integrated circuits}.
+\item
+  IEC 62645, \emph{Cybersecurity requirements}.
+\item
+  NRC RG 1.152, \emph{Criteria for Use of Computers in Safety Systems}.
+\item
+  NRC RG 5.71, \emph{Cybersecurity Programs}.
+\item
+  Hashemian H. M. \emph{Measurement of Dynamic Temperatures and
+  Pressures in Nuclear Power Plants}. Univ. Tennessee, 2012.
+\item
+  IAEA-TECDOC-1597, \emph{Instrumentation and Control Systems Important
+  to Safety --- Development of HDL-Programmed ICs}.
+\item
+  Reyes J. ``NuScale Plant Protection System.'' NuScale Technical
+  Report, 2017.
+\item
+  Upadhyaya B. R. et al.~``Development and Application of Artificial
+  Neural Networks for Nuclear Plant Monitoring.'' \emph{Nucl. Tech.},
+  2003.
+\end{enumerate}
+
+\cleardoublepage
+
+\chapter{SMR 人机界面（HSI）}\label{smr-ux4ebaux673aux754cux9762hsi}
+
+\begin{epigraph}
+
+\textbf{核心命题}　SMR 的多机组共享控制室 + 高自动化 +
+无人值守运行愿景，使人机界面（HSI）从''提供信息''转向''管理认知负荷''。HSI
+设计的核心目标变为：在操纵员数量减少 5--10
+倍的情况下，仍能保持甚至超过大型核电站的人因可靠性。
+
+\end{epigraph}
+
+\section{引言}\label{ux5f15ux8a00-6}
+
+人机界面（Human-System Interface,
+HSI）是操纵员与电站之间的中介。传统大型核电站主控室通常有 4--8
+名操纵员，盯着数千个报警灯、模拟仪表、记录仪。三里岛事故（1979）后，HSI
+设计进入''以人为中心''的时代，强调：
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{清晰的信息层次}（系统 → 子系统 → 部件）；
+\item
+  \textbf{报警分级}（紧急、警告、提示）；
+\item
+  \textbf{任务支持}（程序化操作 SOP）；
+\item
+  \textbf{错误预防}（联锁、防误操作）。
+\end{itemize}
+
+SMR 在此基础上引入新挑战：
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{多机组监督}：1 名操纵员监督 4--12 个反应堆模块；
+\item
+  \textbf{远程 / 无人值守}：部分 SMR 设计追求''无人值守运行''；
+\item
+  \textbf{更高自动化}：从启堆到停堆的全过程高度自动化；
+\item
+  \textbf{更小操纵员队伍}：单堆人员从百人降至数十人。
+\end{itemize}
+
+这些挑战要求 HSI 进行范式转变。
+
+\section{新核电站对 HSI
+的要求}\label{ux65b0ux6838ux7535ux7ad9ux5bf9-hsi-ux7684ux8981ux6c42}
+
+按 NUREG-0711、NUREG-0700 等监管文件，新核电站 HSI 应满足：
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{任务分析驱动}：基于操作任务（如启堆、停堆、应对事故）反推信息需求；
+\item
+  \textbf{可用性}：信息可读、可达、可理解；
+\item
+  \textbf{情境感知}：操纵员随时了解电站状态；
+\item
+  \textbf{冗余与多样性}：硬接线、模拟、数字多种手段并存；
+\item
+  \textbf{错误容忍}：避免单一错误导致事故；
+\item
+  \textbf{网络安全}：抵御外部攻击；
+\item
+  \textbf{可维护性}：HMI 软件、报警阈值、画面布局易于修改；
+\item
+  \textbf{可培训}：模拟机配套，初始与持续培训。
+\end{enumerate}
+
+针对 SMR，新增要求：
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{多机组协同}：跨模块信息整合、冲突检测；
+\item
+  \textbf{远程支持}：与远程专家中心数据交互；
+\item
+  \textbf{自动化管理}：操纵员监督自动化决策（``自动化团队''）；
+\item
+  \textbf{超长免操纵时间}：事故后 7 天、30
+  天内无须操纵员干预（部分设计目标）。
+\end{itemize}
+
+\section{当前核电站的 HSI
+现状}\label{ux5f53ux524dux6838ux7535ux7ad9ux7684-hsi-ux73b0ux72b6}
+
+现代大型核电站（如 AP1000、EPR、华龙一号）的 HSI 已全面数字化：
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{大屏幕概览显示}：电站总状态一览；
+\item
+  \textbf{工作站 + 触屏}：操纵员主要操作界面；
+\item
+  \textbf{报警管理系统}：智能报警过滤（如''报警雪崩''抑制）；
+\item
+  \textbf{计算机化规程（CPS）}：电子化 SOP，与状态参数联动；
+\item
+  \textbf{安全级硬接线盘}：用于事故后停堆、安全注入；
+\item
+  \textbf{模拟机培训}：每年 200+ 小时强制模拟机培训。
+\end{itemize}
+
+但仍存在不足：
+
+\begin{itemize}
+\tightlist
+\item
+  报警数量过多（数千到数万条），关键报警易被淹没；
+\item
+  信息分散在不同系统，操纵员需要''拼图''；
+\item
+  自动化水平有限，启停过程操纵员任务繁重。
+\end{itemize}
+
+\section{HSI
+目标和人因挑战}\label{hsi-ux76eeux6807ux548cux4ebaux56e0ux6311ux6218}
+
+\subsection{目标}\label{ux76eeux6807}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{降低操纵员认知负荷}；
+\item
+  \textbf{保持高水平情境感知}；
+\item
+  \textbf{减少人因错误概率（HEP）}；
+\item
+  \textbf{支持跨班次知识传递}；
+\item
+  \textbf{支持远程与无人值守场景}。
+\end{enumerate}
+
+\subsection{挑战}\label{ux6311ux6218-2}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{监督自动化陷阱}：操纵员过度信任自动化，丧失技能（``out-of-the-loop''）；
+\item
+  \textbf{多机组认知过载}：1 个操纵员监督 12 个反应堆，注意力分配困难；
+\item
+  \textbf{新型故障模式}：软件
+  bug、网络攻击、传感器漂移带来的''假报警''；
+\item
+  \textbf{培训成本}：每种机型需独立模拟机；
+\item
+  \textbf{认证}：人因可靠性分析（HRA）方法（如 SPAR-H、ATHENA）需要适应
+  SMR 场景。
+\end{itemize}
+
+\section{HSI 核工业应用}\label{hsi-ux6838ux5de5ux4e1aux5e94ux7528}
+
+近年来，核工业 HSI 应用越来越广泛：
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{AP1000 / 华龙一号}：全面数字化主控室；
+\item
+  \textbf{NuScale}：12 模块共享主控室，1--2 名操纵员；
+\item
+  \textbf{GE Hitachi BWRX-300}：极简主控室；
+\item
+  \textbf{海上浮动核电站}：远程监控 + 短期值守；
+\item
+  \textbf{空间核电源 / 深海核电源}：极端无人值守场景。
+\end{itemize}
+
+这些应用推动了 HSI 从''显示和控制''向''决策支持''演进。
+
+\section{HSI 选择}\label{hsi-ux9009ux62e9}
+
+HSI
+选择涉及\textbf{信息显示}、\textbf{控制输入}、\textbf{反馈机制}、\textbf{辅助工具}等多方面，需在以下维度权衡：
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}lll@{}}
+\toprule\noalign{}
+维度 & 选项 & 权衡 \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+显示技术 & 大屏 / 工作站 / 移动设备 / AR/VR & 信息密度 vs.~注意力 \\
+输入方式 & 触屏 / 鼠标键盘 / 语音 / 手势 & 速度 vs.~防误操作 \\
+报警 & 听觉 / 视觉 / 触觉 & 注意力分配 \\
+规程 & 纸质 / 计算机 / AR & 灵活性 vs.~可靠性 \\
+自动化程度 & 手动 / 半自动 / 全自动 & 人因 vs.~系统鲁棒性 \\
+\end{longtable}
+}
+
+\section{HSI 操作域}\label{hsi-ux64cdux4f5cux57df}
+
+按 IEC 60987、NUREG-0711，HSI 涉及：
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{主控室（MCR）}：正常运行与事故响应核心；
+\item
+  \textbf{辅助控制点（Remote Shutdown Room）}：MCR 不可用时启用；
+\item
+  \textbf{技术支持中心（TSC）}：事故后专家支持；
+\item
+  \textbf{应急运行设施（EOF）}：场外协调；
+\item
+  \textbf{远程监控中心}：跨电站专家协同。
+\end{itemize}
+
+SMR 引入\textbf{远程监控中心}概念，多家 SMR 电站共享一个专家中心，操纵员
++ 专家协同处理异常。
+
+\section{HSI
+技术分类（一）：显示与可视化}\label{hsi-ux6280ux672fux5206ux7c7bux4e00ux663eux793aux4e0eux53efux89c6ux5316}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{概览显示}：电站总状态、关键参数、安全状态彩色编码；
+\item
+  \textbf{系统画面}：P\&ID 风格，设备状态、流量、温度；
+\item
+  \textbf{趋势曲线}：历史与实时数据，含预测；
+\item
+  \textbf{报警清单}：按优先级、时间、系统分类；
+\item
+  \textbf{3D 可视化}：堆芯功率分布、辐射场、设备位置；
+\item
+  \textbf{AR/VR}：维修指导、培训、远程协助。
+\end{itemize}
+
+\section{HSI
+技术分类（二）：决策支持与自动化}\label{hsi-ux6280ux672fux5206ux7c7bux4e8cux51b3ux7b56ux652fux6301ux4e0eux81eaux52a8ux5316}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{计算机化运行规程（CPS）}：电子 SOP，逻辑分支自动判断；
+\item
+  \textbf{智能报警}：基于状态机与机器学习的报警抑制；
+\item
+  \textbf{故障诊断助手}：基于知识图谱、案例推理；
+\item
+  \textbf{预测性维护}：基于传感器数据 + ML；
+\item
+  \textbf{决策支持系统}：可选方案 + 风险评估；
+\item
+  \textbf{自动化代理人（Agent）}：在限定范围内自主执行任务。
+\end{itemize}
+
+\begin{epigraph}
+
+\textbf{重要原则}：自动化决策不得进入安全级（Class 1E）功能链。AI
+仅作为决策支持，最终决策由操纵员或硬接线保护系统做出。
+
+\end{epigraph}
+
+\section{HSI
+设计和实施策略}\label{hsi-ux8bbeux8ba1ux548cux5b9eux65bdux7b56ux7565}
+
+参考 NUREG-0711 \emph{Human Factors Engineering Program Review
+Model}，HSI 设计应遵循：
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{规划}：定义 HFE 范围、角色、计划；
+\item
+  \textbf{运行经验审查}：吸取现有电站经验反馈；
+\item
+  \textbf{功能需求分析}：基于运行情景定义功能；
+\item
+  \textbf{任务分析}：分解每个任务到步骤、信息、控制需求；
+\item
+  \textbf{人员配置与资质}：确定操纵员数量、技能；
+\item
+  \textbf{人因可靠性分析（HRA）}：估算 HEP，反馈设计；
+\item
+  \textbf{HSI 设计}：基于上述输入；
+\item
+  \textbf{验证与确认（V\&V）}：通过模拟机、可用性测试；
+\item
+  \textbf{实施与培训}：开发模拟机培训课程；
+\item
+  \textbf{运行反馈}：投运后持续改进。
+\end{enumerate}
+
+\section{HSI
+未来发展趋势}\label{hsi-ux672aux6765ux53d1ux5c55ux8d8bux52bf}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{AI + 人协同（Human-AI Teaming）}：AI 提供建议，人决策；
+\item
+  \textbf{自适应 HSI}：根据操纵员状态（疲劳、压力）调整信息密度；
+\item
+  \textbf{数字孪生}：实时同步物理与虚拟，支持演练''what-if''；
+\item
+  \textbf{AR / VR / MR}：远程协助、维修指导、培训；
+\item
+  \textbf{无人值守 + 远程监控}：海上、空间、极地应用场景；
+\item
+  \textbf{多机组协同决策}：跨模块资源调度；
+\item
+  \textbf{网络安全原生设计}：HSI 与网络安全融合（Zero Trust）；
+\item
+  \textbf{跨电站标准化}：行业标准 API、数据格式，降低重复开发。
+\end{enumerate}
+
+\section{结论}\label{ux7ed3ux8bba-4}
+
+SMR 的 HSI 是核工业''数字化转型''的关键战场。从''多人员 +
+模拟仪表''到''少人员 + 数字 + AI 辅助''，HSI
+的本质是\textbf{管理认知负荷 + 增强情境感知 + 保证安全决策}。第 8
+章转入安全性，第 9 章转入防扩散，与 HSI 共同构成 SMR
+的安全与保障（3S：Safety, Security, Safeguards）。
+
+\section{参考文献}\label{ux53c2ux8003ux6587ux732e-6}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  NUREG-0711, \emph{Human Factors Engineering Program Review Model}.
+\item
+  NUREG-0700, \emph{Human-System Interface Design Review Guidelines}.
+\item
+  NUREG/CR-7104, \emph{Human Reliability Analysis for SMRs}.
+\item
+  IEC 60987, \emph{Human-Machine Interface for I\&C Systems}.
+\item
+  Endsley M. R. \emph{Designing for Situation Awareness}. CRC Press,
+  2012.
+\item
+  Hugo J. ``Human Factors for SMRs.'' \emph{Proc. ISOFIC/ENIK}, 2019.
+\item
+  Boring R. L. et al.~``Human Reliability Analysis for Multi-Module SMR
+  Operation.'' \emph{PSAM 12}, 2014.
+\item
+  松下秀树 et al.~``Knowledge Base for Human Performance Improvement.''
+  JAEA-Research 2014.
+\end{enumerate}
+
+\cleardoublepage
+
+\chapter{IPWR 安全性}\label{ipwr-ux5b89ux5168ux6027}
+
+\begin{epigraph}
+
+\textbf{核心命题}　IPWR 通过\textbf{设计安全（Design
+Safety）}理念把安全特性''嵌入''硬件本身：消除大破口、自然循环冷却、低功率密度、负反应性反馈，再叠加\textbf{纵深防御}与\textbf{概率安全分析（PSA/PRA）}，使堆芯损坏频率（CDF）和早期大量释放频率（LERF）显著低于大型压水堆。
+
+\end{epigraph}
+
+\section{引言}\label{ux5f15ux8a00-7}
+
+核安全的演进经历了四个阶段：
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{能动安全}（1950s--1970s）：依靠泵、阀门、应急电源等能动部件；
+\item
+  \textbf{非能动安全}（1980s--）：依靠重力、自然循环、压缩气体等非能动原理；
+\item
+  \textbf{固有安全}（1990s--）：通过物理规律本身消除事故可能（如 IPWR
+  消除 LBLOCA）；
+\item
+  \textbf{设计安全}（2000s--）：将上述三者与纵深防御（DiD）系统化融合。
+\end{enumerate}
+
+IPWR 是这一演进的典型产物。本章按''安全理念 → 试验验证 → 概率安全分析 →
+安保措施 → 趋势''五个方面展开。
+
+\section{安全实现方法：能动、非能动、固有和设计安全}\label{ux5b89ux5168ux5b9eux73b0ux65b9ux6cd5ux80fdux52a8ux975eux80fdux52a8ux56faux6709ux548cux8bbeux8ba1ux5b89ux5168}
+
+\subsection{能动安全（Active
+Safety）}\label{ux80fdux52a8ux5b89ux5168active-safety}
+
+依靠外部能源（电、压缩空气）驱动的安全系统：
+
+\begin{itemize}
+\tightlist
+\item
+  应急堆芯冷却系统（ECCS）；
+\item
+  安全壳喷淋系统；
+\item
+  应急柴油发电机；
+\item
+  辅助给水系统。
+\end{itemize}
+
+优点：响应快、可干预；缺点：依赖电源、泵、阀，存在共因失效风险。
+
+\subsection{非能动安全（Passive
+Safety）}\label{ux975eux80fdux52a8ux5b89ux5168passive-safety}
+
+依靠自然力（重力、自然循环、压缩气体、蒸发、对流）：
+
+\begin{itemize}
+\tightlist
+\item
+  重力应急冷却（GDCS、IRWST）；
+\item
+  自然循环冷却（PRHR HX）；
+\item
+  非能动安全壳冷却（PCS）；
+\item
+  蓄压箱（CMT、Accumulator）。
+\end{itemize}
+
+AP1000 是大规模应用非能动安全的代表。IPWR 把这一思路进一步发挥：
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{全功率自然循环}（NuScale、BWRX-300）；
+\item
+  \textbf{被动余热导出}：72 小时甚至 30 天内无须操纵员干预或交流电源；
+\item
+  \textbf{被动安全壳冷却}：钢制安全壳 + 顶部水池。
+\end{itemize}
+
+\subsection{固有安全（Inherent
+Safety）}\label{ux56faux6709ux5b89ux5168inherent-safety}
+
+通过物理规律本身消除事故可能性，而不是依靠附加系统应对：
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{消除 LBLOCA}（IPWR 无大管道）；
+\item
+  \textbf{TRISO 燃料耐 1600 ℃}（HTR-PM、Xe-100）；
+\item
+  \textbf{负反应性温度反馈}保证反应堆不会功率发散；
+\item
+  \textbf{铅冷堆大气压运行}避免压力容器破裂大泄漏。
+\end{itemize}
+
+\subsection{设计安全（Design Safety /
+Safety-by-Design）}\label{ux8bbeux8ba1ux5b89ux5168design-safety-safety-by-design}
+
+把上述理念与纵深防御（Defense-in-Depth, DiD）系统化集成：
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}lll@{}}
+\toprule\noalign{}
+DiD 层级 & 目标 & IPWR 措施 \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+L1 & 防止异常 & 高质量设计与制造、严格运行规程 \\
+L2 & 控制异常 & 控制系统、自动降功率、限制保护 \\
+L3 & 控制事故 & RPS、ESFAS、非能动 ECCS \\
+L4 & 严重事故管理 & SAMG、安全壳过滤排放 \\
+L5 & 应急响应 & EPZ、应急计划、外部支援 \\
+\end{longtable}
+}
+
+IPWR 的特殊之处在于 L1（设计）已经''内建''了大量 L3/L4 能力（消除
+LBLOCA、低功率密度等），从而显著降低 CDF 和 LERF。
+
+\section{SMR
+系统和部件试验}\label{smr-ux7cfbux7edfux548cux90e8ux4ef6ux8bd5ux9a8c}
+
+新设计的 SMR 必须经过严格的试验验证（V\&V）：
+
+\subsection{试验层次}\label{ux8bd5ux9a8cux5c42ux6b21}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{基础试验}：材料、燃料、热工水力基础数据；
+\item
+  \textbf{部件试验}：泵、阀、SG、CRDM 单件试验；
+\item
+  \textbf{系统试验}：在缩比整体试验装置（ISTF）上模拟整个 RCS；
+\item
+  \textbf{堆内辐照试验}：燃料在研究堆中辐照，验证达到目标燃耗；
+\item
+  \textbf{示范堆}：首堆本身就是最大试验。
+\end{enumerate}
+
+\subsection{典型整体试验装置}\label{ux5178ux578bux6574ux4f53ux8bd5ux9a8cux88c5ux7f6e}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+装置
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+国别
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+用于
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+比例
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\textbf{OSU-MASLWR} & 美国 Oregon State Univ. & NuScale 自然循环 & 1:3
+长度、1:254 体积 \\
+\textbf{PUMA / APEX} & 美国俄勒冈州立大学 & AP1000 / SMR & 缩比 \\
+\textbf{FOTES / VISTA} & 韩国 KAERI & SMART & 1:1 部件、缩比整体 \\
+\textbf{PPTF} & 中核武汉所 & ACP100 & 1:1 部件 \\
+\textbf{SPES-2} & 意大利 & AP600 & 整体 \\
+\end{longtable}
+}
+
+这些装置用于： - 验证设计瞬态、事故工况下的热工水力行为； -
+为系统分析程序（RELAP5、TRACE、CATHARE）提供验证数据； -
+培训操纵员、运行人员。
+
+\subsection{V\&V 与监管对话}\label{vv-ux4e0eux76d1ux7ba1ux5bf9ux8bdd}
+
+监管机构（NRC、CNSC、CNSA、SSC、Rostekhnadzor）要求：
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{设计基准事故（DBA）分析}：证明接受准则满足；
+\item
+  \textbf{超设计基准事故（BDBA）分析}：证明纵深防御充足；
+\item
+  \textbf{严重事故分析}：证明安全壳完整性、源项可控；
+\item
+  \textbf{概率安全分析（PSA）}：第 1 级 + 第 2 级（部分第 3 级）。
+\end{itemize}
+
+\section{PSA/PRA}\label{psapra}
+
+\subsection{PSA 分级}\label{psa-ux5206ux7ea7}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{第 1 级 PSA}：评估堆芯损坏频率（CDF）；
+\item
+  \textbf{第 2 级 PSA}：评估安全壳失效、放射性释放（LERF、源项）；
+\item
+  \textbf{第 3 级 PSA}：评估厂外剂量、健康风险、社会经济影响；
+\item
+  \textbf{LPSD PSA}：低功率与停堆模式；
+\item
+  \textbf{内部 / 外部事件}：内部事件（瞬态、LOCA、ATWS）+
+  外部事件（地震、洪水、火灾、飞机撞击）。
+\end{itemize}
+
+\subsection{IPWR 的 PSA 结果}\label{ipwr-ux7684-psa-ux7ed3ux679c}
+
+IPWR 因消除 LBLOCA、自然循环冷却、低功率密度等特征，CDF 通常显著低于大型
+PWR：
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}lll@{}}
+\toprule\noalign{}
+机型 & CDF（堆-年） & LERF（堆-年） \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+大型 PWR（参考） & 1×10⁻⁵ \textasciitilde{} 1×10⁻⁴ & 1×10⁻⁶ \\
+NuScale（设计目标） & \textless{} 1×10⁻⁸ & \textless{} 1×10⁻⁹ \\
+BWRX-300 & \textless{} 1×10⁻⁷ & \textless{} 1×10⁻⁸ \\
+ACP100 & \textless{} 1×10⁻⁶ & \textless{} 1×10⁻⁷ \\
+\end{longtable}
+}
+
+注：实际值以厂商提交监管文件为准。
+
+\subsection{PSA 方法}\label{psa-ux65b9ux6cd5}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{事件树（ETA）/ 故障树（FTA）}：传统方法；
+\item
+  \textbf{IDP（Integrated
+  Deterministic-Probabilistic，确定-概率融合）}：将确定性事故分析与概率安全分析结合；
+\item
+  \textbf{数字化 PSA 平台}：CAFTA、RiskSpectrum、SAPHIRE；
+\item
+  \textbf{人因可靠性分析（HRA）}：SPAR-H、ATHENA、THERP。
+\end{itemize}
+
+\subsection{PSA 的作用}\label{psa-ux7684ux4f5cux7528}
+
+\begin{itemize}
+\tightlist
+\item
+  设计阶段：识别''薄弱环节''，引导改进；
+\item
+  许可证阶段：监管要求的提交文件；
+\item
+  运行阶段：风险指引型维修（Risk-Informed Maintenance）；
+\item
+  事故管理：SAMG 制定依据。
+\end{itemize}
+
+\section{安保措施}\label{ux5b89ux4fddux63aaux65bd}
+
+核安全（Safety）与核安保（Security）是两个独立但相关的领域：
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Safety}：防止事故，关注设备故障、人因、外部自然事件；
+\item
+  \textbf{Security}：防止恶意行为，关注恐怖袭击、内部威胁、网络攻击；
+\item
+  \textbf{Safeguards}：防止核材料扩散，关注材料衡算、保障监督（见第 9
+  章）。
+\end{itemize}
+
+合称 \textbf{3S（Safety, Security, Safeguards）}。
+
+\subsection{安保威胁}\label{ux5b89ux4fddux5a01ux80c1}
+
+\begin{itemize}
+\tightlist
+\item
+  飞机撞击（``9·11''之后）；
+\item
+  车载炸弹；
+\item
+  武装袭击（设计基准威胁 DBT）；
+\item
+  内部威胁（恶意、误操作）；
+\item
+  网络攻击（Stuxnet 之后成为重点）；
+\item
+  无人机（小型化、低成本、易获取）。
+\end{itemize}
+
+\subsection{安保设计}\label{ux5b89ux4fddux8bbeux8ba1}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{物理保护（PP）}：分区（控制区、保护区、要害区）、防爆、防入侵；
+\item
+  \textbf{要害屏障（Vital Barrier）}：反应堆厂房、控制室；
+\item
+  \textbf{入侵检测系统（IDS）}：红外、视频、震动；
+\item
+  \textbf{武装响应}：厂内 + 厂外；
+\item
+  \textbf{网络安全}：分区隔离、入侵检测（IDS/IPS）、零信任架构；
+\item
+  \textbf{内部威胁程序（Insider Threat Program）}：人员背景、行为监测；
+\item
+  \textbf{DBT 设计}：按国别监管要求，确定设计基准威胁。
+\end{itemize}
+
+\subsection{IPWR 的安保优势}\label{ipwr-ux7684ux5b89ux4fddux4f18ux52bf}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{地下埋设}：许多 SMR 反应堆厂房在地下，防飞机撞击、车载炸弹；
+\item
+  \textbf{模块化运输与现场组装周期短}：减少建造期暴露；
+\item
+  \textbf{乏燃料整体返回}：现场不留高放废物；
+\item
+  \textbf{多机厂址纵深}：单模块受袭不影响其他模块。
+\end{itemize}
+
+\section{未来发展趋势}\label{ux672aux6765ux53d1ux5c55ux8d8bux52bf}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{风险指引型监管（Risk-Informed Performance-Based
+  Regulation）}：从规定式（prescriptive）走向基于性能；
+\item
+  \textbf{应急计划区（EPZ）缩小}：基于源项减少和 CDF 降低，部分 SMR 目标
+  EPZ = 厂址边界（如 NuScale）；
+\item
+  \textbf{共因故障对抗}：通过多样性平台、软件多样性，降低 SWCCF；
+\item
+  \textbf{数字孪生 + PSA}：实时风险监测（Risk Monitor）；
+\item
+  \textbf{无人值守 + 远程监控}：安保与安全融合；
+\item
+  \textbf{国际监管协调}：MDEP、CNRA、CSNI 等多边合作平台推动 SMR
+  监管趋同；
+\item
+  \textbf{严重事故机理研究}：IPWR
+  燃料温度低、衰变热小，严重事故机理与大型 PWR 有差异，需独立研究。
+\end{enumerate}
+
+\section{参考文献}\label{ux53c2ux8003ux6587ux732e-7}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  IAEA SSR-2/1, \emph{Safety of Nuclear Power Plants: Design}.
+\item
+  NRC 10 CFR 50, \emph{Domestic Licensing of Production and Utilization
+  Facilities}.
+\item
+  NRC NUREG-0800, \emph{Standard Review Plan}.
+\item
+  IAEA-TECDOC-1624, \emph{Design Safety Review}.
+\item
+  Schulz T. ``Westinghouse AP1000 \ldots{} passive safety.'' \emph{Nucl.
+  Eng. Design}, 2006.
+\item
+  Reyes J. ``NuScale Safety Case.'' \emph{NuScale Power}, 2019.
+\item
+  Bixler N. et al.~``MACCS Code.'' Sandia National Laboratories, 2014.
+\item
+  IAEA-SSG-39, \emph{Design Provisions for Hydrogen Mitigation}.
+\item
+  NEA/CSNI. \emph{Safety Assessment of SMRs}. NEA/CSNI/R(2021)x.
+\end{enumerate}
+
+\cleardoublepage
+
+\chapter{SMR
+防扩散和实物保护}\label{smr-ux9632ux6269ux6563ux548cux5b9eux7269ux4fddux62a4}
+
+\begin{epigraph}
+
+\textbf{核心命题}　PR\&PP（Proliferation Resistance and Physical
+Protection）评估是衡量反应堆''3S''安全中安保与保障监督维度的重要方法。SMR
+在''少人值守 + 长换料周期 + 整体回收''等特征下，对 PR\&PP
+提出新的评估框架。
+
+\end{epigraph}
+
+\section{引言}\label{ux5f15ux8a00-8}
+
+核能的扩散风险（proliferation）和实物保护（physical
+protection）一直是国际核能治理的核心议题。IAEA 提出 \textbf{PR\&PP
+评估方法学}作为对反应堆设计进行系统评估的工具。SMR
+因其紧凑性、可能的''少人值守''、模块化运输、长换料周期、海上部署等特点，PR\&PP
+评估与传统大型核电站有显著差异：
+
+\begin{itemize}
+\tightlist
+\item
+  一次装入堆芯的核材料量少，但\textbf{比功率高、富集度高（部分先进 SMR
+  用 HALEU 或 HALEU+）}；
+\item
+  多模块厂址 + 整体运输增加运输路径上的安保风险；
+\item
+  海上 / 海外部署涉及\textbf{国际保障监督（safeguards）}的复杂性；
+\item
+  长换料周期（\textgreater{} 5 年）意味着核查频率低，核查技术需革新。
+\end{itemize}
+
+\section{分析方法}\label{ux5206ux6790ux65b9ux6cd5}
+
+PR\&PP 评估方法学由 IAEA 和 GEN-IV
+国际论坛（GIF）联合开发，是结构化、可追溯的评估框架。
+
+\subsection{PR（防扩散）评估要素}\label{prux9632ux6269ux6563ux8bc4ux4f30ux8981ux7d20}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{核材料特征}：核材料吸引力级别（MAGAT、LEU、HEU、Pu 等）；
+\item
+  \textbf{固有 PR 特征}：反应堆设计本身减少吸引力、提高获取难度；
+\item
+  \textbf{外在 PR 措施}：保障监督、物质保护、出口管制；
+\item
+  \textbf{威胁场景}：国家型扩散威胁（State
+  Level）、非国家型威胁（NSN）。
+\end{itemize}
+
+\subsection{PP（实物保护）评估要素}\label{ppux5b9eux7269ux4fddux62a4ux8bc4ux4f30ux8981ux7d20}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{设计基准威胁（DBT）}：武装袭击、爆炸、网络、内部威胁；
+\item
+  \textbf{目标识别}：核材料、关键设备、辐射源；
+\item
+  \textbf{物理保护系统}：探测、延迟、响应；
+\item
+  \textbf{后果评估}：辐射释放、社会影响。
+\end{itemize}
+
+\subsection{评估方法}\label{ux8bc4ux4f30ux65b9ux6cd5}
+
+\begin{verbatim}[识别威胁] → [识别目标] → [设计攻击路径] 
+       → [计算路径指标（时间、检测概率、所需专业知识）] 
+       → [评估后果] → [设计改进]\end{verbatim}
+
+通常用以下指标：
+
+\begin{itemize}
+\tightlist
+\item
+  ** proliferation time**：完成核材料分离所需时间；
+\item
+  \textbf{detection probability}：被发现的概率；
+\item
+  \textbf{material quantity}：可获取的核材料量。
+\end{itemize}
+
+\section{系统响应和结果}\label{ux7cfbux7edfux54cdux5e94ux548cux7ed3ux679c}
+
+\subsection{典型 SMR 的 PR
+评估结果}\label{ux5178ux578b-smr-ux7684-pr-ux8bc4ux4f30ux7ed3ux679c}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{轻水 SMR（NuScale、ACP100）}：核材料与传统 PWR
+  相同（LEU），固有 PR 与大型 PWR 相当；长换料周期和整体运输增强 PR。
+\item
+  \textbf{气冷 SMR（HTR-PM、Xe-100）}：TRISO
+  燃料难以后处理（颗粒坚硬、需破碎），PR
+  较高；但燃耗深，钚同位素组成（²⁴⁰Pu 比例）影响 Pu 吸引力。
+\item
+  \textbf{液态金属快堆}：闭式燃料循环涉及 Pu 分离，PR
+  较低；需配套先进后处理（如 PUREX 替代方案、UREX+、GANEX）。
+\item
+  \textbf{熔盐堆}：在线化学处理增加扩散风险；需设计防止分离。
+\end{itemize}
+
+\subsection{典型 SMR 的 PP
+评估结果}\label{ux5178ux578b-smr-ux7684-pp-ux8bc4ux4f30ux7ed3ux679c}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{陆基地下 SMR}：物理保护优于地上电站；
+\item
+  \textbf{海上 SMR}：海上环境复杂，海盗、撞击、潜艇干扰都是新威胁；
+\item
+  \textbf{可移动 SMR}：运输路径上的安保风险最高，需全程护卫；
+\item
+  \textbf{远程 / 无人值守 SMR}：内部威胁降低，但网络攻击风险上升。
+\end{itemize}
+
+\subsection{SMR 的 PR\&PP
+优势与劣势}\label{smr-ux7684-prpp-ux4f18ux52bfux4e0eux52a3ux52bf}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.5000}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.5000}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+优势
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+劣势
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+单堆核材料量少 & 多机组叠加后总量可观 \\
+整体回收、现场不留乏燃料 & 运输路径暴露 \\
+长换料周期减少核查中断 & 长周期核查技术不成熟 \\
+部分先进燃料（TRISO、金属合金）难后处理 & 闭式燃料循环（液态金属堆）涉及
+Pu 分离 \\
+地下、模块化设计 PP 好 & 海上、移动式 PP 难 \\
+\end{longtable}
+}
+
+\section{第四代核能系统国际论坛（GIF）评估步骤}\label{ux7b2cux56dbux4ee3ux6838ux80fdux7cfbux7edfux56fdux9645ux8bbaux575bgifux8bc4ux4f30ux6b65ux9aa4}
+
+GIF（Generation IV International Forum）把 PR\&PP
+作为评价六种第四代反应堆（GFR、LFR、MSR、SFR、SCWR、VHTR）的关键指标之一。评估步骤如下：
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{威胁定义}：基于 GIF PR\&PP 方法论（白皮书）；
+\item
+  \textbf{目标识别}：识别所有可被攻击 / 利用为扩散的核材料、设备、信息；
+\item
+  \textbf{路径识别}：列出潜在攻击 / 扩散路径；
+\item
+  \textbf{指标计算}：对每条路径计算时间、检测、专业度、成本；
+\item
+  \textbf{方案对比}：不同设计或运行模式对比；
+\item
+  \textbf{设计改进}：反馈到设计；
+\item
+  \textbf{迭代}：与设计周期同步迭代。
+\end{enumerate}
+
+\section{PR\&PP 经验总结}\label{prpp-ux7ecfux9a8cux603bux7ed3}
+
+从过去 20 年评估实践，可总结：
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{没有''绝对不扩散''的设计}，但通过设计 +
+  外在措施可显著降低风险；
+\item
+  \textbf{固有 PR 比外在 PR 更稳健}（不易被绕过）；
+\item
+  \textbf{整堆更换 + 整体运输}是 SMR 提升 PR/PP
+  的关键技术路径，但要解决运输安保；
+\item
+  \textbf{国际保障监督技术}需要为 SMR
+  专门研发（远程核查、连续监测、加密通信）；
+\item
+  \textbf{核材料衡算（Material Accountancy）}对长换料周期堆（5--20
+  年）有挑战，需''基于过程''而非''基于库存''的新方法；
+\item
+  \textbf{跨学科团队}（核工程、保障监督、安保、政策）的协作是 PR\&PP
+  评估成功的关键。
+\end{enumerate}
+
+\section{未来趋势}\label{ux672aux6765ux8d8bux52bf}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{数字保障监督}：基于 IoT、区块链、AI 的连续核查；
+\item
+  \textbf{小批量核查技术}：中子多重性、γ 谱、热量计 + 改进算法；
+\item
+  \textbf{可机读核材料标签}：基于物理不可克隆函数（PUF）；
+\item
+  \textbf{海上 SMR 国际公约}：类似
+  MARPOL，规范海上核安全、保障监督、安保；
+\item
+  \textbf{核燃料银行}：IAEA 推动低浓铀燃料银行（LEU Bank）为 SMR
+  提供燃料供应安全；
+\item
+  \textbf{新型燃料形式}：TRISO、金属合金、氮化物、硅化物燃料继续提升
+  PR；
+\item
+  \textbf{AI 用于安保}：异常检测、视频分析、行为识别。
+\end{enumerate}
+
+\section{信息来源和建议}\label{ux4fe1ux606fux6765ux6e90ux548cux5efaux8bae}
+
+\begin{itemize}
+\tightlist
+\item
+  IAEA \emph{International Nuclear Safeguards}（Safeguards
+  Implementation Report）年度报告；
+\item
+  GIF PR\&PP 工作组白皮书（Revised Approach to Proliferation Resistance
+  and Physical Protection Assessment*，2018）；
+\item
+  OECD/NEA 报告 \emph{Proliferation Resistance and Physical
+  Protection}；
+\item
+  国际核保障监督暑期学校（INSSS）、IAEA Safeguards Traineeship；
+\item
+  各国监管机构公开的 PR\&PP 评估报告。
+\end{itemize}
+
+\section{参考文献}\label{ux53c2ux8003ux6587ux732e-8}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  GIF. \emph{Evaluation Methodology for Proliferation Resistance and
+  Physical Protection of Generation IV Nuclear Energy Systems}, Rev.~6,
+  2018.
+\item
+  IAEA. \emph{International Target Values 2010 for Measurement
+  Uncertainties in Safeguarding Nuclear Materials}.
+\item
+  Charlton W. S. et al.~``Proliferation Resistance Assessment
+  Methodology.'' \emph{Nucl. Tech.}, 2007.
+\item
+  Bari R. et al.~``PR\&PP Evaluations of Sodium-Cooled Fast Reactors.''
+  \emph{Nucl. Tech.}, 2009.
+\item
+  Whitlock J. J. et al.~``SMR Proliferation Resistance.'' \emph{Trans.
+  ANS}, 2013.
+\item
+  IAEA. \emph{Safeguards Implementation Report} (SIR), 年度。
+\item
+  NNSA. \emph{Proliferation Resistance Assessment}. NNSA Office of
+  Nonproliferation and Arms Control.
+\item
+  Zentner M. D. et al.~``Proliferation Resistance Methodology.'' PNNL,
+  2009.
+\end{enumerate}
+
+\cleardoublepage
+
+\chapter{SMR
+经济性和融资方面}\label{smr-ux7ecfux6d4eux6027ux548cux878dux8d44ux65b9ux9762}
+
+\begin{epigraph}
+
+\textbf{核心命题}　SMR 的经济性命题是''以工厂系列化制造 + 多机组叠加 +
+缩短建造周期''对抗规模经济。本章从投资和风险、资本成本、多机组竞争力、对其他发电技术的竞争力等维度展开。
+
+\end{epigraph}
+
+\section{引言}\label{ux5f15ux8a00-9}
+
+核电站经济性传统上靠''规模经济（Economies of
+Scale）``驱动：单机功率越大，单位 kWe 资本成本越低。然而 21
+世纪后，大型核电站（如 EPR、AP1000、华龙一号）超支和拖期严重：
+
+\begin{itemize}
+\tightlist
+\item
+  法国 Flamanville 3（EPR）：预算 33 亿欧元 → 实际 190 亿+；工期 5 年 →
+  17+；
+\item
+  美国 Vogtle 3/4（AP1000）：预算 140 亿美元 → 340+ 亿美元；
+\item
+  中国三门 1/2（AP1000）：工期 8 年（计划 4 年）。
+\end{itemize}
+
+在这种背景下，\textbf{模块化制造 + 多机组叠加 +
+缩短建造周期}成为对抗''规模不经济''的替代方案。SMR
+经济性分析的核心问题就是：这条替代路线是否可行？
+
+\section{投资和风险因素}\label{ux6295ux8d44ux548cux98ceux9669ux56e0ux7d20}
+
+\subsection{资本成本构成}\label{ux8d44ux672cux6210ux672cux6784ux6210-1}
+
+核电站资本成本（Overnight Capital Cost, OCC）分项（参考美国
+EIA、OECD/NEA）：
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}ll@{}}
+\toprule\noalign{}
+分项 & 占比 \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+直接成本（土建、设备、安装） & 50--60\% \\
+间接成本（设计、采购管理、施工管理） & 20--25\% \\
+业主成本（土地、首炉燃料、调试） & 10--15\% \\
+不可预见费 + 融资（IDC） & 10--20\% \\
+\end{longtable}
+}
+
+LCOE（平准化电力成本）：
+
+\begin{verbatim}LCOE = (CRF × OCC + 年固定 O&M + 年燃料 + 年退役基金) / 年发电量
+CRF = i(1+i)^n / [(1+i)^n − 1]\end{verbatim}
+
+其中 i 为贴现率（核电站常用 5--10\%），n 为寿命（60 年）。
+
+\subsection{风险因素}\label{ux98ceux9669ux56e0ux7d20}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{超支风险}：FOAK 经常超支 50\%--200\%；
+\item
+  \textbf{拖期风险}：建造期延长 1 年 → IDC 增加 5--10\%；
+\item
+  \textbf{融资风险}：长周期 + 大额投资，融资成本敏感；
+\item
+  \textbf{监管风险}：新设计审批不确定；
+\item
+  \textbf{市场风险}：电力市场电价、可再生能源竞争；
+\item
+  \textbf{政治风险}：政策变化、公众反对；
+\item
+  \textbf{供应链风险}：大型锻件、核级泵阀集中度高。
+\end{itemize}
+
+SMR 通过以下方式降低风险：
+
+\begin{itemize}
+\tightlist
+\item
+  模块化制造：工厂可控环境 → 质量稳定；
+\item
+  多机组分期投运：缩短资金回收期；
+\item
+  标准化设计：一次设计认证 + 多次复制；
+\item
+  FOAK → NOAK 学习曲线。
+\end{itemize}
+
+\section{资本成本与规模经济}\label{ux8d44ux672cux6210ux672cux4e0eux89c4ux6a21ux7ecfux6d4e}
+
+\subsection{经典规模经济公式}\label{ux7ecfux5178ux89c4ux6a21ux7ecfux6d4eux516cux5f0f}
+
+\begin{verbatim}C1 / C2 = (S1 / S2)^α\end{verbatim}
+
+其中 C 为成本，S 为规模，α 为规模指数（典型 0.6）。
+
+按 α = 0.6，将 1000 MWe 大型核电站''缩小''为 100 MWe SMR，单位 kWe 成本
+= (1/10)\^{}(1-0.6) = 2.51 倍。这就是''SMR 规模不经济''的根源。
+
+\subsection{对抗规模不经济的途径}\label{ux5bf9ux6297ux89c4ux6a21ux4e0dux7ecfux6d4eux7684ux9014ux5f84}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{工厂制造学习曲线}：每倍累计产量成本下降 10\%--20\%（学习率）；
+\item
+  \textbf{多机组叠加}：4--12 个模块共享一个厂房、控制室、辅助系统，单位
+  kWe 投资摊薄；
+\item
+  \textbf{缩短建造周期}：48 个月 → 36 → 24 → 18 个月，IDC 显著降低；
+\item
+  \textbf{简化系统}：少泵、少阀、少管道 → 减少采购和安装成本；
+\item
+  \textbf{标准化设计认证}：一次审批 → 多次复制；
+\item
+  \textbf{干式建造 + 工厂模块运输}：减少现场气候影响；
+\item
+  \textbf{3D 打印关键部件}：定位格架、管板局部结构已开始试用。
+\end{enumerate}
+
+\subsection{估算案例}\label{ux4f30ux7b97ux6848ux4f8b}
+
+OECD/NEA 2024 年报告给出的 SMR OCC 估计（NOAK 阶段）：
+
+\begin{itemize}
+\tightlist
+\item
+  美国：3500--5500 USD/kWe（大型 LWR：4000--6000 USD/kWe）；
+\item
+  欧洲：4000--6000 USD/kWe；
+\item
+  中国 / 韩国：2500--4000 USD/kWe。
+\end{itemize}
+
+NOAK 阶段 SMR 与大型 LWR 经济性接近；FOAK 阶段 SMR 通常高出 30\%--80\%。
+
+\section{资本成本和多机组}\label{ux8d44ux672cux6210ux672cux548cux591aux673aux7ec4}
+
+\subsection{多机组叠加的优势}\label{ux591aux673aux7ec4ux53e0ux52a0ux7684ux4f18ux52bf}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{共享厂房、控制室、汽轮机厂房}：土建摊薄；
+\item
+  \textbf{共享辅助系统}：CVCS、冷却水、电气；
+\item
+  \textbf{共享运维团队}：操纵员、维修人员；
+\item
+  \textbf{共享备件库}：库存成本下降；
+\item
+  \textbf{共享许可证}：一次厂址许可 → 多机组运行。
+\end{itemize}
+
+\subsection{多机组的风险}\label{ux591aux673aux7ec4ux7684ux98ceux9669}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{共因故障}：所有模块共享某些系统（如冷却水），可能成为单点；
+\item
+  \textbf{共模风险}：相同设计 → 相同潜在缺陷；
+\item
+  \textbf{运维复杂度}：12 个模块 + 1 个汽轮机 + 1 个控制室，协调难度大；
+\item
+  \textbf{人员技能}：操纵员需同时管理多台堆，认知负荷增加（见第 7 章）。
+\end{itemize}
+
+\subsection{最佳机组数}\label{ux6700ux4f73ux673aux7ec4ux6570}
+
+经济性研究表明：
+
+\begin{itemize}
+\tightlist
+\item
+  4--6 模块的经济性最佳（共享 + 灵活平衡）；
+\item
+  12 模块以上，共享收益边际递减；
+\item
+  1--2 模块不足以摊薄固定成本，不经济。
+\end{itemize}
+
+\section{资本成本和规模因素}\label{ux8d44ux672cux6210ux672cux548cux89c4ux6a21ux56e0ux7d20}
+
+\subsection{学习曲线}\label{ux5b66ux4e60ux66f2ux7ebf}
+
+\begin{verbatim}C(N) = C(1) × N^(-b)\end{verbatim}
+
+b 为学习指数，典型 0.05--0.15。
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}ll@{}}
+\toprule\noalign{}
+累计产量 N & 成本（相对首堆） \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+1（FOAK） & 100\% \\
+2 & 90\% \\
+4 & 80\% \\
+8 & 70\% \\
+16 & 65\% \\
+\end{longtable}
+}
+
+从 FOAK 到 NOAK（N≈10），单位成本通常下降 30\%。
+
+\subsection{SMR 的特殊性}\label{smr-ux7684ux7279ux6b8aux6027}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{工厂流水线}：与飞机、汽车类似，学习率可能更高（10\%--20\%）；
+\item
+  \textbf{但市场容量有限}：全球 SMR 年需求可能 50--200 台（2040
+  年前），难以达到汽车、飞机的规模；
+\item
+  \textbf{首堆风险高}：FOAK 可能超支 50\%--200\%，需政府或大业主兜底。
+\end{itemize}
+
+\section{多 SMR
+机组竞争力}\label{ux591a-smr-ux673aux7ec4ux7adeux4e89ux529b}
+
+\subsection{对比大型 LWR}\label{ux5bf9ux6bd4ux5927ux578b-lwr}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}lll@{}}
+\toprule\noalign{}
+指标 & 大型 LWR & SMR 多机组 \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+FOAK OCC & 5000--7000 USD/kWe & 6000--9000 USD/kWe \\
+NOAK OCC & 4000--6000 USD/kWe & 3500--5500 USD/kWe \\
+建造期 & 60--96 月 & 24--36 月 \\
+资金门槛 & 高（120--150 亿美元） & 低（5--30 亿美元） \\
+灵活性 & 低（必须基荷） & 高（多机启停 + 综合能源） \\
+单位容量因子 & 90\%+ & 90\%（基荷）或灵活 \\
+\end{longtable}
+}
+
+SMR 的核心优势是\textbf{资金门槛低 + 灵活性}，而非单位 kWe 投资更低。
+
+\subsection{对比可再生能源 +
+储能}\label{ux5bf9ux6bd4ux53efux518dux751fux80fdux6e90-ux50a8ux80fd}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{LCOE}：NOAK SMR 约 60--100 USD/MWh；风+储能约
+  50--110；光伏+储能约 50--100；燃气联合循环 + CCS 约 80--120。
+\item
+  \textbf{容量因子}：SMR 90\%；可再生能源 25--40\%；
+\item
+  \textbf{稳定性}：SMR 提供惯性、可靠容量；
+\item
+  \textbf{用地}：SMR 单位土地发电量是光伏 50 倍、风电 100 倍。
+\end{itemize}
+
+SMR 在''高比例可再生能源电网 + 工业基荷 + 偏远地区''具有独特价值。
+
+\section{SMR
+相对于其他发电技术的竞争力}\label{smr-ux76f8ux5bf9ux4e8eux5176ux4ed6ux53d1ux7535ux6280ux672fux7684ux7adeux4e89ux529b}
+
+\subsection{基荷电力（替代煤电）}\label{ux57faux8377ux7535ux529bux66ffux4ee3ux7164ux7535}
+
+\begin{itemize}
+\tightlist
+\item
+  中国、印度、东欧、东南亚有大量煤电待替代；
+\item
+  SMR
+  因规模适中、可建在原煤电场址（接入电网、用水、用地现成），是煤电替代的有力竞争者。
+\end{itemize}
+
+\subsection{工业热 + 制氢}\label{ux5de5ux4e1aux70ed-ux5236ux6c22}
+
+\begin{itemize}
+\tightlist
+\item
+  高温 SMR（HTR-PM、Xe-100、Natrium）可提供 700--900 ℃ 热源，用于：
+
+  \begin{itemize}
+  \tightlist
+  \item
+    钢铁（直接还原 DRI-EAF）；
+  \item
+    水泥；
+  \item
+    化工（合成氨、甲醇、烯烃）；
+  \item
+    制氢（高温固体氧化物电解 SOEC、热化学循环）。
+  \end{itemize}
+\end{itemize}
+
+\subsection{海水淡化}\label{ux6d77ux6c34ux6de1ux5316}
+
+\begin{itemize}
+\tightlist
+\item
+  SMART、ACPR50S 等设计专门面向海水淡化市场（中东、北非）；
+\item
+  经济性：在缺水 + 缺电的中东，SMR 海水淡化可与化石能源方案竞争。
+\end{itemize}
+
+\subsection{偏远地区 / 岛屿 /
+海上}\label{ux504fux8fdcux5730ux533a-ux5c9bux5c7f-ux6d77ux4e0a}
+
+\begin{itemize}
+\tightlist
+\item
+  加拿大北方、阿拉斯加、俄罗斯北极、岛屿（海南、台湾、希腊岛屿）；
+\item
+  替代柴油发电（柴油 LCOE 200--400 USD/MWh）；
+\item
+  海上浮动核电站（俄罗斯 Akademik Lomonosov、中国 ACPR50S）。
+\end{itemize}
+
+\section{外部因素}\label{ux5916ux90e8ux56e0ux7d20}
+
+\subsection{碳定价}\label{ux78b3ux5b9aux4ef7}
+
+\begin{itemize}
+\tightlist
+\item
+  碳价（如 EU ETS、中国全国碳市场）的引入使 SMR 相对化石能源竞争力上升；
+\item
+  碳价 50 USD/tCO₂ 即可使煤电成本上升约 5 美分/kWh，超过 SMR。
+\end{itemize}
+
+\subsection{政策支持}\label{ux653fux7b56ux652fux6301}
+
+\begin{itemize}
+\tightlist
+\item
+  美国 IRA 法案（2022）：先进核能税收抵免（PTC/ITC）+ 40
+  亿美元贷款担保；
+\item
+  欧盟绿色分类（EU Taxonomy）：在某些条件下包含核能；
+\item
+  英国 GDA + AR 项目；
+\item
+  中国 ``十四五''先进核能发展规划；
+\item
+  加拿大、波兰、罗马尼亚 SMR 战略。
+\end{itemize}
+
+\subsection{公众接受度}\label{ux516cux4f17ux63a5ux53d7ux5ea6}
+
+\begin{itemize}
+\tightlist
+\item
+  公众接受度是 SMR 落地的关键非经济因素；
+\item
+  强调安全、就业、低碳，与社区共商共建共享；
+\item
+  透明沟通：风险、收益、退役、废物。
+\end{itemize}
+
+\subsection{供应链与人才}\label{ux4f9bux5e94ux94feux4e0eux4ebaux624d}
+
+\begin{itemize}
+\tightlist
+\item
+  大型锻件（RPV、SG）全球产能紧张；
+\item
+  HALEU 燃料供应（美国、欧洲仍依赖俄罗斯）；
+\item
+  核级泵、阀、I\&C 平台供应商集中；
+\item
+  核工程师、操纵员人才短缺。
+\end{itemize}
+
+\section{参考文献}\label{ux53c2ux8003ux6587ux732e-9}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  OECD/NEA. \emph{The Economics of Small Modular Reactors}. NEA
+  No.~7528, 2024.
+\item
+  Lovering J. R. et al.~``Historical construction costs of global
+  nuclear power reactors.'' \emph{Energy Policy}, 2016.
+\item
+  Ingersoll D. T. et al.~``Cost and economics of small modular
+  reactors.'' \emph{Prog. Nucl. Energy}, 2014.
+\item
+  Qvist S. A. et al.~``Catalyzing the SMR Industry through
+  Public-Private Partnerships.'' \emph{Energy}, 2022.
+\item
+  IAEA-TECDOC-1859, \emph{Opportunities for Cogeneration with Nuclear
+  Energy}.
+\item
+  NREL. \emph{Annual Technology Baseline (ATB)}, 2024.
+\item
+  Lazard. \emph{Lazard's Levelized Cost of Energy}, 2024 update.
+\item
+  U.S. EIA. \emph{Assumptions to the Annual Energy Outlook}, 2024.
+\end{enumerate}
+
+\cleardoublepage
+
+\chapter{SMR 许可}\label{smr-ux8bb8ux53ef}
+
+\begin{epigraph}
+
+\textbf{核心命题}　SMR
+许可的核心挑战在于''现行监管框架是为大型核电站设计的''。本章梳理美国 NRC
+监管框架、行业规范与标准、国际许可战略，并讨论监管现代化趋势（如 10 CFR
+Part 53、风险指引型监管）。
+
+\end{epigraph}
+
+\section{引言}\label{ux5f15ux8a00-10}
+
+核设施许可证（licensing）是核电站从设计到运行、退役全寿期都必须遵守的法定程序。许可证分为：
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{设计认证（Design Certification, DC）}：针对反应堆设计本身；
+\item
+  \textbf{厂址许可（Site Permit）}：针对具体厂址（早期厂址许可
+  ESP、建造运行联合许可证 COL）；
+\item
+  \textbf{运行许可（Operating License, OL）}：针对实际运行；
+\item
+  \textbf{退役许可（Decommissioning）}：针对退役；
+\item
+  \textbf{出口 / 进口许可}：核燃料、设备、技术；
+\item
+  \textbf{保障监督}（IAEA + 国家监管）。
+\end{itemize}
+
+SMR 许可面临的核心挑战：
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{应急计划区（EPZ）}：传统 EPZ 半径 10 英里（16 km）+ 50
+  英里（80 km）食入路径；SMR 因源项小、CDF 低，目标是 EPZ = 厂址边界。
+\item
+  \textbf{安保人员配置}：传统要求按大型核电站配置；SMR
+  单堆功率小，安保等级是否可下调？
+\item
+  \textbf{运行人员配置}：传统 1 台堆 3+ 操纵员；SMR
+  多机共享，人员如何配置？
+\item
+  \textbf{多机组叠加}：12 个模块的法律关系（一台许可证 vs 12 台）？
+\item
+  \textbf{新技术（液态金属、气冷、熔盐）}：现有法规（10 CFR 50、ASME
+  BPVC）不直接适用。
+\end{enumerate}
+
+\section{NRC 关于 SMR
+的许可}\label{nrc-ux5173ux4e8e-smr-ux7684ux8bb8ux53ef}
+
+\subsection{10 CFR 监管框架}\label{cfr-ux76d1ux7ba1ux6846ux67b6}
+
+美国 NRC 主要监管文件：
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{10 CFR Part 50}：传统两步许可（建造许可 CP + 运行许可 OL）；
+\item
+  \textbf{10 CFR Part 52}：一步许可（建造运行联合许可证 COL）+ 设计认证
+  DC + 早期厂址许可 ESP；
+\item
+  \textbf{10 CFR Part 53}（开发中）：针对先进反应堆（非 LWR）的新规则；
+\item
+  \textbf{10 CFR Part 100}：厂址准则；
+\item
+  \textbf{10 CFR Part 20}：辐射防护；
+\item
+  \textbf{10 CFR Part 73}：物理保护；
+\item
+  \textbf{10 CFR Part 74 / 75}：核材料衡算与保障监督。
+\end{itemize}
+
+\subsection{设计认证（DC）}\label{ux8bbeux8ba1ux8ba4ux8bc1dc}
+
+DC 流程：
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  厂商提交 \textbf{DCD}（Design Control Document）；
+\item
+  NRC 进行 \textbf{审评}（typically 36--60 个月）；
+\item
+  公开听证、提交安全评价报告（SER）；
+\item
+  \textbf{最终设计认证规则}（10 CFR Part 52 Appendix）；
+\item
+  DC 有效期 15 年，可延期。
+\end{enumerate}
+
+DC 一旦获得，任何业主可基于该 DC 申请
+COL，\textbf{不再重复设计审评}，仅审厂址相关事项。
+
+\subsection{SMR DC 案例}\label{smr-dc-ux6848ux4f8b}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{NuScale}：2017 年提交 DCD，2020 年 9 月获 NRC 颁发
+  DC（\textbf{史上首个 SMR DC}）；
+\item
+  \textbf{GE Hitachi BWRX-300}：2024 年向 NRC 提交申请，目标 2026--2027
+  获 DC；
+\item
+  \textbf{Holtec SMR-300}：已开始与 NRC 的预申请对话；
+\item
+  \textbf{Kairos Power Hermes}：测试堆，2024 年获建造许可。
+\end{itemize}
+
+\subsection{应急计划区（EPZ）}\label{ux5e94ux6025ux8ba1ux5212ux533aepz}
+
+传统大型 LWR：
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{疏散区（Plume Exposure EPZ）}：半径 10 英里（16 km）；
+\item
+  \textbf{食入区（Ingestion EPZ）}：半径 50 英里（80 km）；
+\item
+  \textbf{撤离时间要求}：疏散区在事故后 4 小时内撤离。
+\end{itemize}
+
+SMR 目标：
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{EPZ = 厂址边界}（即无需场外疏散）；
+\item
+  基于源项分析（CDF × 源项 ×
+  大气扩散）证明厂址边界外剂量低于保护行动指南（PAG）。
+\end{itemize}
+
+NRC 在 2022 年通过了''基于性能的 EPZ''规则（RG 1.242），允许 SMR
+基于具体源项分析确定 EPZ 大小。
+
+\subsection{运行人员与安保人员}\label{ux8fd0ux884cux4ebaux5458ux4e0eux5b89ux4fddux4ebaux5458}
+
+\begin{itemize}
+\tightlist
+\item
+  传统要求：1 台堆 3 名持照操纵员 + 1 名高级操纵员；
+\item
+  SMR 挑战：12 台堆共享 1 个控制室，人员配置需要新的''人员配备模型''；
+\item
+  NRC 已接受基于\textbf{任务分析}的人员配置方法（NUREG-1791）；
+\item
+  安保人员：基于\textbf{设计基准威胁（DBT）} + 现场具体情况进行定制。
+\end{itemize}
+
+\section{支持 SMR
+许可的行业规范和标准}\label{ux652fux6301-smr-ux8bb8ux53efux7684ux884cux4e1aux89c4ux8303ux548cux6807ux51c6}
+
+\subsection{ASME BPVC}\label{asme-bpvc}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Section III Division 1}：传统 LWR（Class 1/2/3）；
+\item
+  \textbf{Section III Division 5}：高温反应堆（HTGR、SFR、MSR），2017
+  年发布；
+\item
+  涵盖材料、设计、制造、检验、运行。
+\end{itemize}
+
+\subsection{ANS 标准}\label{ans-ux6807ux51c6}
+
+美国核学会（ANS）发布的标准系列：
+
+\begin{itemize}
+\tightlist
+\item
+  ANSI/ANS 20.x：SMR 系列；
+\item
+  ANSI/ANS 30.x：先进反应堆风险指引；
+\item
+  ANSI/ANS-54.1: SMR 总体设计准则；
+\item
+  ANSI/ANS-30.3: 先进非 LWR 风险指引性能要求。
+\end{itemize}
+
+\subsection{IEEE 标准}\label{ieee-ux6807ux51c6}
+
+\begin{itemize}
+\tightlist
+\item
+  IEEE 603：安全级 I\&C 系统；
+\item
+  IEEE 7-4.3.2：数字 I\&C；
+\item
+  IEEE 384：电缆隔离；
+\item
+  IEEE 323：设备鉴定（Qualification）。
+\end{itemize}
+
+\subsection{IEC 标准}\label{iec-ux6807ux51c6}
+
+\begin{itemize}
+\tightlist
+\item
+  IEC 61513：核设施 I\&C 总体；
+\item
+  IEC 61226：I\&C 分级；
+\item
+  IEC 60987：HMI；
+\item
+  IEC 62645：网络安全。
+\end{itemize}
+
+\subsection{中国标准}\label{ux4e2dux56fdux6807ux51c6}
+
+\begin{itemize}
+\tightlist
+\item
+  HAF（核安全法规）系列：HAF102（核动力厂设计安全规定）等；
+\item
+  GB/T 16769：核电厂抗震设计；
+\item
+  EJ（核行业标准）系列。
+\end{itemize}
+
+\section{SMR
+许可国际战略和框架}\label{smr-ux8bb8ux53efux56fdux9645ux6218ux7565ux548cux6846ux67b6}
+
+\subsection{加拿大 CNSC}\label{ux52a0ux62ffux5927-cnsc}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Pre-Licensing Review of Vendor Design}：厂商在正式申请前与
+  CNSC 进行预审评；
+\item
+  \textbf{CMD}（Commission Member Document）公开；
+\item
+  BWRX-300 在 Darlington 已通过此过程。
+\end{itemize}
+
+\subsection{英国 ONR}\label{ux82f1ux56fd-onr}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Generic Design Assessment (GDA)}：通用设计评估；
+\item
+  \textbf{Site Licence}：具体厂址；
+\item
+  Rolls-Royce SMR 正在 GDA 流程中。
+\end{itemize}
+
+\subsection{法国 ASN}\label{ux6cd5ux56fd-asn}
+
+\begin{itemize}
+\tightlist
+\item
+  受 EUR（European Utility Requirements）影响；
+\item
+  \textbf{Code ASN}：基于 RCC 系列规范；
+\item
+  法国目前没有本土 SMR，但 NuScale、Rolls-Royce 在向 ASN 提交资料。
+\end{itemize}
+
+\subsection{中国 NNSA}\label{ux4e2dux56fd-nnsa}
+
+\begin{itemize}
+\tightlist
+\item
+  HAF 系列法规；
+\item
+  \textbf{核安全许可证}：选址、建造、首次装料、运行、退役；
+\item
+  玲龙一号（ACP100）已通过 NNSA 安全分析；
+\item
+  HTR-PM 已获运行许可。
+\end{itemize}
+
+\subsection{俄罗斯
+Rostekhnadzor}\label{ux4fc4ux7f57ux65af-rostekhnadzor}
+
+\begin{itemize}
+\tightlist
+\item
+  NP-001-15 等核安全导则；
+\item
+  浮动核电站（Akademik Lomonosov）已运行。
+\end{itemize}
+
+\subsection{国际协调}\label{ux56fdux9645ux534fux8c03}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{MDEP（Multinational Design Evaluation Programme）}：OECD/NEA
+  主导，多国监管机构联合审评相同设计；
+\item
+  \textbf{CNRA、CSNI}：监管方法、研究合作；
+\item
+  \textbf{IAEA SSG} 系列：通用安全指南；
+\item
+  \textbf{WENRA}（西欧核监管协会）：欧洲监管协调。
+\end{itemize}
+
+\subsection{许可证协同（License-by-Reference）}\label{ux8bb8ux53efux8bc1ux534fux540clicense-by-reference}
+
+一些国家采用''参考许可''模式：
+
+\begin{itemize}
+\tightlist
+\item
+  一国完成完整审评（如美国 NuScale DC）；
+\item
+  其他国家参考该审评，仅审国别特定事项；
+\item
+  大幅缩短审评周期。
+\end{itemize}
+
+但实际操作中，由于各国监管要求差异，``参考''通常需要重新审评 30\%--70\%
+内容。
+
+\section{结论}\label{ux7ed3ux8bba-5}
+
+SMR 许可的核心矛盾是''旧框架 vs 新技术''。监管现代化的方向是：
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{风险指引、性能导向（Risk-Informed,
+  Performance-Based）}：从规定式走向性能式；
+\item
+  \textbf{技术中立（Technology-Neutral）}：监管框架兼容
+  LWR、HTGR、SFR、MSR；
+\item
+  \textbf{统一设计认证 + 国别附加}：减少重复审评；
+\item
+  \textbf{数字化工具}：监管软件、虚拟审查；
+\item
+  \textbf{应急计划区缩小}：基于源项的科学化定义；
+\item
+  \textbf{国际协调}：MDEP、IAEA 框架下的多边合作。
+\end{enumerate}
+
+美国 10 CFR Part 53 的最终发布（预计 2025--2026）将是 SMR
+监管现代化的里程碑。中国、加拿大、英国也在制定类似的先进反应堆监管框架。
+
+\section{延伸阅读}\label{ux5ef6ux4f38ux9605ux8bfb}
+
+\begin{itemize}
+\tightlist
+\item
+  NUREG/CR-7008, \emph{Framework for Development of a Risk-Informed and
+  Performance-Based Alternative to 10 CFR 50}.
+\item
+  IAEA SSG-59, \emph{Deterministic Safety Analysis for Nuclear Power
+  Plants}.
+\item
+  OECD/NEA CNRA. \emph{Regulatory Challenges in the Licensing of New
+  Nuclear Reactors}.
+\item
+  MDEP 公开报告：https://www.oecd-nea.org/jcms/pl\_32860/mdep
+\end{itemize}
+
+\cleardoublepage
+
+\chapter{SMR 施工}\label{smr-ux65bdux5de5}
+
+\begin{epigraph}
+
+\textbf{核心命题}　SMR
+施工的核心命题是''以工厂制造替代现场施工''。本章从加工制造、部件制造、先进焊接、供应链影响四个角度展开。
+
+\end{epigraph}
+
+\section{引言}\label{ux5f15ux8a00-11}
+
+传统大型核电站建造周期长（5--8 年），主因是大量\textbf{现场施工}：
+
+\begin{itemize}
+\tightlist
+\item
+  大体积混凝土浇筑（安全壳、厂房基础）；
+\item
+  大型管道焊接；
+\item
+  现场模块拼装；
+\item
+  调试与冷热态试验。
+\end{itemize}
+
+每一步受现场气候、人工质量、协调进度影响。AP1000、EPR
+等大型核电站大量超支拖期，根本原因就是''现场施工工时不可控''。
+
+SMR 的核心思路：
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{压力容器、蒸汽发生器、稳压器}等在工厂完成；
+\item
+  \textbf{NSSS 模块}作为整体运输到现场；
+\item
+  现场仅做基础 + 厂房 + 模块吊装 + 接管 + 调试；
+\item
+  缩短建造周期到 24--36 个月。
+\end{enumerate}
+
+本章按''加工制造 → 部件制造 → 先进焊接 → 供应链''展开。
+
+\section{加工制造}\label{ux52a0ux5de5ux5236ux9020}
+
+\subsection{工厂制造优势}\label{ux5de5ux5382ux5236ux9020ux4f18ux52bf}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{质量稳定}：车间环境（温湿、洁净、计量、工艺）可控；
+\item
+  \textbf{效率高}：流水线、固定工位、专用装备；
+\item
+  \textbf{人员资质稳定}：车间焊工、检验员长期固定；
+\item
+  \textbf{检验手段完善}：现场难以实施的检验（如深射线探伤）在工厂易实施；
+\item
+  \textbf{缩短现场关键路径}：现场不依赖单一大件到货即可推进。
+\end{itemize}
+
+\subsection{主要工厂制造内容}\label{ux4e3bux8981ux5de5ux5382ux5236ux9020ux5185ux5bb9}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{压力容器（RPV）}：由大型锻件（筒体、顶盖、底封头、管嘴）焊接而成；
+\item
+  \textbf{蒸汽发生器（SG）}：直管或螺旋管，管束胀接 / 焊接到管板；
+\item
+  \textbf{稳压器}：容器 + 加热器 + 喷雾管；
+\item
+  \textbf{堆芯 +
+  燃料组件}：燃料由专门工厂制造（如西屋、AREVA、中核北方）；
+\item
+  \textbf{控制棒驱动机构（CRDM）}：精密机械加工；
+\item
+  \textbf{主泵（屏蔽泵 / 湿定子泵）}：电机 + 泵壳；
+\item
+  \textbf{辅助系统模块}：阀门、管道、热交换器预组装为模块。
+\end{itemize}
+
+\subsection{大型锻件}\label{ux5927ux578bux953bux4ef6}
+
+RPV 筒体、SG 管板、稳压器封头等大型锻件是核电站的''工业母机''产品：
+
+\begin{itemize}
+\tightlist
+\item
+  单件重量 100--500 吨；
+\item
+  直径 3--6 m；
+\item
+  锻造 + 热处理 + 机加工 + 堆焊层；
+\item
+  全世界能稳定供货的工厂不多：中国一重、二重、上重、日本 JSW、韩国
+  Doosan、法国 Le Creusot（Areva）、俄罗斯 OMZ。
+\end{itemize}
+
+SMR 的 RPV 直径通常 3--5 m，比大型 PWR（4--6
+m）小，但仍需要顶级大型锻件。
+
+\subsection{模块化运输}\label{ux6a21ux5757ux5316ux8fd0ux8f93}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{运输方式}：海运（重件船）、河运、铁路、公路；
+\item
+  \textbf{尺寸限制}：公路 ≤ 5 m 宽，铁路 ≤ 4 m
+  宽（标准机车），海运无限制；
+\item
+  \textbf{NuScale}：模块直径约 3 m，高 23 m，重约 700 吨，可海运 +
+  重型卡车短途；
+\item
+  \textbf{GE Hitachi BWRX-300}：NSSS 模块直径约 5 m，需海运 + 铁路。
+\end{itemize}
+
+\section{部件制造}\label{ux90e8ux4ef6ux5236ux9020}
+
+\subsection{NSSS 模块}\label{nsss-ux6a21ux5757}
+
+把 RPV + 内部构件 + SG + 稳压器 + 主泵 + 控制棒驱动机构 +
+部分管路集成到一个''模块''中：
+
+\begin{itemize}
+\tightlist
+\item
+  在工厂整体装配、焊接、检验；
+\item
+  整体运到现场；
+\item
+  现场吊装就位 + 二回路 + 安全壳接口。
+\end{itemize}
+
+NuScale、BWRX-300、ACP100 都采用这种模式。
+
+\subsection{安全壳}\label{ux5b89ux5168ux58f3}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{钢制安全壳}（NuScale、BWRX-300）：在工厂整体制造，运到现场吊装；
+\item
+  \textbf{预应力混凝土安全壳}（ACP100、SMART）：现场建造；
+\item
+  \textbf{复合安全壳}（钢内衬 + 混凝土）：混合方案。
+\end{itemize}
+
+\subsection{辅助模块}\label{ux8f85ux52a9ux6a21ux5757}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{泵房模块}：CVCS、ECCS、AFW 等阀门与管道预组装；
+\item
+  \textbf{电气模块}：电气柜、电缆桥架预组装；
+\item
+  \textbf{管道模块}：长管段在工厂焊接，现场对接。
+\end{itemize}
+
+\subsection{汽轮机厂房与汽轮机}\label{ux6c7dux8f6eux673aux5382ux623fux4e0eux6c7dux8f6eux673a}
+
+\begin{itemize}
+\tightlist
+\item
+  汽轮机仍主要在现场安装（因尺寸大）；
+\item
+  部分 SMR（NuScale）采用紧凑汽轮机，可整体模块化。
+\end{itemize}
+
+\section{先进焊接技术}\label{ux5148ux8fdbux710aux63a5ux6280ux672f}
+
+\subsection{传统焊接}\label{ux4f20ux7edfux710aux63a5}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{埋弧焊（SAW）}：用于 RPV 主焊缝；
+\item
+  \textbf{窄间隙焊（NG-SAW）}：减少填充金属量，提高效率；
+\item
+  \textbf{钨极氩弧焊（TIG）}：薄壁管、SG 管接头；
+\item
+  \textbf{金属极气体保护焊（MIG/MAG）}：管道、支架；
+\item
+  \textbf{电渣焊（ESW）}：厚板拼接。
+\end{itemize}
+
+\subsection{先进焊接}\label{ux5148ux8fdbux710aux63a5}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{激光焊接}：深熔、热影响区小、变形小；
+\item
+  \textbf{激光-电弧复合焊}：兼顾效率与质量；
+\item
+  \textbf{电子束焊}：真空环境，深度大；
+\item
+  \textbf{摩擦焊}：固相焊接，无熔化，适合异种金属；
+\item
+  \textbf{搅拌摩擦焊（FSW）}：用于铝合金、铜合金；
+\item
+  \textbf{增材制造（3D 打印）}：用于复杂结构（定位格架、管板、SG
+  局部结构）；
+\item
+  \textbf{冷喷涂}：用于涂层修复。
+\end{itemize}
+
+\subsection{在线监测与无损检验}\label{ux5728ux7ebfux76d1ux6d4bux4e0eux65e0ux635fux68c0ux9a8c}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{相控阵超声（PAUT）}：替代射线，分辨率高、安全；
+\item
+  \textbf{衍射时差超声（TOFD）}：精确测缺陷尺寸；
+\item
+  \textbf{数字射线}：高分辨率 + 自动判读；
+\item
+  \textbf{声发射}：在役监测焊缝裂纹；
+\item
+  \textbf{涡流}：SG 管检查。
+\end{itemize}
+
+\subsection{焊接自动化}\label{ux710aux63a5ux81eaux52a8ux5316}
+
+\begin{itemize}
+\tightlist
+\item
+  焊接机器人：焊接路径 + 视觉识别 + 实时反馈；
+\item
+  数字化焊接电源：精确控制熔滴过渡；
+\item
+  焊接质量数据库：每道焊缝可追溯。
+\end{itemize}
+
+\section{供应链影响}\label{ux4f9bux5e94ux94feux5f71ux54cd}
+
+\subsection{供应链特征}\label{ux4f9bux5e94ux94feux7279ux5f81}
+
+SMR 对供应链的影响是双重的：
+
+\textbf{正面}：
+
+\begin{itemize}
+\tightlist
+\item
+  模块化减少现场施工人力，对当地劳动力依赖降低；
+\item
+  工厂系列化生产，给供应商带来稳定订单；
+\item
+  一次设计 + 多次复制，给监管、业主、供应商带来协同机会。
+\end{itemize}
+
+\textbf{负面}：
+
+\begin{itemize}
+\tightlist
+\item
+  大型锻件、核级泵阀供应商集中，瓶颈明显；
+\item
+  HALEU 燃料供应链不成熟（美国、欧洲）；
+\item
+  新材料（TRISO、铅铋合金、熔盐）供应链尚未形成；
+\item
+  全球运输能力（重件船、专用码头）有限。
+\end{itemize}
+
+\subsection{关键瓶颈}\label{ux5173ux952eux74f6ux9888}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+瓶颈
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+描述
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+缓解
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+大型锻件 & RPV、SG 管板锻件供应紧张 &
+各国扩产（中国一重、JSW、Doosan） \\
+HALEU 燃料 & 5\%--20\% 富集度燃料供应不足 & 美国
+Centrus、TerraPower；中俄已有能力 \\
+TRISO 燃料 & 包覆颗粒燃料产能不足 & X-energy、BWXT 扩产 \\
+核级泵阀 & 屏蔽泵、核级阀供应商少 & 多元化供应商 \\
+重件运输 & 公路 / 铁路限制大 & 海运 + 重件码头 \\
+\end{longtable}
+}
+
+\subsection{本地化要求}\label{ux672cux5730ux5316ux8981ux6c42}
+
+许多国家在 SMR 出口合同中要求\textbf{本地化}：
+
+\begin{itemize}
+\tightlist
+\item
+  部分部件本地生产（如管道、支架、电缆）；
+\item
+  本地工程师参与设计、调试；
+\item
+  本地运维团队；
+\item
+  乏燃料管理本地化（或返回供应商国）。
+\end{itemize}
+
+本地化要求给出口商带来成本压力，但有助于打开市场。
+
+\subsection{供应链韧性与地缘政治}\label{ux4f9bux5e94ux94feux97e7ux6027ux4e0eux5730ux7f18ux653fux6cbb}
+
+\begin{itemize}
+\tightlist
+\item
+  中美俄三国在核供应链上的相互依赖与脱钩；
+\item
+  俄乌冲突后，欧洲急于摆脱俄罗斯核燃料供应；
+\item
+  中国 HALEU、TRISO 自主化加速；
+\item
+  美国 DOE 推动 HALEU 国内生产（Centrus、X-energy 等）。
+\end{itemize}
+
+\section{结论}\label{ux7ed3ux8bba-6}
+
+SMR
+施工的本质是''工厂化''------把过去散布在工地的焊接、组装、检验工序转移到工厂流水线。这要求：
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{设计面向制造（DFM）}：从设计阶段就考虑工厂制造与运输；
+\item
+  \textbf{模块化结构}：减少现场焊接、安装；
+\item
+  \textbf{数字主线（Digital Thread）}：从设计到运行的数据贯通；
+\item
+  \textbf{供应链协同}：核心供应商深度参与设计；
+\item
+  \textbf{运输与物流}：海运、铁路、公路的重件物流规划；
+\item
+  \textbf{本地化与全球化的平衡}：满足业主国本地化要求。
+\end{enumerate}
+
+未来 10 年（2025--2035）是 SMR
+首堆密集建造的关键时期，施工能力的成熟将决定 SMR 商业化的成败。
+
+\section{延伸阅读}\label{ux5ef6ux4f38ux9605ux8bfb-1}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  ASME BPVC Section III, Div. 1 \& 5.
+\item
+  AWS D1.1, \emph{Structural Welding Code --- Steel}.
+\item
+  NRC NUREG/CR-7009, \emph{Modular Construction for SMRs}.
+\item
+  IAEA-TECDOC-2052, \emph{Construction Technologies for Nuclear Power
+  Plants}.
+\item
+  TEMA, \emph{Standards of the Tubular Exchanger Manufacturers
+  Association}.
+\item
+  OECD/NEA. \emph{The Supply Chain for SMRs}, 2023.
+\end{enumerate}
+
+\cleardoublepage
+
+\chapter{SMR
+综合能源系统}\label{smr-ux7efcux5408ux80fdux6e90ux7cfbux7edf}
+
+\begin{epigraph}
+
+\textbf{核心命题}　SMR
+不只是''小型核电站''，更是多能互补综合能源系统的''核心热源''。通过与可再生能源、储能、制氢、海水淡化、工业供热耦合，SMR
+可显著提升电网韧性、能源系统低碳化与经济性。
+
+\end{epigraph}
+
+\section{引言}\label{ux5f15ux8a00-12}
+
+未来能源系统呈现以下趋势：
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{高比例可再生能源}：风电、光伏占比上升，但其间歇性带来电网稳定性挑战；
+\item
+  \textbf{深度脱碳}：电力、工业、交通、建筑全部脱碳，氢能、合成燃料、电气化成为关键；
+\item
+  \textbf{多能互补}：电、热、冷、气、氢、水多种能源载体相互转化；
+\item
+  \textbf{分布式 + 集中式并存}：大型基地 + 分布式微网。
+\end{itemize}
+
+在这一背景下，SMR 凭借：
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{稳定基荷}：90\% 容量因子；
+\item
+  \textbf{高温热源}：300--700 ℃（轻水）/ 700--950 ℃（气冷）/ 高于 500
+  ℃（液态金属）；
+\item
+  \textbf{零碳排}：全寿期碳排放约 11--12 gCO₂/kWh；
+\item
+  \textbf{灵活功率}：多模块可启停；
+\item
+  \textbf{紧凑}：可与工业设施共址；
+\end{itemize}
+
+成为综合能源系统的理想''核心热源''。
+
+\section{综合能源系统原理}\label{ux7efcux5408ux80fdux6e90ux7cfbux7edfux539fux7406}
+
+综合能源系统（Integrated Energy System,
+IES）的核心思想是\textbf{多能互补 + 梯级利用}：
+
+\begin{verbatim}[核反应堆热源]
+      │
+      ├─ → 一次蒸汽（高温）
+      │       │
+      │       ├─ → 汽轮机发电
+      │       ├─ → 工业高温工艺（钢铁、水泥、化工）
+      │       ├─ → 高温制氢（SOEC、热化学循环）
+      │       └─ → 高温储热（熔盐、固态储热）
+      │
+      ├─ → 抽汽（中温）
+      │       ├─ → 区域供热
+      │       ├─ → 海水淡化（MED、MSF）
+      │       ├─ → 中温储热
+      │       └─ → 工业中温工艺（造纸、纺织）
+      │
+      └─ → 余热（低温）
+              ├─ → 温室、养殖
+              ├─ → 吸收式制冷
+              └─ → 干燥\end{verbatim}
+
+\section{综合能源系统结构评估}\label{ux7efcux5408ux80fdux6e90ux7cfbux7edfux7ed3ux6784ux8bc4ux4f30}
+
+\subsection{核-可再生-储能混合系统（N-R-H）}\label{ux6838-ux53efux518dux751f-ux50a8ux80fdux6df7ux5408ux7cfbux7edfn-r-h}
+
+\begin{verbatim}[SMR] + [风电 / 光伏] + [储能（电化学 / 熔盐）] + [电网]\end{verbatim}
+
+\begin{itemize}
+\tightlist
+\item
+  SMR 提供稳定基荷；
+\item
+  可再生能源提供廉价电力（峰时）；
+\item
+  储能平抑波动；
+\item
+  SMR 在可再生过剩时降功率，电力不足时升功率（负荷跟踪）；
+\item
+  经济性：综合 LCOE 可比单独 SMR 或单独可再生低 10\%--30\%。
+\end{itemize}
+
+\textbf{案例}：
+
+\begin{itemize}
+\tightlist
+\item
+  美国 TerraPower Natrium：345 MWe + 1.8 GWh 熔盐储热，可与风电协同；
+\item
+  中国核电 + 风光基地：在西北、东北建设大型综合基地。
+\end{itemize}
+
+\subsection{核能 +
+工业供热（N-IH）}\label{ux6838ux80fd-ux5de5ux4e1aux4f9bux70edn-ih}
+
+\begin{verbatim}[高温 SMR] + [钢铁 / 水泥 / 化工] + [CO₂ 捕集]\end{verbatim}
+
+\begin{itemize}
+\tightlist
+\item
+  钢铁：H₂-DRI（氢基直接还原铁）+ 电弧炉；
+\item
+  水泥：替代煤燃烧，提供煅烧温度；
+\item
+  化工：合成氨、甲醇、烯烃；
+\item
+  这些行业占全球 CO₂ 排放约 25\%，深度脱碳必须依赖高温热源。
+\end{itemize}
+
+\subsection{核能 +
+制氢（N-H₂）}\label{ux6838ux80fd-ux5236ux6c22n-hux2082}
+
+主要技术路线：
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+技术
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+温度
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+效率
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+成熟度
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+低温电解（PEM、AEL） & 60--80 ℃ & 60--70\% & 商业化 \\
+高温固体氧化物电解（SOEC） & 700--850 ℃ & 80--90\% & 示范 \\
+热化学循环（S-I、Cu-Cl、Hybrid S） & 850--950 ℃ & 40--50\%（热） &
+研发 \\
+\end{longtable}
+}
+
+\begin{itemize}
+\tightlist
+\item
+  高温 SMR（HTR-PM、Xe-100、Natrium）配合 SOEC 可实现低成本制氢；
+\item
+  美国 INL 高温电解（HTSE）示范：与 Bloom Energy
+  合作运行固体氧化物电解池，并在 Idaho 建立 4--10 MW
+  规模的氢能验证场（Hydrogen Proving Ground）；
+\item
+  中国 HTR-PM 后续：高温制氢 R\&D。
+\end{itemize}
+
+氢的应用：
+
+\begin{itemize}
+\tightlist
+\item
+  燃料电池汽车、钢铁（DRI）、合成氨、甲醇、合成燃料、储能。
+\end{itemize}
+
+\subsection{核能 +
+海水淡化（N-D）}\label{ux6838ux80fd-ux6d77ux6c34ux6de1ux5316n-d}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{多级闪蒸（MSF）}：高温蒸汽加热海水多级蒸发；
+\item
+  \textbf{多效蒸馏（MED）}：与 MSF 类似，但效率更高；
+\item
+  \textbf{反渗透（RO）}：常温，电力驱动；
+\item
+  混合：MED + RO、MSF + RO。
+\end{itemize}
+
+SMR + 海水淡化的经济性：
+
+\begin{itemize}
+\tightlist
+\item
+  与化石能源方案相比，在全寿期内更经济；
+\item
+  缺水地区（中东、北非、印度、中国北方）潜在市场巨大；
+\item
+  案例：俄罗斯 Akademik Lomonosov（70 MWe + 60,000 m³/d）、SMART
+  海水淡化设计、ACPR50S。
+\end{itemize}
+
+\subsection{核能 +
+区域供热（N-DH）}\label{ux6838ux80fd-ux533aux57dfux4f9bux70edn-dh}
+
+\begin{itemize}
+\tightlist
+\item
+  中国、俄罗斯、北欧寒冷地区有大量区域供热需求；
+\item
+  SMR 可作为城市集中供热源（中温 80--150 ℃）；
+\item
+  案例：中国''燕龙''低温供热堆（DHR-400）；俄罗斯 BREST-OD-300
+  计划配套区域供热。
+\end{itemize}
+
+\section{SMR
+综合能源系统发展潜力}\label{smr-ux7efcux5408ux80fdux6e90ux7cfbux7edfux53d1ux5c55ux6f5cux529b}
+
+\subsection{潜力市场}\label{ux6f5cux529bux5e02ux573a}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}lll@{}}
+\toprule\noalign{}
+应用 & 主要市场 & 容量需求 \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+基荷电力 & 全球 & 大 \\
+工业供热 & 钢铁、水泥、化工 & 中 \\
+制氢 & 全球脱碳 & 大 \\
+海水淡化 & 中东、北非、印度 & 中 \\
+区域供热 & 寒冷地区 & 中 \\
+海上 / 偏远 & 海岛、矿区、北极 & 小但独特 \\
+\end{longtable}
+}
+
+\subsection{协同效应}\label{ux534fux540cux6548ux5e94}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{经济性}：通过梯级利用 + 多能销售，可提升 SMR 整体收益
+  20\%--50\%；
+\item
+  \textbf{可靠性}：与可再生能源互补，提升电网稳定性；
+\item
+  \textbf{脱碳}：覆盖电、热、氢、水多个脱碳难点；
+\item
+  \textbf{能源安全}：核燃料储存方便、供应链本土化、长换料周期。
+\end{itemize}
+
+\section{核能的非电力应用}\label{ux6838ux80fdux7684ux975eux7535ux529bux5e94ux7528}
+
+\subsection{工业工艺}\label{ux5de5ux4e1aux5de5ux827a}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}lll@{}}
+\toprule\noalign{}
+工艺 & 温度 & 现状 \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+区域供热 & 80--150 ℃ & 已商业（俄罗斯、中国） \\
+海水淡化 & 80--120 ℃ & 已商业 \\
+造纸、纺织 & 150--200 ℃ & 工业实践 \\
+化工（合成氨、化肥） & 300--500 ℃ & 工业实践 \\
+炼油 & 300--500 ℃ & 工业实践 \\
+钢铁 DRI & 800--1000 ℃ & 示范 \\
+水泥煅烧 & 1400 ℃ & 示范 \\
+制氢（SOEC、热化学） & 700--950 ℃ & 研发示范 \\
+\end{longtable}
+}
+
+\subsection{船舶与海上}\label{ux8239ux8236ux4e0eux6d77ux4e0a}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{破冰船}：俄罗斯（Arktika 级，RITM-200）、中国（玲龙系列）；
+\item
+  \textbf{海上浮动核电站}：俄罗斯 Akademik Lomonosov、中国 ACPR50S；
+\item
+  \textbf{深空探测}：火星、外行星任务用太空核电源（如 NASA Kilopower）。
+\end{itemize}
+
+\subsection{特殊应用}\label{ux7279ux6b8aux5e94ux7528}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{国防}：海军核动力（航母、潜艇）；
+\item
+  \textbf{空间站、月球基地}：永久基地核电源；
+\item
+  \textbf{远程矿区}：替代柴油。
+\end{itemize}
+
+\section{未来发展趋势}\label{ux672aux6765ux53d1ux5c55ux8d8bux52bf-1}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{核-可再生-储能混合系统}：通过智能调度 + 数字孪生实现最优运行；
+\item
+  \textbf{SMR + 高温制氢}：将成为 2030 年后重要市场（与电解氢竞争）；
+\item
+  \textbf{海上 SMR}：解决岛屿、海洋能源需求；
+\item
+  \textbf{移动 / 可运输 SMR}：军用、灾区救援、临时供电；
+\item
+  \textbf{多堆联合运行}：4--12 个 SMR
+  共享厂址，灵活组合发电、供热、制氢；
+\item
+  \textbf{数字化与 AI}：优化调度、预测性维护、智能控制；
+\item
+  \textbf{商业模式创新}：能源服务（不仅是电力）、热电联供合同、能源即服务（EaaS）。
+\end{enumerate}
+
+\section{参考文献}\label{ux53c2ux8003ux6587ux732e-10}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  IAEA-TECDOC-1859, \emph{Opportunities for Cogeneration with Nuclear
+  Energy}.
+\item
+  FrICK K. et al.~``Hybrid Nuclear-Renewable Energy Systems.''
+  \emph{Nature Energy}, 2019.
+\item
+  Ruth M. et al.~``Nuclear-Renewable Hybrid Energy Systems.''
+  NREL/TP-6A50-65060, 2016.
+\item
+  INL. \emph{Light Water Reactor Sustainability Program}.
+\item
+  Naterer G. F. et al.~``Thermochemical Hydrogen Production with a
+  Copper-Chlorine Cycle.'' \emph{Prog. Nucl. Energy}, 2017.
+\item
+  NEA. \emph{The Role of SMRs in Deep Decarbonization}, 2023.
+\item
+  国家能源局. 核能供热、海水淡化中长期规划（公开版本）.
+\item
+  NEA / IEA. \emph{Nuclear Power and Secure Energy Transitions}, 2022.
+\end{enumerate}
+
+\cleardoublepage
+
+\chapter{美国 SMR 技术}\label{ux7f8eux56fd-smr-ux6280ux672f}
+
+\begin{epigraph}
+
+\textbf{核心命题}　美国是全球 SMR
+研发最活跃的国家之一，政府（DOE-NE）与产业（NuScale、GE
+Hitachi、TerraPower、X-energy、Kairos 等）协同推进。本章梳理 DOE-NE
+的研发计划、NEUP/ART 资助、先进反应堆研发以及工业界的 SMR 项目。
+
+\end{epigraph}
+
+\section{引言}\label{ux5f15ux8a00-13}
+
+美国是最早推动商业 SMR 的国家。2000 年代后期，DOE 启动 SMR 计划；2010
+年代 DOE 与厂商联合资助（如 Babcock \& Wilcox mPower、NuScale）；2020 年
+NuScale 获 NRC 首个 SMR DC；2022
+年《通胀削减法案》（IRA）为先进核能提供税收抵免 + 40
+亿美元贷款担保；2024 年 TerraPower Natrium、GE Hitachi BWRX-300
+首堆开工。
+
+美国 SMR 生态的关键特征：
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{政府主导基础研发}：DOE-NE
+  通过国家实验室（INL、ORNL、ANL、SNL）支持长期 R\&D；
+\item
+  \textbf{大学参与}：NEUP（核能源大学计划）资助高校研究；
+\item
+  \textbf{产业主导商业化}：私有公司承担设计、取证、市场开发；
+\item
+  \textbf{风险资本进入}：TerraPower、X-energy、Kairos 等获得风投融资（10
+  亿美元级别）；
+\item
+  \textbf{监管现代化}：NRC 推出 10 CFR Part 53、风险指引型监管。
+\end{itemize}
+
+\section{DOE-NE 关于 SMR
+的研发计划}\label{doe-ne-ux5173ux4e8e-smr-ux7684ux7814ux53d1ux8ba1ux5212}
+
+DOE-NE（Office of Nuclear Energy）是联邦核能研发主管部门，下设多个项目：
+
+\subsection{SMR 计划（LWI / SMR Licensing Technical
+Support）}\label{smr-ux8ba1ux5212lwi-smr-licensing-technical-support}
+
+\begin{itemize}
+\tightlist
+\item
+  2012 年启动，5 年 4.52 亿美元；
+\item
+  支持轻水
+  SMR（NuScale、mPower、Holtec）的许可证申请、关键试验、设计审评；
+\item
+  mPower 因商业原因 2017 年终止；NuScale 顺利推进。
+\end{itemize}
+
+\subsection{Advanced Reactor
+Demonstration（ARDP）}\label{advanced-reactor-demonstrationardp}
+
+2020 年启动，20 亿美元分两路：
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Demonstration Stream}：5--7 年内建成首堆，TerraPower
+  Natrium（Wyoming）+ X-energy Xe-100（Dow Chemical，墨西哥湾）；
+\item
+  \textbf{Risk Reduction Stream}：降低设计风险，10 年内建成首堆，包括
+  Kairos Power KP-FHR、Westinghouse eVinci、Holtec SMR-300、BWX mReactor
+  等。
+\end{itemize}
+
+\subsection{Versatile Test
+Reactor（VTR）}\label{versatile-test-reactorvtr}
+
+\begin{itemize}
+\tightlist
+\item
+  DOE 主导建设的快中子试验堆，目标 2026 年投运；
+\item
+  用于先进反应堆燃料和材料辐照试验；
+\item
+  燃料为金属合金（HALEU）。
+\end{itemize}
+
+\subsection{HALEU Consortium}\label{haleu-consortium}
+
+\begin{itemize}
+\tightlist
+\item
+  2020 年通过《能源法》要求 DOE 建立国内 HALEU 供应链；
+\item
+  Centrus（俄亥俄州 Piketon）2023 年开始生产首批 HALEU；
+\item
+  与 TerraPower、X-energy、Kairos 等签订供应合同。
+\end{itemize}
+
+\section{DOE-NE ART
+规划研发领域}\label{doe-ne-art-ux89c4ux5212ux7814ux53d1ux9886ux57df}
+
+\textbf{Advanced Reactor Technologies (ART)} 是 DOE-NE
+在国家实验室的先进反应堆研发总集，分以下方向：
+
+\subsection{先进反应堆设计（Advanced Reactor
+Design）}\label{ux5148ux8fdbux53cdux5e94ux5806ux8bbeux8ba1advanced-reactor-design}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{高温气冷堆（HTGR）}：燃料 + 石墨 + 氦气循环；
+\item
+  \textbf{钠冷快堆（SFR）}：金属燃料 + 钠冷 + 干式后处理；
+\item
+  \textbf{铅冷快堆（LFR）}：铅或铅铋合金冷却；
+\item
+  \textbf{氟盐冷却高温堆（FHR）}：FLiBe + TRISO；
+\item
+  \textbf{熔盐堆（MSR）}：液态燃料或固态燃料；
+\item
+  \textbf{微型反应堆（Microreactor）}：1--20 MWe，可移动、远程应用。
+\end{itemize}
+
+\subsection{燃料循环（Fuel
+Cycle）}\label{ux71c3ux6599ux5faaux73affuel-cycle}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{HALEU 燃料制造}：金属、氧化物、氮化物、硅化物；
+\item
+  \textbf{TRISO 燃料}：BWXT、X-energy 制造；
+\item
+  \textbf{后处理与嬗变}：UREX+、GANEX、Pyroprocessing。
+\end{itemize}
+
+\subsection{材料与结构}\label{ux6750ux6599ux4e0eux7ed3ux6784}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{先进合金}：HT9、T91、15-15Ti（钠冷）；SiC/SiC
+  复合材料（气冷、熔盐）；
+\item
+  \textbf{石墨}：核级石墨长期辐照行为；
+\item
+  \textbf{结构材料}：混凝土、钢在高温、辐照下老化。
+\end{itemize}
+
+\subsection{仪表、控制与诊断}\label{ux4eeaux8868ux63a7ux5236ux4e0eux8bcaux65ad}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{先进传感}：自给能探测器、光纤温度计、超声波流量计；
+\item
+  \textbf{数字 I\&C}：FPGA、网络安全；
+\item
+  \textbf{AI / ML}：预测性维护、故障诊断。
+\end{itemize}
+
+\subsection{建模与仿真}\label{ux5efaux6a21ux4e0eux4effux771f}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{NEAMS（Nuclear Energy Advanced Modeling and Simulation）}：DOE
+  开发的多物理场仿真套件（MOOSE、RELAP-7、BISON、MARMOT 等）；
+\item
+  \textbf{CASL（Consortium for Advanced Simulation of Light water
+  reactors）}：轻水堆仿真，部分扩展到 SMR；
+\item
+  \textbf{数字孪生}：与厂商合作，为 NuScale、BWRX-300 建数字孪生。
+\end{itemize}
+
+\section{DOE-NE（NEUP）SMR
+相关研发}\label{doe-neneupsmr-ux76f8ux5173ux7814ux53d1}
+
+\textbf{Nuclear Energy University Programs (NEUP)} 每年资助约 5000
+万美元高校研究：
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{反应堆物理}：堆芯设计、安全分析；
+\item
+  \textbf{热工水力}：两相流、自然循环；
+\item
+  \textbf{材料}：核级合金、陶瓷、复合材料；
+\item
+  \textbf{燃料}：UO₂、UN、U₃Si₂、TRISO；
+\item
+  \textbf{I\&C 与 HSI}：数字平台、人因；
+\item
+  \textbf{安全}：PSA、严重事故、应急响应；
+\item
+  \textbf{燃料循环与废物}：后处理、地质处置；
+\item
+  \textbf{教育与人才培养}：奖学金、博士后、青年学者。
+\end{itemize}
+
+NEUP 推动了 SMR 相关的大量博士论文与论文发表，培养了一代 SMR 工程师。
+
+\section{DOE-NE
+先进反应堆研发（GAIN）}\label{doe-ne-ux5148ux8fdbux53cdux5e94ux5806ux7814ux53d1gain}
+
+\textbf{GAIN（Gateway for Accelerated Innovation in Nuclear）} 是 INL
+主导的平台，2015 年启动：
+
+\begin{itemize}
+\tightlist
+\item
+  提供国家实验室能力给中小企业和初创公司；
+\item
+  Vouchers（凭证）计划：每年约 200
+  万美元，资助企业使用国家实验室设备、专家；
+\item
+  已支持 TerraPower、Kairos、Oklo、Westinghouse、Elysium、Flibe 等。
+\end{itemize}
+
+\section{核工业界的 SMR
+研发}\label{ux6838ux5de5ux4e1aux754cux7684-smr-ux7814ux53d1}
+
+\subsection{轻水 SMR}\label{ux8f7bux6c34-smr}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{NuScale}（俄勒冈州）：12 × 50/77 MWe 一体化 PWR，已获 NRC
+  DC，正推进 RoPower（罗马尼亚）、Standard Power、Kozloduy 等项目；
+\item
+  \textbf{GE Hitachi BWRX-300}（NC/加拿大）：300 MWe
+  沸水堆，自然循环，加拿大 Darlington 项目 2024 年开工；
+\item
+  \textbf{Holtec SMR-300}（新泽西）：300 MWe PWR，2024 年申请 NRC DC；
+\item
+  \textbf{Westinghouse AP300}：2023 年公布，300 MWe；
+\item
+  \textbf{BWX mPower}：已终止。
+\end{itemize}
+
+\subsection{气冷 SMR}\label{ux6c14ux51b7-smr}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{X-energy Xe-100}（马里兰）：球床 + 氦气，4 × 80 MWe；
+\item
+  \textbf{Kairos Power KP-FHR}（加州）：氟盐冷却 + TRISO，Hermes 测试堆
+  2024 年获建造许可；
+\item
+  \textbf{BWX / Ultra Safe}：微型反应堆。
+\end{itemize}
+
+\subsection{液态金属 / 熔盐
+SMR}\label{ux6db2ux6001ux91d1ux5c5e-ux7194ux76d0-smr}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{TerraPower Natrium}（怀俄明）：345 MWe 钠冷 + 1.8 GWh
+  熔盐储热，与 PacifiCorp 合作；
+\item
+  \textbf{TerraPower / GEH traveling wave}：已转向钠冷；
+\item
+  \textbf{TerraPower MCFR}：氯化熔盐快堆；
+\item
+  \textbf{Elysium Power}：熔盐堆；
+\item
+  \textbf{Flibe Energy LFTR}：液氟钍堆；
+\item
+  \textbf{Oklo Aurora}：金属燃料微型反应堆。
+\end{itemize}
+
+\subsection{微型反应堆}\label{ux5faeux578bux53cdux5e94ux5806}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Oklo Aurora}：1.5 MWe，金属燃料，远程供电；
+\item
+  \textbf{Westinghouse eVinci}：约 5 MWe，热管冷却；
+\item
+  \textbf{BWX Technologies}：与国防部合作；
+\item
+  \textbf{Radiant}：1 MWe，便携式；
+\item
+  \textbf{Ultra Safe Technologies}：MMR，气冷。
+\end{itemize}
+
+\section{未来发展趋势}\label{ux672aux6765ux53d1ux5c55ux8d8bux52bf-2}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{2025--2030 年首堆密集投运}：BWRX-300（Darlington,
+  2028--2029）、Natrium（2028--2030）、Xe-100（2030+）、NuScale（罗马尼亚
+  2029+）、SMR-300（2030+）。
+\item
+  \textbf{HALEU 供应链成型}：Centrus、X-energy、TerraPower
+  推动国内生产；
+\item
+  \textbf{微型反应堆军事应用}：国防部''Project Pele''（移动微型堆）；
+\item
+  \textbf{NRC 10 CFR Part 53 落地}（预计 2025--2026），为非 LWR
+  提供现代化框架；
+\item
+  \textbf{核-可再生-储能混合系统}：Natrium、X-energy
+  等与可再生能源协同；
+\item
+  \textbf{制氢示范}：INL 的高温电解（HTSE）验证场 + Davis-Besse、Prairie
+  Island 等核电站的低温电解制氢示范；
+\item
+  \textbf{出口市场}：罗马尼亚、波兰、保加利亚、捷克、乌克兰等东欧市场；
+\item
+  \textbf{先进制造}：3D 打印关键部件、激光焊接、机器人焊接。
+\end{enumerate}
+
+\section{参考文献}\label{ux53c2ux8003ux6587ux732e-11}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  U.S. DOE Office of Nuclear Energy. \emph{Advanced Reactor
+  Demonstration Program}, energy.gov/ne.
+\item
+  NRC. \emph{NuScale Design Certification}, Final Safety Evaluation
+  Report, 2020.
+\item
+  NRC. \emph{BWRX-300 Pre-Application Review}, 2023.
+\item
+  TerraPower. \emph{Natrium Demonstration Project}, 2023.
+\item
+  X-energy. \emph{Xe-100 Design Description}, 2022.
+\item
+  NuScale. \emph{Standard Plant Design Description}, 2021.
+\item
+  NEUP. \emph{Annual Report 2023}, neup.anl.gov.
+\item
+  GAIN. \emph{GAIN Vouchers Annual Summary}, gain.inl.gov.
+\item
+  NASEM. \emph{Merits and Viability of Different Nuclear Reactor
+  Technologies}, 2023.
+\end{enumerate}
+
+\cleardoublepage
+
+\chapter{韩国 SMR 技术}\label{ux97e9ux56fd-smr-ux6280ux672f}
+
+\begin{epigraph}
+
+\textbf{核心命题}　韩国 SMR 技术以 \textbf{SMART}
+一体化压水堆为旗舰，由韩国原子力研究院（KAERI）主导开发，是\textbf{全球首个获设计认证的陆基一体化压水堆}（2012
+年），主要面向海水淡化与供热市场。除 PWR
+外，韩国也发展了钠冷（PGSFR）与超高温堆设计。
+
+\end{epigraph}
+
+\section{引言}\label{ux5f15ux8a00-14}
+
+韩国是核电大国，目前运行 25 台大型 PWR（APR1400、OPR1000、WH-60
+等），并出口了阿联酋 Barakah 4 台 APR1400。在 SMR 领域，KAERI 自 1997
+年开始研发 \textbf{SMART}（System-integrated Modular Advanced
+ReacTor），目标是：
+
+\begin{itemize}
+\tightlist
+\item
+  海水淡化 + 电力 + 区域供热；
+\item
+  出口中东、东南亚、南美；
+\item
+  国际科技合作（与沙特 KA.CARE 等）。
+\end{itemize}
+
+韩国 SMR 战略的特点：
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{政府主导 + 产业出口}：MOTIE（产业通商资源部）/
+  KHNP（韩国水力核电）/ KAERI 协同；
+\item
+  \textbf{海水电结合}：SMART 专门设计用于海水淡化；
+\item
+  \textbf{依托大型 PWR 工业基础}：Doosan、KEPCO E\&C 等供应链；
+\item
+  \textbf{国际合作 + 出口}：与沙特、马来西亚、印尼等合作。
+\end{itemize}
+
+\section{压水堆 SMR
+研究历史}\label{ux538bux6c34ux5806-smr-ux7814ux7a76ux5386ux53f2}
+
+\subsection{SMART 起步（1997--2006）}\label{smart-ux8d77ux6b6519972006}
+
+\begin{itemize}
+\tightlist
+\item
+  1997 年 KAERI 启动 SMART 设计；
+\item
+  目标：330 MWt / 90 MWe + 海水淡化 40,000 m³/d；
+\item
+  一体化 PWR：堆芯、SG、稳压器、主泵集成于同一压力容器；
+\item
+  关键技术：
+
+  \begin{itemize}
+  \tightlist
+  \item
+    螺旋管 SG（紧凑、热膨胀自补偿）；
+  \item
+    4 台屏蔽泵（湿定子）；
+  \item
+    自加压稳压器；
+  \item
+    自然循环冷却（部分负荷）；
+  \item
+    8 个非能动安全系统（PRHRS、ECCS、安全壳冷却）。
+  \end{itemize}
+\end{itemize}
+
+\subsection{SMART
+设计认证（2007--2012）}\label{smart-ux8bbeux8ba1ux8ba4ux8bc120072012}
+
+\begin{itemize}
+\tightlist
+\item
+  2007 年提交韩国核安全委员会（NSSC / KINS）申请；
+\item
+  2012 年获设计认证（\textbf{全球首个陆基一体化 PWR 设计认证}）；
+\item
+  同期建造 1:1 比例的非能动系统验证装置（FOTES）。
+\end{itemize}
+
+\subsection{SMART
+海水淡化示范（2010s）}\label{smart-ux6d77ux6c34ux6de1ux5316ux793aux83032010s}
+
+\begin{itemize}
+\tightlist
+\item
+  韩国本土曾计划 SMART 海水淡化示范项目（Gijang）；
+\item
+  因经济性、政治原因推迟；
+\item
+  2015 年与沙特 KA.CARE 签署 SMART 预可行性研究（K.A.CARE-SMART）。
+\end{itemize}
+
+\subsection{SMART
+与国际市场}\label{smart-ux4e0eux56fdux9645ux5e02ux573a}
+
+\begin{itemize}
+\tightlist
+\item
+  沙特：尚未首堆；
+\item
+  阿联酋：Barakah 已选 APR1400，未来 SMR 待考虑；
+\item
+  马来西亚、印尼、孟加拉国、泰国：评估中；
+\item
+  哈萨克斯坦、乌兹别克斯坦：海水淡化 + 电力；
+\item
+  与中国、俄罗斯 SMR 形成竞争。
+\end{itemize}
+
+\subsection{SMART-50 / SMART-100
+升级}\label{smart-50-smart-100-ux5347ux7ea7}
+
+\begin{itemize}
+\tightlist
+\item
+  2020 年代，KAERI 推出 SMART 升级版：
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \textbf{SMART-50}：50 MWe，专注海外出口；
+  \item
+    \textbf{SMART-100}：100 MWe，扩大单机功率，提升经济性；
+  \end{itemize}
+\item
+  改进设计：增加自然循环能力、延长换料周期（≥36 个月）、改善 SG
+  检修可达性。
+\end{itemize}
+
+\section{其他堆型 SMR
+研究历史}\label{ux5176ux4ed6ux5806ux578b-smr-ux7814ux7a76ux5386ux53f2}
+
+\subsection{钠冷快堆 PGSFR}\label{ux94a0ux51b7ux5febux5806-pgsfr}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Prototype Gen-IV Sodium-cooled Fast Reactor（PGSFR）}：
+
+  \begin{itemize}
+  \tightlist
+  \item
+    150 MWe 金属燃料 SFR；
+  \item
+    KAERI 主导，DOE（美国）合作；
+  \item
+    借鉴 EBR-II、Integral Fast Reactor 经验；
+  \item
+    计划 2028 年首堆，但因预算、政治因素推迟。
+  \end{itemize}
+\end{itemize}
+
+\subsection{超高温气冷堆}\label{ux8d85ux9ad8ux6e29ux6c14ux51b7ux5806}
+
+\begin{itemize}
+\tightlist
+\item
+  韩国原子力研究院（KAERI）+ 韩国电力（KEPCO）评估过 VHTR；
+\item
+  主要用于制氢；
+\item
+  由于 HTR-PM 在中国已示范，韩国转向观望与合作。
+\end{itemize}
+
+\subsection{微型反应堆}\label{ux5faeux578bux53cdux5e94ux5806-1}
+
+\begin{itemize}
+\tightlist
+\item
+  韩国在 R\&D 阶段：
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \textbf{U-Battery}（与英国 URENCO 合作评估）；
+  \item
+    \textbf{KAERI Microreactor}：金属燃料 + 热管。
+  \end{itemize}
+\end{itemize}
+
+\section{SMART IPWR 设计特点}\label{smart-ipwr-ux8bbeux8ba1ux7279ux70b9}
+
+\subsection{基本参数}\label{ux57faux672cux53c2ux6570}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}ll@{}}
+\toprule\noalign{}
+参数 & 数值 \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+热功率 & 330 MWt \\
+电功率 & 90 MWe（约） \\
+海水淡化 & 40,000 m³/d \\
+一回路压力 & 15 MPa \\
+一回路温度 & 310 ℃ \\
+燃料组件 & 57 个 17×17 PWR 组件 \\
+富集度 & ≤ 4.95\% \\
+换料周期 & 36 个月 \\
+设计寿命 & 60 年 \\
+\end{longtable}
+}
+
+\subsection{一体化 NSSS}\label{ux4e00ux4f53ux5316-nsss}
+
+\begin{itemize}
+\tightlist
+\item
+  堆芯 + SG（8 台螺旋管）+ 稳压器 + 屏蔽泵（4 台）集成于压力容器；
+\item
+  消除大破口 LOCA；
+\item
+  一回路装量大、自然循环能力强。
+\end{itemize}
+
+\subsection{安全系统}\label{ux5b89ux5168ux7cfbux7edf}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{被动余热排出系统（PRHRS）}：36 小时无须电源；
+\item
+  \textbf{被动安全注入系统}：依靠重力 + 气压；
+\item
+  \textbf{被动安全壳冷却}：通过自然循环；
+\item
+  应急计划区（EPZ）目标 400 m（基于源项分析）。
+\end{itemize}
+
+\subsection{海水淡化接口}\label{ux6d77ux6c34ux6de1ux5316ux63a5ux53e3}
+
+\begin{itemize}
+\tightlist
+\item
+  二回路抽汽供 MED 海水淡化；
+\item
+  淡化水与电力可按需求调整；
+\item
+  与电网耦合：电力 + 水双重产出。
+\end{itemize}
+
+\section{SFR 和 VHTR
+设计特点}\label{sfr-ux548c-vhtr-ux8bbeux8ba1ux7279ux70b9}
+
+\subsection{PGSFR}\label{pgsfr}
+
+\begin{itemize}
+\tightlist
+\item
+  150 MWe，金属燃料（U-10Zr）；
+\item
+  钠冷，3 个一回路 + 3 个二回路（池式）；
+\item
+  干式后处理（Pyroprocessing）配套；
+\item
+  主要目标：闭式燃料循环、长寿命核素嬗变；
+\item
+  争议：韩国是否需要快堆（铀资源不丰富）？是否与美国 123 协议冲突？
+\end{itemize}
+
+\subsection{VHTR / 制氢}\label{vhtr-ux5236ux6c22}
+
+\begin{itemize}
+\tightlist
+\item
+  高温气冷堆：目标 700--950 ℃；
+\item
+  用于制氢（SOEC、热化学 S-I 循环）；
+\item
+  主要 R\&D 机构：KAERI、POSTECH、KAIST。
+\end{itemize}
+
+\section{发展趋势}\label{ux53d1ux5c55ux8d8bux52bf-3}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{SMART
+  出口突破}：争取沙特、印尼、马来西亚、哈萨克斯坦等市场首堆；
+\item
+  \textbf{SMART-50 / 100 升级}：提升单机功率 + 自然循环能力；
+\item
+  \textbf{海上浮动核电站}：基于 SMART 设计海上版本；
+\item
+  \textbf{PGSFR 复活}：随着韩国核电战略调整，PGSFR 可能重新获资金；
+\item
+  \textbf{微型反应堆}：远程岛屿、矿区供电；
+\item
+  \textbf{与中国、俄罗斯竞争}：在东南亚、中东、中亚形成三方竞争；
+\item
+  \textbf{与俄罗斯、中国合作 + 竞争并存}：朝鲜半岛能源合作、远东合作。
+\end{enumerate}
+
+\section{参考文献}\label{ux53c2ux8003ux6587ux732e-12}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  KAERI. \emph{SMART Design Description}, 2015.
+\item
+  Lee W. et al.~``SMART: The first licensed integral reactor.''
+  \emph{Nuclear Engineering and Technology}, 2011.
+\item
+  Kim K. et al.~``Core design and startup physics tests of SMART.''
+  \emph{Annals of Energy}, 2013.
+\item
+  Korean NSSC. \emph{Safety Evaluation Report on SMART}, 2012.
+\item
+  Chang J. H. et al.~``Advanced SMR Development in Korea.'' \emph{Trans.
+  ANS}, 2019.
+\item
+  KAERI. \emph{PGSFR Design Progress}, 2022.
+\item
+  IAEA-TECDOC-1943, \emph{Integral PWR Design Features}.
+\item
+  MOTIE. \emph{Korea Nuclear Energy Roadmap 2022}.
+\end{enumerate}
+
+\cleardoublepage
+
+\chapter{阿根廷 SMR 技术}\label{ux963fux6839ux5ef7-smr-ux6280ux672f}
+
+\begin{epigraph}
+
+\textbf{核心命题}　阿根廷是拉美最早发展 SMR
+的国家，国家原子能委员会（CNEA）主导的 \textbf{CAREM} 项目自 1984
+年起研发，是\textbf{拉美首个国产一体化压水堆}。CAREM-25 原型堆（25
+MWe）正在建造，目标验证国产 SMR 技术并走向出口市场。
+
+\end{epigraph}
+
+\section{引言}\label{ux5f15ux8a00-15}
+
+阿根廷是南美洲少数几个拥有完整核工业的国家之一：
+
+\begin{itemize}
+\tightlist
+\item
+  运行 3 台大型核电站（Atucha I PHWR、Atucha II PHWR、Embalse CANDU
+  6）；
+\item
+  国家原子能委员会（CNEA）拥有研究堆（RA-1 至 RA-10）；
+\item
+  拥有铀矿、燃料制造（DIOXITEK）、废物管理能力；
+\item
+  国家核电公司（NASA）运营电站；
+\item
+  INVAP（国有工程公司）出口研究堆和放射源。
+\end{itemize}
+
+在 SMR 领域，阿根廷自 1984 年开始研发 \textbf{CAREM}（Central Argentina
+de Elementos Modulares），目标是：
+
+\begin{itemize}
+\tightlist
+\item
+  国产 SMR 技术自主化；
+\item
+  出口拉美、非洲、亚洲发展中国家；
+\item
+  与阿根廷其他工业（如 INVAP 出口）形成战略协同。
+\end{itemize}
+
+\section{SMR 发展规划}\label{smr-ux53d1ux5c55ux89c4ux5212}
+
+阿根廷 SMR 战略可分三阶段：
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}lll@{}}
+\toprule\noalign{}
+阶段 & 时间 & 内容 \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+概念设计 & 1984--2000 & CAREM 概念论证、初步设计 \\
+工程设计 & 2000--2014 & CAREM-25 详细设计、政府立项 \\
+原型堆建造 & 2014--至今 & Lima（Buenos Aires 省）建造 25 MWe 原型堆 \\
+商业化推广 & 2026-- & 100--150 MWe 放大版，国内外推广 \\
+\end{longtable}
+}
+
+CAREM 战略由 CNEA 主导，与 NASA、INVAP、AR-SAT
+等协作。受阿根廷经济波动、政府换届、外汇紧张影响，CAREM
+进度多次推迟，但仍是拉美最重要的 SMR 项目。
+
+\section{CAREM
+一体化压水堆}\label{carem-ux4e00ux4f53ux5316ux538bux6c34ux5806}
+
+\subsection{设计特点}\label{ux8bbeux8ba1ux7279ux70b9}
+
+CAREM 是\textbf{一体化、自加压、自然循环压水堆}，特征包括：
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{一体化压力容器}：堆芯、SG、稳压器、内部喷淋管集成于同一压力容器；
+\item
+  \textbf{无主泵}：依靠\textbf{密度差驱动自然循环}（一回路流量由堆芯加热产生浮力驱动）；
+\item
+  \textbf{自加压}：利用压力容器顶部汽水混合空间自动维持压力，无须外部稳压器；
+\item
+  \textbf{内部喷淋}：通过 SG 顶部喷淋调节一回路温度；
+\item
+  \textbf{水力柱塞泵}：12
+  台小型水力柱塞泵用于调节流量（不参与主冷却循环）。
+\end{itemize}
+
+\subsection{基本参数（CAREM-25
+原型堆）}\label{ux57faux672cux53c2ux6570carem-25-ux539fux578bux5806}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}ll@{}}
+\toprule\noalign{}
+参数 & 数值 \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+热功率 & 100 MWt \\
+电功率 & 27--32 MWe \\
+一回路压力 & 12.25 MPa \\
+一回路温度 & 326 ℃ \\
+燃料组件 & 18 个（改型 17×17 标准 PWR 组件） \\
+富集度 & ≤ 4.95\%（HALEU 可选） \\
+换料周期 & 18 个月 \\
+设计寿命 & 40--60 年 \\
+\end{longtable}
+}
+
+\subsection{安全系统}\label{ux5b89ux5168ux7cfbux7edf-1}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{被动余热排出系统（PRHRS）}：72 小时无须电源；
+\item
+  \textbf{一次侧安全注入}：被动式，依靠重力 + 气压；
+\item
+  \textbf{二次侧安全注入}：辅助给水；
+\item
+  \textbf{被动安全壳冷却}：自然对流 + 蒸发；
+\item
+  应急计划区（EPZ）：≤ 500 m（基于源项分析）。
+\end{itemize}
+
+\subsection{控制棒驱动机构（CRDM）}\label{ux63a7ux5236ux68d2ux9a71ux52a8ux673aux6784crdm-1}
+
+\begin{itemize}
+\tightlist
+\item
+  CAREM
+  采用\textbf{内部水力驱动控制棒}：通过高压水推动活塞驱动控制棒上下移动；
+\item
+  这与传统磁力提升 CRDM 不同，是 CAREM 的特色；
+\item
+  优点：紧凑、可靠、低维护；缺点：需要高压水源。
+\end{itemize}
+
+\section{CAREM 部署进展}\label{carem-ux90e8ux7f72ux8fdbux5c55}
+
+\subsection{CAREM-25 原型堆}\label{carem-25-ux539fux578bux5806}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{厂址}：阿根廷 Lima（Buenos Aires 省），距 Atucha 核电站约 10
+  km；
+\item
+  \textbf{2014 年 2 月}：第一块混凝土浇筑；
+\item
+  \textbf{2017 年}：土建基本完成；
+\item
+  \textbf{2019--2022 年}：因政府换届、经济危机、外汇紧张，进度大幅推迟；
+\item
+  \textbf{2023 年起}：重新获得 CNEA 推进，目标 2026--2027 首次临界；
+\item
+  \textbf{意义}：拉美首个国产 SMR 原型堆。
+\end{itemize}
+
+\subsection{CAREM-100 / 200
+商业版}\label{carem-100-200-ux5546ux4e1aux7248}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{CAREM-100}：100--150 MWe；
+\item
+  目标：在 CAREM-25 验证技术后，放大并推广；
+\item
+  候选厂址：阿根廷本土（替代旧燃煤）、出口拉美（智利、秘鲁、哥伦比亚）、加勒比海岛国；
+\item
+  时间：2030 年代开始推广。
+\end{itemize}
+
+\subsection{出口市场}\label{ux51faux53e3ux5e02ux573a}
+
+\begin{itemize}
+\tightlist
+\item
+  阿根廷 INVAP 已出口多座研究堆（埃及 ETRR-2、阿尔及利亚 NUR、澳大利亚
+  OPAL）；
+\item
+  CAREM 的目标市场：拉美（小电网）、非洲（小电网 + 海水淡化）、东南亚；
+\item
+  与中国、俄罗斯、韩国竞争；阿根廷的优势：政治中立、价格相对低、技术转让意愿较强；
+\item
+  劣势：融资能力受限（国家经济波动）。
+\end{itemize}
+
+\section{未来趋势}\label{ux672aux6765ux8d8bux52bf-1}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{CAREM-25 完成与并网}（2026--2027）：拉美首个国产 SMR 示范；
+\item
+  \textbf{CAREM-100 设计与建造}：放大并商业化；
+\item
+  \textbf{国际合作伙伴}：与巴西、墨西哥、智利合作；
+\item
+  \textbf{与可再生能源耦合}：CAREM + 风光 + 储能，灵活基荷；
+\item
+  \textbf{海水淡化 + 区域供热}：南美南部寒冷地区 + 沿海缺水地区；
+\item
+  \textbf{参与 IAEA SMR 平台}：IAEA SMR Cluster、ARIS 数据库；
+\item
+  \textbf{与 INVAP 研究堆业务协同}：在同一海外客户中打包推广。
+\end{enumerate}
+
+\section{参考文献}\label{ux53c2ux8003ux6587ux732e-13}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  CNEA. \emph{CAREM-25 Project Overview}, 2018.
+\item
+  Boado Magán H. et al.~``CAREM Project: Argentina's SMR.''
+  \emph{ICAPP}, 2016.
+\item
+  IAEA-TECDOC-1859, \emph{Cogeneration with Nuclear Energy}.
+\item
+  IAEA-TECDOC-1943, \emph{Integral PWR Design Features}.
+\item
+  INVAP. \emph{Annual Report}, www.invap.com.ar.
+\item
+  CNEA. \emph{CAREM-25 Construction Status}, 2023.
+\item
+  Santinello M. et al.~``CAREM-25 Construction Update.'' \emph{Trans.
+  ANS}, 2022.
+\item
+  IAEA. \emph{ARIS --- CAREM Entry}, aris.iaea.org.
+\end{enumerate}
+
+\cleardoublepage
+
+\chapter{俄罗斯 SMR 技术}\label{ux4fc4ux7f57ux65af-smr-ux6280ux672f}
+
+\begin{epigraph}
+
+\textbf{核心命题}　俄罗斯是全球\textbf{最先实现 SMR
+商业运行}的国家------2019 年投运的浮动核电站 \textbf{Akademik
+Lomonosov}（KLT-40S，2 × 35 MWe），以及正在 Seversk 建造的
+\textbf{BREST-OD-300} 铅冷快堆。Rosatom 旗下 OKBM、NIKIET、AKME
+等设计机构开发了多种 SMR，是 SMR 出口市场的主要玩家。
+
+\end{epigraph}
+
+\section{引言}\label{ux5f15ux8a00-16}
+
+俄罗斯（苏联）在核能领域积累了深厚底蕴：
+
+\begin{itemize}
+\tightlist
+\item
+  全球第二大核电装机（运行 11 台大型核电站，多个堆型）；
+\item
+  拥有完整核燃料循环（铀矿、转化、富集、燃料制造、后处理、废物管理）；
+\item
+  强大的反应堆设计能力（OKBM Afrikantov、NIKIET、Dollezhal 等）；
+\item
+  海军核动力（潜艇、破冰船）支持小型反应堆技术积累；
+\item
+  国家主导（Rosatom 集团）+ 出口（Rosatom Overseas）。
+\end{itemize}
+
+俄罗斯 SMR 战略的特点：
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{军民融合}：破冰船、潜艇反应堆技术向民用 SMR 转化；
+\item
+  \textbf{海上优先}：浮动核电站 + 破冰船是首要市场；
+\item
+  \textbf{快堆引领}：BREST-OD-300 铅冷快堆是 PRORYV（突破）项目核心；
+\item
+  \textbf{出口导向}：向亚非拉发展中国家推广。
+\end{itemize}
+
+\section{OKBM SMR 技术}\label{okbm-smr-ux6280ux672f}
+
+OKBM Afrikantov（位于 Nizhny
+Novgorod）是俄罗斯主要反应堆设计机构，开发的 SMR 包括：
+
+\subsection{KLT-40S（浮动核电站）}\label{klt-40sux6d6eux52a8ux6838ux7535ux7ad9}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{类型}：紧凑型压水堆，源自破冰船反应堆；
+\item
+  \textbf{功率}：2 × 35 MWe；
+\item
+  \textbf{载体}：``Akademik Lomonosov''号浮动核电站（FNPP）；
+\item
+  \textbf{首堆}：2019 年投运，\textbf{全球首座商业浮动核电站}；
+\item
+  \textbf{厂址}：Pevek（楚科奇半岛），为俄罗斯远东地区提供电力 +
+  区域供热；
+\item
+  \textbf{意义}：证明海上 SMR 商业可行性。
+\end{itemize}
+
+\subsection{RITM-200（破冰船 /
+浮动核电站）}\label{ritm-200ux7834ux51b0ux8239-ux6d6eux52a8ux6838ux7535ux7ad9}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{类型}：一体化 PWR，第四代破冰船反应堆；
+\item
+  \textbf{功率}：2 × 50 MWe（破冰船）/ 2 × 50 MWe（陆上版本）；
+\item
+  \textbf{应用}：
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \textbf{Arktika 级破冰船}（已下水 3 艘：Arktika、Sibir、Ural）；
+  \item
+    \textbf{Yakutiya、Chukotka} 等；
+  \item
+    \textbf{陆上 SMR 版本}：1--2 模块陆地部署；
+  \end{itemize}
+\item
+  \textbf{优势}：紧凑、效率高、寿期长；
+\item
+  \textbf{目标}：未来俄罗斯新建浮动核电站将基于
+  RITM-200S（陆上版本），单机 55 MWe。
+\end{itemize}
+
+\subsection{ABV-6M / ABV-7A}\label{abv-6m-abv-7a}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{类型}：紧凑型 PWR；
+\item
+  \textbf{功率}：6--12 MWe；
+\item
+  \textbf{应用}：小规模浮动核电站、远东偏远地区；
+\item
+  \textbf{状态}：未首堆，待市场驱动。
+\end{itemize}
+
+\subsection{UNITHERM}\label{unitherm}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{类型}：高温气冷堆概念；
+\item
+  \textbf{功率}：30 MWt / 6 MWe；
+\item
+  \textbf{应用}：区域供热 + 小型电力；
+\item
+  \textbf{状态}：概念设计阶段。
+\end{itemize}
+
+\subsection{KLT-40S 改进版}\label{klt-40s-ux6539ux8fdbux7248}
+
+\begin{itemize}
+\tightlist
+\item
+  OKBM 正在开发 KLT-40S 的后继版本，更紧凑、更长寿期（\textgreater10
+  年免换料）。
+\end{itemize}
+
+\section{AKME SMR 技术}\label{akme-smr-ux6280ux672f}
+
+\textbf{AKME Engineering}（俄罗斯私人工程公司，与 Rosatom 合作）开发
+\textbf{SVBR-100}：
+
+\subsection{SVBR-100（铅铋共晶冷却）}\label{svbr-100ux94c5ux94cbux5171ux6676ux51b7ux5374}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{类型}：铅铋共晶（LBE）冷却快堆；
+\item
+  \textbf{功率}：100 MWe；
+\item
+  \textbf{燃料}：铀钚氮化物（或氧化物）；
+\item
+  \textbf{特点}：源自阿尔法级潜艇反应堆技术；
+\item
+  \textbf{优势}：常压运行、热效率高、安全性好；
+\item
+  \textbf{状态}：原计划在 Dimitrovgrad
+  建造原型堆（RIAR），但因融资、技术问题，进度大幅推迟；
+\item
+  2018 年后项目基本停滞，未来不确定。
+\end{itemize}
+
+\section{NIKIET SMR 技术}\label{nikiet-smr-ux6280ux672f}
+
+\textbf{NIKIET}（莫斯科动力工程研究院，Dollezhal）主要开发
+\textbf{BREST-OD-300}：
+
+\subsection{BREST-OD-300（铅冷快堆）}\label{brest-od-300ux94c5ux51b7ux5febux5806}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{类型}：铅冷快堆（LFR）；
+\item
+  \textbf{功率}：300 MWe / 700 MWt；
+\item
+  \textbf{燃料}：铀钚氮化物（UN-PuN）；
+\item
+  \textbf{冷却剂}：液态铅；
+\item
+  \textbf{核心特征}：
+
+  \begin{itemize}
+  \tightlist
+  \item
+    铅冷常压运行，消除大破口 + 烧毁风险；
+  \item
+    氮化物燃料导热系数高、密度高；
+  \item
+    中子学特性：U-Pu 平衡，\textbf{反应性空泡系数为负}，固有安全；
+  \item
+    配套\textbf{干法后处理 + 闭式燃料循环}（PRORYV 项目）；
+  \end{itemize}
+\item
+  \textbf{厂址}：俄罗斯 Seversk（西伯利亚，前核武器基地）；
+\item
+  \textbf{建设进度}：
+
+  \begin{itemize}
+  \tightlist
+  \item
+    2018 年开始土建；
+  \item
+    2021 年反应堆厂房基础完成；
+  \item
+    目标 2026--2027 年首次临界；
+  \item
+    \textbf{PRORYV 项目核心}：实现''闭式燃料循环示范''；
+  \end{itemize}
+\item
+  \textbf{意义}：俄罗斯在第四代反应堆领域的旗舰项目。
+\end{itemize}
+
+\subsection{BREST-GREK / BR-1200}\label{brest-grek-br-1200}
+
+\begin{itemize}
+\tightlist
+\item
+  BREST 系列放大版，1200 MWe；
+\item
+  远期规划，需先验证 BREST-OD-300。
+\end{itemize}
+
+\subsection{VPBR-300}\label{vpbr-300}
+
+\begin{itemize}
+\tightlist
+\item
+  NIKIET 设计的气冷快堆概念；
+\item
+  处于概念设计阶段。
+\end{itemize}
+
+\section{俄罗斯 SMR
+部署情况}\label{ux4fc4ux7f57ux65af-smr-ux90e8ux7f72ux60c5ux51b5}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}lll@{}}
+\toprule\noalign{}
+项目 & 类型 & 状态 \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Akademik Lomonosov & KLT-40S 浮动 & 2019 运行 \\
+Arktika / Sibir / Ural 破冰船 & RITM-200 & 2019--2022 运行 \\
+Yakutiya / Chukotka 破冰船 & RITM-200 & 建造中 \\
+BREST-OD-300 & LFR & 建造中（Seversk，目标 2026--2027） \\
+SVBR-100 & LBE & 停滞 \\
+ABV-6M & PWR & 设计 \\
+RITM-200S 陆上 & IPWR & 设计 \\
+出口市场 & 多 & 评估中 \\
+\end{longtable}
+}
+
+\subsection{出口项目}\label{ux51faux53e3ux9879ux76ee}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{俄罗斯远东 + 北极}：本国能源基础设施；
+\item
+  \textbf{出口浮动核电站}：曾与印尼、马来西亚、中国（渤海）、智利、苏丹、佛得角等评估；
+\item
+  \textbf{陆上 SMR
+  出口}：与古巴、越南、埃及、孟加拉国、哈萨克斯坦、乌兹别克斯坦等评估；
+\item
+  \textbf{面临制裁}：俄乌冲突后，西方制裁影响 Rosatom
+  出口（尽管俄罗斯核能整体未被全面制裁）。
+\end{itemize}
+
+\section{未来发展趋势}\label{ux672aux6765ux53d1ux5c55ux8d8bux52bf-3}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{BREST-OD-300 投运}（2026--2027）：俄罗斯第四代反应堆旗舰；
+\item
+  \textbf{新一代浮动核电站}：RITM-200S 替代 KLT-40S；
+\item
+  \textbf{北极 SMR 集群}：俄罗斯北极开发战略需要大量小型核电；
+\item
+  \textbf{破冰船升级}：更多 RITM-200 破冰船下水；
+\item
+  \textbf{与中国合作 + 竞争}：浮动核电站、海上 SMR、快堆技术交流；
+\item
+  \textbf{亚洲、非洲、拉美出口}：受俄乌冲突影响，部分项目推迟或转移；
+\item
+  \textbf{闭式燃料循环}：BREST + Pyroprocessing 示范；
+\item
+  \textbf{数字化、自动化}：远东、北极无人值守运行需要远程监控。
+\end{enumerate}
+
+\section{结论}\label{ux7ed3ux8bba-7}
+
+俄罗斯 SMR 战略的特征是\textbf{军民融合 + 国家主导 + 出口导向}。KLT-40S
+已商业运行，BREST-OD-300 是全球第四代反应堆前沿项目，RITM-200
+是新一代破冰船与浮动核电站的核心。受俄乌冲突与制裁影响，俄罗斯 SMR
+出口前景面临不确定性，但其技术能力依然领先。
+
+\section{参考文献}\label{ux53c2ux8003ux6587ux732e-14}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  Rosatom. \emph{Annual Report}, rosatom.ru.
+\item
+  OKBM Afrikantov. \emph{KLT-40S, RITM-200, SVBR-100}, okbm.nnov.ru.
+\item
+  NIKIET. \emph{BREST-OD-300 Design}, nikiet.ru.
+\item
+  IAEA. \emph{ARIS --- Russian SMRs}, aris.iaea.org.
+\item
+  Adamov E. O. et al.~``BREST-OD-300 Lead-Cooled Fast Reactor.''
+  \emph{Atomic Energy}, 2019.
+\item
+  Teplov P. et al.~``Akademik Lomonosov Floating NPP Commissioning.''
+  \emph{Nucl. Eng. Tech.}, 2021.
+\item
+  Orlov V. et al.~``The Closing of the Nuclear Fuel Cycle in Russia.''
+  \emph{Prog. Nucl. Energy}, 2019.
+\item
+  Orlova A. ``Russian SMR Export Strategy.'' \emph{Energy Policy}, 2023.
+\end{enumerate}
+
+\cleardoublepage
+
+\chapter{中国 SMR 技术}\label{ux4e2dux56fd-smr-ux6280ux672f}
+
+\begin{epigraph}
+
+\textbf{核心命题}　中国 SMR 技术呈现''多路线并进 +
+多业主协同''格局：中核集团（CNNC）\textbf{玲龙一号（ACP100）}是全球首个陆基
+IPWR 示范项目；中核 + 清华 + 华能联合的 \textbf{HTR-PM}
+是全球首座模块式高温气冷堆；中广核 ACPR50S
+与中国海上浮动堆面向海洋应用；快堆、铅冷、熔盐堆 R\&D 同步推进。
+
+\end{epigraph}
+
+\section{引言}\label{ux5f15ux8a00-17}
+
+中国是全球最大核电建设国，目前运行 55+ 台核电机组，在建 20+
+台，主导堆型为华龙一号（HPR1000，自主三代）、CAP1400（与西屋合作衍生）、国和一号等。在
+SMR 领域，中国采取\textbf{多路线并进}战略：
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{轻水 SMR}：中核 ACP100（玲龙一号）、中广核 ACPR50S、国电投
+  CAP200 等；
+\item
+  \textbf{高温气冷堆}：HTR-PM（已商运）；
+\item
+  \textbf{快堆}：中国实验快堆 CEFR（已运行）、示范快堆 CFR-600（在建）；
+\item
+  \textbf{铅冷快堆}：CAS 启动计划；
+\item
+  \textbf{熔盐堆}：上海应物所 TMSR-SF / TMSR-LF；
+\item
+  \textbf{微堆}：泳池式低温供热堆（DHR-400，``燕龙''）、空间堆、海岛堆。
+\end{itemize}
+
+中国 SMR 战略的特点：
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{政府顶层设计}：国家发改委、能源局、国防科工局协调；
+\item
+  \textbf{多家集团并行}：中核、中广核、国电投、华能、清华、中科院分工；
+\item
+  \textbf{军民融合}：海军核动力、空间核电源、海岛堆；
+\item
+  \textbf{``一带一路''出口}：与华龙一号共同推广；
+\item
+  \textbf{依托强大供应链}：一重、二重、东方电气、上海电气、哈汽等。
+\end{itemize}
+
+\section{高温气冷堆（HTR-PM）}\label{ux9ad8ux6e29ux6c14ux51b7ux5806htr-pm}
+
+\subsection{项目背景}\label{ux9879ux76eeux80ccux666f}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{HTR-PM}（High-Temperature gas-cooled Reactor Pebble-bed
+  Module）：
+
+  \begin{itemize}
+  \tightlist
+  \item
+    由清华大学核研究院（INET）主导设计；
+  \item
+    中核集团（CNNC）、华能集团共同建设；
+  \item
+    \textbf{全球首座模块式高温气冷堆示范工程}；
+  \item
+    厂址：山东荣成石岛湾（与华能高温气冷堆核电站示范工程共址）。
+  \end{itemize}
+\end{itemize}
+
+\subsection{设计参数}\label{ux8bbeux8ba1ux53c2ux6570}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}ll@{}}
+\toprule\noalign{}
+参数 & 数值 \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+反应堆模块 & 2 × 250 MWt \\
+总电功率 & 211 MWe \\
+一回路（氦气）温度 & 750 ℃（出口）/ 250 ℃（入口） \\
+一回路压力 & 7 MPa \\
+燃料 & 球床 TRISO（直径 6 cm，含 UO₂ 包覆颗粒） \\
+富集度 & 8.9\% \\
+平均燃耗 & 90 GWd/tHM \\
+二回路（蒸汽） & 13.24 MPa / 567 ℃ \\
+设计寿命 & 40 年 \\
+\end{longtable}
+}
+
+\subsection{技术特征}\label{ux6280ux672fux7279ux5f81}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{模块式}：2 个反应堆模块共享 1 个汽轮机；
+\item
+  \textbf{球床燃料}：连续在线换料（球在堆芯循环，类似 AVR、THTR）；
+\item
+  \textbf{TRISO 燃料}：耐 1600 ℃，事故下不破损；
+\item
+  \textbf{氦气循环风机}：磁悬浮高速风机（关键技术突破）；
+\item
+  \textbf{固有安全}：负反应性温度反馈 + 高热容燃料 →
+  失去冷却下燃料自动稳温 \textless{} 1600 ℃。
+\end{itemize}
+
+\subsection{里程碑}\label{ux91ccux7a0bux7891}
+
+\begin{itemize}
+\tightlist
+\item
+  2012 年开工建造；
+\item
+  2021 年 9 月反应堆首次临界；
+\item
+  2021 年 12 月并网发电；
+\item
+  2023 年 12 月正式商运；
+\item
+  \textbf{意义}：全球首座商用模块式高温气冷堆，验证固有安全 +
+  商业电力可行性。
+\end{itemize}
+
+\subsection{后续 HTR-PM600 /
+HTR-PM1000}\label{ux540eux7eed-htr-pm600-htr-pm1000}
+
+\begin{itemize}
+\tightlist
+\item
+  6 × 250 MWt 模块 = 655 MWe 电站；
+\item
+  目标市场：北方工业供热、煤电替代、制氢；
+\item
+  河北海兴、福建漳州等候选厂址。
+\end{itemize}
+
+\section{ACP100（玲龙一号）}\label{acp100ux73b2ux9f99ux4e00ux53f7}
+
+\subsection{项目背景}\label{ux9879ux76eeux80ccux666f-1}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{玲龙一号（ACP100 / Linglong One）}：
+
+  \begin{itemize}
+  \tightlist
+  \item
+    由中核集团（CNNC）自主设计；
+  \item
+    \textbf{全球首个通过 IAEA 通用安全审查（GSR）的陆基 IPWR}（2016
+    年）；
+  \item
+    厂址：海南昌江核电站（与现有大型核电站共址）；
+  \item
+    多用途示范：电力 + 海水淡化 + 工业供热。
+  \end{itemize}
+\end{itemize}
+
+\subsection{设计参数}\label{ux8bbeux8ba1ux53c2ux6570-1}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}ll@{}}
+\toprule\noalign{}
+参数 & 数值 \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+热功率 & 385 MWt \\
+电功率 & 125 MWe \\
+一回路压力 & 15 MPa \\
+一回路温度 & 320 ℃ \\
+燃料组件 & 37 个 17×17（CF3 自主） \\
+富集度 & ≤ 4.95\% \\
+换料周期 & 24 个月 \\
+设计寿命 & 60 年 \\
+SG 形式 & 直流直管 SG（OTSG） \\
+主泵 & 屏蔽泵 × 4 \\
+\end{longtable}
+}
+
+\subsection{技术特征}\label{ux6280ux672fux7279ux5f81-1}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{一体化压力容器}：堆芯 + SG + 稳压器集成；
+\item
+  \textbf{OTSG}：紧凑、响应快、对水质要求高；
+\item
+  \textbf{屏蔽泵}：4 台，无轴封泄漏；
+\item
+  \textbf{非能动安全}：
+
+  \begin{itemize}
+  \tightlist
+  \item
+    被动余热排出（PRHRS）；
+  \item
+    被动安全注入；
+  \item
+    被动安全壳冷却；
+  \item
+    全厂断电（SBO）下 72 小时无须干预；
+  \end{itemize}
+\item
+  应急计划区（EPZ）目标 300 m（与厂址边界接近）。
+\end{itemize}
+
+\subsection{里程碑}\label{ux91ccux7a0bux7891-1}
+
+\begin{itemize}
+\tightlist
+\item
+  2010 年代：设计与 IAEA GSR；
+\item
+  2021 年 7 月：海南昌江开工；
+\item
+  2022 年起：核岛土建、设备到货；
+\item
+  2023 年：压力容器吊装就位；
+\item
+  2026 年预计首次临界 + 并网；
+\item
+  \textbf{意义}：中国首个自主 IPWR 示范，为后续商业推广铺路。
+\end{itemize}
+
+\subsection{后续 ACP100 后继}\label{ux540eux7eed-acp100-ux540eux7ee7}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{ACP100S}（海上浮动版）：与 ACPR50S 类似；
+\item
+  \textbf{ACP100+ / ACP200}：放大版本，目标 200 MWe；
+\item
+  出口市场：东南亚、中东、非洲、南美。
+\end{itemize}
+
+\section{中国 SMR
+部署情况}\label{ux4e2dux56fd-smr-ux90e8ux7f72ux60c5ux51b5}
+
+\subsection{其他主要 SMR
+项目}\label{ux5176ux4ed6ux4e3bux8981-smr-ux9879ux76ee}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}llll@{}}
+\toprule\noalign{}
+项目 & 类型 & 业主 & 状态 \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+HTR-PM & 球床 HTGR & 中核 + 华能 + 清华 & 2023 商运 \\
+ACP100（玲龙一号） & IPWR & 中核 & 2026 预计 \\
+ACPR50S & 海上浮动 PWR & 中广核 & 设计 + 实验堆 \\
+CAP200 / Linglong 后继 & IPWR & 国电投 & 概念设计 \\
+CFR-600（霞浦示范快堆） & 钠冷快堆 & 中核 & 在建（600 MWe，略大） \\
+CIAD（铅冷快堆） & LFR & 中科院 & 概念 \\
+TMSR-SF（固态） & 固态熔盐堆 & 上海应物所 & 2023 实验堆临界 \\
+TMSR-LF（液态） & 液态熔盐堆 & 上海应物所 & 在建 \\
+燕龙（DHR-400） & 低温供热堆 & 中核 & 设计 \\
+海洋核动力平台 & 海上 IPWR & 中船重工 / 中广核 / 中核 & 设计 \\
+\end{longtable}
+}
+
+\subsection{部署特点}\label{ux90e8ux7f72ux7279ux70b9}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{示范先行}：HTR-PM、ACP100 等示范堆先行验证，再放大推广；
+\item
+  \textbf{多业主分工}：中核主推 IPWR + 快堆；中广核主推海上；国电投主推
+  CAP200；清华主导 HTR；
+\item
+  \textbf{依托大型核电站共址}：HTR-PM、ACP100
+  都建在现有核电站厂址，共享基础设施；
+\item
+  \textbf{北方供热}：燕龙、低温堆面向北方城市区域供热；
+\item
+  \textbf{海上 / 岛屿}：南海岛礁、远海油田、海上平台；
+\item
+  \textbf{出口}：与华龙一号共同形成''大型 + 小型''出口组合。
+\end{itemize}
+
+\subsection{出口市场}\label{ux51faux53e3ux5e02ux573a-1}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{沙特}：与 KAERI 共同评估（双方都涉及 SMART）；
+\item
+  \textbf{印尼}：高温气冷堆评估；
+\item
+  \textbf{巴基斯坦}：与卡拉奇核电群协同；
+\item
+  \textbf{中东、非洲}：海水淡化 + 电力；
+\item
+  \textbf{东欧}：与华龙一号竞争 NuScale、BWRX-300。
+\end{itemize}
+
+\section{发展趋势}\label{ux53d1ux5c55ux8d8bux52bf-4}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{首堆密集投运}：HTR-PM（2023
+  已运行）、ACP100（2026）、CFR-600（2027+）、TMSR-LF；
+\item
+  \textbf{放大与商业推广}：HTR-PM600、ACP200、海上 SMR；
+\item
+  \textbf{北方供热市场}：燕龙低温堆、HTR-PM 改供热；
+\item
+  \textbf{海上浮动堆}：南海岛礁、远海油田；
+\item
+  \textbf{制氢示范}：HTR-PM 后续高温制氢 R\&D；
+\item
+  \textbf{快堆闭式燃料循环}：CFR-600 + CFR-1200 + 后处理；
+\item
+  \textbf{熔盐堆前沿}：TMSR-SF 已运行，TMSR-LF 在建；
+\item
+  \textbf{数字化、智能化}：依托中国 ICT 工业，发展智能核反应堆；
+\item
+  \textbf{``一带一路''出口}：与华龙一号共同推广；
+\item
+  \textbf{HALEU 燃料}：TRISO 用 8.9\% 富集度，国内富集能力充足。
+\end{enumerate}
+
+\section{参考文献}\label{ux53c2ux8003ux6587ux732e-15}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  清华大学核研院. HTR-PM 设计总说明书（公开版）.
+\item
+  张作义 等. ``HTR-PM 项目进展.'' \emph{核动力工程}, 2022.
+\item
+  蔡琦 等. ``ACP100 设计与安全分析.'' \emph{核动力工程}, 2017.
+\item
+  中核集团. \emph{玲龙一号（ACP100）项目公开资料}, cnnic.com.cn.
+\item
+  中广核. \emph{ACPR50S 海上浮动核电站设计}, cgn.com.cn.
+\item
+  IAEA. \emph{ARIS --- Chinese SMRs}, aris.iaea.org.
+\item
+  徐銤 等. ``中国实验快堆与示范快堆.'' \emph{中国科学}, 2019.
+\item
+  上海应物所. \emph{TMSR 项目进展}, sinap.cas.cn.
+\item
+  中国核能行业协会. \emph{核能发展报告 2024}.
+\item
+  国家能源局. \emph{核电中长期发展规划（公开版）}.
+\end{enumerate}
+
+\cleardoublepage
+
+\chapter{日本 SMR 技术}\label{ux65e5ux672c-smr-ux6280ux672f}
+
+\begin{epigraph}
+
+\textbf{核心命题}　日本 SMR 战略在福岛核事故（2011）后陷入低谷，但 2020
+年代政府重启核电 + 推动 SMR
+创新战略，三菱重工（PWR）、日立-GE（BWR）、东芝等厂商与日本原子力机构（JAEA）合作，重启
+IPWR、BWR 与 HTGR 研发，目标是 2030s 建成首堆。
+
+\end{epigraph}
+
+\section{引言}\label{ux5f15ux8a00-18}
+
+日本曾是全球核电大国：
+
+\begin{itemize}
+\tightlist
+\item
+  2011 年福岛事故前：54 台核电机组，约 30\% 电力来自核电；
+\item
+  事故后：大部分机组停运，重启缓慢（仅 \textasciitilde{} 13 台重启）；
+\item
+  公众接受度大幅下降；
+\item
+  核工业人才流失严重；
+\item
+  厂商（三菱重工、日立、东芝）海外核电订单减少。
+\end{itemize}
+
+在此背景下，日本 SMR 战略特点：
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{政府主导 + 厂商联合}：经济产业省（METI）2020 年发布 \emph{SMR
+  Development Roadmap}；
+\item
+  \textbf{多厂商分工}：三菱主推 PWR-SMR、日立-GE 主推
+  BWRX-300（与北美合作）、东芝评估微堆；
+\item
+  \textbf{依托 JAEA
+  研发}：HTTR（高温气冷试验堆）、常阳（Joyo，钠冷快堆实验堆）；
+\item
+  \textbf{国际合作}：与 NuScale、GEH、X-energy 等合作；
+\item
+  \textbf{逐步走出福岛阴影}：新一代 SMR 强调固有安全。
+\end{itemize}
+
+\section{SMR 研发历史}\label{smr-ux7814ux53d1ux5386ux53f2}
+
+\subsection{福岛前}\label{ux798fux5c9bux524d}
+
+\begin{itemize}
+\tightlist
+\item
+  1980--2000 年代：日本主要发展大型 LWR（APWR、ABWR）；
+\item
+  HTTR（30 MWt 高温气冷试验堆）：1998 年临界，2004 年出口 950
+  ℃，全球首次；
+\item
+  常阳（Joyo，钠冷快堆实验堆）：1977 年首次临界，2010 年代部分恢复运行；
+\item
+  文殊（Monju，钠冷快堆原型堆）：1994 年首次临界，多次故障，2016
+  年决定退役；
+\item
+  IMR（Integrated Modular Water Reactor）：三菱 IPWR 概念，未建造。
+\end{itemize}
+
+\subsection{福岛后（2011--2020）}\label{ux798fux5c9bux540e20112020}
+
+\begin{itemize}
+\tightlist
+\item
+  核电重启缓慢；
+\item
+  厂商订单萎缩，研发停滞；
+\item
+  HTTR、常阳等试验堆间歇运行；
+\item
+  政府政策摇摆。
+\end{itemize}
+
+\subsection{2020 年代重启}\label{ux5e74ux4ee3ux91cdux542f}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{2020 年 12 月}：METI 公布 \emph{SMR Development Roadmap}；
+\item
+  \textbf{2022 年 8 月}：岸田政府宣布重启核电 + 加速 SMR；
+\item
+  \textbf{2023 年}：三菱、JERA、三菱重工合资 \textbf{``日本
+  SMR''公司}（Mitsubishi Heavy Industries SMR），目标推进 SRZ-90 /
+  SRZ-360 IPWR；
+\item
+  \textbf{日立 GE Nuclear Energy（GHNE）}：与加拿大 OPG 合作，参与
+  BWRX-300 Darlington 项目；
+\item
+  \textbf{东芝}：评估微型反应堆；
+\item
+  \textbf{JAEA}：HTTR 重启，启动制氢示范。
+\end{itemize}
+
+\section{SMR 技术}\label{smr-ux6280ux672f}
+
+\subsection{三菱 SRZ-90 /
+SRZ-360（IPWR）}\label{ux4e09ux83f1-srz-90-srz-360ipwr}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{SRZ-90}：90 MWe IPWR，主要用于电力 + 海水淡化 + 出口；
+\item
+  \textbf{SRZ-360}：360 MWe，放大版本，国内基荷；
+\item
+  \textbf{技术特征}：
+
+  \begin{itemize}
+  \tightlist
+  \item
+    一体化压力容器（堆芯 + SG + 稳压器集成）；
+  \item
+    自然循环 + 强制循环混合；
+  \item
+    非能动安全（PRHRS、被动安全注入）；
+  \item
+    设计基准事故简化；
+  \end{itemize}
+\item
+  \textbf{状态}：详细设计阶段，目标 2030s 首堆；
+\item
+  \textbf{目标市场}：日本国内 + 亚洲出口。
+\end{itemize}
+
+\subsection{日立-GE
+BWRX-300（合作）}\label{ux65e5ux7acb-ge-bwrx-300ux5408ux4f5c}
+
+\begin{itemize}
+\tightlist
+\item
+  日立-GE 与美国 GE Hitachi 合作开发 BWRX-300；
+\item
+  日本提供：
+
+  \begin{itemize}
+  \tightlist
+  \item
+    关键部件（屏蔽泵、控制棒、安全壳）；
+  \item
+    工程能力（三菱重工、东芝、日立）；
+  \item
+    制造（大型锻件、I\&C）；
+  \end{itemize}
+\item
+  加拿大 Darlington 首堆 2024 年开工；
+\item
+  未来日本可能引入 BWRX-300。
+\end{itemize}
+
+\subsection{HTGR（JAEA HTTR）}\label{htgrjaea-httr}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{HTTR}：30 MWt 高温气冷试验堆，1998 年临界；
+\item
+  2004 年首次出口温度达 950 ℃；
+\item
+  \textbf{GTHTR300}：商用 300 MWe 设计；
+\item
+  \textbf{JAEA} 计划用 HTTR + 高温 SOEC 制氢示范；
+\item
+  目标：2030s 商用 HTGR；
+\item
+  与中国 HTR-PM 不同，HTTR 是''棱柱式''，HTR-PM 是''球床式''。
+\end{itemize}
+
+\subsection{快堆}\label{ux5febux5806}
+
+\begin{itemize}
+\tightlist
+\item
+  日本曾运行 \textbf{常阳}（实验堆）和 \textbf{文殊}（原型堆）；
+\item
+  文殊 2016 年决定退役；
+\item
+  \textbf{新一代快堆}：日、法（Astrid）、美（VTR）合作；
+\item
+  目标 2030s 开始概念设计 → 2040s 原型堆；
+\item
+  长期目标：闭式燃料循环 + 减少高放废物。
+\end{itemize}
+
+\subsection{微型反应堆}\label{ux5faeux578bux53cdux5e94ux5806-2}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{东芝 e-BWR / μ-BWR}：1--10 MWe 概念；
+\item
+  \textbf{富士电机}：评估空间堆；
+\item
+  \textbf{应用}：海岛、灾区、矿山；
+\item
+  \textbf{状态}：概念设计。
+\end{itemize}
+
+\section{SMR 部署情况}\label{smr-ux90e8ux7f72ux60c5ux51b5}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}llll@{}}
+\toprule\noalign{}
+项目 & 类型 & 业主 & 状态 \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+HTTR（试验堆） & HTGR & JAEA & 运行（恢复） \\
+SRZ-90 / SRZ-360 & IPWR & 三菱 + 日本 SMR & 设计 \\
+参与 BWRX-300 & BWR & 日立-GE + GHNE & 合作 \\
+微型反应堆 & µ-BWR & 东芝 & 概念 \\
+新一代快堆 & SFR & JAEA + METI & 概念 \\
+\end{longtable}
+}
+
+日本国内尚未确定 SMR 首堆厂址，潜在厂址包括：
+
+\begin{itemize}
+\tightlist
+\item
+  现有核电站厂址（共享基础设施）；
+\item
+  关西、中部、九州等地区；
+\item
+  偏远海岛。
+\end{itemize}
+
+\section{发展趋势}\label{ux53d1ux5c55ux8d8bux52bf-5}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{2025--2030 立项首堆}：METI 推动三菱、日立-GE、东芝选厂址；
+\item
+  \textbf{参与 BWRX-300}：日本有望通过参与加拿大 Darlington
+  项目获得经验；
+\item
+  \textbf{HTTR 制氢示范}：与产业省''氢能社会''战略协同；
+\item
+  \textbf{闭式燃料循环 R\&D}：与法国 CEA、美国 DOE 合作；
+\item
+  \textbf{亚洲出口市场}：日本与中国、韩国、俄罗斯竞争东南亚、南亚；
+\item
+  \textbf{人才重启}：大学核工程专业招生回升；
+\item
+  \textbf{公众接受度}：福岛后缓慢恢复，新一代 SMR
+  强调''固有安全''重新获得公众信任；
+\item
+  \textbf{数字化转型}：依托日本强大的 ICT
+  工业，发展智能反应堆与数字孪生。
+\end{enumerate}
+
+\section{参考文献}\label{ux53c2ux8003ux6587ux732e-16}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  METI. \emph{SMR Development Roadmap}, 2020.
+\item
+  MHI. \emph{SRZ-90 / SRZ-360 Design Concept}, 2023.
+\item
+  JAEA. \emph{HTTR Description}, jaea.go.jp.
+\item
+  GHNE. \emph{BWRX-300 Collaboration}, 2024.
+\item
+  IAEA. \emph{ARIS --- Japanese SMRs}, aris.iaea.org.
+\item
+  日本原子力学会. \emph{SMR 特集}, 2023.
+\item
+  OECD/NEA. \emph{Japan Nuclear Energy Policy Review}, 2023.
+\item
+  Sato T. et al.~``Japanese SMR Strategy.'' \emph{Trans. ANS}, 2022.
+\item
+  JAEA. \emph{Fast Reactor Development Strategy}, 2022.
+\end{enumerate}
+
+\cleardoublepage
+
+\chapter{发展中国家的
+SMR}\label{ux53d1ux5c55ux4e2dux56fdux5bb6ux7684-smr}
+
+\begin{epigraph}
+
+\textbf{核心命题}　发展中国家是 SMR
+最具潜力的市场：小电网、能源贫困、缺水、低碳发展需求并存。但资金、监管、人才、公众接受度是主要障碍。本章梳理发展中国家部署
+SMR 的潜力、权衡、潜在市场、技术选择、挑战与创新。
+
+\end{epigraph}
+
+\section{引言}\label{ux5f15ux8a00-19}
+
+按 IAEA / 世界银行定义，发展中国家约 130 余国，包括：
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{新兴经济体}：印度、印尼、巴西、墨西哥、南非、土耳其、越南、菲律宾、孟加拉国、埃及、尼日利亚等；
+\item
+  \textbf{最不发达国家（LDC）}：约 50
+  国，主要在撒哈拉以南非洲、南亚、岛国。
+\end{itemize}
+
+这些国家面临的能源挑战：
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}ll@{}}
+\toprule\noalign{}
+挑战 & 数据 \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+能源贫困 & 约 7.7 亿人无电（2022） \\
+电力增长 & 年增长 4--8\% \\
+煤电依赖 & 印度、印尼、南非 \textgreater70\% \\
+缺水 & 中东、北非、南非、印度北部严重 \\
+碳排放 & 总量上升，人均较低 \\
+电网规模 & 多数国家电网 \textless{} 20 GW \\
+\end{longtable}
+}
+
+为什么 SMR 适合发展中国家？
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{资金门槛低}：5--30 亿美元（大型核电站 100--150 亿）；
+\item
+  \textbf{匹配小电网}：100--300 MWe 单机，适合电网 \textless{} 10 GW；
+\item
+  \textbf{多用途}：电力 + 海水淡化 + 区域供热 + 工业供热；
+\item
+  \textbf{建设周期短}：3--5 年（大型核电站 7--10 年）；
+\item
+  \textbf{本地化 + 技术转让}：带动当地工业、人才；
+\item
+  \textbf{低碳}：替代煤电、油电。
+\end{itemize}
+
+但同时面临重大挑战：
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{资金短缺}：外汇、债务、政治风险；
+\item
+  \textbf{监管缺失}：多数国家无核监管机构；
+\item
+  \textbf{人才短缺}：核工程、运行人员匮乏；
+\item
+  \textbf{基础设施}：电网、港口、运输；
+\item
+  \textbf{公众接受度}：核恐惧、福岛阴影；
+\item
+  \textbf{核不扩散}：国际保障监督压力。
+\end{itemize}
+
+\section{发展预测}\label{ux53d1ux5c55ux9884ux6d4b}
+
+\subsection{IAEA 与 NEA 预测}\label{iaea-ux4e0e-nea-ux9884ux6d4b}
+
+\begin{itemize}
+\tightlist
+\item
+  IAEA 高增长情景：2050 年全球核电装机从 390 GWe → 874 GWe，其中 SMR
+  贡献约 100--150 GWe；
+\item
+  OECD/NEA：2050 年 SMR 占新增核电容量的 20--30\%；
+\item
+  发展中国家 SMR 装机：2030 年 \textless{} 5 GWe；2050 年 30--80
+  GWe（乐观情景）。
+\end{itemize}
+
+\subsection{重点地区}\label{ux91cdux70b9ux5730ux533a}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}lll@{}}
+\toprule\noalign{}
+地区 & 2035 年潜力 & 主要驱动 \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+中东、北非 & 5--10 GWe & 海水淡化 + 替代油电 \\
+南亚（印度、孟、巴、斯） & 5--15 GWe & 电力增长、缺煤、煤替代 \\
+东南亚 & 3--8 GWe & 岛国、海上、工业 \\
+撒哈拉以南非洲 & 1--3 GWe & 偏远、矿区、海上 \\
+拉美 & 2--5 GWe & 替代煤电、加勒比海岛 \\
+中亚 & 1--3 GWe & 海水淡化、电力 \\
+\end{longtable}
+}
+
+\section{发展中国家对 SMR
+的权衡}\label{ux53d1ux5c55ux4e2dux56fdux5bb6ux5bf9-smr-ux7684ux6743ux8861}
+
+发展中国家决策时面临多重权衡：
+
+\subsection{成本 vs.~安全}\label{ux6210ux672c-vs.-ux5b89ux5168}
+
+\begin{itemize}
+\tightlist
+\item
+  SMR 资金门槛低，但仍需数亿美元投资；
+\item
+  安全监管成本（核安全局、应急准备）需配套；
+\item
+  部分发展中国家可能''压低''安全标准，需国际监督。
+\end{itemize}
+
+\subsection{核电
+vs.~可再生能源}\label{ux6838ux7535-vs.-ux53efux518dux751fux80fdux6e90}
+
+\begin{itemize}
+\tightlist
+\item
+  可再生能源（光伏、风电）成本快速下降；
+\item
+  但其间歇性需储能 + 备用电源；
+\item
+  SMR 提供稳定基荷 + 与可再生互补；
+\item
+  决策取决于电网规模、负荷曲线、本地资源。
+\end{itemize}
+
+\subsection{自主 vs.~进口}\label{ux81eaux4e3b-vs.-ux8fdbux53e3}
+
+\begin{itemize}
+\tightlist
+\item
+  进口 SMR：技术成熟、风险低，但成本高、依赖外部；
+\item
+  自主 SMR（如印度 AHWR、中国 ACP100、阿根廷
+  CAREM）：技术主权，但周期长、风险高；
+\item
+  中间方案：合资、技术转让、本地化生产。
+\end{itemize}
+
+\subsection{陆上 vs.~海上}\label{ux9646ux4e0a-vs.-ux6d77ux4e0a}
+
+\begin{itemize}
+\tightlist
+\item
+  陆上：长期、稳定、本地化；
+\item
+  海上：可移动、首堆风险低（在供应商国运行验证后），适合岛国、临海城市；
+\item
+  俄罗斯 Akademik Lomonosov 是海上 SMR 先例。
+\end{itemize}
+
+\subsection{能源安全
+vs.~国际依赖}\label{ux80fdux6e90ux5b89ux5168-vs.-ux56fdux9645ux4f9dux8d56}
+
+\begin{itemize}
+\tightlist
+\item
+  核燃料（铀、HALEU）依赖少数供应商（俄、中、法、美、加、澳）；
+\item
+  部分发展中国家担心地缘政治风险；
+\item
+  解决：IAEA LEU Bank（低浓铀燃料银行）、多源采购。
+\end{itemize}
+
+\section{发展中国家可能成为 SMR
+商业部署的潜在市场}\label{ux53d1ux5c55ux4e2dux56fdux5bb6ux53efux80fdux6210ux4e3a-smr-ux5546ux4e1aux90e8ux7f72ux7684ux6f5cux5728ux5e02ux573a}
+
+\subsection{印度}\label{ux5370ux5ea6}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{现有核电}：22 台机组（含小型 PHWR 220 MWe），目标 2032 年达
+  22.5 GWe；
+\item
+  \textbf{AHWR300-LEU}：印度自主 SMR，钍-LEU 燃料；
+\item
+  \textbf{挑战}：监管、资金、福岛后公众接受度；
+\item
+  \textbf{潜力}：电网大、煤替代需求大、本土技术能力。
+\end{itemize}
+
+\subsection{印度尼西亚}\label{ux5370ux5ea6ux5c3cux897fux4e9a}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{现状}：无核电，但规划已久；
+\item
+  \textbf{评估堆型}：HTGR、SMART、NuScale、APT100、海上浮动；
+\item
+  \textbf{应用}：偏远岛（苏门答腊、加里曼丹、新几内亚）；
+\item
+  \textbf{潜力}：缺电 + 缺水 + 群岛地理。
+\end{itemize}
+
+\subsection{沙特阿拉伯}\label{ux6c99ux7279ux963fux62c9ux4f2f}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{现状}：规划 2 台大型核电站（APR1400 候选），但未首堆；
+\item
+  \textbf{SMART 评估}：与韩国 KAERI 合作预可行性研究；
+\item
+  \textbf{应用}：海水淡化 + 电力；
+\item
+  \textbf{潜力}：资金充足、需求大、技术中性。
+\end{itemize}
+
+\subsection{埃及}\label{ux57c3ux53ca}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{现状}：El Dabaa 4 台 VVER-1200 在建；
+\item
+  \textbf{SMR 评估}：俄罗斯浮动核电站、NuScale；
+\item
+  \textbf{潜力}：电力增长 + 海水淡化（西奈半岛、红海沿岸）。
+\end{itemize}
+
+\subsection{土耳其}\label{ux571fux8033ux5176}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{现状}：Akkuyu 4 台 VVER-1200 在建（俄方投建 + BOO 模式）；
+\item
+  \textbf{SMR 评估}：欧洲设计（Rolls-Royce SMR、NuScale）；
+\item
+  \textbf{潜力}：电网需求、与欧盟能源市场衔接。
+\end{itemize}
+
+\subsection{约旦}\label{ux7ea6ux65e6}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{现状}：无核电，曾与 Rosatom 评估浮动核电站；
+\item
+  \textbf{应用}：海水淡化 + 电力；
+\item
+  \textbf{潜力}：缺水 + 缺电 + 中东战略位置。
+\end{itemize}
+
+\subsection{孟加拉国、巴基斯坦、斯里兰卡}\label{ux5b5fux52a0ux62c9ux56fdux5df4ux57faux65afux5766ux65afux91ccux5170ux5361}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{现状}：巴基斯坦有卡拉奇核电群（华龙一号）；
+\item
+  \textbf{孟加拉、斯里兰卡}：评估 SMR；
+\item
+  \textbf{应用}：电力增长、岛国。
+\end{itemize}
+
+\subsection{巴西、墨西哥、智利、阿根廷}\label{ux5df4ux897fux58a8ux897fux54e5ux667aux5229ux963fux6839ux5ef7}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{阿根廷}：CAREM 国产 SMR（见第 16 章）；
+\item
+  \textbf{巴西}：核电计划重启，评估 SMR；
+\item
+  \textbf{墨西哥}：Laguna Verde 2 台 BWR，未来考虑 SMR；
+\item
+  \textbf{智利}：评估海上浮动 + 海水淡化。
+\end{itemize}
+
+\subsection{撒哈拉以南非洲}\label{ux6492ux54c8ux62c9ux4ee5ux5357ux975eux6d32}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{南非}：Koeberg 2 台 PWR，规划新核电；评估 SMR；
+\item
+  \textbf{加纳、肯尼亚、尼日利亚}：与 IAEA 启动核能规划；
+\item
+  \textbf{尼日利亚、苏丹}：俄罗斯 SMR 出口评估；
+\item
+  \textbf{潜力}：电力短缺 + 海水淡化 + 矿区。
+\end{itemize}
+
+\subsection{岛国}\label{ux5c9bux56fd}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{加勒比海岛国}（古巴、多米尼加、牙买加）；
+\item
+  \textbf{太平洋岛国}（斐济、巴新、菲律宾）；
+\item
+  \textbf{印度洋岛国}（马达加斯加、马尔代夫）；
+\item
+  \textbf{应用}：替代柴油发电（柴油 LCOE 200--400 USD/MWh），SMR
+  极具竞争力。
+\end{itemize}
+
+\section{发展中国家 SMR
+的选择}\label{ux53d1ux5c55ux4e2dux56fdux5bb6-smr-ux7684ux9009ux62e9}
+
+\subsection{供应商比较}\label{ux4f9bux5e94ux5546ux6bd4ux8f83}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2000}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2000}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2000}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2000}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2000}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+供应商
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+主要机型
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+适合的发展中国家
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+优势
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+劣势
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+中国（中核、CGN） & ACP100、ACPR50S、HTR & 巴、孟、印尼、沙特、中亚 &
+价格、融资、本地化意愿 & 政治风险、西方关切 \\
+俄罗斯（Rosatom） & KLT-40S、RITM、BREST &
+埃及、土耳其、苏丹、印尼、印度 & BOO 模式、融资、交钥匙 &
+制裁、地缘政治 \\
+韩国（KAERI、KHNP） & SMART、APR1400-SMR & 沙特、印尼、马来西亚 &
+性价比、技术转让 & 融资能力受限 \\
+美国（NuScale、GEH、TerraPower） & VOYGR、BWRX-300、Natrium &
+东欧、印度、波兰、捷克 & 技术先进、监管完善 & 成本高、出口管制 \\
+阿根廷（CNEA） & CAREM-25 & 拉美、非洲 & 政治中立、价格 &
+融资弱、首堆风险 \\
+日本（MHI、GEH） & SRZ-90、BWRX-300 & 东南亚、印度 & 质量高 &
+福岛阴影、公众接受度 \\
+\end{longtable}
+}
+
+\subsection{融资模式}\label{ux878dux8d44ux6a21ux5f0f}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{BOO（Build-Own-Operate）}：俄罗斯常用，供应商投资、建造、运行，业主购电；
+\item
+  \textbf{BOT（Build-Operate-Transfer）}：供应商建造运行若干年后转交；
+\item
+  \textbf{PPP（Public-Private Partnership）}：政府与私企合作；
+\item
+  \textbf{出口信贷}：EXIM Bank、JBIC、KEPCO、中国进出口银行；
+\item
+  \textbf{多边开发银行}：世界银行（禁核）、亚投行（中立）、非洲开发银行；
+\item
+  \textbf{气候融资}：绿色气候基金（部分支持低碳能源）。
+\end{itemize}
+
+\subsection{本地化策略}\label{ux672cux5730ux5316ux7b56ux7565}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{部件本地化}：管道、支架、电缆、土建；
+\item
+  \textbf{工程本地化}：本地工程师参与设计、采购、施工管理；
+\item
+  \textbf{运维本地化}：操纵员、维修人员培训；
+\item
+  \textbf{燃料本地化}：燃料制造、乏燃料管理（部分）；
+\item
+  \textbf{整堆进口 + 工厂检修}：降低本地技术门槛。
+\end{itemize}
+
+\section{挑战和创新}\label{ux6311ux6218ux548cux521bux65b0}
+
+\subsection{挑战}\label{ux6311ux6218-3}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{资金}：外汇、债务、信用风险；
+\item
+  \textbf{监管}：建立独立核监管机构、立法、加入国际公约（NPT、CNS、Joint
+  Convention）；
+\item
+  \textbf{基础设施}：电网容量、港口、运输、备用电源；
+\item
+  \textbf{人才}：核工程、运行、维修、监管人才；
+\item
+  \textbf{公众接受度}：福岛阴影、信息不对称、政治反对；
+\item
+  \textbf{核燃料供应}：HALEU 供应链紧张（部分设计）；
+\item
+  \textbf{乏燃料管理}：返回供应商国 vs.~本地处置；
+\item
+  \textbf{保障监督}：IAEA Safeguards、附加议定书；
+\item
+  \textbf{地缘政治}：中美俄核出口竞争、出口管制；
+\item
+  \textbf{持续承诺}：政府换届、政策连续性。
+\end{enumerate}
+
+\subsection{创新}\label{ux521bux65b0}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{海上浮动 SMR}：规避本地监管与基础设施问题（俄罗斯模式）；
+\item
+  \textbf{整堆换料 + 整体返回}：现场不留乏燃料；
+\item
+  \textbf{核能即服务（Nuclear-as-a-Service）}：供应商负责设计、建造、运行、退役，业主购电购热；
+\item
+  \textbf{气候融资 + 多边银行}：将 SMR 纳入低碳发展融资；
+\item
+  \textbf{区域中心}：多个发展中国家合资建设共享 SMR（如东非、加勒比）；
+\item
+  \textbf{IAEA SMR 平台}：协助建立监管、培训、评估；
+\item
+  \textbf{数字孪生 + 远程运维}：弥补本地人才短缺；
+\item
+  \textbf{新型商业模式}：电力 + 海水淡化 + 工业供热打包；
+\item
+  \textbf{本地化 + 技术转让合同}：要求供应商深度本地化；
+\item
+  \textbf{区域保障监督中心}：IAEA + 多国协作。
+\end{enumerate}
+
+\subsection{关键成功因素}\label{ux5173ux952eux6210ux529fux56e0ux7d20}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{国家承诺}：政府长期、跨党派承诺；
+\item
+  \textbf{监管先行}：建立独立核监管机构，加入国际公约；
+\item
+  \textbf{人力资源}：与供应商 / IAEA 合作培训；
+\item
+  \textbf{融资多元化}：政府 + 私人 + 多边 + 出口信贷；
+\item
+  \textbf{公众沟通}：透明、参与、共享收益；
+\item
+  \textbf{试点 + 推广}：先建 1 台示范，验证后再推广；
+\item
+  \textbf{本地化路线图}：分阶段本地化，平衡技术门槛与就业；
+\item
+  \textbf{国际合作}：加入 IAEA、世界核协会、区域核合作组织。
+\end{itemize}
+
+\section{结论}\label{ux7ed3ux8bba-8}
+
+发展中国家是 SMR 最具潜力但也最具挑战的市场。SMR
+的资金门槛低、多用途、建设周期短，匹配发展中国家的能源贫困、缺水、煤替代、低碳发展需求。但同时面临资金、监管、人才、基础设施、公众接受度、地缘政治等多重障碍。
+
+未来 10 年（2025--2035）是发展中国家 SMR 落地的关键窗口：
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{印度、印尼、沙特、埃及、土耳其} 等大型新兴经济体可能率先突破；
+\item
+  \textbf{拉美、撒哈拉以南非洲} 通过区域合作 + 海上浮动模式；
+\item
+  \textbf{岛国} 通过海上浮动 + 整堆返回模式。
+\end{itemize}
+
+国际社会（IAEA、NEA、世界银行、气候基金）+
+主要出口国（中、美、俄、韩、法、阿根廷）+ 接收国政府 + 工业界 +
+公众的多方协作，是发展中国家 SMR 商业化部署的关键。
+
+\section{全书结语}\label{ux5168ux4e66ux7ed3ux8bed}
+
+本书从 SMR
+的定义、技术、安全、经济、许可、施工、综合能源、各国进展、发展中国家部署等多个角度，对这一
+21 世纪最重要的核能技术革新作了系统梳理。SMR
+不是大型核电站的''小型翻版''，而是从\textbf{设计哲学}到\textbf{商业模式}到\textbf{监管框架}的系统性创新。
+
+未来 10 年是 SMR 商业化的关键时期：
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{2025--2030}：首堆密集投运，验证技术 + 商业模式；
+\item
+  \textbf{2030--2040}：规模化推广，NOAK 经济性达到竞争力；
+\item
+  \textbf{2040--2050}：与可再生能源 + 储能 +
+  制氢深度耦合，成为低碳能源系统的重要支柱。
+\end{itemize}
+
+我们正在见证核能工业的范式转变，SMR 将在这场转变中扮演核心角色。
+
+------ 全书完
+
+\section{参考文献}\label{ux53c2ux8003ux6587ux732e-17}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  IAEA. \emph{Industrial and Other Non-Electric Applications of Nuclear
+  Power}, 2017.
+\item
+  IAEA. \emph{Opportunities for Cogeneration with Nuclear Energy},
+  TECDOC-1859.
+\item
+  OECD/NEA. \emph{The Role of SMRs in Deep Decarbonization}, 2023.
+\item
+  World Bank. \emph{Development of SMRs in Emerging Economies}, 2022.
+\item
+  IAEA. \emph{Milestones in the Development of a National Infrastructure
+  for Nuclear Power}, NG-G-3.1.
+\item
+  IAEA. \emph{Nuclear Power for Developing Countries --- Bulletin},
+  2019.
+\item
+  Sailor W. et al.~``Nuclear Power for the Developing World.''
+  \emph{Science}, 2020.
+\item
+  Kessides I. ``Nuclear Power in Developing Countries.'' \emph{Energy
+  Policy}, 2012.
+\item
+  Haneklaus N. ``SMRs in Developing Countries.'' \emph{Renewable \&
+  Sustainable Energy Reviews}, 2021.
+\item
+  United Nations. \emph{Sustainable Development Goal 7: Affordable and
+  Clean Energy}.
+\end{enumerate}
+
+title: 小型模块化反应堆（SMR）技术 subtitle: A Comprehensive Treatise on
+SMR Technology author: 李佳伦　编著 date: 2026 年 lang: zh-CN
+documentclass: ctexbook classoption: - UTF8 - scheme=plain
+
+% ----- 附录/尾声 -----
+\backmatter
+
+\end{document}

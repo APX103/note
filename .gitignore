@@ -21,3 +21,13 @@
 Network Trash Folder
 Temporary Items
 .apdisk
+
+# Private local-only project drafts (keep out of the repo)
+wandlink/
+
+# ZCode 本地会话状态
+.zcode/
+
+# 自研唤醒词：虚拟环境与可再生的训练数据（README 有复现命令）
+magic-wand/wakenet/.venv/
+magic-wand/wakenet/data/

@@ -1,0 +1,46 @@
+% template.tex —— SMR-book 自定义 Pandoc LaTeX 模板
+% 古典学术风（宋体正文 + 黑体标题 + 朱砂点缀）
+% 编译：tectonic (XeLaTeX 模式)
+
+% ----- 文档类（ctexbook 自带 CJK 支持） -----
+\documentclass[
+  UTF8,
+  scheme=plain,
+  fontsize=10pt,
+  openany
+]{ctexbook}
+
+% ----- 元信息 -----
+$if(title)$\title{$title$}$endif$
+$if(author)$\author{$author$}$endif$
+$if(date)$\date{$date$}$endif$
+
+% ----- 导言区（字体/版式/颜色/宏） -----
+\input{header.tex}
+
+% =========================================================
+\begin{document}
+
+% ----- 封面 -----
+\input{cover.tex}
+
+% ----- 前置部分（罗马数字页码） -----
+\frontmatter
+\pagenumbering{roman}
+
+$if(toc)$
+\cleardoublepage
+\tableofcontents
+$endif$
+
+% ----- 正文部分（阿拉伯数字页码） -----
+\cleardoublepage
+\mainmatter
+\pagenumbering{arabic}
+
+$body$
+
+% ----- 附录/尾声 -----
+\backmatter
+
+\end{document}

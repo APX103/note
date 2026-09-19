@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ESP32 语音唤醒完全教程：官方 WakeNet 用法与自研复刻</title>
+<style>
+  :root{
+    --bg:#0d0b14; --card:#14111f; --card2:#1a1628; --line:#2a2440;
+    --gold:#e8c368; --gold-dim:#a8853f; --cyan:#7fd8e8; --violet:#b39ddb;
+    --green:#7ee2a8; --warn:#f0a35e; --bad:#ef8a8a;
+    --text:#d8d4e8; --muted:#8f8aa3;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    line-height:1.75; font-size:15px;
+    background-image:radial-gradient(ellipse 900px 420px at 75% -10%, #1f2e33 0%, transparent 60%);
+  }
+  .wrap{max-width:960px; margin:0 auto; padding:48px 28px 80px;}
+  h1,h2,h3,.serif{font-family:ui-serif,"Songti SC","Noto Serif CJK SC",Georgia,serif;}
+  h1{font-size:33px; color:var(--gold); letter-spacing:1px; margin-bottom:8px;}
+  .subtitle{color:var(--muted); font-size:15px; margin-bottom:18px;}
+  .meta{display:flex; gap:10px; flex-wrap:wrap; margin-bottom:8px;}
+  .chip{display:inline-block; padding:2px 12px; border:1px solid var(--line); border-radius:999px;
+        font-size:12.5px; color:var(--muted); background:var(--card);}
+  .chip b{color:var(--gold); font-weight:600;}
+  h2{font-size:23px; color:var(--gold); margin:52px 0 6px; padding-top:18px; border-top:1px solid var(--line);}
+  h2 .no{color:var(--gold-dim); margin-right:10px; font-size:16px; vertical-align:2px;}
+  h3{font-size:17px; color:var(--cyan); margin:26px 0 8px;}
+  p{margin:10px 0;}
+  .lead{font-size:16.5px; color:#eae6f5; margin:14px 0 4px;}
+  ul,ol{padding-left:22px; margin:10px 0;}
+  li{margin:5px 0;}
+  b{color:#f0ecfa;}
+  em{color:var(--cyan); font-style:normal;}
+  .muted{color:var(--muted);}
+  .gold{color:var(--gold);}
+  code{
+    font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-size:13px;
+    background:#211c33; border:1px solid var(--line); border-radius:4px; padding:1px 6px; color:#c9e3b8;
+  }
+  pre{
+    background:#0f0d1a; border:1px solid var(--line); border-radius:10px;
+    padding:16px 18px; overflow-x:auto; margin:12px 0; line-height:1.6;
+  }
+  pre code{background:none; border:none; padding:0; color:#c9e3b8; font-size:13px;}
+  pre .cm{color:#6f6a85;} /* 注释 */
+  table{width:100%; border-collapse:collapse; margin:14px 0; font-size:14px;}
+  th{color:var(--gold); font-weight:600; text-align:left;}
+  th,td{border:1px solid var(--line); padding:8px 12px; vertical-align:top;}
+  tr:nth-child(even) td{background:rgba(255,255,255,0.02);}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px 22px; margin:14px 0;}
+  .card.hl{border-color:var(--gold-dim); background:linear-gradient(180deg,#1c1728,#14111f);}
+  .note{border-left:3px solid var(--gold-dim); padding:8px 16px; background:var(--card2);
+        border-radius:0 8px 8px 0; margin:12px 0; color:var(--muted); font-size:14px;}
+  .note b{color:var(--gold);}
+  .note.warn{border-left-color:var(--warn);}
+  .note.warn b{color:var(--warn);}
+  .note.ok{border-left-color:var(--green);}
+  .note.ok b{color:var(--green);}
+  .fig{background:#0f0d1a; border:1px solid var(--line); border-radius:12px; padding:18px 10px 8px; margin:16px 0; text-align:center;}
+  .fig svg{max-width:100%; height:auto;}
+  .fig .cap{color:var(--muted); font-size:13px; padding:8px 12px 6px; text-align:left;}
+  .verdict{font-size:16px; color:#f4ead2; background:linear-gradient(90deg,#2a2114,#1a1628);
+           border:1px solid var(--gold-dim); border-radius:10px; padding:12px 18px; margin:12px 0;}
+  .verdict b{color:var(--gold);}
+  .toc{display:grid; grid-template-columns:1fr 1fr; gap:4px 28px; margin:16px 0 0; font-size:14px;}
+  .toc a{color:var(--cyan); text-decoration:none;}
+  .toc a:hover{color:var(--gold);}
+  .steps{counter-reset:st; list-style:none; padding-left:0;}
+  .steps>li{counter-increment:st; position:relative; margin:14px 0; padding-left:52px;}
+  .steps>li::before{
+    content:counter(st); position:absolute; left:0; top:2px;
+    width:34px; height:34px; border-radius:10px; text-align:center; line-height:34px;
+    background:#2a2114; color:var(--gold); border:1px solid var(--gold-dim);
+    font-weight:700; font-size:16px; font-family:ui-serif,Georgia,serif;}
+  .steps>li>b{color:var(--gold); display:block; font-size:16px; margin-bottom:2px;}
+  .kpi{display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin:16px 0;}
+  .kpi .k{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; text-align:center;}
+  .kpi .k .v{font-size:24px; color:var(--gold); font-weight:700; font-family:ui-serif,Georgia,serif;}
+  .kpi .k .l{font-size:12.5px; color:var(--muted); margin-top:2px;}
+  .footer{margin-top:60px; padding-top:16px; border-top:1px solid var(--line); color:var(--muted); font-size:13px;}
+  a{color:var(--cyan);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>✦ ESP32 语音唤醒完全教程</h1>
+<div class="subtitle">官方 WakeNet 用法 + 自研复刻实战：不花定制费，从数据合成到 int8 C 代码，做一颗自己的离线唤醒词引擎</div>
+<div class="meta">
+  <span class="chip">类型：<b>完整教程（附实战代码）</b></span>
+  <span class="chip">日期：<b>2026-09-19</b></span>
+  <span class="chip">实战平台：<b>Mac (Apple Silicon) · ESP32-S3</b></span>
+  <span class="chip">代码：<b>magic-wand/wakenet/（本仓库）</b></span>
+</div>
+
+<div class="card hl">
+  <div class="toc">
+    <a href="#s0">0. 这篇教程能让你做出什么</a>
+    <a href="#s1">1. 背景：唤醒词检测的原理与 WakeNet 配方</a>
+    <a href="#s2">2. 路线选择：官方 ESP-SR vs 自研复刻</a>
+    <a href="#s3">3. 路线 A：直接用官方 WakeNet（半天）</a>
+    <a href="#s4">4. 路线 B：自研复刻七步实战（主体）</a>
+    <a href="#s5">5. 部署到 ESP32</a>
+    <a href="#s6">6. 实测结果与成本</a>
+    <a href="#s7">7. 踩坑速查表</a>
+    <a href="#s8">8. 局限与改进方向</a>
+    <a href="#s9">9. 参考资料</a>
+  </div>
+</div>
+
+<!-- ================================================================ 0 -->
+<h2 id="s0"><span class="no">§0</span>这篇教程能让你做出什么</h2>
+<p class="lead">一颗 33KB 的 int8 唤醒词神经网络，跑在 ESP32 上，喊一声 "Lumos" 就触发——训练数据在你家 Mac 上一晚上就能重新生成，不依赖乐鑫的收费定制服务。</p>
+
+<div class="kpi">
+  <div class="k"><div class="v">100%</div><div class="l">held-out 语音正样本召回（30/30）</div></div>
+  <div class="k"><div class="v">96.2%</div><div class="l">int8 部署版说话人无关准确率</div></div>
+  <div class="k"><div class="v">33 KB</div><div class="l">模型权重（int8，33,075 参数）</div></div>
+  <div class="k"><div class="v">&lt;10ms</div><div class="l">单次推理（M 系 Mac 实测）</div></div>
+  <div class="k"><div class="v">¥0</div><div class="l">数据合成用 macOS 自带 say</div></div>
+  <div class="k"><div class="v">~12min</div><div class="l">一次完整训练耗时</div></div>
+</div>
+
+<p><b>适合谁</b>：会一点 Python 和 C，想在 ESP32 上做语音唤醒玩具/原型的人；想搞明白 WakeNet 这类"超迷你语音模型"内部构造的嵌入式工程师。</p>
+<p><b>环境要求</b>：任意 Mac（用自带 TTS 造数据）+ Python 3.9+（PyTorch 训练）+ 一块 ESP32-S3（部署）。Linux/Windows 也能做，只是数据合成要换 TTS（如 Piper）。</p>
+<p><b>全部代码</b>在仓库 <a href="magic-wand/wakenet/"><code>magic-wand/wakenet/</code></a>（README 有完整复现命令），本教程讲清楚每一步<b>为什么这么做</b>。</p>
+
+<!-- ================================================================ 1 -->
+<h2 id="s1"><span class="no">§1</span>背景：唤醒词检测的原理与 WakeNet 配方</h2>
+
+<h3>1.1 唤醒词检测 = 流式小词汇量分类</h3>
+<p>“Hey Siri”"小爱同学"这类唤醒，学术上叫 <b>Keyword Spotting (KWS)</b>：音频流上持续跑一个小神经网络，判断"最近 1 秒里有没有出现唤醒词"。它不是把语音转成文字，而是直接把<b>声音片段分类</b>成「目标词 / 其他话 / 噪声」——所以模型可以非常小。</p>
+<p>一个完整的端侧唤醒系统只有四段，WakeNet 也不例外：</p>
+<ol>
+  <li><b>音频前端</b>：16kHz 单声道 PCM 进来（可加 AEC/降噪/VAD，玩具可全省）。</li>
+  <li><b>特征提取</b>：每 30ms 窗、10ms 步进算一帧 MFCC 或 log-mel 谱（40 维）。语音信息几乎都在谱包络里，这一步把 16000 个采样点压成 40 个数。</li>
+  <li><b>小 CNN</b>：在 1 秒的特征序列（约 97 帧 × 40 维）上做分类，输出各类概率。</li>
+  <li><b>平滑触发</b>：连续若干帧概率均值超过阈值才触发——这是防误唤醒的关键工程，比模型本身更重要。</li>
+</ol>
+
+<h3>1.2 WakeNet 公开了什么、藏着什么</h3>
+<p>先澄清一个常见误解：<b>乐鑫没有发表过 WakeNet 的学术论文</b>。它的公开资料就是 ESP-SR 文档和 GitHub 仓库，文档里明说了架构出处：</p>
+<table>
+  <tr><th>版本</th><th>架构</th><th>出处</th></tr>
+  <tr><td>WakeNet2/3（早期，已退役）</td><td>受 DFSMN（前馈序列记忆网络）影响</td><td>阿里达摩院 DFSMN 论文家族（2018）</td></tr>
+  <tr><td><b>WakeNet9 / 9l</b>（ESP32/S3/P4 现役）</td><td><b>膨胀卷积</b>（Dilated Convolution）堆叠</td><td>WaveNet（arXiv:1609.03499）</td></tr>
+  <tr><td>WakeNet9s（C3/C5/C6 小芯片）</td><td><b>深度可分离卷积</b></td><td>MobileNet（arXiv:1704.04861）</td></tr>
+</table>
+<p>资源量级（官方 benchmark）：量化后 <b>几十 KB 参数、15–50KB RAM、每帧 5–18ms</b>。触发方式就是上面说的"多帧平均过阈值"。</p>
+<p>那乐鑫的定制服务（收费、要 2 万条语料、周期 2–3 周）卖的是什么？<b>语料工程和远场/噪声下的鲁棒性调优</b>，不是模型结构——结构文档全写着。这留下一个空档：安静房间里的玩具场景，恰恰不需要那两样。这就是本教程的立足点。</p>
+
+<!-- ================================================================ 2 -->
+<h2 id="s2"><span class="no">§2</span>路线选择：官方 ESP-SR vs 自研复刻</h2>
+<table>
+  <tr><th style="width:150px">维度</th><th>路线 A：官方 ESP-SR WakeNet</th><th>路线 B：自研复刻（本教程主体）</th></tr>
+  <tr><td>唤醒词</td><td>只能用官方内置免费词（"Hi, 乐鑫"等）；自定义要收费定制</td><td class="gold">任意词，自己说了算（教程用 "Lumos"）</td></tr>
+  <tr><td>耗时</td><td class="gold">半天（组件即用）</td><td>1–2 天（数据+训练+部署）</td></tr>
+  <tr><td>鲁棒性</td><td class="gold">工业级（远场/噪声/多口音）</td><td>安静房间玩具级（见 §8 局限）</td></tr>
+  <tr><td>黑盒程度</td><td>模型权重闭源，只能当黑盒调</td><td class="gold">全链路白盒，特征/模型/量化随便改</td></tr>
+  <tr><td>部署形态</td><td>AFE 框架（含 AEC/VAD 全家桶，占内存大）</td><td class="gold">3 个纯 C 文件，零依赖，~46KB</td></tr>
+  <tr><td>授权</td><td>免费词可商用，自定义词谈商务</td><td class="gold">你自己的代码和数据</td></tr>
+</table>
+<div class="verdict">✅ <b>建议：</b>做产品原型/要稳定演示 → 路线 A 半天搞定；想自定义词、想搞懂原理、或者就是想自己造 → 路线 B。两条路不冲突：先 A 打通流程，再 B 换自己的词。</div>
+
+<!-- ================================================================ 3 -->
+<h2 id="s3"><span class="no">§3</span>路线 A：直接用官方 WakeNet（半天）</h2>
+
+<h3>3.1 ESP-IDF 方式（推荐）</h3>
+<pre><code><span class="cm"># 添加组件（会连 AFE/WakeNet/MultiNet 一起进来）</span>
+idf.py add-dependency "espressif/esp-sr"</code></pre>
+<p>核心用法是 AFE（音频前端）的 feed/fetch 循环，唤醒命中从 fetch 结果里拿（示意，以官方 esp-skainet 示例为准）：</p>
+<pre><code>esp_afe_sr_iface_t *afe_handle = esp_afe_handle_from_config(&afe_config);
+afe_data = afe_handle->create_from_config(afe_config);
+<span class="cm">// 两个任务：task_feed 喂音频，task_fetch 取结果</span>
+while (1) {
+    afe_fetch_result_t *res = afe_handle->fetch(afe_data);
+    if (res->wakeup_state == WAKENET_DETECTED) {
+        <span class="cm">/* 唤醒命中！这里点亮你的灯 */</span>
+    }
+}</code></pre>
+
+<h3>3.2 换唤醒词</h3>
+<ul>
+  <li><b>免费可商用</b>：官方文档列了 "Hi, 乐鑫" / "Hi,ESP" / "nihaoxiaoxin" 等若干内置词，通过 model 选择宏切换，一个模型最多同时挂 5 个词。</li>
+  <li><b>自定义</b>：走乐鑫定制流程——自备 <b>≥2 万条</b>合格语料、2–3 周训练优化、收费（金额看词数和量产规模）。这是催生本教程路线 B 的直接原因。</li>
+</ul>
+<div class="note"><b>Arduino 用户注意：</b>ESP_SR 库对板型有支持列表，M5StickS3 这类板若不在列表里，通常切到 "ESP32S3 Dev Module + OPI PSRAM + 8MB Flash" 板型配置即可（与官方 DevKitC 参考设计同构）。</div>
+
+<!-- ================================================================ 4 -->
+<h2 id="s4"><span class="no">§4</span>路线 B：自研复刻七步实战</h2>
+<p class="lead">以下全部是 2026-09-19 在 Mac (Apple Silicon) 上真跑通的流程，代码在 <code>magic-wand/wakenet/scripts/</code>，每一步都有可复现的命令。</p>
+
+<div class="fig">
+<svg viewBox="0 0 1000 132" xmlns="http://www.w3.org/2000/svg">
+  <defs><marker id="a1" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#a8853f"/></marker></defs>
+  <g font-size="12.5">
+    <rect x="8"   y="28" width="118" height="52" rx="9" fill="#1a1628" stroke="#e8c368" stroke-width="1.3"/>
+    <text x="67"  y="50" text-anchor="middle" fill="#e8c368" font-weight="bold">① say 合成</text>
+    <text x="67"  y="69" text-anchor="middle" fill="#8f8aa3">1719 条正负样本</text>
+    <rect x="152" y="28" width="118" height="52" rx="9" fill="#1a1628" stroke="#2a2440"/>
+    <text x="211" y="50" text-anchor="middle" fill="#d8d4e8" font-weight="bold">② 数据集</text>
+    <text x="211" y="69" text-anchor="middle" fill="#8f8aa3">1s 定长·留出2语音</text>
+    <rect x="296" y="28" width="118" height="52" rx="9" fill="#1a1628" stroke="#2a2440"/>
+    <text x="355" y="50" text-anchor="middle" fill="#d8d4e8" font-weight="bold">③ log-mel</text>
+    <text x="355" y="69" text-anchor="middle" fill="#8f8aa3">40维·30ms/10ms</text>
+    <rect x="440" y="28" width="118" height="52" rx="9" fill="#1a1628" stroke="#2a2440"/>
+    <text x="499" y="50" text-anchor="middle" fill="#d8d4e8" font-weight="bold">④ 训练 CNN</text>
+    <text x="499" y="69" text-anchor="middle" fill="#8f8aa3">类平衡+最优ckpt</text>
+    <rect x="584" y="28" width="118" height="52" rx="9" fill="#1a1628" stroke="#2a2440"/>
+    <text x="643" y="50" text-anchor="middle" fill="#d8d4e8" font-weight="bold">⑤ QAT 量化</text>
+    <text x="643" y="69" text-anchor="middle" fill="#8f8aa3">99%→81%→96%</text>
+    <rect x="728" y="28" width="118" height="52" rx="9" fill="#1a1628" stroke="#2a2440"/>
+    <text x="787" y="50" text-anchor="middle" fill="#d8d4e8" font-weight="bold">⑥ 导出 int8</text>
+    <text x="787" y="69" text-anchor="middle" fill="#8f8aa3">33KB C 头文件</text>
+    <rect x="872" y="28" width="118" height="52" rx="9" fill="#10232a" stroke="#7fd8e8" stroke-width="1.3"/>
+    <text x="931" y="50" text-anchor="middle" fill="#7fd8e8" font-weight="bold">⑦ 上板对拍</text>
+    <text x="931" y="69" text-anchor="middle" fill="#4d8a96">C↔numpy 1e-7</text>
+    <line x1="126" y1="54" x2="150" y2="54" stroke="#a8853f" stroke-width="1.5" marker-end="url(#a1)"/>
+    <line x1="270" y1="54" x2="294" y2="54" stroke="#a8853f" stroke-width="1.5" marker-end="url(#a1)"/>
+    <line x1="414" y1="54" x2="438" y2="54" stroke="#a8853f" stroke-width="1.5" marker-end="url(#a1)"/>
+    <line x1="558" y1="54" x2="582" y2="54" stroke="#a8853f" stroke-width="1.5" marker-end="url(#a1)"/>
+    <line x1="702" y1="54" x2="726" y2="54" stroke="#a8853f" stroke-width="1.5" marker-end="url(#a1)"/>
+    <line x1="846" y1="54" x2="870" y2="54" stroke="#a8853f" stroke-width="1.5" marker-end="url(#a1)"/>
+    <text x="500" y="115" text-anchor="middle" fill="#8f8aa3" font-size="12">macOS 本机完成 ①–⑥（约 15 分钟）；⑦ 在 ESP32-S3 上只需三个 C 文件</text>
+  </g>
+</svg>
+<div class="cap">图 1 · 自研复刻全流水线。所有中间产物可随时删掉重跑再生。</div>
+</div>
+
+<ol class="steps">
+<li><b>数据合成：用 macOS 自带 TTS 当"免费录音棚"</b>
+<p>训练唤醒词最贵的是数据。Mac 的 <code>say</code> 命令有 9 个英文语音 × 任意语速，两条命令就能合成一条训练样本：</p>
+<pre><code>say -v Samantha -r 170 -o lumos.aiff "lumos"
+afconvert -f WAVE -d LEI16@16000 lumos.aiff lumos.wav   <span class="cm"># 转 16kHz int16 wav</span></code></pre>
+<p>正样本设计成 <b>3 语气 × 9 语音 × 5 语速 = 135 条</b>（"lumos" / "Lumos!" / "lumos?"）。重点其实是<b>负样本</b>——误唤醒全发生在"听起来像"的词上，所以负样本词表要刻意收集易混词：</p>
+<pre><code>NEG_TEXTS = ["luminous", "music", "locus", "focus", "mucus", "menus",
+             "hocus pocus", "lupus", "lunch", "locust", "mouse", ...,
+             "turn on the light", "hey siri", "okay google", ...]  <span class="cm"># 90+ 条</span></code></pre>
+<p>再程序化生成第三类「噪声」（白噪/粉噪/工频嗡嗡/静音底噪）。合计 1719 条。<b>把自己的真实录音放 <code>data/raw/mylumos/*.wav</code>（30–50 条）会被自动吸收进训练</b>——这一步强烈建议做，见 §8。</p>
+</li>
+
+<li><b>数据集：1 秒定长 + 说话人无关切分</b>
+<p>所有样本裁/补成 1.0s @16kHz。正样本能量裁边后<b>随机放置</b>在 1s 画布内（避免模型只认固定位置）；负样本随机裁 1s。最关键的工程决定：<b>验证集留出 2 个完整语音（Daniel/Tessa）</b>，训练时一次都不出现——否则同一个人的样本泄漏到验证集，指标会虚高到没有意义。</p>
+</li>
+
+<li><b>特征前端：40 维 log-mel，纯 numpy 手写</b>
+<p>和 WakeNet 同款参数：30ms 窗（480 点）、10ms 步进（160 点）、40 个 mel 滤波器、512 点 FFT，1 秒得 97 帧。不要引 librosa，40 行 numpy 写完，将来 C 端照着翻译一遍就行：</p>
+<pre><code>def logmel(x):                                  <span class="cm"># x: (16000,) → (97, 40)</span>
+    frames = np.lib.stride_tricks.sliding_window_view(x, 480)[::160][:97]
+    spec = np.abs(np.fft.rfft(frames * HANN, n=512, axis=1)) ** 2
+    mel = np.log10(spec.astype(np.float64) @ FB.T + 1e-8)   <span class="cm"># double 对齐 C 端</span>
+    return mel.astype(np.float32)</code></pre>
+<p>归一化用全训练集的均值/方差（存下来，C 端要用），再 clamp 到 ±4——这个范围就是 int8 输入量化的标尺。</p>
+</li>
+
+<li><b>模型：深度可分离卷积 ×3，33K 参数</b>
+<p>照 WakeNet9s 的积木（MobileNet 深度可分离卷积）搭一个流式小网络。膨胀率 1→2→4→8 让感受野覆盖约 600ms，刚好罩住一个两音节词：</p>
+<pre><code>class DSConv(nn.Module):                        <span class="cm"># depthwise + pointwise</span>
+    def __init__(self, cin, cout, k, dilation):
+        super().__init__()
+        pad = dilation * (k - 1) // 2
+        self.dw = nn.Conv1d(cin, cin, k, padding=pad, dilation=dilation, groups=cin)
+        self.pw = nn.Conv1d(cin, cout, 1)
+    def forward(self, x): return self.pw(self.dw(x))
+
+<span class="cm"># 输入 (40, 97) → stem Conv1d(40→48,k5) → DSConv(48→64,d2)</span>
+<span class="cm">#   → DSConv(64→96,d4) → DSConv(96→128,d8) → 时间GAP → FC(128→3类)</span></code></pre>
+<p>三类输出：<code>[目标词, 其他话, 噪声]</code>。"其他话"这一类必须有——它决定了听到无关词时模型会不会乱点头。全模型 33,075 参数，int8 后 33KB。</p>
+</li>
+
+<li><b>训练：类平衡采样 + 最优 checkpoint 回滚</b>
+<p>第一个大坑在这：正负样本 105:1512，直接训会<b>塌成"全判其他话"</b>（loss 正常下降、准确率=类先验、召回 0）。两个修法缺一不可：</p>
+<pre><code><span class="cm"># ① 按类倒数权重过采样正样本，每个 batch 三类均衡</span>
+cls_n = np.bincount(y_train)
+sampler = WeightedRandomSampler(1.0 / cls_n[y_train], num_samples=len(y_train))
+<span class="cm"># ② 每个 epoch 在留出语音上打分，分数 = 召回 − 2×误报，回滚最优权重</span>
+score = recall_on_val - 2 * false_alarm_on_val</code></pre>
+<p>增广（在线做，每次采样现生成）：随机增益 0.25–1.0、加噪 SNR 12–40dB、±150ms 时间平移、SpecAugment。注意增广是随机流，<b>不同 run 方差很大</b>——最优 checkpoint 回滚同时解决了这个问题。40 epoch 后留出语音召回 100%、易混词误判 1.2%。</p>
+</li>
+
+<li><b>量化：逐通道 int8 + QAT，救回 15 个百分点</b>
+<p>第二个大坑：float 模型直接 int8 量化，准确率从 <b>99.1% 崩到 81.5%</b>。逐层检查激活都很健康——根因是<b>判定边距太薄</b>：每层 requant 取整噪声 ±0.5/127 累积 7 层，临界样本全被推过边界。解法是量化感知训练（QAT），前向时做伪量化、梯度直通（STE）：</p>
+<pre><code>def wfq(w):   <span class="cm"># 权重伪量化：逐输出通道对称 int8</span>
+    s = w.detach().abs().amax(dim=tuple(range(1, w.ndim)), keepdim=True) / 127
+    q = torch.round(w / s).clamp(-127, 127) * s
+    return w + (q - w).detach()          <span class="cm"># 前向用量化值，反向梯度直通</span>
+
+def fq_act(x, scale, relu=True):  <span class="cm"># 激活伪量化，scale 来自标定</span>
+    s = scale / 127
+    q = torch.round(x / s).clamp(0 if relu else -127, 127) * s
+    return x + (q - x).detach()</code></pre>
+<p>量化公式与部署侧严格同构：权重逐输出通道 <code>q_w = round(w/max|w|·127)</code>，激活 scale 用 40 个 batch 的最大绝对值标定（<b>训练和导出必须读同一份</b>，存 stats.json）。QAT 微调 20 epoch 后，int8 准确率回到 <b>96.2%</b>。</p>
+</li>
+
+<li><b>导出与对拍：让 C 和 numpy 逐位一致</b>
+<p>导出脚本把权重/scale/mel 滤波器组写成 <code>wakenet_model.h</code>，C 端前向只有一种运算——<b>整数累加 + float requant 取整</b>：</p>
+<pre><code>int32_t acc = b[o];
+for (i, k ...) acc += (int32_t)x[i*T+ti] * (int32_t)w[(o*ci+i)*K + k];
+y[o*T+t] = clamp(lrintf((float)acc * requant[o]), 0, 127);</code></pre>
+<p>整数加法与求和顺序无关，两边天然逐位一致（实测 softmax 偏差 1.2e-07）。对拍有两个文件级检查：<code>net</code>（量化特征 → 概率，对 numpy 期望）和 <code>mel</code>（PCM → 特征）。</p>
+<div class="note warn"><b>对拍最大的坑：</b>mel 对拍曾稳定差 0.07，换了 FFT 精度、双精度累加都没用——最后发现期望值是用 float 波形算的，而 C 端吃的是 int16 PCM。<b>设备端输入本来就是 int16，期望值必须按 int16 量化往返后算</b>。修正后偏差 3.4e-05。</div>
+</li>
+</ol>
+
+<!-- ================================================================ 5 -->
+<h2 id="s5"><span class="no">§5</span>部署到 ESP32</h2>
+<p>三个文件进工程即可：<code>wakenet.c/h</code>（int8 前向 + 触发器）、<code>mel_fbank.c/h</code>（特征前端）、<code>wakenet_model.h</code>（生成的权重）。零第三方依赖，Arduino 和 ESP-IDF 都能编。音频任务每 300ms 取最近 1 秒判一次：</p>
+<pre><code>#include "wakenet.h"
+#include "mel_fbank.h"
+
+static float feats[WN_NFRAMES][40];
+static wn_trigger_t tg;
+
+void audio_task(void *arg) {
+    wn_trigger_init(&tg, /*avg_n=*/4, /*thr=*/0.7f);  <span class="cm">// 连续4窗均值>0.7才触发</span>
+    while (1) {
+        fill_last_1s_pcm(pcm);                        <span class="cm">// 你的 I2S/PDM 采样</span>
+        mel_frames(pcm, 16000, feats);
+        float probs[3];
+        wn_forward(&feats[0][0], probs);              <span class="cm">// [目标词, 其他话, 噪声]</span>
+        if (wn_trigger_update(&tg, probs[0])) {
+            <span class="cm">/* 唤醒命中：点亮魔杖 / 发事件 */</span>
+        }
+        vTaskDelay(pdMS_TO_TICKS(300));
+    }
+}</code></pre>
+<p>触发器自带滞回（回落到 60% 阈值以下才允许下次触发），实测能压掉单窗概率尖峰——160 秒负样本流里有 3 个孤立尖峰，平滑后 0 次误触发。</p>
+<table>
+  <tr><th>资源</th><th>占用</th><th>说明</th></tr>
+  <tr><td>Flash（权重）</td><td>~33 KB</td><td>wakenet_model.h 常量</td></tr>
+  <tr><td>静态 RAM</td><td>~46 KB</td><td>两层激活 ping-pong 25KB + 特征 16KB + 触发器</td></tr>
+  <tr><td>单次推理</td><td>Mac &lt;10ms → S3@240MHz 估 &lt;50ms</td><td>每 300ms 才跑一次，占用率极低</td></tr>
+</table>
+<div class="note"><b>和别的模型共存：</b>本引擎不占任何专用加速器，和手势识别 CNN、ESP-NOW 协议栈可以同跑（音频任务绑 Core0 高优先级，推理放 Core1）。魔杖项目就是这么用的。</div>
+
+<!-- ================================================================ 6 -->
+<h2 id="s6"><span class="no">§6</span>实测结果与成本</h2>
+<table>
+  <tr><th>指标</th><th>数值</th><th>口径</th></tr>
+  <tr><td>正样本召回</td><td><b>30/30 = 100%</b>（thr=0.5）</td><td>留出语音 Daniel/Tessa 说 "lumos"</td></tr>
+  <tr><td>int8 准确率</td><td><b>96.2%</b>（float→量化 99.1→81.5→QAT 后 96.2）</td><td>530 条留出验证集</td></tr>
+  <tr><td>易混词误判</td><td>8/432 clips</td><td>music/luminous/hocus pocus 等 90+ 词</td></tr>
+  <tr><td>误报流</td><td>160s 负样本流 3 个单窗尖峰 → 平滑后 0 触发</td><td>p&gt;0.9 窗口计数</td></tr>
+  <tr><td>C ↔ numpy 对拍</td><td>前向 1.2e-07 / mel 3.4e-05</td><td>本机 clang -O2</td></tr>
+  <tr><td>端到端</td><td>留出正样本 PCM → p(目标)=0.984</td><td>对拍程序实测</td></tr>
+  <tr><td>总工时</td><td>首次约 1.5 天（含踩坑）；复跑 15 分钟</td><td>Mac M 系列</td></tr>
+  <tr><td>费用</td><td>¥0（say 免费、数据 63MB 可再生）</td><td>—</td></tr>
+</table>
+
+<!-- ================================================================ 7 -->
+<h2 id="s7"><span class="no">§7</span>踩坑速查表</h2>
+<table>
+  <tr><th style="width:56px">#</th><th>症状</th><th>根因与解法</th></tr>
+  <tr><td>1</td><td>训练 loss 正常下降，召回却是 0</td><td>类不均衡塌缩（全判"其他话"）→ 按类倒数权重采样 + 按 <code>召回−2×误报</code> 挑 checkpoint</td></tr>
+  <tr><td>2</td><td>同代码两次训练结果天差地别</td><td>在线增广是随机流 → 不追随机种子，用验证集最优 checkpoint 回滚</td></tr>
+  <tr><td>3</td><td>float 99% 量化后只剩 81%</td><td>判定边距薄，requant 噪声累积翻转临界样本 → 逐通道权重量化 + QAT 微调</td></tr>
+  <tr><td>4</td><td>训练 QAT 和导出 int8 行为不一致</td><td>两边激活标定 scale 不同 → 标定结果存档（stats.json），导出只读不重算</td></tr>
+  <tr><td>5</td><td>C 端 mel 和 python 永远差 ~0.07</td><td>期望值用 float 波形、C 端吃 int16 PCM 的往返差 → 期望值按 int16 往返算</td></tr>
+  <tr><td>6</td><td>验证准确率虚高（99%+）但上板不灵</td><td>同一"说话人"的样本泄漏进验证集 → 按语音（说话人）切分，不是按样本随机切</td></tr>
+</table>
+
+<!-- ================================================================ 8 -->
+<h2 id="s8"><span class="no">§8</span>局限与改进方向</h2>
+<p><b>如实交代当前边界</b>（都是玩具场景可以接受、产品场景必须解决的）：</p>
+<ul>
+  <li><b>正样本全是 TTS</b>：9 个 macOS 语音训练，真人（尤其距离远/带口音）未系统验证。改进：自己录 30–50 条丢进 <code>mylumos/</code> 混训，一行命令重跑。</li>
+  <li><b>无音频前端</b>：没有 AEC/降噪/AGC，嘈杂环境和回声场景会退化。玩具安静房间够用；要硬刚就上 ESP-SR 的 AFE，或把本模型喂给 AFE 后面。</li>
+  <li><b>负样本域窄</b>：只有 TTS 念词 + 程序噪声。真电视声/音乐/多人交谈没见过。改进：录几段环境音混进负样本。</li>
+  <li><b>单一唤醒词</b>：三类输出只支持一个词。要多词就把 FC 类别扩到 3+N，数据按词增加。</li>
+</ul>
+<div class="note ok"><b>什么时候放弃自研回官方：</b>要过认证/量产/远场 3 米唤醒率指标时。自研路线的价值是自由、白盒、零授权成本，不是替代工业方案。</div>
+
+<!-- ================================================================ 9 -->
+<h2 id="s9"><span class="no">§9</span>参考资料与文件地图</h2>
+<h3>9.1 论文与文档（WakeNet 配方溯源）</h3>
+<ul>
+  <li><a href="https://github.com/espressif/esp-sr">espressif/esp-sr</a>（WakeNet 文档与 benchmark；架构出处官方就引这两篇 ↓）</li>
+  <li><a href="https://arxiv.org/abs/1609.03499">WaveNet</a>（2016）— WakeNet9 膨胀卷积出处</li>
+  <li><a href="https://arxiv.org/abs/1704.04861">MobileNet</a>（2017）— WakeNet9s / 本教程模型用的深度可分离卷积</li>
+  <li><a href="https://arxiv.org/abs/2005.06720">Streaming Keyword Spotting on Mobile Devices</a>（Google, 2020）— 开源方案 microWakeWord 的基础</li>
+  <li><a href="https://www.researchgate.net/publication/327806056_Deep-FSMN_for_Large_Vocabulary_Continuous_Speech_Recognition">DFSMN</a>（阿里, 2018）— 早期 WakeNet2/3 的架构渊源</li>
+  <li><a href="https://github.com/OHF-Voice/micro-wake-word">OHF-Voice/microWakeWord</a>（Apache-2.0）— 另一条自训路线：Colab 训练 + TFLM 部署，Home Assistant Voice 同款</li>
+</ul>
+<h3>9.2 本仓库文件地图</h3>
+<pre><code>magic-wand/
+├── index.html                  <span class="cm"># 魔杖整体方案（唤醒词是其中一个模块）</span>
+└── wakenet/                    <span class="cm"># 本教程全部代码</span>
+    ├── README.md               <span class="cm"># 复现命令 + 指标 + 踩坑</span>
+    ├── scripts/
+    │   ├── synthesize.py       <span class="cm"># ① say 合成（有缓存，重跑只补新增）</span>
+    │   ├── make_dataset.py     <span class="cm"># ② 定长数据集 + 留出切分</span>
+    │   ├── train.py            <span class="cm"># ③④⑤ 训练 + QAT + 标定</span>
+    │   └── export_c.py         <span class="cm"># ⑥ int8 量化 + 生成 C 头文件</span>
+    ├── esp32/                  <span class="cm"># ⑦ 纯 C 运行时（上板就这三个 .c/.h + 生成的 model.h）</span>
+    └── data/ models/           <span class="cm"># 可再生的生成物（已 gitignore）</span></code></pre>
+
+<div class="footer">
+  ESP32 语音唤醒完全教程 · 2026-09-19 · 基于 magic-wand/wakenet 真实工程撰写，所有数字为本机实测<br>
+  上一篇：<a href="magic-wand/index.html">Lumos 魔杖玩具 Demo 方案</a> · <a href="index.html">返回笔记首页</a>
+</div>
+
+</div>
+</body>
+</html>

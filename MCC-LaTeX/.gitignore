@@ -1,0 +1,19 @@
+# LaTeX 编译产物（aux/log/toc/out 等不进版本库）
+*.aux
+*.log
+*.toc
+*.out
+*.fdb_latexmk
+*.fls
+*.synctex.gz
+*.bbl
+*.blg
+*.bcf
+*.run.xml
+
+# PDF 也不进版本库（从 .tex 源编译）
+*.pdf
+
+# macOS
+.DS_Store
+._*

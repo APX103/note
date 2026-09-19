@@ -1,0 +1,126 @@
+\chapter{连贯性协议}
+
+\begin{epigraph}
+\textbf{核心命题}　连贯性协议是实现缓存连贯性的具体机制。本章定义协议的三要素（状态、事务、不变量），给出一个简单 MSI 协议示例，并勾勒协议设计空间——这是第 7–8 章监听与目录协议的共同语言。
+\end{epigraph}
+
+
+
+\section{概览}
+
+第 2 章定义了连贯性的不变量（SWMR、数据值不变量）。\textbf{连贯性协议}（coherence protocol）就是实现这些不变量的具体机制。一个连贯性协议由三个要素组成：
+
+\begin{itemize}
+\item \textbf{状态}（states）：每个缓存块在缓存中维护的状态（如 MSI 的 M/S/I）；
+\item \textbf{事务}（transactions）：缓存与内存/其他缓存之间交换的消息（如 GetS、GetM、PutM、数据响应）；
+\item \textbf{不变量}（invariants）：SWMR 与数据值不变量。
+\end{itemize}
+
+
+每个缓存块都对应一个\textbf{有限状态机}，根据当前状态与接收到的事务进行状态转换。本章先用最简单的 MSI 协议示例说明，再勾勒设计空间。
+
+\section{定义连贯性协议}
+
+连贯性协议的形式化定义：
+
+\begin{itemize}
+\item 对每个缓存块，每个缓存维护一个本地状态机；
+\item 状态机的输入是处理器请求（load/store）与互连网络上的消息；
+\item 状态机的输出是发给互连网络的消息（请求、数据响应、invalidate）与对本地缓存的修改（状态转换、数据更新）。
+\end{itemize}
+
+
+协议的正确性要求：所有缓存的状态机协同满足 SWMR 与数据值不变量。
+
+\section{一个简单连贯性协议的例子}
+
+\textbf{MSI 协议}是最简单的三状态连贯性协议，状态为：
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+状态 & 含义 \\
+\midrule
+\textbf{M（Modified）} & 脏独占——只有本缓存有副本，且与内存不一致（已修改） \\
+\textbf{S（Shared）} & 干净共享——可能有多个缓存有副本，与内存一致 \\
+\textbf{I（Invalid）} & 无效——本缓存无该块的副本 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+
+MSI 的核心事务：
+
+\begin{itemize}
+\item \textbf{GetS}（请求共享）：缓存要读，请求 S 态；
+\item \textbf{GetM}（请求修改/独占）：缓存要写，请求 M 态（先使其他副本失效）；
+\item \textbf{PutM}（写回并放弃）：缓存把 M 态的脏数据写回内存，自身转 I；
+\item \textbf{数据响应}：内存或其他缓存提供数据。
+\end{itemize}
+
+
+状态转换示例（缓存侧）：
+
+\begin{itemize}
+\item I + load $\rightarrow$ 发 GetS，收到数据后转 S；
+\item I/S + store $\rightarrow$ 发 GetM（使其他 S 副本失效），收到 ack 后转 M；
+\item M + 替换 $\rightarrow$ 发 PutM（写回），转 I。
+\end{itemize}
+
+
+\section{连贯性协议的设计空间概述}
+
+连贯性协议的设计空间由几个维度构成（Archibald \& Baer 1986 经典综述）。
+
+\subsection{状态}
+
+状态数从 2（如简单的 valid/invalid）到 5+（MOESI）。状态越多，能优化的场景越多，但状态机越复杂。
+
+经典状态族：
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+协议 & 状态 & 增加的状态 \\
+\midrule
+MSI & M、S、I & 基准 \\
+MESI & M、E、S、I & E（Exclusive，干净独占） \\
+MOESI & M、O、E、S、I & O（Owned，脏共享） \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+
+\textbf{MESI}（Papamarcos \& Patel, UIUC, 1984，又称 Illinois 协议）增加 E 态：当只有自己一份副本但与内存一致时，可直接写而无需任何总线事务（RFO 优化）。Intel 沿用 MESI。
+
+\textbf{MOESI}（AMD64 官方协议）增加 O 态：脏共享——本缓存持有唯一正确版本，但其他缓存可持干净 S 副本。O 态缓存可作为 owner 直接向其他请求者提供数据，无需先写回内存，降低延迟与带宽。
+
+\subsection{事务}
+
+事务的设计影响协议的消息复杂度。基本事务是 GetS/GetM/PutM/数据响应；复杂的协议可能加 invalidate ack、数据所有权转移等。
+
+\subsection{主要协议设计选项}
+
+主要设计选项：
+
+\begin{itemize}
+\item \textbf{失效（invalidate）vs 更新（update）}：写时使其他副本失效，还是把新值更新到所有副本。失效是主流（MSI/MESI/MOESI）；更新协议（如 Dragon、Firefly）在某些场景流量更优但实现复杂（Archibald \& Baer 1986）。
+\item \textbf{写直达（write-through）vs 写回（write-back）}：写直达每次写都穿透到下一级，连贯性简化但带宽压力大；MESI/MOESI 都为写回设计。
+\item \textbf{原子 vs 非原子请求}：请求与响应是否分离（影响瞬态状态需求，见第 7 章）。
+\end{itemize}
+
+
+\section{小结}
+
+连贯性协议由状态、事务、不变量三要素组成。MSI 是最简单的三状态协议（M/S/I），MESI 增加 E（干净独占，Intel），MOESI 增加 O（脏共享，AMD）。协议设计的主要选项是失效 vs 更新、写直达 vs 写回、原子 vs 非原子请求。第 7–8 章的监听与目录协议都是 MSI/MESI/MOESI 在不同互连上的具体实现。
+
+\section*{参考文献}
+\begin{itemize}
+\item Sorin D. J., Hill M. D., Wood D. A. \emph{A Primer on Memory Consistency and Cache Coherence} (2nd ed.). 2020, Chapter 6. https://pages.cs.wisc.edu/\textasciitilde{}markhill/papers/primer2020\_2nd\_edition.pdf
+\item Archibald J., Baer J.-L. Cache coherence protocols: Evaluation using a multiprocessor simulation model. \emph{ACM TOCS}, 1986, 4(4): 273–298. https://dl.acm.org/doi/10.1145/7900.7902
+\item Stenström P. A survey of cache coherence schemes for multiprocessors. \emph{IEEE Computer}, 1990, 23(6): 12–24. https://web.mit.edu/6.173/www/currentsemester/readings/R04-cache-coherence-survey-1990.pdf
+\item Wikipedia. MSI protocol. https://en.wikipedia.org/wiki/MSI\_protocol
+\item Wikipedia. MESI protocol. https://en.wikipedia.org/wiki/MESI\_protocol
+\item Wikipedia. MOESI protocol. https://en.wikipedia.org/wiki/MOESI\_protocol
+\item AMD. \emph{AMD64 Architecture Programmer's Manual, Vol. 2, §7 Memory Coherency and Protocol}. https://www.cse.wustl.edu/\textasciitilde{}roger/569M/24593.pdf
+\end{itemize}

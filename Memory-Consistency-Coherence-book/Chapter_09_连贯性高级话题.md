@@ -1,0 +1,105 @@
+# 第 9 章　连贯性高级话题
+
+> **核心命题**　真实系统比教科书协议复杂得多：指令缓存、TLB、虚拟缓存、DMA、多级缓存层级、迁移/伪共享优化，以及死锁/活锁/饥饿等活跃度问题。本章把这些工程细节串成一幅完整图景。
+
+---
+
+## 9.1　系统模型
+
+前几章的连贯性协议只考虑数据缓存（D-cache）的 load/store。真实系统还有更多需要维护连贯性的组件。
+
+### 9.1.1　指令缓存
+
+**指令缓存**（I-cache）的连贯性涉及**自修改代码**（self-modifying code）。当处理器修改了即将执行的代码（如 JIT 编译、动态链接），必须刷新所有核的 I-cache，否则其他核可能执行旧指令。典型流程是软件执行 I-cache flush 指令（如 ARM 的 `ic ivau`、x86 的序列化指令），并保证 D-cache 与 I-cache 间同步。
+
+### 9.1.2　转换后备缓冲器（TLB）
+
+**TLB**（Translation Lookaside Buffer）缓存页表项。当页表项被修改（如换页、权限变更），必须使其他核 TLB 中的旧翻译失效——这是 **TLB shootdown**。经典机制是跨核中断（IPI）+ invalidate：发起核修改页表，向其他核发 IPI，其他核在 IPI 处理中 invalidate 自己的 TLB 项。
+
+### 9.1.3　虚拟缓存
+
+**虚拟索引缓存**（virtually-indexed cache）在两个虚拟地址指向同一物理页（synonym）时，可能同时存在两份副本，破坏连贯性。对策是页着色（page coloring）、限制 index 位数（让 index 落在页内偏移内，避免 synonym），或使用反向翻译缓冲（VTB）。
+
+### 9.1.4　写直达缓存
+
+**写直达缓存**（write-through cache）每次写都穿透到下一级，连贯性可简化（下一级总有最新值），但带宽压力大。多数现代处理器用写回（write-back）缓存 + MESI/MOESI 协议。
+
+### 9.1.5　连贯性 DMA
+
+**DMA**（Direct Memory Access）的连贯性有三种范式：
+
+- **非相干 I/O**：软件显式 flush/invalidate（如 ARM 早期、x86 IO-DMA）；
+- **单相干 I/O**（one-way）：DMA 单元 snoop 处理器侧 L2，但处理器不 snoop DMA 写；
+- **全相干 I/O**（two-way）：双向都参与。
+
+Linux 内核用 `dma_sync_*`、`flush_dcache_page` 等抽象软件侧管理。
+
+### 9.1.6　多级缓存和层级结构连贯性协议
+
+多级缓存层级（L1/L2/LLC）的连贯性策略：
+
+- **inclusive（包容性）**：LLC 必含上层内容；LLC 替换某行时向上层发 back-invalidation。优点：snooper 只需观察 LLC。
+- **exclusive（互斥）**：一行只存在于一级；LLC 替换时把数据"提升"到上层。最大化有效容量。
+- **non-inclusive non-exclusive（NINE）**：无严格关系，无 back-invalidate。现代 AMD/ARM 多采用。
+
+ARM AMBA AXI ACE（2011，随 big.LITTLE）与 AMBA 5 CHI 是 ARM 片上连贯性协议族，支持 cluster 间 cache-to-cache 转移。
+
+## 9.2　性能优化
+
+### 9.2.1　迁移共享优化
+
+**迁移共享**（migration）：单线程顺序访问的块在不同核间迁移（如 producer-consumer 模式），导致乒乓效应。优化思路是减少不必要的 invalidate。
+
+### 9.2.2　伪共享优化
+
+**伪共享**（false sharing）：两个不相关变量恰好落在同一 cache line，一个核写其中一个变量会使另一个核对该变量的副本失效。对策是**缓存行对齐**（cache line alignment）关键变量，避免无关变量共享缓存行。
+
+## 9.3　保持活跃度
+
+**活跃度**（liveness）是协议正确性的另一半——不仅要保证安全（safety，不变量不被破坏），还要保证进展（progress，不会卡死）。
+
+### 9.3.1　死锁
+
+**死锁**（deadlock）：循环等待——A 等响应 B，B 等响应 C，C 等响应 A。经典对策：请求/响应分离的虚拟通道、严格的事务类排序。
+
+### 9.3.2　活锁
+
+**活锁**（livelock）：例如多核同时请求同一 cache line 的 M 态，相互反复 invalidate，无任何一方进展。对策常为 randomized backoff 或仲裁优先级。
+
+### 9.3.3　饥饿
+
+**饥饿**（starvation）：公平性问题，弱势请求被持续抢占。对策是公平仲裁或老化（aging）优先级。
+
+## 9.4　令牌连贯性
+
+**令牌连贯性**（Token Coherence，Martin/Hill/Wood, ISCA 2003）把连贯性正确性与性能优化解耦：
+
+- 每个块持有若干"令牌"（token），持有者攒够阈值（典型为"全部 token"用于写、">=1 token"用于读）即可合法读/写；
+- **persistent request** 机制作为兜底——当正常请求因竞争反复失败（饥饿/活锁）时，发一条 persistent request，由每个 home node 的仲裁器串行化处理，保证 forward progress，从而避免死锁/活锁。
+
+令牌连贯性是继监听/目录之后的"第三种协议分类"，影响了许多后续研究。
+
+## 9.5　连贯性的未来
+
+连贯性的未来方向：
+
+- **众核可扩展**：数百核以上的目录/监听混合；
+- **异构一致性域**：CXL、Apple UMA、AMD Infinity Fabric 让 CPU-GPU 共享一致性域；
+- **持久内存**：NVM/PMEM 的崩溃一致性 + 缓存连贯性；
+- **形式化验证**：随着协议复杂度上升，形式化验证（第 11 章）变得必不可少。
+
+## 9.6　小结
+
+真实系统的连贯性远比教科书协议复杂：I-cache（自修改代码 flush）、TLB（shootdown）、虚拟缓存（synonym）、DMA（相干 I/O）、多级缓存（inclusive/exclusive/NINE）、ARM AXI ACE/CHI。性能优化针对迁移共享与伪共享。活跃度问题（死锁、活锁、饥饿）需通过虚拟通道、仲裁、backoff 解决。令牌连贯性（Martin 2003）是第三种协议分类。未来方向包括众核可扩展、异构一致性域（CXL）、持久内存与形式化验证。
+
+## 参考文献
+
+1. Sorin D. J., Hill M. D., Wood D. A. *A Primer on Memory Consistency and Cache Coherence* (2nd ed.). 2020, Chapter 9. https://pages.cs.wisc.edu/~markhill/papers/primer2020_2nd_edition.pdf
+2. Martin M. M. K., Hill M. D., Wood D. A. Token coherence: Decoupling performance and correctness. ISCA 2003, pp. 182–193. https://doi.org/10.1145/859618.859640
+3. ARM. *AMBA AXI ACE coherency whitepaper*. 2011. https://developer.arm.com/-/media/Arm%20Developer%20Community/PDF/CacheCoherencyWhitepaper_6June2011.pdf
+4. Wikipedia. Cache inclusion policy. https://en.wikipedia.org/wiki/Cache_inclusion_policy
+5. Jaleel A., Emer J. Achieving non-inclusive cache performance with inclusive caches. MICRO 2010. http://people.csail.mit.edu/emer/media/papers/2010.12.micro.tla.pdf
+6. AMD. *Versal AM011 I/O Coherency*. https://docs.amd.com/r/en-US/am011-versal-acap-trm/I/O-Coherency
+7. UW-Madison ECE757. *Coherence advanced topics*. https://ece757.ece.wisc.edu/lect06-coherence.pdf
+8. Cadence. *From AMBA ACE to CHI*. https://community.cadence.com/cadence_blogs_8/b/fv/posts/from-amba-ace-to-chi-why-move-for-coherency
+9. UPenn. *Token Coherence persistent requests*. https://repository.upenn.edu/bitstreams/8fd14dbf-5e39-4c93-9aa4-0563cfcd9cf4/download

@@ -1,0 +1,9 @@
+title: 小型模块化反应堆（SMR）技术
+subtitle: A Comprehensive Treatise on SMR Technology
+author: 李佳伦　编著
+date: 2026 年
+lang: zh-CN
+documentclass: ctexbook
+classoption:
+  - UTF8
+  - scheme=plain

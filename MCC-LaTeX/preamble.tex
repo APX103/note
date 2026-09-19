@@ -1,0 +1,90 @@
+% preamble.tex —— 导言区（字体 / 版式 / 颜色 / 宏包）
+
+% ---------- 数学与表格 ----------
+\usepackage{amsmath, amssymb}
+\usepackage{booktabs}        % 三线表
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{multirow}
+
+% ---------- 版式 ----------
+\usepackage{geometry}
+\geometry{a5paper, margin=2.0cm, top=2.2cm, bottom=2.2cm}
+
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[LE]{\small\color{gray}内存一致性和缓存连贯性理论}
+\fancyhead[RO]{\small\color{gray}\leftmark}
+\fancyfoot[C]{\small\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\headrule}{\hbox to\headwidth{\color{gray}\leaders\hrule height \headrulewidth\hfill}}
+
+% ---------- 颜色 ----------
+\usepackage{xcolor}
+\definecolor{zhusha}{HTML}{9C2A2A}      % 朱砂
+\definecolor{shenhui}{HTML}{555555}     % 深灰
+\definecolor{qianhui}{HTML}{F5F2EC}     % 浅灰底
+
+% ---------- 字体（macOS 系统自带） ----------
+\setCJKmainfont[BoldFont={PingFang SC Semibold}, ItalicFont={Kaiti SC}]{Songti SC}
+\setCJKsansfont{PingFang SC}
+\setCJKmonofont{STFangsong}
+\setmainfont{Times New Roman}
+\setsansfont{Helvetica Neue}
+\setmonofont{Menlo}[Scale=0.85]
+
+% 章标题样式：朱砂色 + 黑体
+\ctexset{
+  chapter = {
+    format = \huge\bfseries\color{zhusha}\centering\sffamily,
+    nameformat = \huge\bfseries\color{zhusha},
+    titleformat = \huge\bfseries\color{zhusha}\sffamily,
+    name = {第,章},
+    number = \arabic{chapter},
+    aftername = \quad,
+    afterindent = false,
+    beforeskip = 30pt,
+    afterskip = 30pt,
+    pagestyle = fancy,
+  },
+  section = {
+    format = \Large\bfseries\color{shenhui}\sffamily,
+    aftername = \quad,
+    afterindent = false,
+  },
+  subsection = {
+    format = \large\bfseries\sffamily,
+    aftername = \quad,
+    afterindent = false,
+  },
+}
+
+% ---------- 引文框（核心命题用） ----------
+\usepackage{mdframed}
+\newmdenv[
+  linecolor=zhusha,
+  linewidth=2pt,
+  topline=false, rightline=false, bottomline=false,
+  innerleftmargin=10pt, innerrightmargin=10pt,
+  innertopmargin=8pt, innerbottommargin=8pt,
+  skipabove=6pt, skipbelow=6pt
+]{epigraph}
+
+% ---------- 超链接 ----------
+\usepackage{hyperref}
+\hypersetup{
+  colorlinks=true,
+  linkcolor=zhusha,
+  urlcolor=zhusha,
+  citecolor=zhusha,
+  bookmarksnumbered=true,
+  pdfstartview=Fit,
+  pdftitle={内存一致性和缓存连贯性理论},
+  pdfauthor={李佳伦}
+}
+
+% ---------- 列表 ----------
+\usepackage{enumitem}
+\setlist[itemize]{leftmargin=2em, itemsep=2pt}
+\setlist[enumerate]{leftmargin=2em, itemsep=2pt}

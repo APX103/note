@@ -1,0 +1,92 @@
+# 第 4 章　全存储顺序以及 x86 内存模型
+
+> **核心命题**　x86 采用的全存储顺序（TSO）在 SC 与松弛模型之间取折中——唯一允许的重排是 store→load，这让 store buffer 可以让后续 load 绕过未完成的 store。Sewell 等人 2010 年的 x86-TSO 形式化终结了 Intel 长达数年的"processor ordering"歧义。
+
+---
+
+## 4.1　TSO/x86 的动机
+
+SC 的根本性能瓶颈在 store：store 必须等其他核的 invalidate ack 全部返回才能提交。但现实代码中，store→load 是最常见的相邻模式——例如先写 flag 再读共享数据，或先写参数再调用函数。如果能让 load 绕过自己未完成的 store，就能大幅隐藏 store 延迟。
+
+这正是 **TSO（Total Store Order）**的动机：在 SC 基础上**唯一放松 store→load 重排**，让 store buffer 可以让后续 load 先行（从 buffer forwarding 或从内存读）。
+
+TSO 最早由 SPARC 在 1992 年的 SPARC V8 架构手册中正式定义（"Total Store Ordering"）。x86 实质采用 TSO，但 Intel 在早期文档中用模糊的"processor ordering"描述，直到 2007–2008 年才正式澄清为 TSO。
+
+## 4.2　TSO/x86 的基本思想
+
+TSO 的核心机制是**每核一个 FIFO store buffer**：
+
+- store 先进入本核 store buffer 的尾部，按 FIFO 顺序排入内存；
+- load 时，若本核 store buffer 中有同地址的最近 store，必须先读它（store forwarding）；
+- 否则，load 从内存读。
+
+这个机制的关键后果：**本核的 load 可以"跳过"自己未排入内存的 store**——因为 load 可能从内存读到旧值（如果 store 还在 buffer 里）。这就是 store→load 重排的物理来源。
+
+## 4.3　TSO/x86 的形式化描述
+
+Sewell、Sarkar、Owens 等人在《x86-TSO: A Rigorous and Usable Programmer's Model for x86 Multiprocessors》（*Communications of the ACM* 53(7): 89–97, 2010）中给出了 TSO 的严格形式化。核心要素：
+
+- 每个线程与共享内存之间插入一个**无界 FIFO store buffer**；
+- 线程读时，若自己 buffer 中有同地址的最近 store，必须先读它（store forwarding）；
+- 否则从共享内存读；
+- store 按全局 FIFO 总序（total store order）排入内存。
+
+这个形式化有两种等价表达：**操作化模型**（抽象机，store buffer + 全局锁）与**公理化模型**（happens-before + acyclicity）。Owens/Sarkar/Sewell 在 TPHOLs 2009 给出了两种模型的等价证明（在 HOL 定理证明器中机械化）。
+
+## 4.4　实现 TSO/x86
+
+TSO 的实现相对简单：
+
+- **硬件**：每核一个 FIFO store buffer；store 进入 buffer 尾部，按 FIFO drain 到内存；
+- **load 路径**：先查 store buffer（同地址 forwarding），未命中再查缓存/内存；
+- **store 路径**：进 buffer，异步 drain。
+
+这个实现的关键优势是 store 不再需要等 invalidate ack 才能让后续 load 进行——store buffer 吸收了 store 延迟。
+
+### 4.4.1　实现原子指令
+
+x86 的原子指令通过 **LOCK 前缀**实现（如 `lock cmpxchg`、`lock xchg`、`lock add`）：
+
+- LOCK 前缀在 drain store buffer 的同时提供原子性；
+- 行为等价于全 fence（但额外保证 read-modify-write 的原子性）；
+- 常见技巧：用 `lock addq $0,(%rsp)`——一条带 LOCK 前缀的无关 store 充当便宜的 barrier。
+
+### 4.4.2　实现 FENCE
+
+`MFENCE` 指令是全屏障：串行化此前所有 load/store（drain store buffer 与 load buffer），阻止 store→load 重排，恢复 SC 语义。在需要 SC 语义的关键段（如 Dekker 算法、双重检查锁）必须插入 MFENCE。
+
+## 4.5　关于 TSO 的进一步阅读资料
+
+- SPARC V8 架构手册（1992）：TSO 的最早正式定义；
+- Sewell et al. CACM 2010：x86-TSO 的严格形式化；
+- Owens/Sarkar/Sewell TPHOLs 2009：x86-TSO 的双模型等价证明；
+- Intel SDM Vol.3 §8.2：x86 内存排序的官方规范。
+
+## 4.6　比较 SC 和 TSO
+
+SC 与 TSO 的关键差异：
+
+| 特性 | SC | TSO |
+|---|---|---|
+| store→load 重排 | 禁止 | **允许** |
+| store→store 重排 | 禁止 | 禁止（store 有全局总序） |
+| load→load 重排 | 禁止 | 禁止 |
+| load→store 重排 | 禁止 | 禁止 |
+| store buffer | 受限 | 充分利用 |
+| 典型实现 | MIPS R10000 | x86、SPARC V8 |
+
+唯一差异就是 store→load 重排。这看似细微，但对性能影响巨大——它让 store buffer 可以满负荷工作。代价是程序员在某些场景（如 Dekker 算法、发布模式）必须显式插入 MFENCE。
+
+## 4.7　小结
+
+TSO 是 x86 与 SPARC V8 采用的内存模型，唯一放松 SC 的是 store→load 重排。Sewell 等人 2010 年的 x86-TSO 形式化终结了 Intel "processor ordering" 的歧义。TSO 的实现是每核 FIFO store buffer + 全局 store 总序，store forwarding 保证 load 能读到自己最近的 store。原子指令通过 LOCK 前缀实现，MFENCE 恢复 SC 语义。SC 与 TSO 的唯一差异是 store→load 重排，但这对性能影响巨大。
+
+## 参考文献
+
+1. Sewell P., Sarkar S., Owens S., et al. x86-TSO: A rigorous and usable programmer's model for x86 multiprocessors. *Communications of the ACM*, 2010, 53(7): 89–97. https://doi.org/10.1145/1785414.1785443
+2. Owens S., Sarkar S., Sewell P. A better x86 memory model: x86-TSO. TPHOLs 2009. https://www.cl.cam.ac.uk/~pes20/weakmemory/x86tso-paper.tphols.pdf
+3. SPARC International. *The SPARC Architecture Manual (Version 8)*. 1992. https://courses.grainger.illinois.edu/cs423/sp2011/lectures/sim_public/sparcv8.pdf
+4. Intel. *Intel 64 Architecture Memory Ordering White Paper*. Document 318147, 2007. https://www.cs.cmu.edu/~410-f10/doc/Intel_Reordering_318147.pdf
+5. Intel. *Intel 64 and IA-32 Architectures Software Developer's Manual, Vol. 3, §8.2 Memory Ordering*. https://www.intel.com/content/www/us/en/developer/articles/technical/intel-sdm.html
+6. Sorin D. J., Hill M. D., Wood D. A. *A Primer on Memory Consistency and Cache Coherence* (2nd ed.). 2020, Chapter 4. https://pages.cs.wisc.edu/~markhill/papers/primer2020_2nd_edition.pdf
+7. Higham L., Kaverheid L. Memory consistency and process coordination for SPARC. Springer. https://link.springer.com/chapter/10.1007/3-540-44467-x_32

@@ -1,0 +1,77 @@
+# 第 2 章　连贯性基础
+
+> **核心命题**　缓存连贯性保证对一个内存位置的写入最终对所有缓存可见。本章用基准系统模型说明不连贯性如何产生，并定义连贯性接口与连贯性不变量——这是后续所有协议设计的基石。
+
+---
+
+## 2.1　基准系统模型
+
+为了讨论连贯性，我们先建立一个最简单的多处理器系统模型：
+
+- 多个处理器核（core），每个核有一个私有缓存（private cache）；
+- 共享的主存（shared memory）；
+- 互连网络（interconnection network）连接核、缓存与主存。
+
+这个模型是后续所有协议讨论的起点。每个核发出的内存操作（load/store）经过自己的私有缓存，缓存未命中时通过互连网络访问主存或其他核的缓存。
+
+## 2.2　问题：不连贯性是如何产生的
+
+考虑一个没有连贯性机制的系统，三个核 P1、P2、P3，内存位置 X 初值为 0：
+
+1. P1 写 X = 1，写入 P1 的私有缓存；
+2. P2 读 X——如果 P2 缓存里还是旧值 0，它读到 0；
+3. P3 读 X——如果 P3 缓存里也是 0，它读到 0。
+
+这就是**不连贯性**：P1 已经写了新值 1，但 P2 和 P3 读到的是陈旧的 0。多处理器系统的根本难题在于：每个核有自己的私有缓存，而内存操作又作用在共享变量上——缓存副本会不一致。
+
+缓存连贯性的任务就是**保证这种不一致最终被消除**，使所有处理器看到的同一内存位置的值是一致的。
+
+## 2.3　缓存连贯性接口
+
+缓存连贯性对外暴露的接口是三类原语：
+
+- **load（读）**：从内存位置读取值；
+- **store（写）**：向内存位置写入值；
+- **atomic（原子读-修改-写）**：如 test-and-set、compare-and-swap、fetch-and-add，原子地完成读-改-写。
+
+注意这个接口**不暴露任何"延迟"或"顺序"信息**——load 返回什么值由一致性模型（第 3–5 章）决定，连贯性只保证"陈旧值不会无限期存活"。
+
+## 2.4　（一致性无关的）连贯性不变量
+
+连贯性的形式化由两条不变量刻画，它们**与具体的一致性模型无关**——无论系统是 SC、TSO 还是松弛，连贯性都必须满足这两条（Sorin/Hill/Wood 教材）：
+
+### 2.4.1　维护连贯性不变量
+
+**单写多读不变量（SWMR）**：对任意内存位置，在任意时刻要么有一个处理器可以写（也可以读），要么有若干处理器可以读（但不能写），二者不可同时存在。
+
+**数据值不变量（Data-Value Invariant）**：某次读取返回的值，等于此前最后一次对该位置的写入值。
+
+这两条不变量把时间划分为"epoch"：每个 epoch 内，要么一个处理器独占写，要么若干处理器共享读。epoch 切换时（如从写到读），新 epoch 的起始值必须等于上一 writer epoch 的结束值。
+
+### 2.4.2　连贯性的粒度
+
+连贯性的粒度是**缓存行**（cache block / cache line），典型 64 字节。这意味着：
+
+- 连贯性以缓存行为单位维护——同一缓存行的所有字节共享一份连贯性状态；
+- **伪共享**（false sharing）：两个不相关变量恰好落在同一缓存行，一个处理器写其中一个变量会使另一个处理器对该变量的副本失效，即使它们逻辑上无关。
+
+伪共享是性能杀手——它使原本无关的访问相互干扰。对策是缓存行对齐（cache line alignment）关键变量。
+
+### 2.4.3　连贯性何时与我们相关
+
+连贯性几乎总是必要的——只要有多核 + 私有缓存，就需要连贯性。例外是：
+
+- **GPU 等大量并发架构**：传统连贯性代价过高，GPU 采用时间连贯性或释放一致性导向的连贯性（见第 10 章）；
+- **显式管理的共享内存**：如 MPI 的消息传递模型，不依赖硬件连贯性。
+
+## 2.5　小结
+
+缓存连贯性保证同一内存位置的写入最终对所有缓存可见，由 SWMR 与数据值不变量刻画。连贯性的粒度是缓存行（典型 64 字节），伪共享是其副作用。连贯性是一致性的必要非充分条件——后续第 6–9 章的所有协议（监听、目录）都是实现这两条不变量的具体机制。
+
+## 参考文献
+
+1. Sorin D. J., Hill M. D., Wood D. A. *A Primer on Memory Consistency and Cache Coherence* (2nd ed.). 2020, Chapter 5 (Coherence Basics). https://pages.cs.wisc.edu/~markhill/papers/primer2020_2nd_edition.pdf
+2. Archibald J., Baer J.-L. Cache coherence protocols: Evaluation using a multiprocessor simulation model. *ACM Transactions on Computer Systems*, 1986, 4(4): 273–298. https://dl.acm.org/doi/10.1145/7900.7902
+3. Stenström P. A survey of cache coherence schemes for multiprocessors. *IEEE Computer*, 1990, 23(6): 12–24. https://web.mit.edu/6.173/www/currentsemester/readings/R04-cache-coherence-survey-1990.pdf
+4. CMU 15-418. *Cache coherence lecture*. https://www.cs.cmu.edu/afs/cs/academic/class/15418-s12/www/lectures/10_coherence.pdf
+5. Hennessy J. L., Patterson D. A. *Computer Architecture: A Quantitative Approach* (6th ed.). Appendix on coherence.

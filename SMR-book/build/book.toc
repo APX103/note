@@ -1,0 +1,409 @@
+\contentsline {chapter}{前言}{1}{chapter*.2}%
+\contentsline {section}{编者简介}{1}{section*.3}%
+\contentsline {section}{全书结构}{1}{section*.4}%
+\contentsline {subsection}{第一部分　SMR 技术与 IPWR 综述}{1}{subsection*.5}%
+\contentsline {subsection}{第二部分　IPWR 关键技术}{1}{subsection*.6}%
+\contentsline {subsection}{第三部分　SMR 商业部署}{2}{subsection*.7}%
+\contentsline {subsection}{第四部分　SMR 全球发展和部署}{2}{subsection*.8}%
+\contentsline {section}{主要参考资料来源}{2}{section*.9}%
+\contentsline {section}{阅读建议}{3}{section*.10}%
+\contentsline {chapter}{\numberline {第1章}SMR 介绍}{5}{chapter.1}%
+\contentsline {section}{\numberline {1.1}引言}{5}{section.1.1}%
+\contentsline {section}{\numberline {1.2}SMR 商业部署的推动力和挑战}{6}{section.1.2}%
+\contentsline {subsection}{\numberline {1.2.1}推动力}{6}{subsection.1.2.1}%
+\contentsline {subsection}{\numberline {1.2.2}挑战}{6}{subsection.1.2.2}%
+\contentsline {section}{\numberline {1.3}SMR 的类别}{7}{section.1.3}%
+\contentsline {subsection}{\numberline {1.3.1}按冷却剂分类}{7}{subsection.1.3.1}%
+\contentsline {subsection}{\numberline {1.3.2}按中子能谱分类}{7}{subsection.1.3.2}%
+\contentsline {subsection}{\numberline {1.3.3}按模块化程度分类}{7}{subsection.1.3.3}%
+\contentsline {section}{\numberline {1.4}SMR 的公共健康与环境影响}{7}{section.1.4}%
+\contentsline {section}{\numberline {1.5}SMR 的现状}{8}{section.1.5}%
+\contentsline {section}{\numberline {1.6}结论}{9}{section.1.6}%
+\contentsline {section}{\numberline {1.7}参考文献}{9}{section.1.7}%
+\contentsline {section}{\numberline {1.8}缩略语和术语}{9}{section.1.8}%
+\contentsline {chapter}{\numberline {第2章}SMR 全球研发现状}{11}{chapter.2}%
+\contentsline {section}{\numberline {2.1}引言}{11}{section.2.1}%
+\contentsline {section}{\numberline {2.2}轻水堆（LWR-SMR）}{11}{section.2.2}%
+\contentsline {subsection}{\numberline {2.2.1}NuScale（美国）------首个获 NRC 设计认证的 SMR}{11}{subsection.2.2.1}%
+\contentsline {subsection}{\numberline {2.2.2}GE Hitachi BWRX-300（美国/加拿大）}{12}{subsection.2.2.2}%
+\contentsline {subsection}{\numberline {2.2.3}中国玲龙一号（ACP100 / Linglong One）}{12}{subsection.2.2.3}%
+\contentsline {subsection}{\numberline {2.2.4}韩国 SMART}{12}{subsection.2.2.4}%
+\contentsline {subsection}{\numberline {2.2.5}其他}{13}{subsection.2.2.5}%
+\contentsline {section}{\numberline {2.3}重水堆（HWR-SMR）}{13}{section.2.3}%
+\contentsline {section}{\numberline {2.4}气冷堆（GCR-SMR）}{13}{section.2.4}%
+\contentsline {subsection}{\numberline {2.4.1}HTR-PM（中国）------已投运示范}{13}{subsection.2.4.1}%
+\contentsline {subsection}{\numberline {2.4.2}X-energy Xe-100（美国）}{13}{subsection.2.4.2}%
+\contentsline {subsection}{\numberline {2.4.3}美国 Kairos Power KP-FHR}{14}{subsection.2.4.3}%
+\contentsline {subsection}{\numberline {2.4.4}日本 HTTR 与 GTHTR300}{14}{subsection.2.4.4}%
+\contentsline {section}{\numberline {2.5}液态金属冷却堆（LMR-SMR）}{14}{section.2.5}%
+\contentsline {subsection}{\numberline {2.5.1}钠冷快堆（SFR-SMR）}{14}{subsection.2.5.1}%
+\contentsline {subsection}{\numberline {2.5.2}铅冷快堆（LFR-SMR）}{14}{subsection.2.5.2}%
+\contentsline {subsection}{\numberline {2.5.3}熔盐堆（MSR）}{14}{subsection.2.5.3}%
+\contentsline {section}{\numberline {2.6}发展趋势}{15}{section.2.6}%
+\contentsline {section}{\numberline {2.7}参考文献}{15}{section.2.7}%
+\contentsline {chapter}{\numberline {第3章}IPWR 技术综述}{17}{chapter.3}%
+\contentsline {section}{\numberline {3.1}引言}{17}{section.3.1}%
+\contentsline {section}{\numberline {3.2}必要性}{17}{section.3.2}%
+\contentsline {subsection}{\numberline {3.2.1}安全层面：消除大破口}{18}{subsection.3.2.1}%
+\contentsline {subsection}{\numberline {3.2.2}经济层面：模块化制造}{18}{subsection.3.2.2}%
+\contentsline {subsection}{\numberline {3.2.3}运维层面：减少维修与照射}{18}{subsection.3.2.3}%
+\contentsline {section}{\numberline {3.3}一体化压水堆（IPWR）}{18}{section.3.3}%
+\contentsline {subsection}{\numberline {3.3.1}典型结构}{18}{subsection.3.3.1}%
+\contentsline {subsection}{\numberline {3.3.2}典型机型比较}{19}{subsection.3.3.2}%
+\contentsline {subsection}{\numberline {3.3.3}关键工程问题}{19}{subsection.3.3.3}%
+\contentsline {section}{\numberline {3.4}安全性}{20}{section.3.4}%
+\contentsline {section}{\numberline {3.5}经济性}{20}{section.3.5}%
+\contentsline {subsection}{\numberline {3.5.1}资本成本构成}{20}{subsection.3.5.1}%
+\contentsline {subsection}{\numberline {3.5.2}规模不经济的对抗}{21}{subsection.3.5.2}%
+\contentsline {subsection}{\numberline {3.5.3}平准化电力成本（LCOE）}{21}{subsection.3.5.3}%
+\contentsline {section}{\numberline {3.6}发展趋势}{21}{section.3.6}%
+\contentsline {section}{\numberline {3.7}结论}{22}{section.3.7}%
+\contentsline {section}{\numberline {3.8}参考文献}{22}{section.3.8}%
+\contentsline {chapter}{\numberline {第4章}IPWR 堆芯和燃料}{23}{chapter.4}%
+\contentsline {section}{\numberline {4.1}引言}{23}{section.4.1}%
+\contentsline {section}{\numberline {4.2}设计准则}{23}{section.4.2}%
+\contentsline {subsection}{\numberline {4.2.1}通用设计准则}{23}{subsection.4.2.1}%
+\contentsline {subsection}{\numberline {4.2.2}IPWR 特有准则}{24}{subsection.4.2.2}%
+\contentsline {section}{\numberline {4.3}核设计准则}{24}{section.4.3}%
+\contentsline {subsection}{\numberline {4.3.1}反应性平衡方程}{24}{subsection.4.3.1}%
+\contentsline {subsection}{\numberline {4.3.2}关键反馈系数}{24}{subsection.4.3.2}%
+\contentsline {subsection}{\numberline {4.3.3}可燃毒物}{25}{subsection.4.3.3}%
+\contentsline {section}{\numberline {4.4}IPWR 堆芯核设计特点}{25}{section.4.4}%
+\contentsline {subsection}{\numberline {4.4.1}典型参数对比}{25}{subsection.4.4.1}%
+\contentsline {subsection}{\numberline {4.4.2}燃料组件}{25}{subsection.4.4.2}%
+\contentsline {subsection}{\numberline {4.4.3}控制棒系统}{26}{subsection.4.4.3}%
+\contentsline {subsection}{\numberline {4.4.4}堆芯功率分布优化}{26}{subsection.4.4.4}%
+\contentsline {subsection}{\numberline {4.4.5}堆芯热工水力}{26}{subsection.4.4.5}%
+\contentsline {subsection}{\numberline {4.4.6}事故下行为}{26}{subsection.4.4.6}%
+\contentsline {section}{\numberline {4.5}结论}{27}{section.4.5}%
+\contentsline {section}{\numberline {4.6}参考文献}{27}{section.4.6}%
+\contentsline {chapter}{\numberline {第5章}IPWR 系统和部件}{29}{chapter.5}%
+\contentsline {section}{\numberline {5.1}引言}{29}{section.5.1}%
+\contentsline {section}{\numberline {5.2}一体化部件}{30}{section.5.2}%
+\contentsline {subsection}{\numberline {5.2.1}反应堆压力容器（RPV）}{30}{subsection.5.2.1}%
+\contentsline {subsection}{\numberline {5.2.2}蒸汽发生器（SG）}{30}{subsection.5.2.2}%
+\contentsline {subsection}{\numberline {5.2.3}稳压器（PZR）}{31}{subsection.5.2.3}%
+\contentsline {subsection}{\numberline {5.2.4}反应堆冷却剂泵（RCP）}{31}{subsection.5.2.4}%
+\contentsline {subsection}{\numberline {5.2.5}控制棒驱动机构（CRDM）}{32}{subsection.5.2.5}%
+\contentsline {section}{\numberline {5.3}相连的系统部件}{32}{section.5.3}%
+\contentsline {subsection}{\numberline {5.3.1}二回路系统}{32}{subsection.5.3.1}%
+\contentsline {subsection}{\numberline {5.3.2}安全壳与厂内布置}{32}{subsection.5.3.2}%
+\contentsline {subsection}{\numberline {5.3.3}辅助系统}{32}{subsection.5.3.3}%
+\contentsline {subsection}{\numberline {5.3.4}专设安全系统}{33}{subsection.5.3.4}%
+\contentsline {subsection}{\numberline {5.3.5}典型安全分级}{33}{subsection.5.3.5}%
+\contentsline {section}{\numberline {5.4}发展趋势}{33}{section.5.4}%
+\contentsline {section}{\numberline {5.5}参考文献}{34}{section.5.5}%
+\contentsline {chapter}{\numberline {第6章}IPWR 仪表和控制（I\&C）}{35}{chapter.6}%
+\contentsline {section}{\numberline {6.1}引言}{35}{section.6.1}%
+\contentsline {section}{\numberline {6.2}系统 I\&C}{35}{section.6.2}%
+\contentsline {section}{\numberline {6.3}核蒸汽供应系统 I\&C}{36}{section.6.3}%
+\contentsline {subsection}{\numberline {6.3.1}反应堆功率控制系统}{36}{subsection.6.3.1}%
+\contentsline {subsection}{\numberline {6.3.2}反应堆保护系统（RPS）}{36}{subsection.6.3.2}%
+\contentsline {subsection}{\numberline {6.3.3}专设安全设施驱动系统（ESFAS）}{37}{subsection.6.3.3}%
+\contentsline {subsection}{\numberline {6.3.4}IPWR 特有 I\&C 挑战}{37}{subsection.6.3.4}%
+\contentsline {section}{\numberline {6.4}BOP 仪表}{37}{section.6.4}%
+\contentsline {section}{\numberline {6.5}故障诊断和预测}{38}{section.6.5}%
+\contentsline {subsection}{\numberline {6.5.1}数据来源}{38}{subsection.6.5.1}%
+\contentsline {subsection}{\numberline {6.5.2}方法}{38}{subsection.6.5.2}%
+\contentsline {subsection}{\numberline {6.5.3}典型应用}{38}{subsection.6.5.3}%
+\contentsline {section}{\numberline {6.6}信号处理电子设备}{39}{section.6.6}%
+\contentsline {section}{\numberline {6.7}电缆}{39}{section.6.7}%
+\contentsline {section}{\numberline {6.8}未来发展趋势和挑战}{39}{section.6.8}%
+\contentsline {subsection}{\numberline {6.8.1}趋势}{39}{subsection.6.8.1}%
+\contentsline {subsection}{\numberline {6.8.2}挑战}{40}{subsection.6.8.2}%
+\contentsline {section}{\numberline {6.9}结论}{40}{section.6.9}%
+\contentsline {section}{\numberline {6.10}参考文献}{40}{section.6.10}%
+\contentsline {chapter}{\numberline {第7章}SMR 人机界面（HSI）}{41}{chapter.7}%
+\contentsline {section}{\numberline {7.1}引言}{41}{section.7.1}%
+\contentsline {section}{\numberline {7.2}新核电站对 HSI 的要求}{41}{section.7.2}%
+\contentsline {section}{\numberline {7.3}当前核电站的 HSI 现状}{42}{section.7.3}%
+\contentsline {section}{\numberline {7.4}HSI 目标和人因挑战}{42}{section.7.4}%
+\contentsline {subsection}{\numberline {7.4.1}目标}{42}{subsection.7.4.1}%
+\contentsline {subsection}{\numberline {7.4.2}挑战}{43}{subsection.7.4.2}%
+\contentsline {section}{\numberline {7.5}HSI 核工业应用}{43}{section.7.5}%
+\contentsline {section}{\numberline {7.6}HSI 选择}{43}{section.7.6}%
+\contentsline {section}{\numberline {7.7}HSI 操作域}{44}{section.7.7}%
+\contentsline {section}{\numberline {7.8}HSI 技术分类（一）：显示与可视化}{44}{section.7.8}%
+\contentsline {section}{\numberline {7.9}HSI 技术分类（二）：决策支持与自动化}{44}{section.7.9}%
+\contentsline {section}{\numberline {7.10}HSI 设计和实施策略}{45}{section.7.10}%
+\contentsline {section}{\numberline {7.11}HSI 未来发展趋势}{45}{section.7.11}%
+\contentsline {section}{\numberline {7.12}结论}{45}{section.7.12}%
+\contentsline {section}{\numberline {7.13}参考文献}{46}{section.7.13}%
+\contentsline {chapter}{\numberline {第8章}IPWR 安全性}{47}{chapter.8}%
+\contentsline {section}{\numberline {8.1}引言}{47}{section.8.1}%
+\contentsline {section}{\numberline {8.2}安全实现方法：能动、非能动、固有和设计安全}{47}{section.8.2}%
+\contentsline {subsection}{\numberline {8.2.1}能动安全（Active Safety）}{47}{subsection.8.2.1}%
+\contentsline {subsection}{\numberline {8.2.2}非能动安全（Passive Safety）}{48}{subsection.8.2.2}%
+\contentsline {subsection}{\numberline {8.2.3}固有安全（Inherent Safety）}{48}{subsection.8.2.3}%
+\contentsline {subsection}{\numberline {8.2.4}设计安全（Design Safety / Safety-by-Design）}{48}{subsection.8.2.4}%
+\contentsline {section}{\numberline {8.3}SMR 系统和部件试验}{49}{section.8.3}%
+\contentsline {subsection}{\numberline {8.3.1}试验层次}{49}{subsection.8.3.1}%
+\contentsline {subsection}{\numberline {8.3.2}典型整体试验装置}{49}{subsection.8.3.2}%
+\contentsline {subsection}{\numberline {8.3.3}V\&V 与监管对话}{49}{subsection.8.3.3}%
+\contentsline {section}{\numberline {8.4}PSA/PRA}{50}{section.8.4}%
+\contentsline {subsection}{\numberline {8.4.1}PSA 分级}{50}{subsection.8.4.1}%
+\contentsline {subsection}{\numberline {8.4.2}IPWR 的 PSA 结果}{50}{subsection.8.4.2}%
+\contentsline {subsection}{\numberline {8.4.3}PSA 方法}{50}{subsection.8.4.3}%
+\contentsline {subsection}{\numberline {8.4.4}PSA 的作用}{50}{subsection.8.4.4}%
+\contentsline {section}{\numberline {8.5}安保措施}{51}{section.8.5}%
+\contentsline {subsection}{\numberline {8.5.1}安保威胁}{51}{subsection.8.5.1}%
+\contentsline {subsection}{\numberline {8.5.2}安保设计}{51}{subsection.8.5.2}%
+\contentsline {subsection}{\numberline {8.5.3}IPWR 的安保优势}{51}{subsection.8.5.3}%
+\contentsline {section}{\numberline {8.6}未来发展趋势}{52}{section.8.6}%
+\contentsline {section}{\numberline {8.7}参考文献}{52}{section.8.7}%
+\contentsline {chapter}{\numberline {第9章}SMR 防扩散和实物保护}{53}{chapter.9}%
+\contentsline {section}{\numberline {9.1}引言}{53}{section.9.1}%
+\contentsline {section}{\numberline {9.2}分析方法}{53}{section.9.2}%
+\contentsline {subsection}{\numberline {9.2.1}PR（防扩散）评估要素}{53}{subsection.9.2.1}%
+\contentsline {subsection}{\numberline {9.2.2}PP（实物保护）评估要素}{54}{subsection.9.2.2}%
+\contentsline {subsection}{\numberline {9.2.3}评估方法}{54}{subsection.9.2.3}%
+\contentsline {section}{\numberline {9.3}系统响应和结果}{54}{section.9.3}%
+\contentsline {subsection}{\numberline {9.3.1}典型 SMR 的 PR 评估结果}{54}{subsection.9.3.1}%
+\contentsline {subsection}{\numberline {9.3.2}典型 SMR 的 PP 评估结果}{55}{subsection.9.3.2}%
+\contentsline {subsection}{\numberline {9.3.3}SMR 的 PR\&PP 优势与劣势}{55}{subsection.9.3.3}%
+\contentsline {section}{\numberline {9.4}第四代核能系统国际论坛（GIF）评估步骤}{55}{section.9.4}%
+\contentsline {section}{\numberline {9.5}PR\&PP 经验总结}{55}{section.9.5}%
+\contentsline {section}{\numberline {9.6}未来趋势}{56}{section.9.6}%
+\contentsline {section}{\numberline {9.7}信息来源和建议}{56}{section.9.7}%
+\contentsline {section}{\numberline {9.8}参考文献}{56}{section.9.8}%
+\contentsline {chapter}{\numberline {第10章}SMR 经济性和融资方面}{59}{chapter.10}%
+\contentsline {section}{\numberline {10.1}引言}{59}{section.10.1}%
+\contentsline {section}{\numberline {10.2}投资和风险因素}{59}{section.10.2}%
+\contentsline {subsection}{\numberline {10.2.1}资本成本构成}{59}{subsection.10.2.1}%
+\contentsline {subsection}{\numberline {10.2.2}风险因素}{60}{subsection.10.2.2}%
+\contentsline {section}{\numberline {10.3}资本成本与规模经济}{60}{section.10.3}%
+\contentsline {subsection}{\numberline {10.3.1}经典规模经济公式}{60}{subsection.10.3.1}%
+\contentsline {subsection}{\numberline {10.3.2}对抗规模不经济的途径}{61}{subsection.10.3.2}%
+\contentsline {subsection}{\numberline {10.3.3}估算案例}{61}{subsection.10.3.3}%
+\contentsline {section}{\numberline {10.4}资本成本和多机组}{61}{section.10.4}%
+\contentsline {subsection}{\numberline {10.4.1}多机组叠加的优势}{61}{subsection.10.4.1}%
+\contentsline {subsection}{\numberline {10.4.2}多机组的风险}{61}{subsection.10.4.2}%
+\contentsline {subsection}{\numberline {10.4.3}最佳机组数}{62}{subsection.10.4.3}%
+\contentsline {section}{\numberline {10.5}资本成本和规模因素}{62}{section.10.5}%
+\contentsline {subsection}{\numberline {10.5.1}学习曲线}{62}{subsection.10.5.1}%
+\contentsline {subsection}{\numberline {10.5.2}SMR 的特殊性}{62}{subsection.10.5.2}%
+\contentsline {section}{\numberline {10.6}多 SMR 机组竞争力}{62}{section.10.6}%
+\contentsline {subsection}{\numberline {10.6.1}对比大型 LWR}{62}{subsection.10.6.1}%
+\contentsline {subsection}{\numberline {10.6.2}对比可再生能源 + 储能}{63}{subsection.10.6.2}%
+\contentsline {section}{\numberline {10.7}SMR 相对于其他发电技术的竞争力}{63}{section.10.7}%
+\contentsline {subsection}{\numberline {10.7.1}基荷电力（替代煤电）}{63}{subsection.10.7.1}%
+\contentsline {subsection}{\numberline {10.7.2}工业热 + 制氢}{63}{subsection.10.7.2}%
+\contentsline {subsection}{\numberline {10.7.3}海水淡化}{64}{subsection.10.7.3}%
+\contentsline {subsection}{\numberline {10.7.4}偏远地区 / 岛屿 / 海上}{64}{subsection.10.7.4}%
+\contentsline {section}{\numberline {10.8}外部因素}{64}{section.10.8}%
+\contentsline {subsection}{\numberline {10.8.1}碳定价}{64}{subsection.10.8.1}%
+\contentsline {subsection}{\numberline {10.8.2}政策支持}{64}{subsection.10.8.2}%
+\contentsline {subsection}{\numberline {10.8.3}公众接受度}{64}{subsection.10.8.3}%
+\contentsline {subsection}{\numberline {10.8.4}供应链与人才}{64}{subsection.10.8.4}%
+\contentsline {section}{\numberline {10.9}参考文献}{65}{section.10.9}%
+\contentsline {chapter}{\numberline {第11章}SMR 许可}{67}{chapter.11}%
+\contentsline {section}{\numberline {11.1}引言}{67}{section.11.1}%
+\contentsline {section}{\numberline {11.2}NRC 关于 SMR 的许可}{68}{section.11.2}%
+\contentsline {subsection}{\numberline {11.2.1}10 CFR 监管框架}{68}{subsection.11.2.1}%
+\contentsline {subsection}{\numberline {11.2.2}设计认证（DC）}{68}{subsection.11.2.2}%
+\contentsline {subsection}{\numberline {11.2.3}SMR DC 案例}{68}{subsection.11.2.3}%
+\contentsline {subsection}{\numberline {11.2.4}应急计划区（EPZ）}{68}{subsection.11.2.4}%
+\contentsline {subsection}{\numberline {11.2.5}运行人员与安保人员}{69}{subsection.11.2.5}%
+\contentsline {section}{\numberline {11.3}支持 SMR 许可的行业规范和标准}{69}{section.11.3}%
+\contentsline {subsection}{\numberline {11.3.1}ASME BPVC}{69}{subsection.11.3.1}%
+\contentsline {subsection}{\numberline {11.3.2}ANS 标准}{69}{subsection.11.3.2}%
+\contentsline {subsection}{\numberline {11.3.3}IEEE 标准}{69}{subsection.11.3.3}%
+\contentsline {subsection}{\numberline {11.3.4}IEC 标准}{70}{subsection.11.3.4}%
+\contentsline {subsection}{\numberline {11.3.5}中国标准}{70}{subsection.11.3.5}%
+\contentsline {section}{\numberline {11.4}SMR 许可国际战略和框架}{70}{section.11.4}%
+\contentsline {subsection}{\numberline {11.4.1}加拿大 CNSC}{70}{subsection.11.4.1}%
+\contentsline {subsection}{\numberline {11.4.2}英国 ONR}{70}{subsection.11.4.2}%
+\contentsline {subsection}{\numberline {11.4.3}法国 ASN}{70}{subsection.11.4.3}%
+\contentsline {subsection}{\numberline {11.4.4}中国 NNSA}{71}{subsection.11.4.4}%
+\contentsline {subsection}{\numberline {11.4.5}俄罗斯 Rostekhnadzor}{71}{subsection.11.4.5}%
+\contentsline {subsection}{\numberline {11.4.6}国际协调}{71}{subsection.11.4.6}%
+\contentsline {subsection}{\numberline {11.4.7}许可证协同（License-by-Reference）}{71}{subsection.11.4.7}%
+\contentsline {section}{\numberline {11.5}结论}{71}{section.11.5}%
+\contentsline {section}{\numberline {11.6}延伸阅读}{72}{section.11.6}%
+\contentsline {chapter}{\numberline {第12章}SMR 施工}{73}{chapter.12}%
+\contentsline {section}{\numberline {12.1}引言}{73}{section.12.1}%
+\contentsline {section}{\numberline {12.2}加工制造}{73}{section.12.2}%
+\contentsline {subsection}{\numberline {12.2.1}工厂制造优势}{73}{subsection.12.2.1}%
+\contentsline {subsection}{\numberline {12.2.2}主要工厂制造内容}{74}{subsection.12.2.2}%
+\contentsline {subsection}{\numberline {12.2.3}大型锻件}{74}{subsection.12.2.3}%
+\contentsline {subsection}{\numberline {12.2.4}模块化运输}{74}{subsection.12.2.4}%
+\contentsline {section}{\numberline {12.3}部件制造}{75}{section.12.3}%
+\contentsline {subsection}{\numberline {12.3.1}NSSS 模块}{75}{subsection.12.3.1}%
+\contentsline {subsection}{\numberline {12.3.2}安全壳}{75}{subsection.12.3.2}%
+\contentsline {subsection}{\numberline {12.3.3}辅助模块}{75}{subsection.12.3.3}%
+\contentsline {subsection}{\numberline {12.3.4}汽轮机厂房与汽轮机}{75}{subsection.12.3.4}%
+\contentsline {section}{\numberline {12.4}先进焊接技术}{75}{section.12.4}%
+\contentsline {subsection}{\numberline {12.4.1}传统焊接}{75}{subsection.12.4.1}%
+\contentsline {subsection}{\numberline {12.4.2}先进焊接}{76}{subsection.12.4.2}%
+\contentsline {subsection}{\numberline {12.4.3}在线监测与无损检验}{76}{subsection.12.4.3}%
+\contentsline {subsection}{\numberline {12.4.4}焊接自动化}{76}{subsection.12.4.4}%
+\contentsline {section}{\numberline {12.5}供应链影响}{76}{section.12.5}%
+\contentsline {subsection}{\numberline {12.5.1}供应链特征}{76}{subsection.12.5.1}%
+\contentsline {subsection}{\numberline {12.5.2}关键瓶颈}{77}{subsection.12.5.2}%
+\contentsline {subsection}{\numberline {12.5.3}本地化要求}{77}{subsection.12.5.3}%
+\contentsline {subsection}{\numberline {12.5.4}供应链韧性与地缘政治}{77}{subsection.12.5.4}%
+\contentsline {section}{\numberline {12.6}结论}{77}{section.12.6}%
+\contentsline {section}{\numberline {12.7}延伸阅读}{78}{section.12.7}%
+\contentsline {chapter}{\numberline {第13章}SMR 综合能源系统}{79}{chapter.13}%
+\contentsline {section}{\numberline {13.1}引言}{79}{section.13.1}%
+\contentsline {section}{\numberline {13.2}综合能源系统原理}{79}{section.13.2}%
+\contentsline {section}{\numberline {13.3}综合能源系统结构评估}{80}{section.13.3}%
+\contentsline {subsection}{\numberline {13.3.1}核-可再生-储能混合系统（N-R-H）}{80}{subsection.13.3.1}%
+\contentsline {subsection}{\numberline {13.3.2}核能 + 工业供热（N-IH）}{81}{subsection.13.3.2}%
+\contentsline {subsection}{\numberline {13.3.3}核能 + 制氢（N-H₂）}{81}{subsection.13.3.3}%
+\contentsline {subsection}{\numberline {13.3.4}核能 + 海水淡化（N-D）}{81}{subsection.13.3.4}%
+\contentsline {subsection}{\numberline {13.3.5}核能 + 区域供热（N-DH）}{82}{subsection.13.3.5}%
+\contentsline {section}{\numberline {13.4}SMR 综合能源系统发展潜力}{82}{section.13.4}%
+\contentsline {subsection}{\numberline {13.4.1}潜力市场}{82}{subsection.13.4.1}%
+\contentsline {subsection}{\numberline {13.4.2}协同效应}{82}{subsection.13.4.2}%
+\contentsline {section}{\numberline {13.5}核能的非电力应用}{82}{section.13.5}%
+\contentsline {subsection}{\numberline {13.5.1}工业工艺}{82}{subsection.13.5.1}%
+\contentsline {subsection}{\numberline {13.5.2}船舶与海上}{83}{subsection.13.5.2}%
+\contentsline {subsection}{\numberline {13.5.3}特殊应用}{83}{subsection.13.5.3}%
+\contentsline {section}{\numberline {13.6}未来发展趋势}{83}{section.13.6}%
+\contentsline {section}{\numberline {13.7}参考文献}{84}{section.13.7}%
+\contentsline {chapter}{\numberline {第14章}美国 SMR 技术}{85}{chapter.14}%
+\contentsline {section}{\numberline {14.1}引言}{85}{section.14.1}%
+\contentsline {section}{\numberline {14.2}DOE-NE 关于 SMR 的研发计划}{85}{section.14.2}%
+\contentsline {subsection}{\numberline {14.2.1}SMR 计划（LWI / SMR Licensing Technical Support）}{86}{subsection.14.2.1}%
+\contentsline {subsection}{\numberline {14.2.2}Advanced Reactor Demonstration（ARDP）}{86}{subsection.14.2.2}%
+\contentsline {subsection}{\numberline {14.2.3}Versatile Test Reactor（VTR）}{86}{subsection.14.2.3}%
+\contentsline {subsection}{\numberline {14.2.4}HALEU Consortium}{86}{subsection.14.2.4}%
+\contentsline {section}{\numberline {14.3}DOE-NE ART 规划研发领域}{86}{section.14.3}%
+\contentsline {subsection}{\numberline {14.3.1}先进反应堆设计（Advanced Reactor Design）}{86}{subsection.14.3.1}%
+\contentsline {subsection}{\numberline {14.3.2}燃料循环（Fuel Cycle）}{87}{subsection.14.3.2}%
+\contentsline {subsection}{\numberline {14.3.3}材料与结构}{87}{subsection.14.3.3}%
+\contentsline {subsection}{\numberline {14.3.4}仪表、控制与诊断}{87}{subsection.14.3.4}%
+\contentsline {subsection}{\numberline {14.3.5}建模与仿真}{87}{subsection.14.3.5}%
+\contentsline {section}{\numberline {14.4}DOE-NE（NEUP）SMR 相关研发}{87}{section.14.4}%
+\contentsline {section}{\numberline {14.5}DOE-NE 先进反应堆研发（GAIN）}{88}{section.14.5}%
+\contentsline {section}{\numberline {14.6}核工业界的 SMR 研发}{88}{section.14.6}%
+\contentsline {subsection}{\numberline {14.6.1}轻水 SMR}{88}{subsection.14.6.1}%
+\contentsline {subsection}{\numberline {14.6.2}气冷 SMR}{88}{subsection.14.6.2}%
+\contentsline {subsection}{\numberline {14.6.3}液态金属 / 熔盐 SMR}{89}{subsection.14.6.3}%
+\contentsline {subsection}{\numberline {14.6.4}微型反应堆}{89}{subsection.14.6.4}%
+\contentsline {section}{\numberline {14.7}未来发展趋势}{89}{section.14.7}%
+\contentsline {section}{\numberline {14.8}参考文献}{90}{section.14.8}%
+\contentsline {chapter}{\numberline {第15章}韩国 SMR 技术}{91}{chapter.15}%
+\contentsline {section}{\numberline {15.1}引言}{91}{section.15.1}%
+\contentsline {section}{\numberline {15.2}压水堆 SMR 研究历史}{91}{section.15.2}%
+\contentsline {subsection}{\numberline {15.2.1}SMART 起步（1997--2006）}{91}{subsection.15.2.1}%
+\contentsline {subsection}{\numberline {15.2.2}SMART 设计认证（2007--2012）}{92}{subsection.15.2.2}%
+\contentsline {subsection}{\numberline {15.2.3}SMART 海水淡化示范（2010s）}{92}{subsection.15.2.3}%
+\contentsline {subsection}{\numberline {15.2.4}SMART 与国际市场}{92}{subsection.15.2.4}%
+\contentsline {subsection}{\numberline {15.2.5}SMART-50 / SMART-100 升级}{92}{subsection.15.2.5}%
+\contentsline {section}{\numberline {15.3}其他堆型 SMR 研究历史}{93}{section.15.3}%
+\contentsline {subsection}{\numberline {15.3.1}钠冷快堆 PGSFR}{93}{subsection.15.3.1}%
+\contentsline {subsection}{\numberline {15.3.2}超高温气冷堆}{93}{subsection.15.3.2}%
+\contentsline {subsection}{\numberline {15.3.3}微型反应堆}{93}{subsection.15.3.3}%
+\contentsline {section}{\numberline {15.4}SMART IPWR 设计特点}{93}{section.15.4}%
+\contentsline {subsection}{\numberline {15.4.1}基本参数}{93}{subsection.15.4.1}%
+\contentsline {subsection}{\numberline {15.4.2}一体化 NSSS}{94}{subsection.15.4.2}%
+\contentsline {subsection}{\numberline {15.4.3}安全系统}{94}{subsection.15.4.3}%
+\contentsline {subsection}{\numberline {15.4.4}海水淡化接口}{94}{subsection.15.4.4}%
+\contentsline {section}{\numberline {15.5}SFR 和 VHTR 设计特点}{94}{section.15.5}%
+\contentsline {subsection}{\numberline {15.5.1}PGSFR}{94}{subsection.15.5.1}%
+\contentsline {subsection}{\numberline {15.5.2}VHTR / 制氢}{94}{subsection.15.5.2}%
+\contentsline {section}{\numberline {15.6}发展趋势}{95}{section.15.6}%
+\contentsline {section}{\numberline {15.7}参考文献}{95}{section.15.7}%
+\contentsline {chapter}{\numberline {第16章}阿根廷 SMR 技术}{97}{chapter.16}%
+\contentsline {section}{\numberline {16.1}引言}{97}{section.16.1}%
+\contentsline {section}{\numberline {16.2}SMR 发展规划}{97}{section.16.2}%
+\contentsline {section}{\numberline {16.3}CAREM 一体化压水堆}{98}{section.16.3}%
+\contentsline {subsection}{\numberline {16.3.1}设计特点}{98}{subsection.16.3.1}%
+\contentsline {subsection}{\numberline {16.3.2}基本参数（CAREM-25 原型堆）}{98}{subsection.16.3.2}%
+\contentsline {subsection}{\numberline {16.3.3}安全系统}{99}{subsection.16.3.3}%
+\contentsline {subsection}{\numberline {16.3.4}控制棒驱动机构（CRDM）}{99}{subsection.16.3.4}%
+\contentsline {section}{\numberline {16.4}CAREM 部署进展}{99}{section.16.4}%
+\contentsline {subsection}{\numberline {16.4.1}CAREM-25 原型堆}{99}{subsection.16.4.1}%
+\contentsline {subsection}{\numberline {16.4.2}CAREM-100 / 200 商业版}{99}{subsection.16.4.2}%
+\contentsline {subsection}{\numberline {16.4.3}出口市场}{99}{subsection.16.4.3}%
+\contentsline {section}{\numberline {16.5}未来趋势}{100}{section.16.5}%
+\contentsline {section}{\numberline {16.6}参考文献}{100}{section.16.6}%
+\contentsline {chapter}{\numberline {第17章}俄罗斯 SMR 技术}{101}{chapter.17}%
+\contentsline {section}{\numberline {17.1}引言}{101}{section.17.1}%
+\contentsline {section}{\numberline {17.2}OKBM SMR 技术}{101}{section.17.2}%
+\contentsline {subsection}{\numberline {17.2.1}KLT-40S（浮动核电站）}{102}{subsection.17.2.1}%
+\contentsline {subsection}{\numberline {17.2.2}RITM-200（破冰船 / 浮动核电站）}{102}{subsection.17.2.2}%
+\contentsline {subsection}{\numberline {17.2.3}ABV-6M / ABV-7A}{102}{subsection.17.2.3}%
+\contentsline {subsection}{\numberline {17.2.4}UNITHERM}{102}{subsection.17.2.4}%
+\contentsline {subsection}{\numberline {17.2.5}KLT-40S 改进版}{102}{subsection.17.2.5}%
+\contentsline {section}{\numberline {17.3}AKME SMR 技术}{103}{section.17.3}%
+\contentsline {subsection}{\numberline {17.3.1}SVBR-100（铅铋共晶冷却）}{103}{subsection.17.3.1}%
+\contentsline {section}{\numberline {17.4}NIKIET SMR 技术}{103}{section.17.4}%
+\contentsline {subsection}{\numberline {17.4.1}BREST-OD-300（铅冷快堆）}{103}{subsection.17.4.1}%
+\contentsline {subsection}{\numberline {17.4.2}BREST-GREK / BR-1200}{104}{subsection.17.4.2}%
+\contentsline {subsection}{\numberline {17.4.3}VPBR-300}{104}{subsection.17.4.3}%
+\contentsline {section}{\numberline {17.5}俄罗斯 SMR 部署情况}{104}{section.17.5}%
+\contentsline {subsection}{\numberline {17.5.1}出口项目}{104}{subsection.17.5.1}%
+\contentsline {section}{\numberline {17.6}未来发展趋势}{105}{section.17.6}%
+\contentsline {section}{\numberline {17.7}结论}{105}{section.17.7}%
+\contentsline {section}{\numberline {17.8}参考文献}{105}{section.17.8}%
+\contentsline {chapter}{\numberline {第18章}中国 SMR 技术}{107}{chapter.18}%
+\contentsline {section}{\numberline {18.1}引言}{107}{section.18.1}%
+\contentsline {section}{\numberline {18.2}高温气冷堆（HTR-PM）}{108}{section.18.2}%
+\contentsline {subsection}{\numberline {18.2.1}项目背景}{108}{subsection.18.2.1}%
+\contentsline {subsection}{\numberline {18.2.2}设计参数}{108}{subsection.18.2.2}%
+\contentsline {subsection}{\numberline {18.2.3}技术特征}{108}{subsection.18.2.3}%
+\contentsline {subsection}{\numberline {18.2.4}里程碑}{108}{subsection.18.2.4}%
+\contentsline {subsection}{\numberline {18.2.5}后续 HTR-PM600 / HTR-PM1000}{109}{subsection.18.2.5}%
+\contentsline {section}{\numberline {18.3}ACP100（玲龙一号）}{109}{section.18.3}%
+\contentsline {subsection}{\numberline {18.3.1}项目背景}{109}{subsection.18.3.1}%
+\contentsline {subsection}{\numberline {18.3.2}设计参数}{109}{subsection.18.3.2}%
+\contentsline {subsection}{\numberline {18.3.3}技术特征}{110}{subsection.18.3.3}%
+\contentsline {subsection}{\numberline {18.3.4}里程碑}{110}{subsection.18.3.4}%
+\contentsline {subsection}{\numberline {18.3.5}后续 ACP100 后继}{110}{subsection.18.3.5}%
+\contentsline {section}{\numberline {18.4}中国 SMR 部署情况}{110}{section.18.4}%
+\contentsline {subsection}{\numberline {18.4.1}其他主要 SMR 项目}{110}{subsection.18.4.1}%
+\contentsline {subsection}{\numberline {18.4.2}部署特点}{111}{subsection.18.4.2}%
+\contentsline {subsection}{\numberline {18.4.3}出口市场}{111}{subsection.18.4.3}%
+\contentsline {section}{\numberline {18.5}发展趋势}{111}{section.18.5}%
+\contentsline {section}{\numberline {18.6}参考文献}{112}{section.18.6}%
+\contentsline {chapter}{\numberline {第19章}日本 SMR 技术}{113}{chapter.19}%
+\contentsline {section}{\numberline {19.1}引言}{113}{section.19.1}%
+\contentsline {section}{\numberline {19.2}SMR 研发历史}{114}{section.19.2}%
+\contentsline {subsection}{\numberline {19.2.1}福岛前}{114}{subsection.19.2.1}%
+\contentsline {subsection}{\numberline {19.2.2}福岛后（2011--2020）}{114}{subsection.19.2.2}%
+\contentsline {subsection}{\numberline {19.2.3}2020 年代重启}{114}{subsection.19.2.3}%
+\contentsline {section}{\numberline {19.3}SMR 技术}{114}{section.19.3}%
+\contentsline {subsection}{\numberline {19.3.1}三菱 SRZ-90 / SRZ-360（IPWR）}{114}{subsection.19.3.1}%
+\contentsline {subsection}{\numberline {19.3.2}日立-GE BWRX-300（合作）}{115}{subsection.19.3.2}%
+\contentsline {subsection}{\numberline {19.3.3}HTGR（JAEA HTTR）}{115}{subsection.19.3.3}%
+\contentsline {subsection}{\numberline {19.3.4}快堆}{115}{subsection.19.3.4}%
+\contentsline {subsection}{\numberline {19.3.5}微型反应堆}{115}{subsection.19.3.5}%
+\contentsline {section}{\numberline {19.4}SMR 部署情况}{116}{section.19.4}%
+\contentsline {section}{\numberline {19.5}发展趋势}{116}{section.19.5}%
+\contentsline {section}{\numberline {19.6}参考文献}{116}{section.19.6}%
+\contentsline {chapter}{\numberline {第20章}发展中国家的 SMR}{119}{chapter.20}%
+\contentsline {section}{\numberline {20.1}引言}{119}{section.20.1}%
+\contentsline {section}{\numberline {20.2}发展预测}{120}{section.20.2}%
+\contentsline {subsection}{\numberline {20.2.1}IAEA 与 NEA 预测}{120}{subsection.20.2.1}%
+\contentsline {subsection}{\numberline {20.2.2}重点地区}{120}{subsection.20.2.2}%
+\contentsline {section}{\numberline {20.3}发展中国家对 SMR 的权衡}{120}{section.20.3}%
+\contentsline {subsection}{\numberline {20.3.1}成本 vs.\nobreakspace {}安全}{121}{subsection.20.3.1}%
+\contentsline {subsection}{\numberline {20.3.2}核电 vs.\nobreakspace {}可再生能源}{121}{subsection.20.3.2}%
+\contentsline {subsection}{\numberline {20.3.3}自主 vs.\nobreakspace {}进口}{121}{subsection.20.3.3}%
+\contentsline {subsection}{\numberline {20.3.4}陆上 vs.\nobreakspace {}海上}{121}{subsection.20.3.4}%
+\contentsline {subsection}{\numberline {20.3.5}能源安全 vs.\nobreakspace {}国际依赖}{121}{subsection.20.3.5}%
+\contentsline {section}{\numberline {20.4}发展中国家可能成为 SMR 商业部署的潜在市场}{121}{section.20.4}%
+\contentsline {subsection}{\numberline {20.4.1}印度}{121}{subsection.20.4.1}%
+\contentsline {subsection}{\numberline {20.4.2}印度尼西亚}{122}{subsection.20.4.2}%
+\contentsline {subsection}{\numberline {20.4.3}沙特阿拉伯}{122}{subsection.20.4.3}%
+\contentsline {subsection}{\numberline {20.4.4}埃及}{122}{subsection.20.4.4}%
+\contentsline {subsection}{\numberline {20.4.5}土耳其}{122}{subsection.20.4.5}%
+\contentsline {subsection}{\numberline {20.4.6}约旦}{122}{subsection.20.4.6}%
+\contentsline {subsection}{\numberline {20.4.7}孟加拉国、巴基斯坦、斯里兰卡}{123}{subsection.20.4.7}%
+\contentsline {subsection}{\numberline {20.4.8}巴西、墨西哥、智利、阿根廷}{123}{subsection.20.4.8}%
+\contentsline {subsection}{\numberline {20.4.9}撒哈拉以南非洲}{123}{subsection.20.4.9}%
+\contentsline {subsection}{\numberline {20.4.10}岛国}{123}{subsection.20.4.10}%
+\contentsline {section}{\numberline {20.5}发展中国家 SMR 的选择}{123}{section.20.5}%
+\contentsline {subsection}{\numberline {20.5.1}供应商比较}{123}{subsection.20.5.1}%
+\contentsline {subsection}{\numberline {20.5.2}融资模式}{124}{subsection.20.5.2}%
+\contentsline {subsection}{\numberline {20.5.3}本地化策略}{124}{subsection.20.5.3}%
+\contentsline {section}{\numberline {20.6}挑战和创新}{125}{section.20.6}%
+\contentsline {subsection}{\numberline {20.6.1}挑战}{125}{subsection.20.6.1}%
+\contentsline {subsection}{\numberline {20.6.2}创新}{125}{subsection.20.6.2}%
+\contentsline {subsection}{\numberline {20.6.3}关键成功因素}{125}{subsection.20.6.3}%
+\contentsline {section}{\numberline {20.7}结论}{126}{section.20.7}%
+\contentsline {section}{\numberline {20.8}全书结语}{126}{section.20.8}%
+\contentsline {section}{\numberline {20.9}参考文献}{127}{section.20.9}%

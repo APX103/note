@@ -1,0 +1,173 @@
+\chapter{监听协议}
+
+\begin{epigraph}
+\textbf{核心命题}　监听协议通过共享总线广播所有请求，让各缓存监听总线上事务并据此更新状态。本章从基准 MSI 监听协议逐步扩展到 MESI/MOESI，并讨论非原子总线、分割事务总线与总线优化，最后用 Sun Starfire E10000 与 IBM Power5 作为案例。
+\end{epigraph}
+
+
+
+\section{监听简介}
+
+\textbf{监听协议}（snooping protocol）是最早的缓存连贯性协议，依赖一条所有缓存共享的\textbf{广播介质}（早期是物理总线 bus，后期是逻辑总线 logical bus）。每个事务广播到所有缓存的\textbf{监听器}（snooper），各自根据自身状态响应。
+
+监听的优势是\textbf{简单低延迟}——所有缓存都"听到"每个事务，无需查找"谁有副本"。代价是\textbf{可扩展性差}——总线带宽随核数线性下降（n 个核分摊固定带宽，每核带宽 $\propto$ 1/n）。
+
+监听协议是小型 SMP（对称多处理器，2–16 核）的主流方案。
+
+\section{基准监听协议}
+
+\subsection{高级协议规范}
+
+基准监听 MSI 协议建立在"原子请求 + 原子事务"的系统模型上：请求发出后立即被所有缓存看到，数据响应也立即返回，不引入瞬态状态。
+
+\subsection{简单监听系统模型：原子请求，原子事务}
+
+最简单的监听模型假设总线是\textbf{原子的}——所有缓存同时看到每个事务。MSI 状态机在这个模型下非常简洁：
+
+\begin{itemize}
+\item 处理器 load miss（I 态）$\rightarrow$ 发 GetS 广播，所有缓存看到，有 M 副本的写回并转 I，自己收到数据后转 S；
+\item 处理器 store（I/S 态）$\rightarrow$ 发 GetM 广播，所有缓存使副本失效（转 I），自己收到数据后转 M。
+\end{itemize}
+
+
+\subsection{基准监听系统模型：非原子请求、原子事务}
+
+真实系统中请求不是原子的——GetM 发出后需要等待数据响应，期间的块处于\textbf{瞬态状态}（transient states）：
+
+\begin{itemize}
+\item \textbf{IS}：I $\rightarrow$ S 过渡（已发 GetS，等数据）；
+\item \textbf{IM}：I $\rightarrow$ M 过渡（已发 GetM，等数据）；
+\item \textbf{SM}：S $\rightarrow$ M 过渡（已发 GetM，等 invalidate ack）。
+\end{itemize}
+
+
+瞬态状态的引入使状态机更复杂，但允许请求与响应分离。
+
+\subsection{运行示例}
+
+考虑 P1 写 X（初值 0，所有缓存为 I）：
+
+\begin{enumerate}
+\item P1 发 GetM，X 处于 IM；
+\item 内存返回 X 的数据给 P1；
+\item P1 转 M，写 X = 42。
+\end{enumerate}
+
+
+P2 读 X：
+
+\begin{enumerate}
+\item P2 发 GetS，X 处于 IS；
+\item P1（M 态）听到 GetS，写回 X = 42 给内存，转 S；
+\item 内存返回 42 给 P2；
+\item P2 转 S。
+\end{enumerate}
+
+
+\subsection{协议简化}
+
+某些瞬态状态可以被合并或简化，例如在原子请求模型下 IS/IM 可省略。
+
+\section{添加独占状态}
+
+\subsection{动机}
+
+MSI 在写一个只有自己有副本的块时，仍需发 GetM（虽然无人需要 invalidate），浪费带宽。\textbf{E（Exclusive）状态}解决这个问题。
+
+\subsection{到达独占状态}
+
+当缓存独占读一个块（无人有副本）时，内存返回数据并授予 E 态——干净独占。后续写 E$\rightarrow$M 无需任何总线事务（RFO 优化）。
+
+\subsection{协议的高级规范}
+
+MESI（M、E、S、I）的状态机比 MSI 多一个 E 态。E$\rightarrow$M 转换无总线消息，是 MESI 相对 MSI 的核心优化。
+
+\subsection{详细规范}
+
+MESI 的详细状态机在 Intel 处理器上沿用，其 RFO（Request For Ownership）术语用于 S$\rightarrow$M 转换（需广播 invalidate）。
+
+\subsection{运行实例}
+
+P1 独占读 X（所有缓存为 I）：内存返回 X，授予 E。P1 写 X：E$\rightarrow$M，无总线事务。这比 MSI（需发 GetM）省了一次总线消息。
+
+\section{添加拥有状态}
+
+\subsection{动机}
+
+MESI 的 M 态是脏独占——其他缓存要读时，M 态缓存必须先写回内存，再让请求者从内存读，延迟高。\textbf{O（Owned）状态}允许脏共享——O 态缓存可直接向请求者提供数据，无需写回内存。
+
+\subsection{高层级协议规范}
+
+MOESI（M、O、E、S、I）增加 O 态：脏共享。O 态缓存是 owner，可向 S 态请求者直接提供数据。
+
+\subsection{详细协议规范}
+
+MOESI 是 AMD64 架构的官方连贯性协议（AMD64 Architecture Programmer's Manual Vol.2 §7）。
+
+\subsection{运行实例}
+
+P1（M 态）听到 P2 的 GetS：P1 转 O（脏共享），直接把数据发给 P2，P2 转 S。无需写回内存，延迟低。
+
+\section{非原子总线}
+
+\subsection{动机}
+
+真实总线是\textbf{分割事务}（split-transaction）的——请求者发出请求后释放总线，数据响应在之后某时刻到达。这提升总线利用率，但增加瞬态状态冲突与死锁风险。
+
+\subsection{顺序响应与乱序响应}
+
+分割事务总线的响应可能\textbf{乱序}到达（后发的请求先得到响应），需要事务 ID 关联请求与响应。
+
+\subsection{非原子系统模型}
+
+非原子模型需要处理瞬态状态的并发——同一块的多个 miss 可能交错。
+
+\subsection{使用分割事务总线的一个 MSI 协议}
+
+分割事务 MSI 协议需要为每个未完成的请求维护瞬态状态，并通过事务 ID 关联。
+
+\subsection{一个优化的、非阻塞的使用分割事务总线 MSI 协议}
+
+进一步优化：非阻塞的分割事务总线监听协议允许缓存继续服务其他 miss，而非阻塞在单个 miss 上——通过为每个未完成 miss 维护独立瞬态状态，实现并行处理。
+
+\section{总线互连网络的优化}
+
+\subsection{用于数据响应的独立非总线网络}
+
+把数据响应走独立网络（不经过总线），释放总线给请求。
+
+\subsection{用于连贯性请求的逻辑总线}
+
+物理上已不是单条总线（而是交叉开关或片上网络），但通过\textbf{强制全局排序}让所有缓存看到事务的同一顺序，从而保留监听语义——这是\textbf{逻辑总线}（logical bus）。
+
+\section{案例研究}
+
+\subsection{Sun Starfire E10000}
+
+Sun Starfire（Ultra Enterprise E10000，1997）是 64 处理器 SMP 服务器，由 Erik Hagersten 等设计。它采用基于 Gigaplane-XB 交叉开关的广播式监听，通过 centerplane 上的全局地址路由器（global address router）把 snoop 地址经四条地址总线（ABUS0–ABUS3）广播到全部 16 块系统板，数据经 16$\times$16 crossbar 返回。它是把广播监听扩展到数十处理器规模的代表案例。
+
+\subsection{IBM Power5}
+
+IBM Power5（2004）使用分布式 + 监听混合（hybrid snoop/directory）协议——既保留监听的低延迟，又用目录结构节省带宽。
+
+\section{监听协议的未来}
+
+监听协议在小型 SMP（2–16 核）仍是主流，但其可扩展性瓶颈（总线带宽 $\propto$ 1/n）限制了它在更大规模的应用。数十核以上的系统普遍转向目录协议（第 8 章）或混合方案。
+
+\section{小结}
+
+监听协议通过共享总线广播所有请求，让各缓存监听并响应。基准 MSI 监听协议在原子模型下最简单；非原子请求引入 IS/IM/SM 瞬态状态。MESI 增加 E（干净独占，RFO 优化，Intel），MOESI 增加 O（脏共享，AMD64）。分割事务总线提升利用率但增加复杂度。Sun Starfire E10000（64 核广播监听）与 IBM Power5（混合 snoop/directory）是代表性案例。监听协议的可扩展性瓶颈是总线带宽，限制了它在大型系统中的应用。
+
+\section*{参考文献}
+\begin{itemize}
+\item Sorin D. J., Hill M. D., Wood D. A. \emph{A Primer on Memory Consistency and Cache Coherence} (2nd ed.). 2020, Chapter 7. https://pages.cs.wisc.edu/\textasciitilde{}markhill/papers/primer2020\_2nd\_edition.pdf
+\item Papamarcos M. S., Patel J. H. A low-overhead coherence solution for multiprocessors with private cache memories. ISCA 1984. (MESI / Illinois 协议)
+\item AMD. \emph{AMD64 Architecture Programmer's Manual, Vol. 2, §7}. https://www.cse.wustl.edu/\textasciitilde{}roger/569M/24593.pdf
+\item Hagersten E., et al. Sun Starfire E10000 interconnect. https://dl.acm.org/doi/pdf/10.1145/509593.509630
+\item UW-Madison ECE757. \emph{Coherence lecture}. https://ece757.ece.wisc.edu/lect06-coherence.pdf
+\item CMU 15-418. \emph{Snoop implementation}. https://www.cs.cmu.edu/afs/cs/academic/class/15418-s19/www/lectures/12\_snoopimpl.pdf
+\item MIT 6.823. \emph{Split-transaction bus}. https://csg.csail.mit.edu/6.823S20/Lectures/L14.pdf
+\item ETH. \emph{MOESI state machine}. https://spcl.inf.ethz.ch/Teaching/2014-dphpc/lecture/lecture2-cache-coherence.pdf
+\item Rice COMP522. \emph{MESI on split-transaction bus}. https://www.cs.rice.edu/\textasciitilde{}johnmc/comp522/lecture-notes/COMP522-2019-Lecture5-Cache-Coherence-I.pdf
+\item Kalla R., Sinharoy B., Tendler J. M. IBM Power5 chip: A dual-core multithreaded processor. \emph{IEEE Micro}, 2004, 24(2): 40–47.
+\end{itemize}
