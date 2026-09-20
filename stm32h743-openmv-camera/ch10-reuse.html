@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>复用指南与扩展路线 · STM32H743 摄像头教程</title>
+<style>
+:root{--bg:#0f0f12;--surface:#1a1a1f;--text:#e8e8ec;--dim:#9ca3af;--acc:#10b981;--acc2:#6366f1;--border:rgba(255,255,255,.08)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);line-height:1.85;-webkit-font-smoothing:antialiased}
+.wrap{max-width:860px;margin:0 auto;padding:36px 24px 90px}
+.crumb{font-size:.85em;color:var(--dim);margin-bottom:18px}
+.crumb a{color:var(--acc);text-decoration:none}
+h1{font-size:1.65em;margin:6px 0 6px;background:linear-gradient(135deg,#e8e8ec 30%,#34d399 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.sub{color:var(--dim);font-size:.95em;margin-bottom:26px}
+h2{font-size:1.22em;margin:34px 0 12px;color:#34d399}
+h3{font-size:1.05em;margin:24px 0 8px;color:var(--text)}
+p{margin:10px 0}
+ul,ol{margin:10px 0 10px 24px}
+li{margin:6px 0}
+code{background:#16161c;border:1px solid var(--border);border-radius:5px;padding:1px 7px;font-family:"SF Mono",Menlo,Consolas,monospace;font-size:.87em;color:#7dd3fc}
+pre{background:#121218;border:1px solid var(--border);border-radius:10px;padding:16px 18px;overflow-x:auto;margin:14px 0;line-height:1.6}
+pre code{background:none;border:none;padding:0;color:#c9d1d9;font-size:.85em}
+table{border-collapse:collapse;width:100%;margin:14px 0;font-size:.92em}
+th{background:#1c1c23;color:#9ca3af;font-weight:600;text-align:left;padding:8px 12px;border:1px solid var(--border)}
+td{padding:7px 12px;border:1px solid var(--border);vertical-align:top}
+tr:nth-child(even) td{background:rgba(255,255,255,.015)}
+.note{background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.25);border-radius:10px;padding:13px 17px;font-size:.93em;margin:16px 0}
+.warn{background:rgba(249,115,22,.07);border:1px solid rgba(249,115,22,.3);border-radius:10px;padding:13px 17px;font-size:.93em;margin:16px 0}
+.story{background:rgba(99,102,241,.07);border:1px solid rgba(99,102,241,.3);border-radius:10px;padding:13px 17px;font-size:.93em;margin:16px 0}
+.nav{display:flex;justify-content:space-between;margin-top:48px;border-top:1px solid var(--border);padding-top:18px}
+.nav a{color:var(--acc);text-decoration:none;font-size:.92em;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 16px}
+.nav a:hover{border-color:var(--acc)}
+.k{color:#9ca3af}
+b{color:#e8e8ec}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="crumb"><a href="index.html">STM32H743 摄像头完全教程</a> / 第 10 章</div>
+<h1>复用指南与扩展路线</h1>
+<div class="sub">改分辨率、换传感器、调亮度怎么做；已知限制与后续演进方向。</div>
+<h2>10.1 日常操作速查</h2>
+<pre><code>cd STM32H743IIK6/CAMERA_LCD_TEST
+make -j8                                     # 编译
+make clean &amp;&amp; make -j8 EXTRA="-DOV5640_TEST_PATTERN"   # 彩条诊断版
+openocd -s /opt/homebrew/share/openocd/scripts -f interface/stlink.cfg \
+  -f target/stm32h7x.cfg -c "adapter speed 4000" \
+  -c "program build/camera_lcd.elf verify reset exit"   # 烧录
+tools/dump_frame.sh /tmp/f.bin               # 取一帧（工具在工程内）</code></pre>
+
+<h2>10.2 常见改动点</h2>
+<table>
+<tr><th>想改什么</th><th>改哪里</th><th>注意</th></tr>
+<tr><td>分辨率 / 输出尺寸</td><td><code>Cam/cam.h</code> 的 <code>CAM_W/CAM_H</code> + main.c 显示坐标</td><td>宽保持 4 的倍数（DMA 行对齐）；OV5640 窗口数学自动适配</td></tr>
+<tr><td>帧率 ↔ 暗光曝光</td><td><code>Cam/cam.c</code> 搜 <code>vts = 1620</code></td><td>调小→更亮更慢；268 是 OpenMV 默认（快门仅~10ms）</td></tr>
+<tr><td>换传感器（如 OV7725）</td><td>无需改代码（自动识别）</td><td>寄存器表已含四种；新传感器：从 OpenMV 对应 .c 提取表 + 移植 set_framesize</td></tr>
+<tr><td>色彩异常</td><td>先跑彩条版定位，再查字节相位（+1）</td><td>别急着动 MADCTL/0x4300——先有地标再动手</td></tr>
+<tr><td>照明灯常亮</td><td>KEY 逻辑 / <code>dbg_ctrl</code> bit16</td><td>模组发热正常，15s 超时可调</td></tr>
+</table>
+
+<h2>10.3 已知限制与后手</h2>
+<ul>
+<li><b>50Hz 灯光条纹</b>：VTS=1620（快门~58ms）接近 10ms 半周期整数倍，轻微残留可把 VTS 调到接近 60ms 的整数倍</li>
+<li><b>极暗场景</b>：后手一：VTS 再翻倍（帧率减半换一倍光）；后手二：开 OV5640 数字增益（噪点上升）</li>
+<li><b>快照模式帧率上限</b>：显示 SPI 7.5MHz 逐行发送 ~20ms/帧，追求 &gt;30fps 预览需 DMA 化 SPI 或降分辨率</li>
+<li><b>JPEG / 大分辨率</b>：上 SDRAM（FMC 配置在原厂 SDRAM_TEST 里现成）+ DCMI JPEG 模式，OV5640/OV2640 硬件 JPEG 直接输出</li>
+<li><b>图像回传到电脑</b>：USB CDC 虚拟串口或 USB MSC（板上有 USB FS），比 SWD dump 快百倍</li>
+</ul>
+
+<h2>10.4 向其他板卡迁移的检查单</h2>
+<ol>
+<li>引脚映射用第 2 章方法从<b>本板原理图</b>重新提取（同厂商 ≠ 同引脚）</li>
+<li>XCLK/PWDN/RST/SCCB 先通（探测能识别），再通数据面（彩条验证），最后接显示</li>
+<li>确认传感器供电是否需要固件控制（本板 LDO 自动上电，别板未必）</li>
+<li>字节相位用彩条地标验一次（+0/+1 都可能）</li>
+<li>极性表按传感器查（第 6 章表），错了用 dbg_ctrl 热切换实验</li>
+</ol>
+
+<h2>10.5 资产清单</h2>
+<table>
+<tr><th>资产</th><th>位置</th></tr>
+<tr><td>最终工程（含 tools）</td><td><code>STM32H743IIK6/CAMERA_LCD_TEST/</code></td></tr>
+<tr><td>工程级文档（README）</td><td><code>CAMERA_LCD_TEST/README.md</code></td></tr>
+<tr><td>原理分析与方法论（Markdown 版）</td><td><code>STM32H743IIK6/NOTES_摄像头驱动全记录.md</code></td></tr>
+<tr><td>对照实验模板</td><td><code>STM32H743IIK6/LCD_TEST_GCC/</code></td></tr>
+<tr><td>脚本（原理图提取/寄存器表/字体）</td><td><code>STM32H743IIK6/.research/*.py</code></td></tr>
+<tr><td>原厂 Demo（未改动）</td><td><code>GPIO_TEST / LCD_TEST / SDRAM_TEST</code></td></tr>
+</table>
+
+<div class="note" style="margin-top:30px"><b>验收状态（2026-09-20）</b>：OV5640 自动识别 · 全视场 108×80 等比显示 · 颜色正确（用户确认）· 暗光 6 倍曝光余量 · DCMI 0 错误连续数千帧 · 照明 LED 带超时保护。用户拔电收工。</div>
+
+<div class="nav"><a href="ch09-architecture.html">&larr; 第9章</a><a href="index.html">目录</a><a href="index.html">完 · 回目录 &rarr;</a></div>
+</div>
+</body>
+</html>

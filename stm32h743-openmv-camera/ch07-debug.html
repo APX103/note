@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>调试实录：五个大坑的定位过程 · STM32H743 摄像头教程</title>
+<style>
+:root{--bg:#0f0f12;--surface:#1a1a1f;--text:#e8e8ec;--dim:#9ca3af;--acc:#10b981;--acc2:#6366f1;--border:rgba(255,255,255,.08)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);line-height:1.85;-webkit-font-smoothing:antialiased}
+.wrap{max-width:860px;margin:0 auto;padding:36px 24px 90px}
+.crumb{font-size:.85em;color:var(--dim);margin-bottom:18px}
+.crumb a{color:var(--acc);text-decoration:none}
+h1{font-size:1.65em;margin:6px 0 6px;background:linear-gradient(135deg,#e8e8ec 30%,#34d399 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.sub{color:var(--dim);font-size:.95em;margin-bottom:26px}
+h2{font-size:1.22em;margin:34px 0 12px;color:#34d399}
+h3{font-size:1.05em;margin:24px 0 8px;color:var(--text)}
+p{margin:10px 0}
+ul,ol{margin:10px 0 10px 24px}
+li{margin:6px 0}
+code{background:#16161c;border:1px solid var(--border);border-radius:5px;padding:1px 7px;font-family:"SF Mono",Menlo,Consolas,monospace;font-size:.87em;color:#7dd3fc}
+pre{background:#121218;border:1px solid var(--border);border-radius:10px;padding:16px 18px;overflow-x:auto;margin:14px 0;line-height:1.6}
+pre code{background:none;border:none;padding:0;color:#c9d1d9;font-size:.85em}
+table{border-collapse:collapse;width:100%;margin:14px 0;font-size:.92em}
+th{background:#1c1c23;color:#9ca3af;font-weight:600;text-align:left;padding:8px 12px;border:1px solid var(--border)}
+td{padding:7px 12px;border:1px solid var(--border);vertical-align:top}
+tr:nth-child(even) td{background:rgba(255,255,255,.015)}
+.note{background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.25);border-radius:10px;padding:13px 17px;font-size:.93em;margin:16px 0}
+.warn{background:rgba(249,115,22,.07);border:1px solid rgba(249,115,22,.3);border-radius:10px;padding:13px 17px;font-size:.93em;margin:16px 0}
+.story{background:rgba(99,102,241,.07);border:1px solid rgba(99,102,241,.3);border-radius:10px;padding:13px 17px;font-size:.93em;margin:16px 0}
+.nav{display:flex;justify-content:space-between;margin-top:48px;border-top:1px solid var(--border);padding-top:18px}
+.nav a{color:var(--acc);text-decoration:none;font-size:.92em;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 16px}
+.nav a:hover{border-color:var(--acc)}
+.k{color:#9ca3af}
+b{color:#e8e8ec}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="crumb"><a href="index.html">STM32H743 摄像头完全教程</a> / 第 7 章</div>
+<h1>调试实录：五个大坑的定位过程</h1>
+<div class="sub">每个坑都是「现象 → 假设 → 实验 → 结论」的完整复盘，其中三个是教科书级的经典陷阱。</div>
+<p>五个坑按时间顺序复盘。共同点：<b>每个都是先有一组「看起来正常」的指标，靠一个设计好的实验戳破</b>。</p>
+
+<h2>坑 1 · 找不到 Camera：XCLK 引脚没复用</h2>
+<table><tr><td>
+<b>现象</b>：I2C 扫描全无应答，错误码 <code>ERR_I2C_SCAN</code>；但状态结构显示 XCLK「已配置」、PWDN/RESET 时序正确。<br>
+<b>假设</b>：传感器没时钟 → SCCB 不应答。<br>
+<b>实验</b>：审代码发现 <code>xclk_set()</code> 里只有 TIM1 初始化，<b>没有 PA8 的 GPIO AF 配置</b>。<br>
+<b>结论</b>：<code>HAL_TIM_PWM_Init()</code> 不碰引脚。补上 <code>GPIO_AF1_TIM1</code> 后 OV5640 立即识别。<br>
+<b>规律</b>：<b>SCCB 完全无应答时，第一件事查 XCLK 有没有波形</b>，而不是怀疑接线。
+</td></tr></table>
+
+<h2>坑 2 · 屏幕全黑：自写显示层 + A/B 对照实验</h2>
+<table><tr><td>
+<b>现象</b>：屏幕黑。自加的 LCD 诊断探针显示：初始化返回成功、SPI 已推数 MB、0 传输错误、背光引脚/占空比全对。<br>
+<b>关键认知</b>：<b>SPI 发送成功 ≠ 屏幕收到</b>——轮询发送的 HAL_OK 只证明字节进了移位寄存器，对端（屏）无应答线可查。诊断计数器只能证伪「数据没在发」，不能证实「显示正常」。<br>
+<b>实验</b>：用同一套 GCC 工具链/链接脚本/启动文件，把<b>原厂 LCD_TEST 原样重编烧录</b>（仅改一处 ARMCC 结构体初始化语法）。亮 → 我的代码有 bug；黑 → 硬件问题。结果：亮。<br>
+<b>解法</b>：放弃自写胶水层，原厂 gpio/spi/tim/lcd 全套并入工程（第 6 章）。<br>
+<b>规律</b>：两个「看起来一样」的初始化逐行 diff 是低效的，<b>A/B 对照实验一锤定音</b>。
+</td></tr></table>
+
+<h2>坑 3 · 「红蓝反」：其实是字节相位差 1</h2>
+<table><tr><td>
+<b>现象</b>：画面能看，用户报告红蓝对调、颜色发浑、暗部有红底色。<br>
+<b>地标实验</b>：开传感器<b>彩条测试图案</b>（<code>0x503D |= 0x80</code>，编译宏 <code>-DOV5640_TEST_PATTERN</code>），dump 帧后按 x 位置取色。标准色序应为 白黄青绿品红蓝黑：<br>
+&emsp;· 按 (0,1) 字节对解码 → 色序全错且发浑<br>
+&emsp;· 整体偏移 1 字节再解码 → <b>完美命中标准色序</b><br>
+<b>结论</b>：该模组每帧起始多 1 个 dummy 字节，RGB565 像素配对应从 buffer[1] 开始。修一行（显示时 +1），颜色/底色/浑浊感全部消失。<br>
+<b>规律</b>：<b>颜色问题优先用彩条当地标</b>——人眼说「红蓝反」，实际是字节错位的复合伪影，靠猜寄存器（试 MADCTL、试 0x4300）永远修不对。另：验证偏移是全局还是每行——多取几行确认恒定。
+</td></tr></table>
+
+<h2>坑 4 · 画面黢黑：AEC 曝光余量被帧率钳死</h2>
+<table><tr><td>
+<b>现象</b>：拍人只有轮廓，整体黢黑。<br>
+<b>诊断链</b>：读 AEC 寄存器 → 曝光顶格(0x6EA0 行)、增益顶格(15.5×) → 不是 AEC 不工作，是<b>快门上限太短</b>：OpenMV 公式 VTS=268 配 80MHz PCLK，传感器实际跑 ~100fps，每帧最多积分 ~9.6ms。<br>
+<b>解法</b>：VTS 拉到 1620 → ~17fps、快门上限 ~58ms（≈6 倍光量），顺带取 50Hz 市电半周期(10ms)近整数倍抑制灯管条纹。实测同场景平均 luma 100→130。<br>
+<b>规律</b>：AEC 双顶格 ≠ 传感器坏，先算快门上限是不是被帧周期钳住；预览应用<b>帧率换曝光是免费午餐</b>。
+</td></tr></table>
+
+<h2>坑 5 · 模组发烫：不明极性的 LED 控制脚被驱动</h2>
+<table><tr><td>
+<b>现象</b>：模组烫手，画面带红底色。<br>
+<b>排查</b>：接口板上有白光 LED（PE2→BSS138，高有效，已知）和 P9/IR 相关脚（PG3/PE9，<b>极性未标注</b>）。固件曾把 PG3/PE9 驱动为低电平——疑似 IR 常亮。<br>
+<b>解法</b>：这两脚彻底悬空（= 原厂 Demo 的默认态），KEY 只控白光并加 15s 自动关。用户确认温度可接受（模组本身工作就偏热）。<br>
+<b>规律</b>：<b>极性未知的控制脚一律不驱动</b>；LED 类外设的「关闭」状态选电气默认态（输入悬空），而不是猜一个电平。
+</td></tr></table>
+
+<h2>附带小坑清单</h2>
+<ul>
+<li>brew 的 arm-gcc 缺 newlib（第 3 章）</li>
+<li>OpenMV 寄存器头文件共用 include guard（第 5 章）</li>
+<li>状态条每帧重刷会闪烁 → 1Hz（第 6 章）</li>
+<li>同一 OpenOCD 会话内两次 dump 之间 CPU 是 halt 的，帧 diff 必为 0——活性检验要用两次独立会话（第 8 章）</li>
+<li>ST 链接脚本模板的 /DISCARD/ 会剥掉 libc（第 4 章）</li>
+</ul>
+
+<div class="nav"><a href="ch06-dcmi.html">&larr; 第6章</a><a href="index.html">目录</a><a href="ch08-verify.html">第8章 &rarr;</a></div>
+</div>
+</body>
+</html>

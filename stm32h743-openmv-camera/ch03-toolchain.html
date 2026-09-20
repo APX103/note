@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>工具链搭建（macOS） · STM32H743 摄像头教程</title>
+<style>
+:root{--bg:#0f0f12;--surface:#1a1a1f;--text:#e8e8ec;--dim:#9ca3af;--acc:#10b981;--acc2:#6366f1;--border:rgba(255,255,255,.08)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);line-height:1.85;-webkit-font-smoothing:antialiased}
+.wrap{max-width:860px;margin:0 auto;padding:36px 24px 90px}
+.crumb{font-size:.85em;color:var(--dim);margin-bottom:18px}
+.crumb a{color:var(--acc);text-decoration:none}
+h1{font-size:1.65em;margin:6px 0 6px;background:linear-gradient(135deg,#e8e8ec 30%,#34d399 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.sub{color:var(--dim);font-size:.95em;margin-bottom:26px}
+h2{font-size:1.22em;margin:34px 0 12px;color:#34d399}
+h3{font-size:1.05em;margin:24px 0 8px;color:var(--text)}
+p{margin:10px 0}
+ul,ol{margin:10px 0 10px 24px}
+li{margin:6px 0}
+code{background:#16161c;border:1px solid var(--border);border-radius:5px;padding:1px 7px;font-family:"SF Mono",Menlo,Consolas,monospace;font-size:.87em;color:#7dd3fc}
+pre{background:#121218;border:1px solid var(--border);border-radius:10px;padding:16px 18px;overflow-x:auto;margin:14px 0;line-height:1.6}
+pre code{background:none;border:none;padding:0;color:#c9d1d9;font-size:.85em}
+table{border-collapse:collapse;width:100%;margin:14px 0;font-size:.92em}
+th{background:#1c1c23;color:#9ca3af;font-weight:600;text-align:left;padding:8px 12px;border:1px solid var(--border)}
+td{padding:7px 12px;border:1px solid var(--border);vertical-align:top}
+tr:nth-child(even) td{background:rgba(255,255,255,.015)}
+.note{background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.25);border-radius:10px;padding:13px 17px;font-size:.93em;margin:16px 0}
+.warn{background:rgba(249,115,22,.07);border:1px solid rgba(249,115,22,.3);border-radius:10px;padding:13px 17px;font-size:.93em;margin:16px 0}
+.story{background:rgba(99,102,241,.07);border:1px solid rgba(99,102,241,.3);border-radius:10px;padding:13px 17px;font-size:.93em;margin:16px 0}
+.nav{display:flex;justify-content:space-between;margin-top:48px;border-top:1px solid var(--border);padding-top:18px}
+.nav a{color:var(--acc);text-decoration:none;font-size:.92em;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 16px}
+.nav a:hover{border-color:var(--acc)}
+.k{color:#9ca3af}
+b{color:#e8e8ec}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="crumb"><a href="index.html">STM32H743 摄像头完全教程</a> / 第 3 章</div>
+<h1>工具链搭建（macOS）</h1>
+<div class="sub">在 Mac 上给 STM32 编译烧录的全部装备，以及一个 Homebrew 的经典坑。</div>
+<h2>3.1 需要装什么</h2>
+<table>
+<tr><th>工具</th><th>安装</th><th>说明</th></tr>
+<tr><td>OpenOCD（含 ST-Link 支持）</td><td><code>brew install openocd</code></td><td>烧录 + SWD 调试 + 内存读写，全程核心工具</td></tr>
+<tr><td>arm-none-eabi-gcc（含 newlib）</td><td>xpack 发行版（见 3.3）</td><td>交叉编译器</td></tr>
+<tr><td>Python 3 + PyMuPDF + Pillow</td><td><code>pip3 install --user pymupdf pillow</code></td><td>原理图提取、寄存器表生成、帧转 PNG</td></tr>
+</table>
+<p>macOS 不需要装 ST-Link 驱动（usbhid 原生可用）。验证 ST-Link 已连上：</p>
+<pre><code>ioreg -p IOUSB -w 0 | grep -i stlink    # 应看到 STM32 STLink</code></pre>
+
+<h2>3.2 坑：Homebrew 的 arm-gcc 没有 C 库</h2>
+<div class="warn"><code>brew install arm-none-eabi-gcc</code> 装的编译器<b>不带 newlib</b>，编译任何用到 <code>stdint.h</code> 的代码直接报 <code>fatal error: stdint.h: No such file or directory</code>。这是本教程踩过的第一个环境坑，且 brew 里没有对应的 newlib 包。</div>
+
+<h2>3.3 正解：xpack GNU Arm 工具链</h2>
+<p>xPack 的发行版自带 newlib，一个 tarball 解决：</p>
+<pre><code># 查最新版（示例为 15.2.1，Apple Silicon 用 darwin-arm64）
+curl -sL https://api.github.com/repos/xpack-dev-tools/arm-none-eabi-gcc-xpack/releases/latest \
+  | grep browser_download_url | grep darwin-arm64
+
+curl -sL -o xpack-gcc.tar.gz "&lt;上面的 url&gt;"
+tar xzf xpack-gcc.tar.gz
+# 解压出 xpack-arm-none-eabi-gcc-&lt;ver&gt;/，bin/ 下即完整工具链</code></pre>
+<p>Makefile 里直接写绝对路径引用（也可以 symlink 到 <code>/usr/local/bin</code>）。</p>
+
+<h2>3.4 烧录与验证三板斧</h2>
+<pre><code># 烧录 + 校验 + 复位运行（一行搞定）
+openocd -s /opt/homebrew/share/openocd/scripts \
+  -f interface/stlink.cfg -f target/stm32h7x.cfg \
+  -c "adapter speed 4000" \
+  -c "program build/camera_lcd.elf verify reset exit"
+
+# 读内存（例：看状态结构）
+openocd -s /opt/homebrew/share/openocd/scripts \
+  -f interface/stlink.cfg -f target/stm32h7x.cfg \
+  -c "adapter speed 4000" -c init -c halt \
+  -c "mdw 0x2400039c 10" -c resume -c shutdown
+
+# 转储一段内存到文件（例：帧缓冲）
+... -c "dump_image /tmp/frame.bin 0x24040020 17280" -c resume -c shutdown</code></pre>
+<div class="note">H7 的双 Bank flash、2048K 容量 OpenOCD 0.12 都能自动识别。<code>adapter speed 4000</code> 把 SWD 拉到 4 MHz，dump 一帧 17 KB 只要 ~0.1 秒。</div>
+
+<h2>3.5 Windows 用户</h2>
+<p>原厂三个 Demo 是 Keil MDK 工程，Windows + MDK-ARM 直接开箱即用（装 STM32H7 DFP 和 ST-Link 驱动即可）。本教程的 GCC 工程在 Windows 上可用 <a href="https://github.com/xpack-dev-tools/">xpack Windows 版</a> + OpenOCD 或 STM32CubeProgrammer 等价替换，命令语义一致。</p>
+
+<h2>3.6 工具清单归档</h2>
+<pre><code>/opt/homebrew/bin/openocd                     # OpenOCD 0.12（brew）
+&lt;proj&gt;/.research/xpack-arm-none-eabi-gcc-15.2.1-1.1/bin/
+                                             # 交叉工具链（xpack）
+python3 + fitz(PyMuPDF) + PIL(Pillow)         # 脚本三件套</code></pre>
+
+<div class="nav"><a href="ch02-materials.html">&larr; 第2章</a><a href="index.html">目录</a><a href="ch04-project.html">第4章 &rarr;</a></div>
+</div>
+</body>
+</html>

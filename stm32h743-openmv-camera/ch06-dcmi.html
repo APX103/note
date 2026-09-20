@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DCMI 采集与 LCD 显示 · STM32H743 摄像头教程</title>
+<style>
+:root{--bg:#0f0f12;--surface:#1a1a1f;--text:#e8e8ec;--dim:#9ca3af;--acc:#10b981;--acc2:#6366f1;--border:rgba(255,255,255,.08)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);line-height:1.85;-webkit-font-smoothing:antialiased}
+.wrap{max-width:860px;margin:0 auto;padding:36px 24px 90px}
+.crumb{font-size:.85em;color:var(--dim);margin-bottom:18px}
+.crumb a{color:var(--acc);text-decoration:none}
+h1{font-size:1.65em;margin:6px 0 6px;background:linear-gradient(135deg,#e8e8ec 30%,#34d399 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.sub{color:var(--dim);font-size:.95em;margin-bottom:26px}
+h2{font-size:1.22em;margin:34px 0 12px;color:#34d399}
+h3{font-size:1.05em;margin:24px 0 8px;color:var(--text)}
+p{margin:10px 0}
+ul,ol{margin:10px 0 10px 24px}
+li{margin:6px 0}
+code{background:#16161c;border:1px solid var(--border);border-radius:5px;padding:1px 7px;font-family:"SF Mono",Menlo,Consolas,monospace;font-size:.87em;color:#7dd3fc}
+pre{background:#121218;border:1px solid var(--border);border-radius:10px;padding:16px 18px;overflow-x:auto;margin:14px 0;line-height:1.6}
+pre code{background:none;border:none;padding:0;color:#c9d1d9;font-size:.85em}
+table{border-collapse:collapse;width:100%;margin:14px 0;font-size:.92em}
+th{background:#1c1c23;color:#9ca3af;font-weight:600;text-align:left;padding:8px 12px;border:1px solid var(--border)}
+td{padding:7px 12px;border:1px solid var(--border);vertical-align:top}
+tr:nth-child(even) td{background:rgba(255,255,255,.015)}
+.note{background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.25);border-radius:10px;padding:13px 17px;font-size:.93em;margin:16px 0}
+.warn{background:rgba(249,115,22,.07);border:1px solid rgba(249,115,22,.3);border-radius:10px;padding:13px 17px;font-size:.93em;margin:16px 0}
+.story{background:rgba(99,102,241,.07);border:1px solid rgba(99,102,241,.3);border-radius:10px;padding:13px 17px;font-size:.93em;margin:16px 0}
+.nav{display:flex;justify-content:space-between;margin-top:48px;border-top:1px solid var(--border);padding-top:18px}
+.nav a{color:var(--acc);text-decoration:none;font-size:.92em;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 16px}
+.nav a:hover{border-color:var(--acc)}
+.k{color:#9ca3af}
+b{color:#e8e8ec}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="crumb"><a href="index.html">STM32H743 摄像头完全教程</a> / 第 6 章</div>
+<h1>DCMI 采集与 LCD 显示</h1>
+<div class="sub">数据怎么从传感器一路走到屏幕：DCMI 快照、DMA、缓存一致性、字节序、显示路径。</div>
+<h2>6.1 采集：快照模式 + 一帧一停</h2>
+<pre><code>每帧流程：
+  HAL_DCMI_Stop()                                  // 清 ENABLE（硬件在帧尾停）
+  HAL_DCMI_Start_DMA(SNAPSHOT, 帧缓冲, 字节数/4)    // 重新使能后硬件自动等下一帧头
+  等待 HAL_DCMI_FrameEventCallback → frame_ready   // VSYNC 帧完成中断
+  → CPU 任意慢地读缓冲（显示/处理），无撕裂</code></pre>
+<div class="note"><b>为什么快照模式没有竞态</b>：RM0433 的行为——传输中清 DCMI_CR_ENABLE，硬件在帧尾才真正停；重新使能后硬件<b>自动等到下一个帧起始</b>才开始搬运。OpenMV 依赖这个特性（其源码注释原话），因此不需要 VSYNC EXTI 门控也能拿到完整帧。省掉了中断同步的整类 bug。</div>
+<p>DMA 通道：DMA2_Stream1、请求 DMA_REQUEST_DCMI、FIFO 满 + 字对齐 + INCB4/单拍 burst。108×80×2 = 17280 字节一次搬完（NDTR 上限 65535 远够）。</p>
+
+<h2>6.2 极性配置表（按传感器）</h2>
+<table>
+<tr><th>传感器</th><th>VSPOL</th><th>HSPOL</th><th>PCLK 采样沿</th></tr>
+<tr><td>OV7725 / OV5640 / OV7670</td><td>高</td><td>低</td><td>上升</td></tr>
+<tr><td>OV2640</td><td><b>低</b></td><td>低</td><td>上升</td></tr>
+</table>
+<p>来源：OpenMV 各传感器驱动的 <code>hw_flags</code>。极性错的典型症状：抓到的是消隐期数据（均匀底色+行首毛刺）或全零。固件里留了 <code>dbg_ctrl</code> 位可运行时翻转极性做实验（第 8 章）。</p>
+
+<h2>6.3 缓存一致性：帧缓冲必须 MPU 非缓存</h2>
+<p>主循环开了 D-Cache，而帧缓冲是 <b>DMA 写、CPU 读</b>的共享内存。不处理的表现：读到旧帧/脏数据，且现象随机。解法（H7 标准操作）：</p>
+<pre><code>MPU region: 0x24040000, 64KB, Normal, NON-cacheable, NON-bufferable, TEX=1
+// 链接脚本把 .frame_buffer 段钉在这个地址（第 4 章）</code></pre>
+<p>不想动 MPU 的偷懒选择：捕获前 <code>SCB_CleanInvalidateDCache()</code> 手动同步——能用但每帧几微秒开销，还容易漏。</p>
+
+<h2>6.4 字节序：这条链路天生零转换（除了那个 dummy 字节）</h2>
+<pre><code>OV 传感器 8-bit DVP RGB565：每像素两字节，高字节(R5G3)在前 → DCMI 按字节顺序进内存
+ST7735 SPI 写 GRAM：高字节在前
+⇒ 帧缓冲可以直接交给 LCD，一个字节都不用换</code></pre>
+<div class="warn"><b>本模组的例外</b>：实测每帧开头多吐 <b>1 个 dummy 字节</b>，像素配对应从 <code>buffer[1]</code> 开始。不修的话画面颜色全错（被误判成「红蓝反」）。定位方法见第 7 章坑 3。固件里显示时 <code>+1</code> 即修复。</div>
+
+<h2>6.5 显示：整体复用原厂 lcd.c 路径</h2>
+<p>自写过一个 ST7735 胶水层（引脚、SPI 参数、时序与原厂逐行一致），结果黑屏——SPI「发送成功」不等于屏幕收到（第 7 章坑 2）。最终决策：<b>显示这种调通即用的外设，直接用已验证路径</b>：</p>
+<ul>
+<li>原厂 <code>gpio.c / spi.c / tim.c</code>（CubeMX 外设初始化）原样进工程</li>
+<li>原厂 <code>BSP/ST7735/</code> 全套（st7735.c 组件 + lcd.c 封装 + font.h 字库）原样进工程</li>
+<li>初始化序列照抄原厂 LCD_Test：RST 拉高 → RegisterBusIO → Init(TFT96 ctx) → 背光渐亮</li>
+<li>画面更新用 <code>ST7735_FillRGBRect(x, y, data, w, h)</code>（逐行 SetCursor + 整行发送）</li>
+</ul>
+
+<h2>6.6 显示布局与状态 OSD</h2>
+<pre><code>160×80 屏幕：
+  ┌────────────────────────────┐
+  │   108×80 传感器等比缩放画面  │ ← 居中，左右各 26px 黑边
+  │        （底部 16 行）        │ ← OSD：黑底 + 绿字"OV5640 17fps e0"，1Hz 刷新
+  └────────────────────────────┘</code></pre>
+<p>两个细节：① 状态条 1 秒刷一次——每帧重刷「黑底→文字」会肉眼可见地闪；② 缩放放在<b>传感器 ISP</b> 里做（5.7 节），CPU 与 DMA 带宽全省。</p>
+
+<h2>6.7 照明 LED 与 KEY</h2>
+<ul>
+<li>KEY（PB1，高有效）切换白光照明（PE2 高=亮），<b>15 秒自动关闭</b>——LED 贴着传感器会加热模组</li>
+<li>P9/IR 引脚（PG3/PE9）<b>永远悬空</b>：极性未标注，驱动低电平疑似让 IR 常亮（发烫+画面偏红的教训）</li>
+</ul>
+
+<div class="nav"><a href="ch05-camera.html">&larr; 第5章</a><a href="index.html">目录</a><a href="ch07-debug.html">第7章 &rarr;</a></div>
+</div>
+</body>
+</html>

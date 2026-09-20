@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>STM32H743 摄像头驱动完全教程 · WeAct OpenMV Plus</title>
+<style>
+:root{--bg:#0f0f12;--surface:#1a1a1f;--text:#e8e8ec;--dim:#9ca3af;--acc:#10b981;--acc2:#6366f1;--border:rgba(255,255,255,.08)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);line-height:1.75;-webkit-font-smoothing:antialiased}
+.wrap{max-width:860px;margin:0 auto;padding:48px 24px 80px}
+.glow{position:fixed;width:600px;height:600px;border-radius:50%;background:radial-gradient(circle,rgba(16,185,129,.10) 0%,transparent 70%);top:-200px;right:-150px;pointer-events:none}
+.hero{padding:30px 0 20px}
+.hero h1{font-size:2.1em;font-weight:700;background:linear-gradient(135deg,#e8e8ec 0%,#10b981 60%,#6366f1 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:10px}
+.hero .sub{color:var(--dim);font-size:1.02em}
+.meta{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0 8px}
+.badge{display:inline-block;padding:3px 12px;border-radius:99px;font-size:.82em;background:var(--surface);border:1px solid var(--border);color:var(--dim)}
+.badge b{color:#34d399;font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin:26px 0}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px}
+.stat .v{font-size:1.5em;font-weight:700;color:#34d399}
+.stat .k{font-size:.85em;color:var(--dim)}
+h2.sec{font-size:1.25em;margin:38px 0 14px;color:var(--text)}
+.toc{display:flex;flex-direction:column;gap:10px}
+a.ch{display:block;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:15px 18px;text-decoration:none;color:var(--text);transition:.15s}
+a.ch:hover{border-color:var(--acc);transform:translateX(4px)}
+a.ch .n{color:#34d399;font-weight:700;margin-right:8px;font-size:.9em}
+a.ch .d{display:block;color:var(--dim);font-size:.88em;margin-top:3px}
+.note{background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.25);border-radius:10px;padding:14px 18px;font-size:.92em;margin:16px 0}
+code{background:#16161c;border:1px solid var(--border);border-radius:5px;padding:1px 7px;font-family:"SF Mono",Menlo,Consolas,monospace;font-size:.88em;color:#7dd3fc}
+</style>
+</head>
+<body>
+<div class="glow"></div>
+<div class="wrap">
+
+<div class="hero">
+<h1>STM32H743 摄像头驱动完全教程</h1>
+<div class="sub">从一块陌生的板子到「摄像头实时取景上屏」——WeAct OpenMV Plus v1.1 全程实录</div>
+<div class="meta">
+<span class="badge"><b>2026-09-20</b> · 嵌入式开发</span>
+<span class="badge">STM32H743IIK6 · DCMI · OV5640 · ST7735</span>
+<span class="badge">macOS 工具链 · GCC + OpenOCD</span>
+</div>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="v">4 种</div><div class="k">传感器自动识别（7725/2640/5640/7670）</div></div>
+<div class="stat"><div class="v">0 错误</div><div class="k">DCMI 采集（连续数千帧）</div></div>
+<div class="stat"><div class="v">6×</div><div class="k">暗光光量（VTS 低光模式）</div></div>
+<div class="stat"><div class="v">5 个</div><div class="k">深度排障案例（全部远程定位）</div></div>
+</div>
+
+<div class="note">
+本教程面向<b>刚拿到这块板子、零板卡经验</b>的嵌入式工程师，完整复现从资料收集、工具链搭建、原理图逆向、工程搭建、驱动编写到调试验收的全过程。所有结论都在实板上验证过；工程源码在 <code>STM32H743IIK6/CAMERA_LCD_TEST/</code>。
+</div>
+
+<h2 class="sec">章节目录</h2>
+<div class="toc">
+<a class="ch" href="ch01-board.html"><span class="n">01</span>板卡档案与硬件全景<div class="d">这块板子是什么 · 摄像头接口板如何转接 · 供电链 · LCD 模组 · 完整引脚映射表</div></a>
+<a class="ch" href="ch02-materials.html"><span class="n">02</span>资料收集与引脚逆向<div class="d">拿到板子第一件事找什么资料 · GitHub 资源清单 · 从原理图 PDF 自动提取引脚映射的方法论</div></a>
+<a class="ch" href="ch03-toolchain.html"><span class="n">03</span>工具链搭建（macOS）<div class="d">OpenOCD + ST-Link · arm-gcc 的 newlib 坑 · xpack 工具链 · 烧录与验证命令</div></a>
+<a class="ch" href="ch04-project.html"><span class="n">04</span>工程骨架：从 Keil Demo 到 GCC Makefile<div class="d">为什么弃用 CubeMX/Keil · Makefile · 链接脚本与内存布局 · HAL 移植</div></a>
+<a class="ch" href="ch05-camera.html"><span class="n">05</span>摄像头驱动：SCCB 探测与传感器初始化<div class="d">探测流程 · 四种 OV 传感器的初始化配置 · 寄存器表自动提取 · XCLK 生成</div></a>
+<a class="ch" href="ch06-dcmi.html"><span class="n">06</span>DCMI 采集与 LCD 显示<div class="d">快照模式无竞态原理 · DMA 与 MPU 缓存一致性 · 字节序零转换链路 · 厂商显示路径复用</div></a>
+<a class="ch" href="ch07-debug.html"><span class="n">07</span>调试实录：五个大坑的定位过程<div class="d">找不到 Camera · 黑屏 A/B 对照 · 红蓝反与字节相位 · 暗光曝光余量 · 发烫与 IR 极性</div></a>
+<a class="ch" href="ch08-verify.html"><span class="n">08</span>远程验证方法学<div class="d">没有示波器怎么调摄像头：SWD 状态窗口 · 帧转储转 PNG · 彩条地标 · 亮度量化</div></a>
+<a class="ch" href="ch09-architecture.html"><span class="n">09</span>代码架构与数据流<div class="d">目录树 · 数据流图 · 各文件职责 · 六个关键设计决策及其理由</div></a>
+<a class="ch" href="ch10-reuse.html"><span class="n">10</span>复用指南与扩展路线<div class="d">改分辨率/换传感器/调亮度 · 已知限制与后手 · 向 USB 回传、JPEG、SDRAM 大分辨率演进</div></a>
+</div>
+
+<h2 class="sec">一分钟快速开始</h2>
+<div class="note" style="line-height:2">
+<code>cd CAMERA_LCD_TEST && make -j8</code><br>
+<code>openocd -s /opt/homebrew/share/openocd/scripts -f interface/stlink.cfg -f target/stm32h7x.cfg -c "adapter speed 4000" -c "program build/camera_lcd.elf verify reset exit"</code><br>
+板上现象：绿灯闪 3 次后熄灭 → LCD 居中显示 108×80 全视场实时画面 + 底部绿色状态条（传感器名/fps/错误数）；按 KEY 点亮摄像头照明灯（15 秒自动关）。
+</div>
+
+<p style="color:var(--dim);font-size:.88em;margin-top:40px;border-top:1px solid var(--border);padding-top:16px">
+配套：工程 <code>CAMERA_LCD_TEST/</code> · 原理分析 <code>NOTES_摄像头驱动全记录.md</code> · 对照实验 <code>LCD_TEST_GCC/</code> · 原厂 Demo（未改动）<code>GPIO_TEST / LCD_TEST / SDRAM_TEST</code>
+</p>
+
+</div>
+</body>
+</html>

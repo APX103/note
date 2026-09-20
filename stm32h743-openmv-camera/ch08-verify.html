@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>远程验证方法学 · STM32H743 摄像头教程</title>
+<style>
+:root{--bg:#0f0f12;--surface:#1a1a1f;--text:#e8e8ec;--dim:#9ca3af;--acc:#10b981;--acc2:#6366f1;--border:rgba(255,255,255,.08)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);line-height:1.85;-webkit-font-smoothing:antialiased}
+.wrap{max-width:860px;margin:0 auto;padding:36px 24px 90px}
+.crumb{font-size:.85em;color:var(--dim);margin-bottom:18px}
+.crumb a{color:var(--acc);text-decoration:none}
+h1{font-size:1.65em;margin:6px 0 6px;background:linear-gradient(135deg,#e8e8ec 30%,#34d399 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.sub{color:var(--dim);font-size:.95em;margin-bottom:26px}
+h2{font-size:1.22em;margin:34px 0 12px;color:#34d399}
+h3{font-size:1.05em;margin:24px 0 8px;color:var(--text)}
+p{margin:10px 0}
+ul,ol{margin:10px 0 10px 24px}
+li{margin:6px 0}
+code{background:#16161c;border:1px solid var(--border);border-radius:5px;padding:1px 7px;font-family:"SF Mono",Menlo,Consolas,monospace;font-size:.87em;color:#7dd3fc}
+pre{background:#121218;border:1px solid var(--border);border-radius:10px;padding:16px 18px;overflow-x:auto;margin:14px 0;line-height:1.6}
+pre code{background:none;border:none;padding:0;color:#c9d1d9;font-size:.85em}
+table{border-collapse:collapse;width:100%;margin:14px 0;font-size:.92em}
+th{background:#1c1c23;color:#9ca3af;font-weight:600;text-align:left;padding:8px 12px;border:1px solid var(--border)}
+td{padding:7px 12px;border:1px solid var(--border);vertical-align:top}
+tr:nth-child(even) td{background:rgba(255,255,255,.015)}
+.note{background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.25);border-radius:10px;padding:13px 17px;font-size:.93em;margin:16px 0}
+.warn{background:rgba(249,115,22,.07);border:1px solid rgba(249,115,22,.3);border-radius:10px;padding:13px 17px;font-size:.93em;margin:16px 0}
+.story{background:rgba(99,102,241,.07);border:1px solid rgba(99,102,241,.3);border-radius:10px;padding:13px 17px;font-size:.93em;margin:16px 0}
+.nav{display:flex;justify-content:space-between;margin-top:48px;border-top:1px solid var(--border);padding-top:18px}
+.nav a{color:var(--acc);text-decoration:none;font-size:.92em;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 16px}
+.nav a:hover{border-color:var(--acc)}
+.k{color:#9ca3af}
+b{color:#e8e8ec}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="crumb"><a href="index.html">STM32H743 摄像头完全教程</a> / 第 8 章</div>
+<h1>远程验证方法学</h1>
+<div class="sub">没有示波器、不看串口，只靠 ST-Link 把嵌入式调试做成可重复的实验科学。</div>
+<p>整个项目没有用示波器，串口也一行没接——所有调试通过 ST-Link 完成。核心思想：<b>在固件里预埋「SWD 窗口」，把嵌入式调试变成可重复的远程实验</b>。</p>
+
+<h2>8.1 窗口一：状态结构（只读）</h2>
+<pre><code>typedef struct {
+    uint32_t magic;        // 0xCA4CA4CA，确认结构有效
+    cam_sensor_t sensor;   // 识别结果
+    int32_t chip_id; uint32_t slv_addr7; uint32_t xclk_hz;
+    uint32_t frames;       // 已采集帧数（看它在涨=流水线活着）
+    uint32_t dcmi_errors;  // DCMI 超限/错误中断计数
+    uint32_t last_frame_ms, fps;
+    int32_t init_err;      // 0=OK；负数=失败步骤
+    char name[16];
+} cam_status_t;              // 地址：arm-none-eabi-nm 查 g_cam_status</code></pre>
+<pre><code># 读一次状态
+openocd ... -c init -c halt -c "mdw 0x2400039c 10" -c resume -c shutdown</code></pre>
+<p>烧完固件先读它：传感器识别没识别、错误码是什么、fps 多少——<b>不需要看屏幕就能知道固件活得怎么样</b>。</p>
+
+<h2>8.2 窗口二：调试控制字（读写）</h2>
+<pre><code>volatile uint32_t dbg_ctrl;   // OpenOCD mww 写入，cam_capture 检测变化并应用
+
+bit 0/1  强制 DCMI VSPOL 高/低      bit 8 + bits9..15  手动曝光探测(AEC关)
+bit 2    强制 HSPOL 高               bit 16            白光照明 LED
+bit 3    PCLK 下降沿采样             bit 5/6           传感器色彩顺序实验</code></pre>
+<p>改极性/曝光不用重烧固件——<code>mww</code> 一下、等一秒、dump 一帧看结果，一分钟跑一轮实验。这个「热调参」回路是快速收敛的关键。</p>
+
+<h2>8.3 帧取证：dump → PNG → 肉眼看</h2>
+<pre><code>./tools/dump_frame.sh /tmp/f.bin            # 可选第二参数=先写 dbg_ctrl
+python3 tools/frame2png.py /tmp/f.bin f.png 108 80 1   # (宽 高 字节偏移)</code></pre>
+<p>这一步之后，「我看到的就是摄像头看到的」——黑屏、颜色、噪声全部可以量化分析：</p>
+<ul>
+<li><b>唯一值计数</b>：全帧 3~5 个唯一值 ≈ 没有真实图像；几十~上千 = 正常</li>
+<li><b>luma 量化</b>：RGB565 加权亮度均值，改一版测一次（100→130 这样对比）</li>
+<li><b>行列方差</b>：区分「均匀噪声」和「有结构的暗」</li>
+</ul>
+
+<h2>8.4 彩条地标：颜色问题的裁决者</h2>
+<p>人眼报「颜色不对」时，开启传感器彩条（已知真值：白黄青绿品红蓝黑），dump 按位置取色对比。任何字节序/极性/通道错位在标准色序面前无所遁形。这是本项目最值的单个实验（第 7 章坑 3）。</p>
+
+<h2>8.5 帧活性检验</h2>
+<pre><code>./dump_frame.sh /tmp/a.bin ; sleep 3 ; ./dump_frame.sh /tmp/b.bin
+diff <(xxd /tmp/a.bin) <(xxd /tmp/b.bin) | head</code></pre>
+<div class="warn">陷阱：想在一条 openocd 命令里 dump 两次 + sleep——<b>CPU 在两次之间是 halt 的</b>，diff 必为 0，会被误判为「画面冻结」。必须两次独立会话（中间 resume）。</div>
+
+<h2>8.6 手动探针：曝光/增益扫描</h2>
+<p>dbg_ctrl 的手动曝光模式把 AEC 关掉，从 64 行扫到 8128 行曝光、1×~60× 增益，每档 dump 一帧看 luma 响应——用来区分「场景真的黑」和「模拟链路坏了」（正常链路对曝光/增益必须有单调响应）。</p>
+
+<h2>8.7 方法论总结</h2>
+<ol>
+<li>固件常驻两个窗口（状态结构 + 控制字），<b>调试能力是设计出来的，不是临时加的</b></li>
+<li>每个「不对劲」先找一个<b>客观地标</b>（彩条、标准色序、luma、帧间差）再动手</li>
+<li>一次只动一个变量，改完立即 dump 验证</li>
+<li>所有实验脚本化存档（tools/），可重复 = 可交给别人验证</li>
+</ol>
+
+<div class="nav"><a href="ch07-debug.html">&larr; 第7章</a><a href="index.html">目录</a><a href="ch09-architecture.html">第9章 &rarr;</a></div>
+</div>
+</body>
+</html>

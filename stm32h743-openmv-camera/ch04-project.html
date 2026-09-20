@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>工程骨架：从 Keil Demo 到 GCC Makefile · STM32H743 摄像头教程</title>
+<style>
+:root{--bg:#0f0f12;--surface:#1a1a1f;--text:#e8e8ec;--dim:#9ca3af;--acc:#10b981;--acc2:#6366f1;--border:rgba(255,255,255,.08)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);line-height:1.85;-webkit-font-smoothing:antialiased}
+.wrap{max-width:860px;margin:0 auto;padding:36px 24px 90px}
+.crumb{font-size:.85em;color:var(--dim);margin-bottom:18px}
+.crumb a{color:var(--acc);text-decoration:none}
+h1{font-size:1.65em;margin:6px 0 6px;background:linear-gradient(135deg,#e8e8ec 30%,#34d399 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.sub{color:var(--dim);font-size:.95em;margin-bottom:26px}
+h2{font-size:1.22em;margin:34px 0 12px;color:#34d399}
+h3{font-size:1.05em;margin:24px 0 8px;color:var(--text)}
+p{margin:10px 0}
+ul,ol{margin:10px 0 10px 24px}
+li{margin:6px 0}
+code{background:#16161c;border:1px solid var(--border);border-radius:5px;padding:1px 7px;font-family:"SF Mono",Menlo,Consolas,monospace;font-size:.87em;color:#7dd3fc}
+pre{background:#121218;border:1px solid var(--border);border-radius:10px;padding:16px 18px;overflow-x:auto;margin:14px 0;line-height:1.6}
+pre code{background:none;border:none;padding:0;color:#c9d1d9;font-size:.85em}
+table{border-collapse:collapse;width:100%;margin:14px 0;font-size:.92em}
+th{background:#1c1c23;color:#9ca3af;font-weight:600;text-align:left;padding:8px 12px;border:1px solid var(--border)}
+td{padding:7px 12px;border:1px solid var(--border);vertical-align:top}
+tr:nth-child(even) td{background:rgba(255,255,255,.015)}
+.note{background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.25);border-radius:10px;padding:13px 17px;font-size:.93em;margin:16px 0}
+.warn{background:rgba(249,115,22,.07);border:1px solid rgba(249,115,22,.3);border-radius:10px;padding:13px 17px;font-size:.93em;margin:16px 0}
+.story{background:rgba(99,102,241,.07);border:1px solid rgba(99,102,241,.3);border-radius:10px;padding:13px 17px;font-size:.93em;margin:16px 0}
+.nav{display:flex;justify-content:space-between;margin-top:48px;border-top:1px solid var(--border);padding-top:18px}
+.nav a{color:var(--acc);text-decoration:none;font-size:.92em;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 16px}
+.nav a:hover{border-color:var(--acc)}
+.k{color:#9ca3af}
+b{color:#e8e8ec}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="crumb"><a href="index.html">STM32H743 摄像头完全教程</a> / 第 4 章</div>
+<h1>工程骨架：从 Keil Demo 到 GCC Makefile</h1>
+<div class="sub">原厂工程是 Keil 的，Mac 跑不了。这一章自建一个等价的 GCC 工程。</div>
+<h2>4.1 为什么不用 CubeMX + Keil</h2>
+<p>原厂 Demo 是 CubeMX 生成、Keil MDK 编译的。问题：MDK 是 Windows-only，开发机是 macOS。选择：</p>
+<ul>
+<li><b>STM32CubeIDE</b>（有 Mac 版）：可行，但要装整套 Eclipse，且对已有 CubeMX 工程的导入有版本兼容问题</li>
+<li><b>GCC + Makefile 自建</b>：透明、可脚本化、复用 Demo 的全部 .c/.h 源码 —— 本教程的选择</li>
+</ul>
+<p>代价是要自己解决三样东西：启动文件、链接脚本、HAL 配置。下面逐个讲。</p>
+
+<h2>4.2 工程目录结构</h2>
+<pre><code>CAMERA_LCD_TEST/
+├── Makefile               # 构建（源码 wildcard，hal_conf 控制模块开关）
+├── STM32H743IIK6.ld       # 链接脚本（内存域 + 帧缓冲固定段）
+├── startup_stm32h743xx.s  # GCC 启动文件（来自 ST CMSIS 模板）
+├── Core/
+│   ├── Inc/  main.h(引脚宏) stm32h7xx_hal_conf.h stm32h7xx_it.h gpio/spi/tim.h
+│   └── Src/  main.c gpio.c spi.c tim.c(原厂CubeMX文件) stm32h7xx_it.c system_stm32h7xx.c
+├── Cam/                   # ★ 摄像头驱动（本教程核心产出）
+│   ├── cam.c / cam.h              # 探测、初始化、DCMI 采集、调试钩子
+│   ├── cam_regs.h                 # 板级时钟常量 + 寄存器表声明
+│   └── ov7725/5640/2640/7670_regs.c/.h   # 自动生成的寄存器表
+├── BSP/ST7735/            # 原厂 LCD 驱动全套（st7735.c lcd.c font.h，原样复用）
+├── Drivers/               # HAL v1.11.1 + CMSIS（从 Demo 复制，DCMI 从 CubeH7 v1.11.1 补）
+└── tools/                 # dump_frame.sh / frame2png.py（远程验证工具）</code></pre>
+
+<h2>4.3 启动文件</h2>
+<p>GCC 语法向量表 + 复位初始化，<b>不要手写</b>——从 ST 的 CMSIS Device 模板或任意 GCC 构建的 H7 工程里取一份 <code>startup_stm32h743xx.s</code>（本教程从 WeAct 的 openmv 固件仓库直接拿的，768 行）。</p>
+
+<h2>4.4 链接脚本要点</h2>
+<pre><code>MEMORY
+{
+  ITCMRAM (xrw) : ORIGIN = 0x00000000, LENGTH = 64K
+  FLASH   (rx)  : ORIGIN = 0x08000000, LENGTH = 2048K
+  DTCMRAM (xrw) : ORIGIN = 0x20000000, LENGTH = 128K
+  RAM_D1  (xrw) : ORIGIN = 0x24000000, LENGTH = 256K   /* 数据/bss/栈 */
+  RAM_FB  (xrw) : ORIGIN = 0x24040000, LENGTH = 64K    /* 帧缓冲专用段 */
+  RAM_D2  (xrw) : ORIGIN = 0x30000000, LENGTH = 288K
+  RAM_D3  (xrw) : ORIGIN = 0x38000000, LENGTH = 64K
+}
+/* 帧缓冲固定地址 + 32 字节对齐 + NOLOAD */
+.frame_buffer (NOLOAD) : { . = ALIGN(32); frame_buffer_start = .;
+  KEEP(*(.frame_buffer)) . = ALIGN(32); frame_buffer_end = .; } &gt; RAM_FB</code></pre>
+<div class="note"><b>为什么帧缓冲要固定在 0x24040000</b>：① MPU 非缓存区需要 2 的幂大小、地址对齐——64 KB @ 固定地址直接满足；② 调试脚本里地址写死，符号挪了也不用改工具。普通 <code>.data/.bss</code> 留在 RAM_D1 低 256 KB。</div>
+<p>注意别把 ST 模板里 <code>/DISCARD/ { libc.a libm.a libgcc.a }</code> 那段抄进来——会把 <code>memcpy</code> 等运行时库剥掉，链接报未定义。</p>
+
+<h2>4.5 Makefile 要点</h2>
+<pre><code>CPU = -mcpu=cortex-m7 -mthumb -mfpu=fpv5-d16 -mfloat-abi=hard
+DEFS = -DUSE_HAL_DRIVER -DSTM32H743xx -DTFT96     # TFT96=0.96寸屏型号
+LDFLAGS = $(CPU) -TSTM32H743IIK6.ld -Wl,--gc-sections \
+          --specs=nano.specs --specs=nosys.specs \
+          -Wl,--start-group -lc -lm -Wl,--end-group
+SRCS = $(wildcard Core/Src/*.c Cam/*.c BSP/ST7735/*.c Drivers/.../Src/*.c)</code></pre>
+<ul>
+<li>HAL 的每个 .c 被 <code>#ifdef HAL_XXX_MODULE_ENABLED</code> 包着，wildcard 全编 + hal_conf 开关 = 免维护源文件清单</li>
+<li><code>-DTFT96</code>：屏型号宏，来自原厂 Keil 工程的 Define 栏（<code>grep Define *.uvprojx</code> 可查）</li>
+<li>GBK 编码的原厂源码要转 UTF-8 再编（脚本批量 iconv），否则个别字节序列会坑编译器</li>
+</ul>
+
+<h2>4.6 HAL 移植</h2>
+<ul>
+<li>从 LCD_TEST Demo 整目录复制 <code>Drivers/</code>（HAL 1.11.1 + CMSIS）</li>
+<li>DCMI 驱动 Demo 里没有：从 STM32CubeH7 <b>对应 tag（v1.11.1）</b>单独取 <code>stm32h7xx_hal_dcmi.c/h</code>——版本对齐很重要，API 细节跨版本有差</li>
+<li><code>stm32h7xx_hal_conf.h</code> 里按需开模块：DCMI / DMA / I2C / SPI / TIM / GPIO / RCC / FLASH / PWR / CORTEX / EXTI / HSEM</li>
+<li>原厂 <code>gpio.c/spi.c/tim.c</code>（CubeMX 产物）是纯 C，直接进工程——这就是「已知正确」的外设初始化（含 LCD_RST 初始拉低等细节）</li>
+</ul>
+
+<h2>4.7 一个工程两种构建：对照实验模板</h2>
+<p>调试黑屏时用同一套 Makefile/启动/链接把<b>原厂 LCD_TEST 的 Core+BSC 原样</b>编成 <code>LCD_TEST_GCC/</code>——GCC 构建能跑原厂逻辑，就把「工具链/链接问题」和「驱动代码问题」一刀切开（第 7 章的决胜实验）。</p>
+
+<div class="nav"><a href="ch03-toolchain.html">&larr; 第3章</a><a href="index.html">目录</a><a href="ch05-camera.html">第5章 &rarr;</a></div>
+</div>
+</body>
+</html>

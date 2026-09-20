@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>板卡档案与硬件全景 · STM32H743 摄像头教程</title>
+<style>
+:root{--bg:#0f0f12;--surface:#1a1a1f;--text:#e8e8ec;--dim:#9ca3af;--acc:#10b981;--acc2:#6366f1;--border:rgba(255,255,255,.08)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);line-height:1.85;-webkit-font-smoothing:antialiased}
+.wrap{max-width:860px;margin:0 auto;padding:36px 24px 90px}
+.crumb{font-size:.85em;color:var(--dim);margin-bottom:18px}
+.crumb a{color:var(--acc);text-decoration:none}
+h1{font-size:1.65em;margin:6px 0 6px;background:linear-gradient(135deg,#e8e8ec 30%,#34d399 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.sub{color:var(--dim);font-size:.95em;margin-bottom:26px}
+h2{font-size:1.22em;margin:34px 0 12px;color:#34d399}
+h3{font-size:1.05em;margin:24px 0 8px;color:var(--text)}
+p{margin:10px 0}
+ul,ol{margin:10px 0 10px 24px}
+li{margin:6px 0}
+code{background:#16161c;border:1px solid var(--border);border-radius:5px;padding:1px 7px;font-family:"SF Mono",Menlo,Consolas,monospace;font-size:.87em;color:#7dd3fc}
+pre{background:#121218;border:1px solid var(--border);border-radius:10px;padding:16px 18px;overflow-x:auto;margin:14px 0;line-height:1.6}
+pre code{background:none;border:none;padding:0;color:#c9d1d9;font-size:.85em}
+table{border-collapse:collapse;width:100%;margin:14px 0;font-size:.92em}
+th{background:#1c1c23;color:#9ca3af;font-weight:600;text-align:left;padding:8px 12px;border:1px solid var(--border)}
+td{padding:7px 12px;border:1px solid var(--border);vertical-align:top}
+tr:nth-child(even) td{background:rgba(255,255,255,.015)}
+.note{background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.25);border-radius:10px;padding:13px 17px;font-size:.93em;margin:16px 0}
+.warn{background:rgba(249,115,22,.07);border:1px solid rgba(249,115,22,.3);border-radius:10px;padding:13px 17px;font-size:.93em;margin:16px 0}
+.story{background:rgba(99,102,241,.07);border:1px solid rgba(99,102,241,.3);border-radius:10px;padding:13px 17px;font-size:.93em;margin:16px 0}
+.nav{display:flex;justify-content:space-between;margin-top:48px;border-top:1px solid var(--border);padding-top:18px}
+.nav a{color:var(--acc);text-decoration:none;font-size:.92em;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 16px}
+.nav a:hover{border-color:var(--acc)}
+.k{color:#9ca3af}
+b{color:#e8e8ec}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="crumb"><a href="index.html">STM32H743 摄像头完全教程</a> / 第 1 章</div>
+<h1>板卡档案与硬件全景</h1>
+<div class="sub">不知道板子上有什么，后面的一切都是猜。这一章建立完整的硬件心智模型。</div>
+<h2>1.1 这块板子是什么</h2>
+<p><b>WeAct OpenMV Plus v1.1</b>：WeAct Studio 出品的 STM32H743 核心板，板型设计对齐 OpenMV 相机生态（可跑 OpenMV 固件的分支）。主控 <b>STM32H743IIK6</b>，封装 UFBGA176。</p>
+<table>
+<tr><th>项</th><th>规格</th><th>备注</th></tr>
+<tr><td>CPU</td><td>Cortex-M7 @ 480 MHz</td><td>双发射超标量，算力对付图像预处理绰绰有余</td></tr>
+<tr><td>Flash / SRAM</td><td>2 MB / 1 MB（ITCM 64K + DTCM 128K + AXI 512K + SRAM1-4）</td><td>内存域多，链接脚本要规划（第 4 章）</td></tr>
+<tr><td>SDRAM</td><td>32 MB @ FMC</td><td>跑大分辨率帧缓冲用的，本教程 QQVGA 级用不上</td></tr>
+<tr><td>其他外设</td><td>USB FS、TF 卡（SDIO）、QSPI Flash</td><td></td></tr>
+<tr><td>调试口</td><td>SWD（SWDIO/SWCLK），配 ST-Link V2</td><td>本教程全程只靠它</td></tr>
+</table>
+
+<h2>1.2 摄像头怎么接进来的（两级转接）</h2>
+<p>套件里那块小「接口板」是无源转接板，信号链是两跳：</p>
+<pre><code>OV 摄像头模组 ──FPC 24P 0.5mm──&gt; 摄像头接口板 ──板对板 DF12-36──&gt; 主板 MCU
+                  （转接+照明LED）        （DCMI + SCCB 直连）</code></pre>
+<ul>
+<li><b>FPC 侧</b>：兼容 OV7670 / OV2640 / OV7725 / OV5640-AF 四种模组（接口板丝印注明）；板上还有 3 颗白光照明 LED、IR LED、以及供 OV5640 自动对焦固件用的电平转换跳线（SB1/SB2，普通成像不用焊）。</li>
+<li><b>板对板侧</b>：D0–D7、PCLK、VSYNC、HSYNC、XCLK、PWDN、RESET、I2C1（SCCB）、照明 LED 控制线，全部一根线一根线地进 MCU。</li>
+</ul>
+<div class="note"><b>供电不用管</b>：摄像头模组需要的 2.8V（AVDD/DOVDD）和 1.5V（DVDD）由主板上的两颗 LDO（XC6206P282 / XC6206P152）从 3.3V 自动生成，随板上电即有，<b>无需任何固件干预</b>。这是很多人「查供电查半天」的地方——这块板子上它天生就是好的。</div>
+
+<h2>1.3 LCD 模组</h2>
+<p>WeAct 配套的 0.96 寸 ST7735S TFT（原厂 Demo 编译宏 <code>TFT96</code>）：</p>
+<ul>
+<li>分辨率 <b>160×80</b>，横屏使用（LANDSCAPE_ROT180），HannStar 面板（有特定的行列偏移，厂商驱动里处理了）</li>
+<li>SPI 单向 3 线制（无 MISO 回读）+ CS/DC/RST 控制线 + PWM 背光</li>
+<li>同系列还有 1.8 寸 128×160（TFT18 宏），本板实测用的是 TFT96</li>
+</ul>
+
+<h2>1.4 完整引脚映射表（原理图逆向 + 固件交叉验证）</h2>
+<p>这张表是整个项目的基础资产，第 2 章讲它怎么来的。<b>注意：不能照抄 WeAct MiniSTM32H7xx 开发板的引脚</b>——那块板 D2/D3/D5 走 PE0/PE1/PD3，本板这些脚被 SDRAM 占了，摄像头数据线被挪到 PG10/PG11/PB6。</p>
+<table>
+<tr><th>功能</th><th>引脚</th><th>复用/说明</th></tr>
+<tr><td>DCMI D0 / D1</td><td>PC6 / PC7</td><td rowspan="8">全部 AF13（DCMI）</td></tr>
+<tr><td>DCMI D2 / D3</td><td>PG10 / PG11</td></tr>
+<tr><td>DCMI D4 / D6 / D7</td><td>PE4 / PE5 / PE6</td></tr>
+<tr><td>DCMI D5</td><td>PB6</td></tr>
+<tr><td>DCMI HSYNC</td><td>PA4</td></tr>
+<tr><td>DCMI VSYNC</td><td>PB7</td></tr>
+<tr><td>DCMI PCLK</td><td>PA6</td></tr>
+<tr><td></td><td></td></tr>
+<tr><td>摄像头 XCLK</td><td>PA8</td><td>AF1 = TIM1_CH1，PWM 输出 12/24 MHz 给传感器当主时钟</td></tr>
+<tr><td>摄像头 PWDN</td><td>PD7</td><td>GPIO，<b>高电平有效</b>（进省电）</td></tr>
+<tr><td>摄像头 RESET</td><td>PA10</td><td>GPIO，<b>低电平有效</b></td></tr>
+<tr><td>SCCB（I2C1）</td><td>PB8=SCL / PB9=SDA</td><td>AF4，100 kHz，配置传感器的控制通道</td></tr>
+<tr><td>白光照明 LED</td><td>PE2</td><td>→ BSS138 低边开关 → LED_N，<b>高电平点亮</b></td></tr>
+<tr><td>P9 / IR（IR 照明）</td><td>PG3、PE9（候选）</td><td><b>极性未标注，保持悬空不驱动</b>（第 7 章的血泪教训）</td></tr>
+<tr><td>LCD CS / SCK / MOSI</td><td>PB12 / PB13 / PB15</td><td>SPI2 AF5，模式 0</td></tr>
+<tr><td>LCD DC（WR_RS）</td><td>PD13</td><td>GPIO</td></tr>
+<tr><td>LCD RST</td><td>PD12</td><td>GPIO</td></tr>
+<tr><td>LCD 背光</td><td>PA5</td><td>AF1 = TIM2_CH1 PWM</td></tr>
+<tr><td>RGB LED</td><td>R=PC0 G=PC1 B=PC2</td><td>低电平点亮</td></tr>
+<tr><td>KEY</td><td>PB1</td><td>高电平按下（内部下拉）</td></tr>
+</table>
+
+<h2>1.5 时钟与内存布局（沿用原厂 Demo 的配置）</h2>
+<pre><code>HSI 64 MHz → PLL(M=4, N=60, P=2) → SYSCLK 480 MHz
+  ├─ AHB 240 MHz
+  ├─ APB1 120 MHz（I2C1 / SPI2 / TIM2）
+  └─ APB2 120 MHz（TIM1 ×2 = 240 MHz 定时器时钟 ← XCLK 分频基准）</code></pre>
+<p>板上其实有 12 MHz HSE 晶振，但原厂 Demo 用 HSI 跑（免去晶振频率假设），本教程照抄——实测稳定。帧缓冲放在 AXI SRAM 的 <code>0x24040000</code> 起 64 KB，配 MPU 非缓存区（第 6 章讲为什么）。</p>
+
+<div class="nav"><a href="index.html">&larr; 封面</a><a href="index.html">目录</a><a href="ch02-materials.html">第2章 &rarr;</a></div>
+</div>
+</body>
+</html>

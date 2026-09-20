@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>代码架构与数据流 · STM32H743 摄像头教程</title>
+<style>
+:root{--bg:#0f0f12;--surface:#1a1a1f;--text:#e8e8ec;--dim:#9ca3af;--acc:#10b981;--acc2:#6366f1;--border:rgba(255,255,255,.08)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);line-height:1.85;-webkit-font-smoothing:antialiased}
+.wrap{max-width:860px;margin:0 auto;padding:36px 24px 90px}
+.crumb{font-size:.85em;color:var(--dim);margin-bottom:18px}
+.crumb a{color:var(--acc);text-decoration:none}
+h1{font-size:1.65em;margin:6px 0 6px;background:linear-gradient(135deg,#e8e8ec 30%,#34d399 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.sub{color:var(--dim);font-size:.95em;margin-bottom:26px}
+h2{font-size:1.22em;margin:34px 0 12px;color:#34d399}
+h3{font-size:1.05em;margin:24px 0 8px;color:var(--text)}
+p{margin:10px 0}
+ul,ol{margin:10px 0 10px 24px}
+li{margin:6px 0}
+code{background:#16161c;border:1px solid var(--border);border-radius:5px;padding:1px 7px;font-family:"SF Mono",Menlo,Consolas,monospace;font-size:.87em;color:#7dd3fc}
+pre{background:#121218;border:1px solid var(--border);border-radius:10px;padding:16px 18px;overflow-x:auto;margin:14px 0;line-height:1.6}
+pre code{background:none;border:none;padding:0;color:#c9d1d9;font-size:.85em}
+table{border-collapse:collapse;width:100%;margin:14px 0;font-size:.92em}
+th{background:#1c1c23;color:#9ca3af;font-weight:600;text-align:left;padding:8px 12px;border:1px solid var(--border)}
+td{padding:7px 12px;border:1px solid var(--border);vertical-align:top}
+tr:nth-child(even) td{background:rgba(255,255,255,.015)}
+.note{background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.25);border-radius:10px;padding:13px 17px;font-size:.93em;margin:16px 0}
+.warn{background:rgba(249,115,22,.07);border:1px solid rgba(249,115,22,.3);border-radius:10px;padding:13px 17px;font-size:.93em;margin:16px 0}
+.story{background:rgba(99,102,241,.07);border:1px solid rgba(99,102,241,.3);border-radius:10px;padding:13px 17px;font-size:.93em;margin:16px 0}
+.nav{display:flex;justify-content:space-between;margin-top:48px;border-top:1px solid var(--border);padding-top:18px}
+.nav a{color:var(--acc);text-decoration:none;font-size:.92em;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 16px}
+.nav a:hover{border-color:var(--acc)}
+.k{color:#9ca3af}
+b{color:#e8e8ec}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="crumb"><a href="index.html">STM32H743 摄像头完全教程</a> / 第 9 章</div>
+<h1>代码架构与数据流</h1>
+<div class="sub">最终工程的目录结构、数据流、文件职责，以及六个关键设计决策的取舍理由。</div>
+<h2>9.1 数据流全景</h2>
+<pre><code>        控制面                                数据面
+┌──────────────────────────┐   ┌───────────────────────────────────────────┐
+│ TIM1_CH1(PA8) ──XCLK──▶ 传感器│   │ 传感器 ISP(等比缩放到108×80, RGB565)        │
+│ I2C1(PB8/9)  ──SCCB──▶ 寄存器 │   │   │ DVP 8bit + VSYNC/HSYNC/PCLK               │
+│ PD7/PA10     ──PWDN/RST▶     │   │   ▼                                        │
+│ PE2          ──照明LED        │   │ DCMI(硬件同步, 快照模式) ──▶ DMA2_S1        │
+└──────────────────────────┘   │   ▼                                         │
+                               │ 帧缓冲 0x24040020 (MPU非缓存, +1字节相位)      │
+                               │   ▼                                          │
+                               │ SPI2(PB13/15) ──▶ ST7735 LCD 160×80 居中      │
+                               │ + 底部 OSD 状态(1Hz) + KEY照明开关(15s超时)    │
+                               └─────────────────────────────────────────────┘</code></pre>
+
+<h2>9.2 文件职责表</h2>
+<table>
+<tr><th>文件</th><th>行数级</th><th>职责</th></tr>
+<tr><td><code>Core/Src/main.c</code></td><td>~230</td><td>时钟 480MHz、MPU、外设初始化顺序、主循环（采集→显示→1Hz状态→KEY）、失败态展示</td></tr>
+<tr><td><code>Cam/cam.c</code></td><td>~600</td><td>★核心：XCLK/PWDN/RST/SCCB、探测识别、四传感器初始化（含 OV5640 窗口数学）、DCMI+DMA 快照、dbg 调试钩子</td></tr>
+<tr><td><code>Cam/ov*_regs.c</code></td><td>4×~250</td><td>自动生成的寄存器表（gen_tables.py 产物，勿手改）</td></tr>
+<tr><td><code>Core/Src/{gpio,spi,tim}.c</code></td><td>原厂</td><td>CubeMX 外设初始化（原样复用，已知正确）</td></tr>
+<tr><td><code>BSP/ST7735/*</code></td><td>原厂</td><td>ST 组件 + lcd.c 封装 + 字库（原样复用）</td></tr>
+<tr><td><code>Core/Src/stm32h7xx_it.c</code></td><td>~40</td><td>SysTick 等；DCMI/DMA 中断在 cam.c 内就近定义</td></tr>
+<tr><td><code>tools/*</code></td><td>2 脚本</td><td>dump_frame.sh（SWD取帧/写控制字）、frame2png.py（解码，含+1偏移）</td></tr>
+</table>
+<p>构建产物 ~42 KB（text+data），帧缓冲 17 KB 放独立段。</p>
+
+<h2>9.3 六个关键设计决策</h2>
+<table>
+<tr><th>#</th><th>决策</th><th>替代方案</th><th>为什么这么选</th></tr>
+<tr><td>1</td><td><b>传感器端 ISP 缩放</b>（108×80 直接输出）</td><td>CPU 软件缩放</td><td>零 CPU 成本、DMA 带宽省 40%；H7 跑软件缩放也够，但能在传感器端解决的不要搬 CPU</td></tr>
+<tr><td>2</td><td><b>快照模式一帧一停</b></td><td>连续+双缓冲+帧同步中断</td><td>RM0433 保证重使能自动等帧头，天然无撕裂；代码量 1/5</td></tr>
+<tr><td>3</td><td><b>帧缓冲固定地址 + MPU 非缓存</b></td><td>链接器任意放置 + 每帧 Cache 维护</td><td>一次性配置免心智负担；调试工具地址写死</td></tr>
+<tr><td>4</td><td><b>显示层整体用原厂路径</b></td><td>自写最小驱动</td><td>黑屏教训：SPI 无回读，自写层出错不可观测；显示是「调通即用」外设</td></tr>
+<tr><td>5</td><td><b>SWD 调试窗口常驻</b>（状态结构+dbg_ctrl）</td><td>串口 printf</td><td>无串口线依赖；读写内存即可热调参；与工具脚本组成可重复实验回路</td></tr>
+<tr><td>6</td><td><b>寄存器表脚本生成</b></td><td>手抄/手打</td><td>几百行表手抄必错；宏表达式透传给编译器求值，生成器 60 行搞定四种传感器</td></tr>
+</table>
+
+<h2>9.4 主循环骨架（伪代码）</h2>
+<pre><code>for (;;) {
+    now = tick();
+    if (ok &amp;&amp; cam_capture(500) == 0)                 // 等一帧（快照）
+        FillRGBRect(居中, frame_buf + 1, 108, 80);    // +1 字节相位
+    else if (!ok) { 显示失败原因; 红灯闪; }
+
+    if (照明开 &amp;&amp; now - led_on &gt; 15s) 灯灭;          // 防烫超时
+    if (KEY按下) 切换照明;
+
+    if (now - t_last &gt;= 1000) {                       // 1Hz
+        fps = frames - frames_last;
+        cam_dbg_aec();                                 // 活的曝光/增益读数
+        刷新OSD状态条;
+    }
+}</code></pre>
+
+<h2>9.5 与原厂工程的关系</h2>
+<ul>
+<li>原厂 <code>GPIO_TEST / LCD_TEST / SDRAM_TEST</code> <b>一行未改</b>（只读复制过）</li>
+<li><code>CAMERA_LCD_TEST/</code> 独立目录，可自由增删</li>
+<li><code>LCD_TEST_GCC/</code> 是原厂 Demo 的 GCC 重编版，作为对照实验模板保留</li>
+</ul>
+
+<div class="nav"><a href="ch08-verify.html">&larr; 第8章</a><a href="index.html">目录</a><a href="ch10-reuse.html">第10章 &rarr;</a></div>
+</div>
+</body>
+</html>

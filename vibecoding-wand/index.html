@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vibecoding 魔杖 · 方案</title>
+<style>
+  :root{
+    --bg:#0b0e10; --card:#111619; --card2:#161d21; --line:#243036;
+    --ac:#7ee2a8; --ac-dim:#4d8a66; --cyan:#7fd8e8; --violet:#b39ddb;
+    --text:#d6dee2; --muted:#8798a0; --warn:#f0a35e; --bad:#ef8a8a;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    line-height:1.75; font-size:15px;
+    background-image:radial-gradient(ellipse 900px 420px at 70% -10%, #12241a 0%, transparent 60%);
+  }
+  .wrap{max-width:960px; margin:0 auto; padding:48px 28px 80px;}
+  h1,h2,h3,.serif{font-family:ui-serif,"Songti SC","Noto Serif CJK SC",Georgia,serif;}
+  h1{font-size:33px; color:var(--ac); letter-spacing:1px; margin-bottom:8px;}
+  .subtitle{color:var(--muted); font-size:15px; margin-bottom:18px;}
+  .meta{display:flex; gap:10px; flex-wrap:wrap; margin-bottom:8px;}
+  .chip{display:inline-block; padding:2px 12px; border:1px solid var(--line); border-radius:999px;
+        font-size:12.5px; color:var(--muted); background:var(--card);}
+  .chip b{color:var(--ac); font-weight:600;}
+  h2{font-size:23px; color:var(--ac); margin:52px 0 6px; padding-top:18px; border-top:1px solid var(--line);}
+  h2 .no{color:var(--ac-dim); margin-right:10px; font-size:16px; vertical-align:2px;}
+  h3{font-size:17px; color:var(--cyan); margin:26px 0 8px;}
+  p{margin:10px 0;}
+  .lead{font-size:16.5px; color:#e6edf0; margin:14px 0 4px;}
+  ul,ol{padding-left:22px; margin:10px 0;}
+  li{margin:5px 0;}
+  b{color:#eef4f6;}
+  em{color:var(--cyan); font-style:normal;}
+  .muted{color:var(--muted);}
+  code{
+    font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-size:13px;
+    background:#1a2226; border:1px solid var(--line); border-radius:4px; padding:1px 6px; color:#c9e3b8;
+  }
+  pre{
+    background:#0d1114; border:1px solid var(--line); border-radius:10px;
+    padding:16px 18px; overflow-x:auto; margin:12px 0; line-height:1.6;
+  }
+  pre code{background:none; border:none; padding:0; color:#c9e3b8; font-size:13px;}
+  table{width:100%; border-collapse:collapse; margin:14px 0; font-size:14px;}
+  th{color:var(--ac); font-weight:600; text-align:left;}
+  th,td{border:1px solid var(--line); padding:8px 12px; vertical-align:top;}
+  tr:nth-child(even) td{background:rgba(255,255,255,0.02);}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px 22px; margin:14px 0;}
+  .card.hl{border-color:var(--ac-dim); background:linear-gradient(180deg,#15201a,#111619);}
+  .note{border-left:3px solid var(--ac-dim); padding:8px 16px; background:var(--card2);
+        border-radius:0 8px 8px 0; margin:12px 0; color:var(--muted); font-size:14px;}
+  .note b{color:var(--ac);}
+  .note.warn{border-left-color:var(--warn);}
+  .note.warn b{color:var(--warn);}
+  .fig{background:#0d1114; border:1px solid var(--line); border-radius:12px; padding:18px 10px 8px; margin:16px 0; text-align:center;}
+  .fig svg{max-width:100%; height:auto;}
+  .fig .cap{color:var(--muted); font-size:13px; padding:8px 12px 6px; text-align:left;}
+  .verdict{font-size:16px; color:#eaf4ec; background:linear-gradient(90deg,#15241a,#111619);
+           border:1px solid var(--ac-dim); border-radius:10px; padding:12px 18px; margin:12px 0;}
+  .verdict b{color:var(--ac);}
+  .flowsteps{counter-reset:step; list-style:none; padding-left:0;}
+  .flowsteps li{counter-increment:step; position:relative; padding:10px 14px 10px 58px; margin:8px 0;
+    background:var(--card); border:1px solid var(--line); border-radius:10px;}
+  .flowsteps li::before{
+    content:counter(step); position:absolute; left:14px; top:50%; transform:translateY(-50%);
+    width:30px; height:30px; border-radius:50%; text-align:center; line-height:30px;
+    background:#15241a; color:var(--ac); border:1px solid var(--ac-dim); font-weight:700; font-size:15px;
+    font-family:ui-serif,Georgia,serif;}
+  .toc{display:grid; grid-template-columns:1fr 1fr; gap:4px 28px; margin:16px 0 0; font-size:14px;}
+  .toc a{color:var(--cyan); text-decoration:none;}
+  .toc a:hover{color:var(--ac);}
+  .footer{margin-top:60px; padding-top:16px; border-top:1px solid var(--line); color:var(--muted); font-size:13px;}
+  a{color:var(--cyan);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>✦ Vibecoding 魔杖</h1>
+<div class="subtitle">对 AI 编程 Agent 的物理遥控器：按住说话下咒，画圈发送、下劈接受、横挥拒绝、摇两下急停——全程不碰键盘。</div>
+<div class="meta">
+  <span class="chip">类型：<b>玩具 Demo / 交互实验</b></span>
+  <span class="chip">日期：<b>2026-09-19</b></span>
+  <span class="chip">状态：<b>待评审 · 未提交 git</b></span>
+  <span class="chip">硬件：<b>M5StickS3 存量复用，¥0</b></span>
+  <span class="chip">复用资产：<b>自研唤醒词引擎 + 手势流水线</b></span>
+</div>
+
+<div class="card hl">
+  <div class="toc">
+    <a href="#s0">0. 决策速览（已拍板）</a>
+    <a href="#s1">1. 这是什么：90 秒演示脚本</a>
+    <a href="#s2">2. 交互与状态机</a>
+    <a href="#s3">3. 系统架构</a>
+    <a href="#s4">4. 技术选型：三处分叉怎么定的</a>
+    <a href="#s5">5. 通信协议（USB CDC）</a>
+    <a href="#s6">6. 杖屏 UI 与硬件</a>
+    <a href="#s7">7. 复用资产清单</a>
+    <a href="#s8">8. 里程碑与验收</a>
+    <a href="#s9">9. 风险与对策</a>
+    <a href="#s10">10. 刻意不做的事</a>
+  </div>
+</div>
+
+<!-- ================================================================ 0 -->
+<h2 id="s0"><span class="no">§0</span>决策速览</h2>
+<p class="lead">这个方案的所有"都可以"已经全部定死。原则：Demo 优先，每一项都选最快能玩起来且演示效果最好的那条路。</p>
+
+<table>
+  <tr><th style="width:130px">决策项</th><th style="width:230px">✅ 定案</th><th>一句话理由</th></tr>
+  <tr><td><b>触发方式</b></td><td>v0 = <b>按住魔杖键说话</b>（PTT）；v1 = 自研唤醒词</td><td>你说的"按一下然后说话"——PTT 零误触、零功耗、演示最稳；唤醒词引擎已经做好了（33KB、召回 100%），属于白送的升级，放 M5。</td></tr>
+  <tr><td><b>魔杖 ↔ 电脑链路</b></td><td><b>USB-C 直连</b>（虚拟串口 CDC），不用 BLE / 不用 WiFi</td><td>供电+数据一根线、零配对零丢包；16kHz PCM 裸流 32KB/s 对 USB 毫无压力。无线化（WiFi+ADPCM）是 v1.5，不阻塞 Demo。</td></tr>
+  <tr><td><b>语音识别</b></td><td>Mac <b>系统自带 SFSpeechRecognizer</b>（免费、无 key）</td><td>中英文都能用、不用下模型不用申请 API；备选 whisper.cpp（完全离线）。</td></tr>
+  <tr><td><b>注入 Agent 的方式</b></td><td>首选 <b>tmux send-keys + 剪贴板粘贴</b>，备选 CGEvent 全局键盘</td><td>CLI Agent（ZCode/Claude Code）本来就跑在 tmux 里；send-keys 无需任何系统权限、可精确指定目标窗格。CGEvent 需要辅助功能权限，留作通吃任意窗口的备胎。</td></tr>
+  <tr><td><b>手势识别跑在哪</b></td><td>v0 = <b>电脑端</b>（IMU 原始流上行，daemon 里分类）；v1 下沉到杖上</td><td>IMU 6 轴 @100Hz 只有 1.2KB/s，上行后训练/调类零部署成本，改手势集当天生效；上板路径（TFLM/C）在魔杖方案里已经铺好。</td></tr>
+  <tr><td><b>语音是否直发</b></td><td><b>不直发</b>：转写先进"确认态"，画圈才发送</td><td>ASR 一定会错（"dark mode"→"达克模式"），确认态让错误止步于杖屏，不污染 agent 会话。这也让手势有了第一个高频用途。</td></tr>
+  <tr><td><b>手势集</b></td><td><b>4 个</b>：画圈=发送/继续、下劈=接受、横挥=拒绝、双摇=急停</td><td>正好覆盖 vibecoding 全部高频操作（Enter / y / Esc / Esc-Esc），IMU 特征轴分布互不重叠。</td></tr>
+  <tr><td><b>固件框架</b></td><td>Arduino（arduino-cli，已验证工具链）</td><td>StickS3 刷机全流程在仓库笔记里跑通过；USB CDC On Boot 一个开关搞定。</td></tr>
+</table>
+
+<!-- ================================================================ 1 -->
+<h2 id="s1"><span class="no">§1</span>这是什么：90 秒演示脚本</h2>
+<p class="lead">vibecoding 的日常：对着 agent 终端敲 <code>y</code>、按 <code>Esc</code>、偶尔 <code>Esc Esc</code> 急停、再打一段中文需求。这个玩具把全部四个动作换成手势和说话，让"人机结对"变成"施法"。</p>
+
+<ol class="flowsteps">
+  <li><b>开场</b>：tmux 里开着 ZCode（某个真实项目目录），魔杖插在 Mac 上，杖屏一枚 ✦ 待机。</li>
+  <li><b>下咒</b>：按住魔杖侧键说「给这个页面加一个暗色模式开关，放在右上角」，松开。杖屏实时跳动波形。</li>
+  <li><b>确认</b>：1~2 秒后杖屏滚出转写文字 + Mac 右上角通知。<em>画一个圈 = 发送</em>（daemon 把文本写剪贴板、tmux 粘贴 + 回车）；觉得转写稀烂就<em>横挥作废</em>重说。</li>
+  <li><b>施法</b>：agent 开始改代码，杖屏转圈「施法中…」。</li>
+  <li><b>裁定</b>：agent 请求确认时——<em>下劈 = 接受</em>（y），看它写得不顺眼就<em>横挥 = 拒绝</em>（Esc）。</li>
+  <li><b>反噬</b>：agent 跑飞了开始疯狂建文件——<em>摇两下 = 急停</em>（Esc Esc），杖屏红光一闪「法术已打断」。</li>
+  <li><b>收场</b>：全程双手没碰键盘。这就是 vibecoding 魔杖。</li>
+</ol>
+
+<div class="note"><b>为什么这个玩具成立：</b>语音解决"长意图输入"（打一段中文需求很累，说一句很爽），手势解决"高频短确认"（y/Esc 每天几十次，挥手比摸键盘帅）。两个痛点都是真实的，只是被合并进了一根杖里。顺带：演示视频天然适合发抖音。</div>
+
+<!-- ================================================================ 2 -->
+<h2 id="s2"><span class="no">§2</span>交互与状态机</h2>
+
+<div class="fig">
+<svg viewBox="0 0 900 400" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="ah" markerWidth="9" markerHeight="9" refX="7.5" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 z" fill="#4d8a66"/>
+    </marker>
+  </defs>
+  <!-- IDLE -->
+  <ellipse cx="105" cy="140" rx="74" ry="42" fill="#111619" stroke="#8798a0" stroke-width="1.5"/>
+  <text x="105" y="135" text-anchor="middle" fill="#d6dee2" font-size="16" font-weight="bold">空闲</text>
+  <text x="105" y="158" text-anchor="middle" fill="#8798a0" font-size="12">✦ 等按键 / 等唤醒</text>
+  <!-- RECORDING -->
+  <ellipse cx="335" cy="140" rx="80" ry="44" fill="#15241a" stroke="#7ee2a8" stroke-width="2"/>
+  <text x="335" y="135" text-anchor="middle" fill="#7ee2a8" font-size="16" font-weight="bold">录音</text>
+  <text x="335" y="158" text-anchor="middle" fill="#4d8a66" font-size="12">按住说话 · 波形</text>
+  <!-- TRANSCRIBING -->
+  <ellipse cx="568" cy="140" rx="86" ry="44" fill="#111619" stroke="#7fd8e8" stroke-width="2"/>
+  <text x="568" y="135" text-anchor="middle" fill="#7fd8e8" font-size="16" font-weight="bold">转写中</text>
+  <text x="568" y="158" text-anchor="middle" fill="#4d8a96" font-size="12">ASR ~1-2s</text>
+  <!-- REVIEW -->
+  <ellipse cx="800" cy="140" rx="72" ry="44" fill="#1a1628" stroke="#b39ddb" stroke-width="2"/>
+  <text x="800" y="135" text-anchor="middle" fill="#b39ddb" font-size="16" font-weight="bold">确认</text>
+  <text x="800" y="158" text-anchor="middle" fill="#7c6fa8" font-size="12">杖屏显示文字</text>
+  <!-- CASTING -->
+  <ellipse cx="568" cy="312" rx="86" ry="46" fill="#15241a" stroke="#7ee2a8" stroke-width="2"/>
+  <text x="568" y="307" text-anchor="middle" fill="#7ee2a8" font-size="16" font-weight="bold">施法中</text>
+  <text x="568" y="330" text-anchor="middle" fill="#4d8a66" font-size="12">agent 运行 · 转圈</text>
+  <!-- arrows -->
+  <line x1="180" y1="140" x2="253" y2="140" stroke="#4d8a66" stroke-width="1.6" marker-end="url(#ah)"/>
+  <text x="216" y="126" text-anchor="middle" fill="#7ee2a8" font-size="13">按住魔杖键</text>
+  <line x1="416" y1="140" x2="480" y2="140" stroke="#4d8a66" stroke-width="1.6" marker-end="url(#ah)"/>
+  <text x="448" y="126" text-anchor="middle" fill="#7ee2a8" font-size="13">松开</text>
+  <line x1="655" y1="140" x2="726" y2="140" stroke="#4d8a66" stroke-width="1.6" marker-end="url(#ah)"/>
+  <text x="690" y="126" text-anchor="middle" fill="#7ee2a8" font-size="13">文字就绪</text>
+  <!-- REVIEW -> CASTING -->
+  <path d="M 776,182 C 760,250 706,282 656,294" fill="none" stroke="#4d8a66" stroke-width="1.6" marker-end="url(#ah)"/>
+  <text x="756" y="252" text-anchor="middle" fill="#7ee2a8" font-size="13">画圈=发送</text>
+  <!-- CASTING -> IDLE -->
+  <path d="M 480,320 C 300,352 140,330 100,184" fill="none" stroke="#4d8a66" stroke-width="1.6" marker-end="url(#ah)"/>
+  <text x="285" y="352" text-anchor="middle" fill="#8798a0" font-size="13">完成 / 双摇急停</text>
+  <!-- REVIEW -> IDLE dashed -->
+  <path d="M 758,102 C 500,14 200,14 112,98" fill="none" stroke="#8798a0" stroke-width="1.3" stroke-dasharray="6 5" marker-end="url(#ah)"/>
+  <text x="435" y="34" text-anchor="middle" fill="#8798a0" font-size="13">横挥=作废重说</text>
+</svg>
+<div class="cap">图 1 · 魔杖 × daemon 联合状态机。「施法中」内部的三种手势裁定：下劈=接受（y）、横挥=拒绝（Esc）、双摇=急停（Esc Esc）；「确认」态里画圈=发送、横挥=作废。空闲态的手势只做杖屏反馈、不注入任何按键——防止误伤正在写的代码。</div>
+</div>
+
+<h3>2.1 手势语义表（4 个）</h3>
+<table>
+  <tr><th>手势</th><th>动作</th><th>IMU 特征（为什么不易混）</th><th>映射</th><th>生效状态</th></tr>
+  <tr><td><b>画圈</b></td><td>手腕画一个圆</td><td>某轴角速度完整正弦周期（~0.5–1Hz）</td><td>发送 / 继续（Enter）</td><td>确认、施法中</td></tr>
+  <tr><td><b>下劈</b></td><td>竖直向下快劈</td><td>垂直轴加速度单脉冲 + 横轴角速度尖峰</td><td>接受（y / 选 1）</td><td>施法中</td></tr>
+  <tr><td><b>横挥</b></td><td>水平快速一挥</td><td>水平轴加速度单脉冲，与下劈轴向正交</td><td>拒绝（Esc）</td><td>确认（作废）、施法中</td></tr>
+  <tr><td><b>双摇</b></td><td>上下摇两下</td><td>两个清晰加速度峰 + 节奏间隔</td><td>急停（Esc Esc）</td><td>施法中</td></tr>
+</table>
+<p class="muted">对比远程控灯魔杖的 3 手势集：新增「下劈」并与「横挥」靠轴向区分，采集/训练流水线完全复用，只是类别数 3→4。</p>
+
+<!-- ================================================================ 3 -->
+<h2 id="s3"><span class="no">§3</span>系统架构</h2>
+
+<div class="fig">
+<svg viewBox="0 0 940 392" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="ah2" markerWidth="9" markerHeight="9" refX="7.5" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 z" fill="#7fd8e8"/>
+    </marker>
+  </defs>
+  <!-- wand -->
+  <rect x="18" y="26" width="300" height="330" rx="14" fill="#111619" stroke="#7ee2a8" stroke-width="1.5"/>
+  <text x="168" y="56" text-anchor="middle" fill="#7ee2a8" font-size="16" font-weight="bold">魔杖 · M5StickS3</text>
+  <g font-size="12.5">
+    <rect x="36" y="72" width="264" height="44" rx="8" fill="#161d21" stroke="#243036"/>
+    <text x="50" y="91" fill="#d6dee2" font-weight="bold" font-size="13.5">按键 PTT（v1: 唤醒词）</text>
+    <text x="50" y="108" fill="#8798a0">按住=录音 松开=结束</text>
+    <rect x="36" y="124" width="264" height="44" rx="8" fill="#161d21" stroke="#243036"/>
+    <text x="50" y="143" fill="#d6dee2" font-weight="bold" font-size="13.5">麦克风 16kHz PCM</text>
+    <text x="50" y="160" fill="#8798a0">仅录音态上行 · 32KB/s</text>
+    <rect x="36" y="176" width="264" height="44" rx="8" fill="#161d21" stroke="#243036"/>
+    <text x="50" y="195" fill="#d6dee2" font-weight="bold" font-size="13.5">BMI270 IMU 100Hz</text>
+    <text x="50" y="212" fill="#8798a0">6 轴原始流上行 · 1.2KB/s</text>
+    <rect x="36" y="228" width="264" height="44" rx="8" fill="#161d21" stroke="#243036"/>
+    <text x="50" y="247" fill="#d6dee2" font-weight="bold" font-size="13.5">杖屏状态 UI</text>
+    <text x="50" y="264" fill="#8798a0">✦/波形/转写文字/施法转圈/急停红闪</text>
+    <rect x="36" y="280" width="264" height="44" rx="8" fill="#161d21" stroke="#243036"/>
+    <text x="50" y="299" fill="#d6dee2" font-weight="bold" font-size="13.5">USB-C CDC（虚拟串口）</text>
+    <text x="50" y="316" fill="#8798a0">供电+数据一根线 · 零配对</text>
+  </g>
+  <!-- daemon -->
+  <rect x="348" y="26" width="300" height="330" rx="14" fill="#111619" stroke="#7fd8e8" stroke-width="1.5"/>
+  <text x="498" y="56" text-anchor="middle" fill="#7fd8e8" font-size="16" font-weight="bold">wand-daemon · Mac</text>
+  <g font-size="12.5">
+    <rect x="366" y="72" width="264" height="44" rx="8" fill="#161d21" stroke="#243036"/>
+    <text x="380" y="91" fill="#d6dee2" font-weight="bold" font-size="13.5">串口帧解析</text>
+    <text x="380" y="108" fill="#8798a0">'J' 控制行 / 'A' 音频帧 / 'I' IMU 帧</text>
+    <rect x="366" y="124" width="264" height="44" rx="8" fill="#161d21" stroke="#243036"/>
+    <text x="380" y="143" fill="#d6dee2" font-weight="bold" font-size="13.5">ASR：SFSpeechRecognizer</text>
+    <text x="380" y="160" fill="#8798a0">系统自带 · 免费无 key（备 whisper.cpp）</text>
+    <rect x="366" y="176" width="264" height="44" rx="8" fill="#161d21" stroke="#243036"/>
+    <text x="380" y="195" fill="#d6dee2" font-weight="bold" font-size="13.5">手势分类器（v0 电脑端）</text>
+    <text x="380" y="212" fill="#8798a0">IMU 流 → 1D-CNN → 手势事件</text>
+    <rect x="366" y="228" width="264" height="44" rx="8" fill="#161d21" stroke="#243036"/>
+    <text x="380" y="247" fill="#d6dee2" font-weight="bold" font-size="13.5">按键映射</text>
+    <text x="380" y="264" fill="#8798a0">tmux send-keys / 剪贴板粘贴</text>
+    <rect x="366" y="280" width="264" height="44" rx="8" fill="#161d21" stroke="#243036"/>
+    <text x="380" y="299" fill="#d6dee2" font-weight="bold" font-size="13.5">会话状态机 + 通知</text>
+    <text x="380" y="316" fill="#8798a0">macOS 通知 · 状态回发杖屏</text>
+  </g>
+  <!-- agent -->
+  <rect x="678" y="26" width="240" height="330" rx="14" fill="#111619" stroke="#b39ddb" stroke-width="1.5"/>
+  <text x="798" y="56" text-anchor="middle" fill="#b39ddb" font-size="16" font-weight="bold">Agent 终端 · tmux</text>
+  <g font-size="12.5">
+    <rect x="694" y="72" width="208" height="44" rx="8" fill="#161d21" stroke="#243036"/>
+    <text x="706" y="91" fill="#d6dee2" font-weight="bold" font-size="13.5">ZCode / Claude Code</text>
+    <text x="706" y="108" fill="#8798a0">跑在指定 tmux 窗格</text>
+    <rect x="694" y="124" width="208" height="44" rx="8" fill="#161d21" stroke="#243036"/>
+    <text x="706" y="143" fill="#d6dee2" font-weight="bold" font-size="13.5">文本注入</text>
+    <text x="706" y="160" fill="#8798a0">load-buffer + paste + Enter</text>
+    <rect x="694" y="176" width="208" height="44" rx="8" fill="#161d21" stroke="#243036"/>
+    <text x="706" y="195" fill="#d6dee2" font-weight="bold" font-size="13.5">裁定按键</text>
+    <text x="706" y="212" fill="#8798a0">y=接受 · Esc=拒绝 · EscEsc=停</text>
+    <rect x="694" y="228" width="208" height="96" rx="8" fill="#161d21" stroke="#243036"/>
+    <text x="706" y="252" fill="#8798a0">对 agent 而言，魔杖只是一双</text>
+    <text x="706" y="272" fill="#8798a0">看不见的手：它照常工作，</text>
+    <text x="706" y="292" fill="#8798a0">不知道输入来自挥手还是键盘。</text>
+    <text x="706" y="312" fill="#7ee2a8">零 Agent 侧改动 ✦</text>
+  </g>
+  <!-- arrows -->
+  <line x1="318" y1="170" x2="346" y2="170" stroke="#7fd8e8" stroke-width="1.8" marker-end="url(#ah2)"/>
+  <line x1="346" y1="196" x2="318" y2="196" stroke="#7fd8e8" stroke-width="1.2" stroke-dasharray="5 4" marker-end="url(#ah2)"/>
+  <text x="332" y="158" text-anchor="middle" fill="#7fd8e8" font-size="11.5">上行</text>
+  <text x="332" y="214" text-anchor="middle" fill="#4d8a96" font-size="11.5">状态</text>
+  <line x1="648" y1="183" x2="676" y2="183" stroke="#7fd8e8" stroke-width="1.8" marker-end="url(#ah2)"/>
+  <text x="662" y="170" text-anchor="middle" fill="#7fd8e8" font-size="11.5">注入</text>
+</svg>
+<div class="cap">图 2 · 系统架构。魔杖只做「传感器 + 屏幕 + 事件源」，所有智能在 Mac 端 daemon；对 Agent 终端零侵入——这就是 v0 能在三天内做完全部秘密。</div>
+</div>
+
+<div class="note"><b>设计要点：</b>杖端固件保持「傻」（采音、采 IMU、画屏、发帧），识别/映射/状态全在 daemon。好处：改手势集、换 ASR、换 agent 都只动 Python，固件基本冻结；将来把分类器/唤醒词下沉到杖上（两条路都已铺好）也不改变协议。</div>
+
+<!-- ================================================================ 4 -->
+<h2 id="s4"><span class="no">§4</span>技术选型：三处分叉怎么定的</h2>
+
+<h3>4.1 魔杖 ↔ 电脑：USB CDC</h3>
+<table>
+  <tr><th style="width:140px">维度</th><th>USB-C CDC ✅</th><th>BLE</th><th>WiFi (UDP/WS)</th></tr>
+  <tr><td>配对/连接管理</td><td class="yes">插上即用，零配对</td><td class="nope">GATT 服务 + 连接参数 + 断连重连一套全要写</td><td>要配网、管断线重连</td></tr>
+  <tr><td>音频带宽</td><td class="yes">16kHz 裸 PCM 32KB/s 轻松</td><td class="nope">吞吐勉强、抖动难控，得压缩</td><td>够，但裸流占空口</td></tr>
+  <tr><td>供电</td><td class="yes">同一线供电，永远在线</td><td>电池 + 充电管理</td><td>电池（WiFi 较耗电）</td></tr>
+  <tr><td>演示自由度</td><td class="nope">拖一根线（约 1m 活动半径）</td><td>无线</td><td>无线</td></tr>
+  <tr><td>实现成本</td><td class="yes">Arduino "USB CDC On Boot" 一个开关</td><td>高</td><td>中（v1.5 再上，加 ADPCM 压缩到 8KB/s）</td></tr>
+</table>
+<div class="verdict">✅ <b>定案：v0 用 USB CDC</b>。玩具演示在书桌前完成，一根 USB-C 延长线就是"魔法范围"；真要无线，v1.5 加 WiFi + ADPCM，协议不变。</div>
+
+<h3>4.2 语音识别：系统自带 SFSpeechRecognizer</h3>
+<table>
+  <tr><th style="width:140px">维度</th><th>SFSpeechRecognizer ✅</th><th>whisper.cpp</th><th>云端 API</th></tr>
+  <tr><td>成本/准备</td><td class="yes">免费，pip 装个 pyobjc 框架包就能调</td><td>免费，编译 + 下模型（~150MB）</td><td class="nope">要 key 要钱</td></tr>
+  <tr><td>中英文</td><td class="yes">都支持，混说尚可</td><td>small 以上不错，tiny 一般</td><td>最好</td></tr>
+  <tr><td>延迟</td><td class="yes">录音结束 1~2s 出文字</td><td>小模型数秒（M 系很快）</td><td>看网络</td></tr>
+  <tr><td>离线</td><td>部分语言走本机，部分需联网（无 key）</td><td class="yes">完全离线</td><td class="nope">否</td></tr>
+</table>
+<p class="muted">转写错误有「确认态」兜底（画圈前不上屏进 agent），所以 ASR 不需要顶配——这也是整个方案敢用免费方案的心理底气。</p>
+
+<h3>4.3 注入 Agent：tmux send-keys 为主</h3>
+<ul>
+  <li><b>首选 tmux</b>：CLI agent 用户本来就活在 tmux 里；<code>load-buffer</code> 写剪贴板 → <code>paste-buffer</code> → <code>send Enter</code> 三条命令完成一段长中文注入；<code>send-keys Escape</code> 天然就是拒绝/急停。<b>不需要任何系统权限</b>，也不会误伤别的窗口。</li>
+  <li><b>备选 CGEvent</b>（pyobjc 全局键盘事件）：通吃任意窗口（比如网页版 agent），但要辅助功能权限、且依赖焦点位置。Demo 不依赖它。</li>
+  <li><b>目标窗格</b>：daemon 配置文件写死 <code>session:window.pane</code>（例如 <code>dev:0.0</code>），并提供一条「指向当前窗格」的 CLI 小命令。</li>
+</ul>
+
+<!-- ================================================================ 5 -->
+<h2 id="s5"><span class="no">§5</span>通信协议（USB CDC）</h2>
+<p>一根串口上跑三种帧，统一「类型 + 长度」封包，解析十几行写完：</p>
+<pre><code>帧格式: [type:1B 'J'|'A'|'I'|'S'] [len:2B 小端] [payload]
+  'J' 控制行(JSON, UTF-8)
+  'A' 音频   payload = 16kHz/16bit/单声道 PCM 切片
+  'I' IMU    payload = 6×int16 (ax ay az gx gy gz) @100Hz
+  'S' 状态   daemon→杖，驱动杖屏 UI</code></pre>
+<pre><code><span class="cm">// 杖 → daemon</span>
+{"t":"ptt","down":true}          {"t":"ptt","down":false}
+{"t":"battery":87}
+<span class="cm">// daemon → 杖</span>
+{"t":"state","s":"review"}       {"t":"asr","text":"给这个页面加一个暗色模式开关…"}
+{"t":"gesture","g":"circle"}     <span class="cm">// v0 由 daemon 分类后自环（杖端 v1 才发）</span></code></pre>
+<p class="muted">波特率概念在 USB CDC 上只是摆设（实际走 USB 全速），32KB/s 音频 + 1.2KB/s IMU 合计带宽占用不到 5%。</p>
+
+<!-- ================================================================ 6 -->
+<h2 id="s6"><span class="no">§6</span>杖屏 UI 与硬件</h2>
+<h3>6.1 杖屏状态（StickS3 自带小屏，全部单色简笔画风）</h3>
+<table>
+  <tr><th>状态</th><th>杖屏内容</th><th>反馈重点</th></tr>
+  <tr><td>空闲</td><td>居中 ✦ + 电量小字</td><td>安静、待命</td></tr>
+  <tr><td>录音</td><td>实时波形条（麦克风能量）</td><td>"在听"的确定感</td></tr>
+  <tr><td>转写中</td><td>✦ 旋转</td><td>1~2s 的等待仪式感</td></tr>
+  <tr><td>确认</td><td>转写文字小字滚动 + 底部提示「○发送 ‖作废」</td><td>错误止步于此</td></tr>
+  <tr><td>施法中</td><td>转圈 + 最近一条 agent 事件单行（来自 daemon）</td><td>看得见它在干活</td></tr>
+  <tr><td>急停</td><td>全屏红闪 0.5s「已打断」</td><td>法术反噬的戏剧效果</td></tr>
+</table>
+<h3>6.2 硬件清单（全存量）</h3>
+<table>
+  <tr><th>物品</th><th>用途</th><th>成本</th></tr>
+  <tr><td>M5StickS3（K150）</td><td>杖体：IMU + 麦克风 + 按键 + 屏幕 + 电池 + USB-C</td><td>¥0</td></tr>
+  <tr><td>USB-C 数据线 / 延长线</td><td>供电 + CDC 数据</td><td>¥0</td></tr>
+  <tr><td>Mac</td><td>daemon + ASR + agent 终端</td><td>¥0</td></tr>
+</table>
+
+<!-- ================================================================ 7 -->
+<h2 id="s7"><span class="no">§7</span>复用资产清单</h2>
+<table>
+  <tr><th>资产</th><th>来源</th><th>在本方案中的角色</th></tr>
+  <tr><td><b>自研唤醒词引擎</b>（33KB int8，召回 100%）</td><td><a href="../magic-wand/wakenet/">magic-wand/wakenet/</a></td><td>M5：PTT 替换为说"Lumos"触发，C 运行时与训练流水线全现成</td></tr>
+  <tr><td><b>手势识别流水线</b>（采集→1D-CNN→部署）</td><td><a href="../magic-wand/index.html">魔杖方案 §4</a></td><td>直接套用：4 类手势 + 背景，v0 在电脑端跑、v1 用 wakenet 教程同款方法上板</td></tr>
+  <tr><td><b>arduino-cli 刷机工具链</b></td><td><a href="../m5sticks3-demo-flashing-setup.html">M5StickS3 刷机笔记</a></td><td>固件开发/烧录零摸索（Mic_FFT 已验证采音通路）</td></tr>
+  <tr><td><b>ESP-NOW 经验</b></td><td><a href="../espnow-intercom-sticks3-amoled-plan.html">对讲方案</a></td><td>本方案用不上（直连电脑），留给未来"魔杖控制第二台设备"彩蛋</td></tr>
+</table>
+
+<!-- ================================================================ 8 -->
+<h2 id="s8"><span class="no">§8</span>里程碑与验收</h2>
+<p class="lead">仍然是最不确定的先做：链路和 ASR 第一天见分晓。M0–M4 共约 3 天出完整 Demo。</p>
+<table>
+  <tr><th style="width:64px">阶段</th><th style="width:190px">内容</th><th style="width:64px">工作量</th><th>验收标准</th></tr>
+  <tr><td><b>M0</b></td><td>USB CDC 通道打通</td><td>0.5 天</td><td>杖端按键 → daemon 收到事件；录音落盘为 wav，Mac 可回放，10s 音频无爆音无丢帧</td></tr>
+  <tr><td><b>M1</b></td><td>PTT → ASR → 通知</td><td>0.5 天</td><td>10 句中文编程指令（含"暗色模式""加个接口"），≥8 句转写可直接用（不要求逐字）</td></tr>
+  <tr><td><b>M2</b></td><td>手势 4 类：采集+训练+daemon 内分类</td><td>1 天</td><td>每类 ≥40 次 ×3 session；按 session 切分验证集每类 ≥90%；现场各做 10 次对 ≥9；静置 10 分钟 0 误触</td></tr>
+  <tr><td><b>M3</b></td><td>tmux 注入 + 全链路</td><td>0.5 天</td><td>演示脚本 1–6 步全部走通（说话→确认→发送→agent 跑→裁定→急停），连续 5 轮不重启</td></tr>
+  <tr><td><b>M4</b></td><td>杖屏 UI + 彩排</td><td>0.5 天</td><td>六种屏态齐全；录 90 秒演示视频（含一次急停）</td></tr>
+  <tr><td><b>M5</b> <span class="muted">可选</span></td><td>自研唤醒词替换 PTT</td><td>0.5 天</td><td>安静房间 1m 内 "Lumos" 唤醒率 ≥90%，静置 1 小时 0 误唤醒</td></tr>
+</table>
+
+<!-- ================================================================ 9 -->
+<h2 id="s9"><span class="no">§9</span>风险与对策</h2>
+<table>
+  <tr><th style="width:56px">编号</th><th>风险</th><th>对策（预案先写好，现场不临场发挥）</th></tr>
+  <tr><td><b>R1</b></td><td>SFSpeechRecognizer 首次要麦克风/语音识别权限，或识别率不达标</td><td>M1 第一小时就验证；不过关 → 切 whisper.cpp small（M 系 CPU 几秒内出结果），协议不变</td></tr>
+  <tr><td><b>R2</b></td><td>手势误触发把正在编辑的代码改了</td><td>双层闸门：仅「确认/施法中」两态映射按键，空闲态手势只做屏显；daemon 一键全局开关（或反手一扣放在桌上）</td></tr>
+  <tr><td><b>R3</b></td><td>tmux 目标窗格找错 / 用户不在 tmux 里跑 agent</td><td>配置写死窗格 + 「指向当前窗格」小命令；终极兜底切 CGEvent 全局按键（多一次辅助功能授权）</td></tr>
+  <tr><td><b>R4</b></td><td>ASR 代码术语翻车（dark mode→达克模式）</td><td>确认态人工把关 + agent 本来就擅长猜模糊意图；可选：转写后过一层术语词典修正</td></tr>
+  <tr><td><b>R5</b></td><td>USB 线拽着影响演示姿势</td><td>1m 延长线先顶着；v1.5 WiFi + ADPCM（8KB/s）无绳化，协议不变</td></tr>
+  <tr><td><b>R6</b></td><td>杖端与 daemon 状态失步（如急停后杖屏还转圈）</td><td>daemon 是唯一状态源，杖屏纯渲染 'S' 帧；失步超 2s 杖端自动回空闲</td></tr>
+</table>
+
+<!-- ================================================================ 10 -->
+<h2 id="s10"><span class="no">§10</span>刻意不做的事</h2>
+<ul>
+  <li>❌ BLE 音频 / LE Audio —— USB 一根线解决的事不配拥有 GATT。</li>
+  <li>❌ Agent 侧任何改动、插件、hook —— 魔杖对 agent 完全透明（就当它是键盘）。</li>
+  <li>❌ 多台电脑 / 多 agent 会话路由 —— 就一个 tmux 窗格。</li>
+  <li>❌ 语音直发（跳过确认态）—— 一次"达克模式"事故就够毁掉演示。</li>
+  <li>❌ 云端 ASR/TTS、对话式语音（魔杖不会说话，它只施法）。</li>
+  <li>❌ 真魔杖外形、3D 打杖身 —— 屏幕+棒状本体已经是魔法了，v2 再说。</li>
+  <li>❌ OTA、低功耗 —— 插着 USB 呢。</li>
+</ul>
+
+<div class="footer">
+  Vibecoding 魔杖 · 方案 v1 · 2026-09-19 · 状态：待评审（未提交 git）<br>
+  技术底座来自 <a href="../esp32-wakenet-diy-tutorial.html">ESP32 语音唤醒完全教程</a> 与 <a href="../magic-wand/index.html">Lumos 魔杖方案</a>（唤醒引擎、手势流水线、刷机工具链全部现成）。
+</div>
+
+</div>
+</body>
+</html>

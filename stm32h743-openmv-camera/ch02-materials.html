@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>资料收集与引脚逆向 · STM32H743 摄像头教程</title>
+<style>
+:root{--bg:#0f0f12;--surface:#1a1a1f;--text:#e8e8ec;--dim:#9ca3af;--acc:#10b981;--acc2:#6366f1;--border:rgba(255,255,255,.08)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);line-height:1.85;-webkit-font-smoothing:antialiased}
+.wrap{max-width:860px;margin:0 auto;padding:36px 24px 90px}
+.crumb{font-size:.85em;color:var(--dim);margin-bottom:18px}
+.crumb a{color:var(--acc);text-decoration:none}
+h1{font-size:1.65em;margin:6px 0 6px;background:linear-gradient(135deg,#e8e8ec 30%,#34d399 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.sub{color:var(--dim);font-size:.95em;margin-bottom:26px}
+h2{font-size:1.22em;margin:34px 0 12px;color:#34d399}
+h3{font-size:1.05em;margin:24px 0 8px;color:var(--text)}
+p{margin:10px 0}
+ul,ol{margin:10px 0 10px 24px}
+li{margin:6px 0}
+code{background:#16161c;border:1px solid var(--border);border-radius:5px;padding:1px 7px;font-family:"SF Mono",Menlo,Consolas,monospace;font-size:.87em;color:#7dd3fc}
+pre{background:#121218;border:1px solid var(--border);border-radius:10px;padding:16px 18px;overflow-x:auto;margin:14px 0;line-height:1.6}
+pre code{background:none;border:none;padding:0;color:#c9d1d9;font-size:.85em}
+table{border-collapse:collapse;width:100%;margin:14px 0;font-size:.92em}
+th{background:#1c1c23;color:#9ca3af;font-weight:600;text-align:left;padding:8px 12px;border:1px solid var(--border)}
+td{padding:7px 12px;border:1px solid var(--border);vertical-align:top}
+tr:nth-child(even) td{background:rgba(255,255,255,.015)}
+.note{background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.25);border-radius:10px;padding:13px 17px;font-size:.93em;margin:16px 0}
+.warn{background:rgba(249,115,22,.07);border:1px solid rgba(249,115,22,.3);border-radius:10px;padding:13px 17px;font-size:.93em;margin:16px 0}
+.story{background:rgba(99,102,241,.07);border:1px solid rgba(99,102,241,.3);border-radius:10px;padding:13px 17px;font-size:.93em;margin:16px 0}
+.nav{display:flex;justify-content:space-between;margin-top:48px;border-top:1px solid var(--border);padding-top:18px}
+.nav a{color:var(--acc);text-decoration:none;font-size:.92em;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 16px}
+.nav a:hover{border-color:var(--acc)}
+.k{color:#9ca3af}
+b{color:#e8e8ec}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="crumb"><a href="index.html">STM32H743 摄像头完全教程</a> / 第 2 章</div>
+<h1>资料收集与引脚逆向</h1>
+<div class="sub">没有引脚表就没有驱动。这一章讲去哪里找资料，以及怎么从一份原理图 PDF 机器化地提取引脚映射。</div>
+<h2>2.1 资料清单：拿到板子先收集什么</h2>
+<table>
+<tr><th>资料</th><th>去哪找</th><th>用来干什么</th></tr>
+<tr><td>两份原理图 PDF（主板 9 页 + 接口板 2 页）</td><td>随板附带 / 卖家网盘</td><td>引脚映射的唯一权威来源</td></tr>
+<tr><td>原厂 Demo 工程（GPIO/LCD/SDRAM 三个）</td><td>同上</td><td>时钟树、外设参数、LCD 驱动的「已知正确答案」</td></tr>
+<tr><td>WeAct GitHub 组织</td><td><code>github.com/WeActStudio</code></td><td>找同系列板卡的开源资料</td></tr>
+<tr><td>WeAct 的 OpenMV 固件分支</td><td><code>github.com/WeActStudio/openmv</code> 的 <code>WeActStudio</code> 分支</td><td><b>宝库</b>：板级配置、传感器寄存器表、探测流程、DCMI 极性，全在里面</td></tr>
+<tr><td>ST 官方 STM32CubeH7</td><td><code>github.com/STMicroelectronics/STM32CubeH7</code></td><td>HAL 驱动源码（按 tag 取，如 v1.11.1）</td></tr>
+</table>
+<div class="note">WeAct 的 OpenMV 分支里有 <code>src/omv/boards/WeActStudioSTM32H7xx/omv_boardconfig.h</code>——虽然那是给 MiniSTM32H7xx 板的（引脚不能照抄），但它给出了 XCLK 频率、PLL 配置、各传感器的 VSYNC 极性、I2C 地址等「软件侧真相」，与原理图逆向的结果互相印证后就是高置信度结论。</div>
+<pre><code>git clone --depth 1 -b WeActStudio https://github.com/WeActStudio/openmv.git</code></pre>
+
+<h2>2.2 为什么不能直接抄相近板卡的固件配置</h2>
+<div class="story"><b>真实案例</b>：WeAct 自己的固件里 D2=PE0、D3=PE1、D5=PD3。但 OpenMV Plus 带 32MB SDRAM，PE0/PE1/PD3 被 FMC 占用，摄像头数据线被挪到了 PG10/PG11/PB6。如果照抄，现象会是「SCCB 能识别传感器、彩条能出、但真实图像全是均匀噪声」——因为数据线根本没接对。同厂商 ≠ 同引脚，<b>每一块新板都要回到原理图</b>。</div>
+
+<h2>2.3 从原理图 PDF 提取引脚映射的方法论</h2>
+<p>手上有 PDF 没有 netlist 时，用 <b>PyMuPDF 按坐标提取文字 + 几何配对</b>两步走：</p>
+<h3>第一步：拿到带坐标的文字</h3>
+<pre><code>import fitz
+doc = fitz.open('board.pdf')
+words = doc[1].get_text('words')   # (x0, y0, x1, y1, word, ...)</code></pre>
+<p>Altium 导出的 PDF 里，MCU 符号的每个引脚都印着一串复用功能文本（形如 <code>PC6/I2S2_MCK/TIM8_CH1/.../DCMI_D0</code>），而网络标签（<code>DCMI_D0</code>）贴在引脚的连线端。</p>
+<h3>第二步：按 y 中心偏移配对</h3>
+<p>网络标签与它所属引脚功能串的 <b>y 中心恒差 -2.1 ~ -2.3 pt</b>（同一版图排版规律）。用这个规则配对，比「最近邻」可靠一个数量级——最近邻会把 PG9/PG10、PB5/PB6 这类相邻引脚搞混。</p>
+<pre><code># 伪代码：网络标签 y 中心 ≈ 引脚功能串 y 中心 - 2.1
+for net_label in labels:
+    for pin_func_string in pins_on_same_side:
+        if -3 &lt; (net_center_y - pin_center_y) &lt; -1.4:
+            match(net_label, pin_name)   # 如 DCMI_D0 → PC6</code></pre>
+<div class="warn"><b>视觉大模型看原理图不可靠</b>：MCU 符号上印的复用功能名会当成答案「背出来」（把 DCMI_D8~D13 这些没连接的复用名当成实际连线）。坐标几何方法没有这个问题。</div>
+
+<h2>2.4 交叉验证</h2>
+<p>提取结果必须过两道验证再用：</p>
+<ul>
+<li><b>功能合理性</b>：每个 DCMI 引脚查 AF13 表（如 PG10 AF13 = DCMI_D2 ✓）；控制类引脚（PWDN/RST/XCLK）应为 GPIO/定时器通道</li>
+<li><b>与已知固件对比</b>：与 WeAct 固件的板配置逐脚 diff，差异处必须有解释（本板的差异全部能用「SDRAM 占用」解释）</li>
+</ul>
+
+<h2>2.5 Demo 工程里还能白捡什么</h2>
+<ul>
+<li><b>LCD_TEST</b>：SPI2 全部参数、背光 PWM、时钟树代码、编译宏 <code>TFT96</code>（屏型号）、厂商 lcd.c 显示路径（后面直接整体复用）</li>
+<li><b>SDRAM_TEST</b>：FMC 配置与 <code>EXT_SDRAM_ADDR</code>（本教程未用 SDRAM，跑大分辨率时回来抄）</li>
+<li><b>GPIO_TEST</b>：最小时钟模板</li>
+</ul>
+<p>三个 Demo 都是 CubeMX+Keil 工程，<code>.ioc</code> 文件里的引脚标签（如 <code>PD13.GPIO_Label=LCD_WR_RS</code>）本身就是一份引脚清单，与原理图逆向互为印证。</p>
+
+<div class="nav"><a href="ch01-board.html">&larr; 第1章</a><a href="index.html">目录</a><a href="ch03-toolchain.html">第3章 &rarr;</a></div>
+</div>
+</body>
+</html>

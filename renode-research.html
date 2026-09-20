@@ -1,0 +1,139 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Renode 调研：Antmicro 开源嵌入式全系统仿真器的能力全景、与 QEMU/Wokwi/espressif-qemu 对比、macOS Apple Silicon 状态、ESP32/Xtensa 支持实勘结论。"><title>Renode 调研 · 嵌入式全系统仿真器</title>
+<style>
+:root{--bg:#f5f7fa;--paper:#fff;--ink:#1c293d;--muted:#52627a;--line:#dce3ec;--blue:#315cc5;--green:#067465;--amber:#925411;--code:#101d30}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:24px}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.85 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}a{color:var(--blue);text-underline-offset:3px}a:hover{text-decoration-thickness:2px}a:focus-visible,summary:focus-visible{outline:3px solid var(--blue);outline-offset:4px}p{margin:12px 0 18px}strong{font-weight:650}code,pre{font-family:ui-monospace,SFMono-Regular,Consolas,monospace}code{font-size:.86em;background:#edf1f7;padding:2px 5px;border-radius:4px;overflow-wrap:anywhere}pre{background:var(--code);color:#e5edf9;padding:22px;border-radius:12px;overflow:auto;font-size:13px;line-height:1.75}pre code{background:none;padding:0;font-size:inherit;overflow-wrap:normal}h1,h2,h3{line-height:1.35}h1{font-size:clamp(30px,4vw,46px);letter-spacing:-1.6px;margin:20px 0}h2{font-size:27px;letter-spacing:-.6px;margin:0 0 24px}h3{font-size:19px;margin:28px 0 12px}ul,ol{padding-left:24px}li{margin:6px 0}small,.muted{color:var(--muted)}.wrap{max-width:1260px;margin:auto;padding:0 36px}.top{padding:25px 0;font-size:14px}.top a{text-decoration:none}.hero{padding:26px 0 42px;border-bottom:1px solid var(--line)}.eyebrow{color:var(--green);font:600 12px/1.5 ui-monospace,monospace;letter-spacing:2px}.hero p{max-width:780px;font-size:18px;color:var(--muted)}.meta{display:flex;flex-wrap:wrap;gap:8px 20px;font-size:13px;color:var(--muted)}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:32px}.metric{padding:19px 20px;background:var(--paper);border:1px solid var(--line);border-radius:12px}.metric b{display:block;font-size:26px;line-height:1.4;letter-spacing:-.8px}.metric span{font-size:12px;color:var(--muted)}.layout{display:grid;grid-template-columns:205px minmax(0,1fr);gap:44px;padding:42px 0 60px}aside{position:sticky;top:24px;align-self:start}aside b{font-size:12px;color:var(--muted);letter-spacing:2px}nav{display:grid;gap:0;margin-top:14px}nav a{font-size:13px;text-decoration:none;color:var(--muted);padding:4px 10px;border-left:2px solid var(--line)}nav a:hover{color:var(--blue);border-color:var(--blue);background:#eaf0fb}main{min-width:0}section{padding:32px;background:var(--paper);border:1px solid var(--line);border-radius:15px;margin-bottom:24px}h2 .n{font-size:13px;display:block;letter-spacing:2px;color:var(--green);margin-bottom:7px}.table{overflow-x:auto;margin:20px 0;border:1px solid var(--line);border-radius:9px}table{border-collapse:collapse;width:100%;font-size:14px;min-width:570px}th,td{padding:13px 15px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{background:#edf2f8;font-size:12px;color:#3c506b}tr:last-child td{border-bottom:0}td:first-child{font-weight:550}.badge{display:inline-block;padding:2px 8px;border-radius:5px;font-size:12px;white-space:nowrap;background:#e9f1fe;color:#2854a8}.ok{background:#e3f4ee;color:#075e4b}.pending{background:#fff0dc;color:#825015}.removed{background:#f0edf5;color:#64566d}.callout{padding:17px 20px;border-left:4px solid var(--green);background:#eef8f5;border-radius:0 9px 9px 0;margin:22px 0}.callout.warn{border-color:#c08631;background:#fff7e9}.callout p{margin:4px 0}.source{font-size:12px;color:var(--muted)}.sources li{font-size:14px;padding-bottom:8px;overflow-wrap:anywhere}details{border:1px solid var(--line);border-radius:9px;padding:15px 18px;margin:16px 0}summary{cursor:pointer;font-weight:600}details p:last-child{margin-bottom:0}.foot{padding:4px 0 40px;color:var(--muted);font-size:13px}.skip{position:absolute;left:16px;top:-80px;background:white;padding:10px;z-index:2}.skip:focus{top:10px}
+@media(max-width:960px){.layout{grid-template-columns:1fr;gap:24px}aside{position:static}nav{grid-template-columns:repeat(3,1fr)}.wrap{padding:0 24px}h1{letter-spacing:-1px}.metrics{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){body{font-size:15px}.wrap{padding:0 16px}.hero{padding-top:10px}.hero p{font-size:16px}.metrics{grid-template-columns:1fr;gap:10px}.metric{padding:14px}.metric b{font-size:23px}nav{grid-template-columns:1fr 1fr}.layout{padding-top:26px}section{padding:22px 18px;border-radius:12px}h2{font-size:23px}.table{min-width:0}table{min-width:0;font-size:12px}pre{padding:16px;font-size:12px}.meta{font-size:12px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+@media print{body{background:white;font-size:11pt}.wrap{max-width:none;padding:0}.top,aside,.skip{display:none}.hero{padding:0 0 20px}.hero p{font-size:12pt}.layout{display:block;padding:20px 0}section{border:0;padding:18px 0;margin:0;border-radius:0}h2,h3{break-after:avoid}tr,.callout,.metric{break-inside:avoid}.table,pre{overflow:visible}table{min-width:0;font-size:9pt}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#edf1f7;color:#14243d}a{color:inherit}details{display:block}.foot{padding-top:20px}}
+</style></head><body><a class="skip" href="#tldr">跳到正文</a><div class="wrap"><div class="top"><a href="index.html">← Notes</a> / research</div><header class="hero"><div class="eyebrow">RENODE / EMBEDDED FULL-SYSTEM SIMULATOR</div><h1>把整块开发板搬进 CI：<br>Renode 调研</h1><p class="lead">Renode 是 Antmicro 开源的嵌入式<strong>全系统功能仿真器</strong>：不改一行代码就能在开发机上运行与真机相同的固件二进制，仿真 CPU、外设、传感器乃至多机组网，并用 Robot Framework 做无硬件回归测试。本文调研它的能力全景、生态地位、macOS Apple Silicon 状态，以及对我们 ESP32 项目的实际可用性判定。</p><div class="meta"><span>整理：2026-09-19</span><span>基线：Renode 1.17.0（2026-09-06）+ master 源码树实勘</span><span>结论：工具一流；但 ESP32-S3 场景用不上</span></div><div class="metrics"><div class="metric"><b>MIT · 2.9k★</b><span>开源宽松许可，Antmicro 持续主导开发</span></div><div class="metric"><b>1.17.0 · 2026-09</b><span>两周前刚发版：Web UI、librenode.so、Vmnet 网络栈</span></div><div class="metric"><b>65 块树内板卡</b><span>nRF52 / STM32 / i.MX RT / Zynq / LiteX / LEON…</span></div><div class="metric"><b>ESP32 SoC 模型：0</b><span>Xtensa 仅 CPU 级翻译，无板级 .repl——S3 项目不可用</span></div></div></header><div class="layout"><aside><b>调研目录</b><nav aria-label="报告目录"><a href="#tldr">00 · 结论速览与拍板</a><a href="#what">01 · Renode 是什么</a><a href="#mechanics">02 · 核心机制与工作流</a><a href="#platforms">03 · 架构与平台支持</a><a href="#esp32">04 · ESP32 / Xtensa 现状实勘</a><a href="#mac">05 · macOS Apple Silicon</a><a href="#compare">06 · Renode vs QEMU vs Wokwi</a><a href="#verdict">07 · 对我们项目的落地建议</a><a href="#sources">08 · 信息来源与版本快照</a></nav></aside><main>
+
+<section id="tldr"><h2><span class="n">00 / TL;DR</span>结论速览与拍板</h2>
+<p><strong>Renode 是目前开源世界里"嵌入式固件 CI 测试"方向最完整的仿真基础设施</strong>：跑未修改的生产固件 ELF、外设用 C#/Python 高层建模、原生多机组网、内置 GDB server、Robot Framework 测试关键字、代码覆盖率与执行追踪，Zephyr 生态拿它跑大规模板卡兼容性 CI。但它本质是<strong>功能级（transaction-level）仿真</strong>，不追时序精度；性能慢于 QEMU；外设模型覆盖靠社区堆量，缺了要自己写。</p>
+<p><strong>对我们的拍板：</strong>当前手上的 ESP32-S3/Xtensa 项目（magic-wand、M5StickS3、AMOLED）<span class="badge removed">不引入</span>——Renode 对乐鑫只有 CPU 翻译层和一个 ESP32 UART 外设模型，master 源码树里<strong>没有任何 esp32 板级平台文件</strong>（本文 §4 有实勘证据），Wi-Fi/BLE 更是无从谈起。ESP32 固件仿真的现实选项是 <strong>espressif/qemu</strong>（ESP-IDF 官方集成 <code>idf.py qemu</code>）或 <strong>Wokwi</strong>。但若以后做 ARM（nRF52/STM32）或 RISC-V 裸机/Zephyr 项目的无硬件回归测试，Renode 值得第一个回头看。</p>
+<div class="table"><table><thead><tr><th>维度</th><th>状态</th><th>要点</th></tr></thead><tbody>
+<tr><td>项目健康度</td><td><span class="badge ok">活跃</span></td><td>1.17.0 于 2026-09-06 发布；1.16 系列带来反向调试、dotnet 默认运行时、WebSocket API</td></tr>
+<tr><td>许可证 / 语言</td><td><span class="badge ok">MIT · C#</span></td><td>外设模型也用 C#（或 Python）写，几百行起步</td></tr>
+<tr><td>支持的 CPU 架构</td><td><span class="badge ok">广</span></td><td>ARMv7/8、RISC-V、x86、SPARC、POWER、MSP430X、<strong>Xtensa（仅 ISA 级）</strong></td></tr>
+<tr><td>ESP32 全芯片仿真</td><td><span class="badge removed">不可用</span></td><td>树内仅 <code>xtensa-sample-controller.repl</code>；esp32*.repl 为零；无 Wi-Fi 模型</td></tr>
+<tr><td>macOS Apple Silicon</td><td><span class="badge ok">原生可用</span></td><td>官方 osx-arm64 便携包 + Homebrew tap；1.17 起网络走 VmnetHelper（不再依赖旧 TAP 方案）</td></tr>
+<tr><td>vs QEMU</td><td><span class="badge">互补</span></td><td>QEMU 快、跑 Linux；Renode 建模易、确定性强、多节点、CI 友好</td></tr>
+</tbody></table></div>
+<div class="callout"><p><strong>一句话：</strong>Renode 是"给固件工程师的仿真器"，不是"给芯片架构师的仿真器"——它换一种方式解决了 QEMU 在嵌入式场景难扩展、难做确定性测试的问题；但它救不了 ESP32-S3，因为乐鑫生态的仿真投入在 QEMU fork 和 Wokwi 那边。</p></div>
+</section>
+
+<section id="what"><h2><span class="n">01 / WHAT &amp; WHY</span>Renode 是什么</h2>
+<p><strong>Renode</strong>（repo：<a href="https://github.com/renode/renode">github.com/renode/renode</a>，官网 <a href="https://renode.io/">renode.io</a>）由波兰公司 <strong>Antmicro</strong> 主导开发，README 自我定位是"多节点嵌入式网络（有线与无线）的虚拟开发框架"。1.0.0 发布于 <strong>2017-06-13</strong>（CHANGELOG 实勘），MIT 许可，主体用 <strong>C#/.NET</strong> 实现（1.16.1 起默认运行时为 dotnet），宿主支持 Linux / Windows / macOS。</p>
+<p>它解决的问题：嵌入式软件的回归测试严重依赖真机+烧录+手工串口观察。Renode 把<strong>整块板子</strong>（CPU 核、总线、外设、传感器、网络介质）在开发机上重建出来，让与真机完全相同的固件二进制跑起来，于是固件测试可以像 Web 项目的单元测试一样进 CI。标志性用例：</p>
+<ul>
+<li><strong>Sound Open Firmware（SOF）</strong>：Intel 主导的开源音频 DSP 固件，其 Xtensa DSP 固件在 Renode 里做测试（这正是 Renode 加 Xtensa 支持的最初动机，见 <a href="https://antmicro.com/blog/2022/01/xtensa-isa-in-renode-for-sof/">Antmicro 2022-01 博客</a>）；</li>
+<li><strong>Zephyr 兼容性看板</strong>：CI 构建全部 Zephyr 板卡样本并尝试在 Renode 里跑 hello_world，Antmicro 近期公布约 <strong>926 / 1513</strong> 块通过（看板上线初期仅约 100 块），该工作由欧盟 TRISTAN 项目资助（<a href="https://antmicro.com/blog/2024/04/improving-renode-zephyr-dashboard-data-sources/">2024-04 博客</a>，看板 <a href="https://zephyr-dashboard.renode.io">zephyr-dashboard.renode.io</a>）；</li>
+<li><strong>Precursor / 符文板等复杂产品</strong>与航天 LEON 平台的开发调试（Antmicro 多篇博客）。</li>
+</ul>
+<p>需要划清的边界：<strong>功能仿真，非 cycle-accurate</strong>。它验证"固件逻辑对不对"，不验证"时序/功耗/性能对不对"；也不能替代需要真实射频的测试（Wi-Fi/BLE 协议栈对端不存在）。</p>
+</section>
+
+<section id="mechanics"><h2><span class="n">02 / HOW IT WORKS</span>核心机制与工作流</h2>
+<p>Renode 的使用模型是"一个交互式 Monitor + 两类文本文件"：<code>.resc</code>（Renode Script，怎么开机）和 <code>.repl</code>（平台描述，板子上有什么，YAML 风格、可叠加组合）。最小工作流（以 STM32F4 Discovery 为例，板文件名取自树内实勘）：</p>
+<pre><code># hello.resc —— 用法：renode hello.resc
+mach create
+machine LoadPlatformDescription @platforms/boards/stm32f4_discovery-kit.repl
+sysbus LoadELF @build/hello.elf      # 加载未修改的生产固件
+showAnalyzer sysbus.usart2           # 弹出/记录 UART 输出
+start</code></pre>
+<p>在此之上叠着整套工程化能力：</p>
+<ul>
+<li><strong>外设建模</strong>：C# 写高层模型（读写寄存器回调），也可用 <strong>Python 外设</strong>直接在 .repl 里内联快速打样；平台描述可叠加——官方板卡缺一块内存/一个外设时，自己写个几行的 .repl 补上即可（Memfault 实战文中就是这样给 STM32F4 补的 CCM RAM）。</li>
+<li><strong>多机与异构</strong>：一个仿真里 <code>mach create</code> 多台机器，CPU 架构可以混搭（ARM + RISC-V），经 EthernetSwitch / 无线介质互联——"多节点网络"是它的一等公民。</li>
+<li><strong>调试</strong>：内置 GDB server（<code>machine StartGdbServer 3333</code>，本地 <code>arm-none-eabi-gdb -ex "target remote :3333"</code>），支持 VS Code 调试；<strong>1.16.1 起支持反向调试</strong>（auto-save 快照 + GDB reverse-continue / reverse-stepi）——固件跑飞了可以倒回去看，真机 JTAG 给不了这个。</li>
+<li><strong>分析与观测</strong>：函数级执行追踪（<code>sysbus.cpu LogFunctionNames True</code>）、执行轨迹导出、<strong>代码覆盖率报告</strong>（gcov 格式）、opcode 计数、性能指标；还有 RESD 格式给传感器回放数据。</li>
+<li><strong>测试</strong>：Robot Framework 深度集成，<code>renode-test</code> 跑 .robot 文件，关键字如 <code>Create Terminal Tester sysbus.usart2</code>、<code>Wait For Line On Uart "boot ok"</code>、GPIO 按键模拟 <code>sysbus.gpioPortA.UserButton Press</code>，自动出 HTML 报告，天然接 CI。</li>
+<li><strong>扩展接口</strong>：Python 控制客户端、外部控制 API；1.16 起有 <strong>WebSocket 服务端 + TypeScript API</strong>；1.17 起有网页 UI（<code>renode --ui</code>）和 <strong>librenode.so 共享库模式</strong>（把 Renode 嵌进别的程序）。</li>
+<li><strong>HDL 协仿真</strong>：与 Verilator 连接，把 RTL 模块挂进仿真（芯片公司用它做软硬件协同开发）。</li>
+<li><strong>联网</strong>：仿真网络可经 TAP（Linux）/ VMNET（macOS）接入宿主真实网络，支持 Wireshark 抓包。</li>
+</ul>
+<p class="source">快速体验最省事的入口是 <code>renode-run</code>：一条命令跑 Renodepedia 里收录的现成 demo（README）。</p>
+</section>
+
+<section id="platforms"><h2><span class="n">03 / COVERAGE</span>架构与平台支持</h2>
+<p>README 列出的架构：<strong>ARMv7/ARMv8（Cortex-A/R/M）、x86/x86_64、RISC-V、SPARC、POWER、Xtensa、MSP430X</strong>（MSP430 为 1.16.0 新增）。RISC-V 是当前演进最快的方向（1.15–1.17 密集加 Zbkb/Zcmp/Zicond/Zacas/Zve* 扩展、CLIC、PMP 强化、Coral NPU 支持）。</p>
+<p>树内板级模型（master 实勘，2026-09-19）共 <strong>65 个条目</strong>，覆盖：</p>
+<ul>
+<li><strong>无线 MCU</strong>：nrf52840dk、arduino_nano_33_ble、zolertia-firefly、sltb004a（SiLabs）等；</li>
+<li><strong>STM32 全系</strong>：f072b/f4_discovery/f7_discovery/h747-disco、nucleo_f767zi/h753zi/wba52cg；</li>
+<li><strong>NXP</strong>：mimxrt1064_evk、mimxrt700_evk、s32k388evb、imx8mplus、lx2160ardb；</li>
+<li><strong>FPGA/软核</strong>：LiteX 系（arty_litex_vexriscv）、ice40/crosslink ECP5 板、ZynqMP zcu102/104/106；</li>
+<li><strong>航天/其他</strong>：LEON3、GR716、BeagleV（Starlight/Fire）、QuickFeather、Tegra2/3。</li>
+</ul>
+<p>65 这个数字看着不大，原因在于 Renode 的覆盖策略：<strong>dts2repl 工具能从 devicetree 自动生成 .repl</strong>，Zephyr 看板那一千多块板卡就是 CI 里自动生成平台描述去跑的，不必都手工入库。</p>
+<div class="callout warn"><p><strong>注意：</strong>树内没有任何海思/HiSilicon 平台——对 fbb/HiDiTing（Hi3322，RISC-V）这类板子，用 Renode 得从零自建 .repl + 外设模型，成本不低。</p></div>
+</section>
+
+<section id="esp32"><h2><span class="n">04 / ESP32 REALITY CHECK</span>ESP32 / Xtensa 现状实勘</h2>
+<p>这是本次调研的关键问题（我们有 M5StickS3 / ESP32-S3，Xtensa LX7）。结论先行：<strong>不可用</strong>。证据来自两路：官方 CHANGELOG 的版本记录，和 master 源码树的直接检查。</p>
+<div class="table"><table><thead><tr><th>证据</th><th>内容</th><th>说明</th></tr></thead><tbody>
+<tr><td>1.14.0（2023-08-08）</td><td>"translation support for Espressif ESP32 chips"</td><td>CPU 指令翻译层——能让 Xtensa 代码执行起来</td></tr>
+<tr><td>1.16.0（2025-08-02）</td><td>新增外设模型清单里有 "ESP32 UART"</td><td>只有一个 UART 外设模型，说明有人在持续投入但刚起步</td></tr>
+<tr><td>1.16.1（2026-02-16）</td><td>Xtensa 实验性汇编/反汇编器</td><td>仍在补基础设施</td></tr>
+<tr><td>master 树实勘</td><td><code>git ls-tree -r | grep -i esp</code> → <strong>零个 esp32 文件</strong></td><td>platforms/boards 65 项里无乐鑫；platforms/cpus 里 Xtensa 仅 <code>xtensa-sample-controller.repl</code>（Tensilica 通用样例核，SOF 用的）</td></tr>
+</tbody></table></div>
+<p>也就是说：Renode 今天能跑"Xtensa 核 + 通用样例外设"的固件（SOF 那种音频 DSP 场景），但<strong>没有 ESP32/ESP32-S3/ESP32-C3 的 SoC 级平台</strong>——SPI flash、Wi-Fi、BLE、GPIO matrix、RMT、I2S 这些一个都没建模。想在 Renode 里跑 ESP-IDF 应用是走不通的，也没有 Wokwi 式的替代生态。<span class="source">（顺带：ESP32-C3 虽是 RISC-V、CPU 架构没问题，但同样没有板级模型。）</span></p>
+<h3>那 ESP32 固件仿真该用什么？</h3>
+<div class="table"><table><thead><tr><th>方案</th><th>支持现状</th><th>适合</th></tr></thead><tbody>
+<tr><td><a href="https://github.com/espressif/qemu">espressif/qemu</a>（官方 fork）</td><td>ESP-IDF 官方集成 <code>idf.py qemu</code>：构建+启动+monitor 一条龙；支持 eFuse 仿真、secure boot v2、<code>--graphics</code> 虚拟帧缓冲（esp_lcd_qemu_rgb）。esp32 与 esp32c3 为官方文档目标；<strong>esp32-s3 的外设实现已进 fork 开发分支</strong>（2024-10 起），但截至本次调研未见进入官方稳定文档，用 S3 前需以 <a href="https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/tools/qemu.html">官方 QEMU 文档</a>现状为准</td><td>ESP32/C3 固件功能测试、CI、GDB 调试</td></tr>
+<tr><td><a href="https://wokwi.com/">Wokwi</a></td><td>支持 ESP32-S3 等全系；浏览器版免费；VS Code 扩展需申请许可（有免费档与付费档）；外设/传感器/显示模拟丰富，但非时序精确</td><td>快速原型、教学、UI/交互 demo</td></tr>
+<tr><td>Renode</td><td>如上：无乐鑫板级模型</td><td>暂不适合 ESP32</td></tr>
+</tbody></table></div>
+</section>
+
+<section id="mac"><h2><span class="n">05 / MAC STATUS</span>macOS Apple Silicon</h2>
+<ul>
+<li><strong>原生 arm64 已可用</strong>：官方提供 <code>renode-latest.osx-arm64-portable.dmg</code>；也可 <code>brew install renode/tap/renode</code>（稳定版）或 <code>renode-nightly</code>；MacPorts 亦有包。命令行使用需 alias：<code>alias renode='/Applications/Renode.app/Contents/MacOS/renode'</code>。</li>
+<li><strong>历史坑已修</strong>：2023 年底 Apple Silicon 上仿真核心跑不起来、只能 Rosetta 2（<a href="https://github.com/renode/renode/issues/563">issue #563</a>）；后来官方发布了原生 64-bit Arm 构建并有专门文章（renode.io："Improving Renode performance on Mac with native 64-bit Arm"）。</li>
+<li><strong>网络</strong>：macOS 上接宿主网络的老方案要折腾 TAP 驱动；<strong>1.17.0 起改用 VmnetHelperInterface</strong>，替代 TapInterface，体验应该明显变好（新特性，实际效果待社区反馈）。</li>
+<li><strong>源码构建</strong>：必须装 <strong>arm64 版 .NET SDK</strong>（装错 x86_64 会翻车）+ Homebrew 依赖。</li>
+</ul>
+<p>总体：在 Apple Silicon Mac 上属于"一等公民边缘"——包有、原生跑、文档有专门章节，但 Linux 仍是第一平台。</p>
+</section>
+
+<section id="compare"><h2><span class="n">06 / COMPARISON</span>Renode vs QEMU vs Wokwi</h2>
+<div class="table"><table><thead><tr><th>维度</th><th>Renode</th><th>QEMU（含 espressif fork）</th><th>Wokwi</th></tr></thead><tbody>
+<tr><td>定位</td><td>嵌入式系统功能仿真 + 测试框架</td><td>通用虚拟机；嵌入式是子集</td><td>交互式原型仿真（商业产品）</td></tr>
+<tr><td>仿真性能</td><td>功能级，慢于 QEMU（有二进制翻译加速，仍不追速度）</td><td><strong>最快</strong>（TCG/KVM）</td><td>够用即可</td></tr>
+<tr><td>自定义 SoC/外设</td><td><strong>最容易</strong>：C#/Python 高层模型 + .repl 组合，dts2repl 自动生成</td><td>C 设备模型，门槛高</td><td>不开放自定义芯片模型</td></tr>
+<tr><td>确定性 / 可复现</td><td><strong>设计目标</strong>，CI 回归友好</td><td>时序有抖动</td><td>一般</td></tr>
+<tr><td>多节点组网</td><td><strong>原生</strong>（多机 + 交换机/无线介质）</td><td>要手工组网</td><td>多件外设，非多 MCU 网络</td></tr>
+<tr><td>测试集成</td><td><strong>Robot Framework 原生</strong> + 覆盖率/追踪</td><td>自己拼</td><td>有限</td></tr>
+<tr><td>ESP32</td><td>无</td><td><strong>espressif fork 官方支持</strong></td><td><strong>支持（含 S3）</strong></td></tr>
+<tr><td>许可证</td><td>MIT</td><td>GPL2</td><td>专有（免费档可用）</td></tr>
+</tbody></table></div>
+<p>第三方实战评价（Memfault Interrupt，<a href="https://interrupt.memfault.com/blog/intro-to-renode">Cortex-M MCU Emulation with Renode</a>，2020；后续另有 GitHub Actions 测试篇）：优点——免硬件迭代快、GDB/函数追踪好用、生产固件直接跑；吐槽——官方平台描述常有缺口要自己补 .repl、.resc 语法当年文档少（现已改善不少）。经验法则：<strong>跑 Linux 选 QEMU，测 MCU 固件/多节点选 Renode，做 demo 给人看选 Wokwi</strong>。</p>
+</section>
+
+<section id="verdict"><h2><span class="n">07 / VERDICT</span>对我们项目的落地建议</h2>
+<ul>
+<li><strong>magic-wand / M5StickS3 / AMOLED（ESP32-S3）</strong>：<span class="badge removed">不引入 Renode</span>。继续真机（已有 arduino-cli/烧录链路）为主；需要无硬件冒烟时看 espressif/qemu 的 S3 支持现状，或 Wokwi 做交互 demo。wakenet 自研引擎那类吃麦克风音频流的验证，仿真器都给不了真实音频前端，只能真机。</li>
+<li><strong>ESP-NOW 对讲机多节点联仿</strong>：Renode 的"无线介质多机仿真"卖点理论上很契合，但 ESP32 的 Wi-Fi/ESP-NOW 无模型 → <span class="badge removed">不可行</span>，多节点联调维持真机方案。</li>
+<li><strong>值得引入 Renode 的时机</strong>：以后若有 nRF52/STM32/RISC-V 裸机或 Zephyr 项目要上 CI 回归（UART 输出断言、按键注入、覆盖率、反向调试），Renode 是开源里最完整的答案，学习成本主要在 .resc/.repl 和补缺失外设。</li>
+<li><strong>保持关注的信号</strong>：乐鑫 SoC 级支持在 Renode 里 2023→2026 呈"缓慢但持续"态势（翻译层 → ESP32 UART → 实验性汇编器）。若哪天树内出现 esp32*.repl，值得重新评估；反向调试、librenode.so、Web UI 这些新能力也说明项目在向上走，不是弃维护状态。</li>
+<li><strong>想上手玩一下</strong>（半小时成本）：<code>brew install renode/tap/renode</code> → <code>renode</code> 进 Monitor → 官方 demo 或 Memfault 那篇照抄一遍 STM32 流程，即可感受工作流。</li>
+</ul>
+</section>
+
+<section id="sources"><h2><span class="n">08 / SOURCES</span>信息来源与版本快照</h2>
+<ul class="sources">
+<li><a href="https://github.com/renode/renode">github.com/renode/renode</a> — README（MIT、架构列表、macOS 安装、renode-run）；star/fork 数为调研当日页面值</li>
+<li><a href="https://github.com/renode/renode/releases">GitHub Releases</a> + master <code>CHANGELOG.rst</code> 实勘（浅克隆 <code>--filter=blob:none</code>）— 版本线与 ESP32 相关记录（1.0.0=2017-06-13、1.14.0=2023-08-08、1.16.0=2025-08-02、1.16.1=2026-02-16、1.17.0=2026-09-06）</li>
+<li>master 源码树 <code>git ls-tree</code> 实勘（2026-09-19）— platforms/boards 65 项清单；platforms/cpus 仅 <code>xtensa-sample-controller.repl</code>；全树无 esp32 文件</li>
+<li><a href="https://renode.readthedocs.io/en/latest/">Renode 文档（readthedocs）</a> — 章节结构：.repl/.resc、Python 外设、GDB（含反向执行）、覆盖率、Verilator 协仿、TAP/VMNET、RESD 传感器</li>
+<li><a href="https://antmicro.com/blog/2022/01/xtensa-isa-in-renode-for-sof/">Antmicro：Xtensa ISA in Renode for SOF（2022-01）</a>；<a href="https://antmicro.com/blog/2024/04/improving-renode-zephyr-dashboard-data-sources/">Zephyr dashboard 数据源改进（2024-04，EU TRISTAN）</a>；<a href="https://zephyr-dashboard.renode.io">zephyr-dashboard.renode.io</a>（926/1513 数字来自 Antmicro 近期公布，看板为 JS 应用未逐板核实）</li>
+<li><a href="https://renode.io/">renode.io</a> — "Improving Renode performance on Mac with native 64-bit Arm" 等文章</li>
+<li><a href="https://github.com/renode/renode/issues/563">issue #563</a>（2023-12，Apple Silicon 仿真核心不可用、需 Rosetta——已随后续原生包解决）；<a href="https://github.com/renode/renode/issues/262">issue #262</a>（2021-11，ESP32 支持请求，链接 2022-01 博客）</li>
+<li><a href="https://interrupt.memfault.com/blog/intro-to-renode">Memfault Interrupt：Cortex-M MCU Emulation with Renode（2020-03）</a> — 实战流程与吐槽；另有 Firmware Testing with Renode and GitHub Actions（2020-07）</li>
+<li><a href="https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/tools/qemu.html">ESP-IDF 官方 QEMU 文档</a> + <a href="https://github.com/espressif/qemu">espressif/qemu</a> — idf.py qemu、eFuse、secure boot v2、graphics；S3 状态依据 fork 开发分支记录（2024-10 esp_lcd PR #401）与社区反馈（2025-01），<strong>以官方文档当日现状为准</strong></li>
+<li><a href="https://wokwi.com/">wokwi.com</a> / <a href="https://docs.wokwi.com/vscode/getting-started">docs.wokwi.com</a> — 浏览器免费、VS Code 扩展授权模式、ESP32-S3 支持</li>
+</ul>
+<p class="source">调研方法：WebSearch/WebFetch 官方源（GitHub、readthedocs、antmicro、espressif）+ 本地浅克隆 renode master 直接检查源码树。所有"实勘"标注均为本地 git 命令直接输出，可复现：<code>git clone --depth 1 --filter=blob:none https://github.com/renode/renode &amp;&amp; git -C renode ls-tree -r HEAD --name-only | grep -i esp</code></p>
+</section>
+
+</main></div><div class="foot">Renode 调研 · 2026-09-19 · 单文件自包含，未提交，随用随改。</div></div></body></html>
