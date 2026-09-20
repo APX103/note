@@ -73,14 +73,13 @@ b{color:#e8e8ec}
 <p>这张表是整个项目的基础资产，第 2 章讲它怎么来的。<b>注意：不能照抄 WeAct MiniSTM32H7xx 开发板的引脚</b>——那块板 D2/D3/D5 走 PE0/PE1/PD3，本板这些脚被 SDRAM 占了，摄像头数据线被挪到 PG10/PG11/PB6。</p>
 <table>
 <tr><th>功能</th><th>引脚</th><th>复用/说明</th></tr>
-<tr><td>DCMI D0 / D1</td><td>PC6 / PC7</td><td rowspan="8">全部 AF13（DCMI）</td></tr>
+<tr><td>DCMI D0 / D1</td><td>PC6 / PC7</td><td rowspan="7">全部 AF13（DCMI）</td></tr>
 <tr><td>DCMI D2 / D3</td><td>PG10 / PG11</td></tr>
 <tr><td>DCMI D4 / D6 / D7</td><td>PE4 / PE5 / PE6</td></tr>
 <tr><td>DCMI D5</td><td>PB6</td></tr>
 <tr><td>DCMI HSYNC</td><td>PA4</td></tr>
 <tr><td>DCMI VSYNC</td><td>PB7</td></tr>
 <tr><td>DCMI PCLK</td><td>PA6</td></tr>
-<tr><td></td><td></td></tr>
 <tr><td>摄像头 XCLK</td><td>PA8</td><td>AF1 = TIM1_CH1，PWM 输出 12/24 MHz 给传感器当主时钟</td></tr>
 <tr><td>摄像头 PWDN</td><td>PD7</td><td>GPIO，<b>高电平有效</b>（进省电）</td></tr>
 <tr><td>摄像头 RESET</td><td>PA10</td><td>GPIO，<b>低电平有效</b></td></tr>
