@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hi3322 谛听开发板 — 环境搭建与磁盘占用记录（2026-09-12）</title>
+<style>
+    :root {
+        --bg: #fafbfc;
+        --surface: #ffffff;
+        --text: #1a1a2e;
+        --text-secondary: #5a5a7a;
+        --accent: #6366f1;
+        --border: #e8eaef;
+        --code-bg: #f1f3f5;
+        --tag-bg: #eef0ff;
+        --tag-color: #6366f1;
+        --warn: #d97706;
+        --ok: #059669;
+        --danger: #dc2626;
+        --shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif; line-height: 1.75; }
+    .container { max-width: 860px; margin: 0 auto; padding: 48px 24px 80px; }
+    h1 { font-size: 1.7em; margin-bottom: 8px; }
+    .subtitle { color: var(--text-secondary); font-size: 0.95em; margin-bottom: 32px; }
+    h2 { font-size: 1.25em; margin: 40px 0 14px; padding-left: 12px; border-left: 4px solid var(--accent); }
+    h3 { font-size: 1.05em; margin: 24px 0 10px; }
+    p { margin: 10px 0; }
+    table { width: 100%; border-collapse: collapse; margin: 14px 0; background: var(--surface); font-size: 0.92em; box-shadow: var(--shadow); }
+    th { background: var(--tag-bg); color: var(--tag-color); text-align: left; }
+    th, td { padding: 8px 12px; border: 1px solid var(--border); vertical-align: top; }
+    code { background: var(--code-bg); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; font-family: "SF Mono", Menlo, monospace; font-size: 0.88em; }
+    pre { background: #1e1e2e; color: #cdd6f4; border-radius: 10px; padding: 16px 18px; overflow-x: auto; margin: 14px 0; font-size: 0.85em; line-height: 1.6; }
+    pre code { background: none; border: none; color: inherit; padding: 0; }
+    .tag { display: inline-block; background: var(--tag-bg); color: var(--tag-color); border-radius: 4px; padding: 1px 10px; font-size: 0.8em; margin-right: 8px; }
+    .warn { border-left: 4px solid var(--warn); background: #fffbeb; padding: 10px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-size: 0.93em; }
+    .ok { border-left: 4px solid var(--ok); background: #ecfdf5; padding: 10px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-size: 0.93em; }
+    .danger { border-left: 4px solid var(--danger); background: #fef2f2; padding: 10px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-size: 0.93em; }
+    ul, ol { padding-left: 24px; margin: 10px 0; }
+    li { margin: 4px 0; }
+    .total { font-size: 1.05em; font-weight: 600; }
+    .num { font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+<div class="container">
+<h1>Hi3322 谛听开发板 — 环境搭建与磁盘占用记录</h1>
+<div class="subtitle">2026-09-12 · 调研 → 方案选型 → Docker 编译环境 → 固件编译成功 → 占用清算</div>
+
+<h2>一、板子是什么</h2>
+<p>华为海思 <strong>HiSpark「谛听」HiDiTingV100</strong> 社区开发板（Sunniwell HiDiTing DevBoard V1.0），主控 <strong>Hi3322</strong>（文档/构建系统里芯片代号就叫 <code>3322</code>），板载 Hi2131（Cat1 基带副芯片，平时不动它）。</p>
+<table>
+<tr><th>项目</th><th>规格</th></tr>
+<tr><td>SoC</td><td>双 RISC-V 核（BCPU 64MHz + MCPU 266MHz）+ NPU 50GOPS + 仿 3D GPU，16MB PSRAM</td></tr>
+<tr><td>连接</td><td>LTE Cat1 · 蓝牙 2.1~5.4 · 星闪 SLE 2.0 · GNSS</td></tr>
+<tr><td>系统</td><td>LiteOS（SELiteOS）内核，可跑 OpenHarmony 5.1 JS 轻应用</td></tr>
+<tr><td>关键文档</td><td><code>docs.hisilicon.com/projects/hs-fbb</code>（SDK 仓库内自带同款）</td></tr>
+</table>
+
+<h2>二、方案选型结论：为什么用 Docker（amd64 转译）</h2>
+<p>官方三种环境：一站式 CLI（fbb）、HiSpark Studio for VS Code、WSL+Docker。<strong>Mac 原生编译被 SDK 构建系统本身堵死</strong>，与工具链无关：</p>
+<ul>
+<li>工具链 CMake（<code>build/toolchains/clang_riscv_linx_26_03_1.cmake</code>）把编译器路径硬编码为 <code>riscv-x86-linux / riscv-x86-win</code> 两个目录，无 aarch64/darwin 分支；</li>
+<li>打包 fwpkg 必经的签名工具 <code>sign_tool / sec_tool / lzma_tool</code> 只有 linux-x86_64 ELF 和 Windows PE；</li>
+<li>官方下载站 tools.json 里的 darwin-arm64 毕昇编译器是 ws63 产品线的，3322 用不上。</li>
+</ul>
+<p>最终方案：Apple Silicon 上跑 <strong>amd64 容器（Rosetta 转译）</strong>编译，烧录用 Mac 宿主机的 fbb/hs-flash（有官方 darwin 版）。实测转译性能可接受。</p>
+
+<h2>三、搭好的环境（怎么用）</h2>
+<table>
+<tr><th>组件</th><th>位置 / 说明</th></tr>
+<tr><td>编译环境</td><td><code>~/work/hispark-3322-env/</code>（Dockerfile + <code>build.sh</code>）</td></tr>
+<tr><td>Docker 镜像</td><td><code>hs3322-build:22.04</code>（Ubuntu 22.04 amd64，apt+pip 依赖全固化）</td></tr>
+<tr><td>编译容器</td><td>常驻容器 <code>hs3322</code>，挂载 <code>~/work/hs-fbb → /workspace/hs-fbb</code></td></tr>
+<tr><td>毕昇编译器</td><td>26.03.1 linux-x86_64，装在 SDK 内 <code>src/tools/bin/compiler/</code>（容器删了也在）</td></tr>
+<tr><td>fbb CLI</td><td>v1.2.0 @ <code>~/.local/bin/fbb</code>（宿主机，烧录/monitor 用）</td></tr>
+<tr><td>固件产物</td><td><code>~/work/hs-fbb/src/output/3322/fwpkg/diting-community.fwpkg</code>（9.3MB）</td></tr>
+</table>
+<pre><code># 日常编译（增量秒级，全量约 85 分钟）
+cd ~/work/hispark-3322-env && ./build.sh                 # 默认 pack_diting_community
+./build.sh pack_diting_community_bike                    # 行车形态等其他 target</code></pre>
+<p>过程踩坑（均已固化进 Dockerfile）：缺 <code>kconfiglib</code>、缺 <code>make</code>（build.py 默认 Unix Makefiles 生成器）、缺 <code>pycparser/pycryptodome/pyelftools/pandas/openpyxl/requests</code>（构建链路 Python 依赖）。Docker Hub 被墙，基础镜像走 <code>docker.m.daocloud.io</code> 国内源。</p>
+
+<h2>四、磁盘占用清算（重点）</h2>
+
+<h3>4.1 Mac 宿主机 — 新增约 <span class="num">4.0 GB</span></h3>
+<table>
+<tr><th>位置</th><th>内容</th><th class="num">大小</th></tr>
+<tr><td><code>~/work/hs-fbb/src/tools/bin/compiler/bisheng_26_03_1/</code></td><td>毕昇编译器（下载的 508MB tar 解压后，tar 已删）</td><td class="num"><strong>1.3 GB</strong></td></tr>
+<tr><td><code>~/work/hs-fbb/src/output/</code></td><td>编译产物（5 个目标中间文件 + fwpkg）</td><td class="num"><strong>2.7 GB</strong></td></tr>
+<tr><td><code>~/.local/share/uv/tools/hs-fbb-cli/</code></td><td>fbb CLI v1.2.0 + pyserial</td><td class="num">2.2 MB</td></tr>
+<tr><td><code>~/work/hispark-3322-env/</code></td><td>Dockerfile + build.sh</td><td class="num">8 KB</td></tr>
+<tr><td><code>/tmp/fbb_*</code> 等</td><td>调研抓的网页/JSON</td><td class="num">1.4 MB</td></tr>
+</table>
+<div class="warn">⚠️ 易混淆项：<code>~/.local/share/uv/tools/browser-use/</code>（255MB）与 <code>~/.cache/uv</code>（13GB）是<span style="text-decoration:underline">原有</span>的，与本次无关。SDK 仓库另有 14 个文件被构建改动（libvdec.a、ssb_signed.bin 等，官方文档预警过的副作用），<code>git status</code> 可见。</div>
+
+<h3>4.2 Docker — 新增约 <span class="num">1.5 GB</span> + 构建缓存 &lt;1 GB</h3>
+<table>
+<tr><th>对象</th><th>说明</th><th class="num">大小</th></tr>
+<tr><td>镜像 <code>hs3322-build:22.04</code></td><td>自建编译环境</td><td class="num"><strong>677 MB</strong></td></tr>
+<tr><td>镜像 <code>…daocloud…/ubuntu:22.04</code></td><td>基础镜像（arm64+amd64 两变体，arm64 那个是误拉）</td><td class="num"><strong>156 MB</strong></td></tr>
+<tr><td>容器 <code>hs3322</code> 可写层</td><td>apt/pip 包装在可写层 + 构建日志（依赖后期已固化进镜像）</td><td class="num"><strong>640 MB</strong></td></tr>
+<tr><td>Build cache</td><td>3 次构建的缓存；<code>docker system df</code> 的 23.65GB 总量绝大部分是历史项目</td><td class="num">~1 GB</td></tr>
+</table>
+
+<h3>4.3 总账</h3>
+<table>
+<tr><th>维度</th><th class="num">数值</th></tr>
+<tr><td class="total">硬盘新增合计</td><td class="total num">约 5.5 ~ 6.5 GB</td></tr>
+<tr><td>网络下载流量</td><td class="num">约 1.2 GB（编译器 tar 508MB + 镜像 + apt/pip + fbb 源码）</td></tr>
+<tr><td>装入 Mac 系统的软件</td><td>仅 fbb 命令（2.2MB，uv 隔离环境，未动 brew / 系统 Python）</td></tr>
+</table>
+
+<h3>4.4 完整卸载流程（工程结束后用）</h3>
+<p>本套环境<span style="text-decoration:underline">没有污染任何系统位置</span>：无驱动、无守护进程、不改 shell 配置、不动 brew 和系统 Python。所有文件都在几个自包含目录里，按顺序执行以下命令即彻底移除（约回收 6GB+）：</p>
+<pre><code># 1) fbb CLI（uv 隔离环境，一条命令清两处）
+uv tool uninstall hs-fbb-cli
+
+# 2) fbb 构建环境（hs-flash / ccache / venv）
+rm -rf ~/.hs-fbb
+
+# 3) Docker（容器是唯一"活着"的东西）
+docker rm -f hs3322
+docker rmi hs3322-build:22.04 ubuntu-amd64:22.04 docker.m.daocloud.io/library/ubuntu:22.04
+docker builder prune                      # 可选，会影响其他项目缓存
+
+# 4) SDK 内的大头（保留代码只删产物；或整个仓库删掉重 clone 即原样）
+rm -rf ~/work/hs-fbb/src/output ~/work/hs-fbb/src/tools/bin/compiler
+cd ~/work/hs-fbb &amp;&amp; git clean -nd        # 先预览，确认后 git clean -fd
+
+# 5) 脚本目录 + /tmp 临时文件
+rm -rf ~/work/hispark-3322-env
+rm -f /tmp/hsflash_live.log /tmp/flash_dryrun*.log /tmp/hsflash_dry.log /tmp/fpid \
+      /tmp/fbb_* /tmp/hispark_tools.json /tmp/bootstrap.sh /tmp/install_bisheng.py</code></pre>
+<div class="warn">⚠️ 两个边角：<code>~/.cache/uv</code>（13GB）绝大部分是其他项目的，精确清理用 <code>uv cache clean hs-fbb-cli pyserial</code>，别全清；<code>~/work/note</code> 里的本文档属于笔记仓库，自行决定去留。</div>
+
+<h2>五、板卡接口备忘</h2>
+<table>
+<tr><th>接口</th><th>用途</th><th>备注</th></tr>
+<tr><td><code>3322_USB</code>（主USB，Type-C）</td><td>供电 5V/2A + Hi3322 USB DFU 烧录</td><td>正常开机时<strong>不枚举任何 USB 设备</strong>（Mac 无反应是正常的）；需 UART2 发 <code>AT+USBDFUTRIGGER</code> 或短接 RX2-GND 才进 DFU（枚举为 3361:3322）</td></tr>
+<tr><td><code>CAT1_USB</code>（Hi2131）</td><td>Cat1 副芯片固件升级 / 模组调试</td><td>插上会枚举名为 "LiteOS" 的 RNDIS 网卡——那是基带的，别用</td></tr>
+<tr><td>UART2（T2 排针）</td><td>烧录 + 日志 + AT 命令，750000 波特率</td><td>需外接 USB-TTL；<strong>1.8V 电平域</strong>；RX/TX 交叉、共地</td></tr>
+<tr><td>UART3（T3 排针）</td><td>DebugKits 维测（921600）</td><td><strong>1.8V，禁接 3.3V 串口</strong></td></tr>
+<tr><td>SWD</td><td>硬件调试（GDB/OpenOCD，断点上限 3）</td><td>需 J-Link 类调试器</td></tr>
+</table>
+<div class="danger">串口板必须选支持 <strong>1.8V 电平输出</strong> 的 USB 转 TTL（普通 CH340/CP2102 默认 3.3V/5V 不能直连）。</div>
+
+<h2>六、待办（下次继续）</h2>
+<ol>
+<li>买 1.8V 电平 USB-TTL 串口板（硬需求，日志/烧录触发全靠它）；</li>
+<li>接 UART2 → <code>fbb monitor</code> 看启动日志 → 烧 tag_V26.08.1 官方固件做基线，再烧自编译固件对比；</li>
+<li>（可选）DevEco Studio 5.0 Release（5.0.5.310，macOS ARM 版，需登录华为账号下载）——做 JS 轻应用才需要；</li>
+<li>（可选）J-Link + SWD 硬件断点调试。</li>
+</ol>
+
+<div class="ok">✅ 2026-09-16 更新：编译 → 烧录全链路打通。用 RX2-GND 硬件短接触发 USB DFU（免串口板），hs-flash 26.08.1 macOS 版直烧 <code>diting-community.fwpkg</code> 成功（8 镜像，约 1 分钟）。烧录命令：<code>~/work/hispark-3322-env/flash.sh</code>（先跑命令再上电，工具会一直等设备）。剩余待办：串口板到货后接 UART2 看日志（750000 波特率）。</div>
+</div>
+</body>
+</html>
