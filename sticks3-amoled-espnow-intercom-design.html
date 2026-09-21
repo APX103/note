@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>双板 ESP-NOW 对讲机 — 需求与技术设计（StickS3 × AMOLED-1.8）</title>
+<style>
+    :root {
+        --bg: #fafbfc;
+        --surface: #ffffff;
+        --surface-hover: #f5f6f8;
+        --text: #1a1a2e;
+        --text-secondary: #5a5a7a;
+        --accent: #6366f1;
+        --accent-2: #8b5cf6;
+        --accent-glow: rgba(99, 102, 241, 0.08);
+        --border: #e8eaef;
+        --code-bg: #f1f3f5;
+        --code-border: #e0e2e7;
+        --tag-bg: #eef0ff;
+        --tag-color: #6366f1;
+        --warn: #d97706;
+        --ok: #059669;
+        --info: #3b82f6;
+        --danger: #dc2626;
+        --shadow: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.03);
+        --shadow-lg: 0 4px 12px rgba(0,0,0,0.06);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.8;
+        -webkit-font-smoothing: antialiased;
+    }
+
+    .container {
+        max-width: 860px;
+        margin: 0 auto;
+        padding: 0 24px;
+    }
+
+    /* Hero */
+    .hero {
+        padding: 80px 0 50px;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 48px;
+    }
+
+    .hero h1 {
+        font-size: 2em;
+        font-weight: 700;
+        color: var(--text);
+        margin-bottom: 12px;
+        letter-spacing: -0.02em;
+    }
+
+    .hero h1 .accent {
+        color: var(--accent);
+    }
+
+    .hero .subtitle {
+        color: var(--text-secondary);
+        font-size: 1.05em;
+        max-width: 660px;
+    }
+
+    .hero .meta {
+        margin-top: 16px;
+        display: flex;
+        gap: 16px;
+        font-size: 0.82em;
+        color: var(--text-secondary);
+        flex-wrap: wrap;
+    }
+
+    .hero .meta span {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    /* TOC */
+    .toc {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 28px 32px;
+        margin-bottom: 48px;
+        box-shadow: var(--shadow);
+    }
+
+    .toc h2 {
+        font-size: 1em;
+        font-weight: 600;
+        color: var(--text-secondary);
+        margin-bottom: 16px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .toc ul {
+        list-style: none;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px 24px;
+    }
+
+    .toc a {
+        color: var(--accent);
+        text-decoration: none;
+        font-size: 0.92em;
+        padding: 4px 0;
+        display: block;
+        border-bottom: 1px solid transparent;
+        transition: border-color 0.15s;
+    }
+
+    .toc a:hover {
+        border-bottom-color: var(--border);
+    }
+
+    /* Sections */
+    .section {
+        margin-bottom: 56px;
+    }
+
+    .section h2 {
+        font-size: 1.35em;
+        font-weight: 700;
+        color: var(--text);
+        margin-bottom: 20px;
+        padding-bottom: 12px;
+        border-bottom: 2px solid var(--accent);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .section h3 {
+        font-size: 1.05em;
+        font-weight: 600;
+        color: var(--text);
+        margin: 24px 0 12px;
+    }
+
+    .section p {
+        color: var(--text-secondary);
+        margin-bottom: 12px;
+        font-size: 0.95em;
+    }
+
+    .section ul, .section ol {
+        margin: 8px 0 16px 24px;
+        color: var(--text-secondary);
+        font-size: 0.95em;
+    }
+
+    .section li {
+        margin-bottom: 6px;
+    }
+
+    /* Code blocks */
+    pre {
+        background: var(--code-bg);
+        border: 1px solid var(--code-border);
+        border-radius: 8px;
+        padding: 18px 20px;
+        overflow-x: auto;
+        font-size: 0.82em;
+        line-height: 1.6;
+        margin: 12px 0 20px;
+        font-family: "SF Mono", "Fira Code", "Cascadia Code", "JetBrains Mono", monospace;
+        color: #24292e;
+    }
+
+    code {
+        font-family: "SF Mono", "Fira Code", "Cascadia Code", "JetBrains Mono", monospace;
+        background: var(--code-bg);
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.88em;
+        color: var(--accent);
+    }
+
+    pre code {
+        background: none;
+        padding: 0;
+        color: inherit;
+    }
+
+    /* Code block with copy button */
+    .code-block {
+        margin: 12px 0 20px;
+        border: 1px solid var(--code-border);
+        border-radius: 10px;
+        overflow: hidden;
+        background: var(--code-bg);
+        box-shadow: var(--shadow);
+    }
+
+    .code-block .code-head {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 14px;
+        background: #e6e8ee;
+        border-bottom: 1px solid var(--code-border);
+        font-size: 0.78em;
+        color: var(--text-secondary);
+    }
+
+    .code-block .code-name {
+        font-weight: 600;
+        color: var(--text);
+        font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .code-block .code-lang {
+        padding: 1px 8px;
+        border-radius: 5px;
+        background: var(--tag-bg);
+        color: var(--tag-color);
+        font-weight: 500;
+        font-size: 0.78em;
+        flex-shrink: 0;
+    }
+
+    .code-block .code-note {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: var(--text-secondary);
+    }
+
+    .code-block .copy-btn {
+        flex-shrink: 0;
+        border: 1px solid var(--code-border);
+        background: var(--surface);
+        color: var(--text-secondary);
+        font-size: 0.75em;
+        font-weight: 600;
+        padding: 3px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+
+    .code-block .copy-btn:hover {
+        background: var(--accent);
+        color: #fff;
+        border-color: var(--accent);
+    }
+
+    .code-block .copy-btn.copied {
+        background: #059669;
+        color: #fff;
+        border-color: #059669;
+    }
+
+    .code-block pre {
+        margin: 0;
+        border: none;
+        border-radius: 0;
+        max-height: 480px;
+    }
+
+
+    /* Tags */
+    .tag {
+        display: inline-block;
+        font-size: 0.75em;
+        padding: 3px 10px;
+        border-radius: 6px;
+        background: var(--tag-bg);
+        color: var(--tag-color);
+        font-weight: 500;
+        margin-right: 6px;
+        vertical-align: middle;
+    }
+
+    .tag.ok { background: #ecfdf5; color: #059669; }
+    .tag.warn { background: #fffbeb; color: #d97706; }
+    .tag.info { background: #eff6ff; color: #2563eb; }
+    .tag.danger { background: #fef2f2; color: #dc2626; }
+
+    /* Callouts */
+    .callout {
+        border-radius: 10px;
+        padding: 16px 20px;
+        margin: 16px 0 24px;
+        font-size: 0.92em;
+        border: 1px solid var(--border);
+    }
+
+    .callout.info {
+        background: #eff6ff;
+        border-color: #bfdbfe;
+        color: #1e40af;
+    }
+
+    .callout.ok {
+        background: #ecfdf5;
+        border-color: #a7f3d0;
+        color: #065f46;
+    }
+
+    .callout.warn {
+        background: #fffbeb;
+        border-color: #fde68a;
+        color: #92400e;
+    }
+
+    .callout.danger {
+        background: #fef2f2;
+        border-color: #fecaca;
+        color: #991b1b;
+    }
+
+    /* Cards */
+    .pattern {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 24px 28px;
+        margin-bottom: 16px;
+        box-shadow: var(--shadow);
+    }
+
+    .pattern-title {
+        font-size: 1em;
+        font-weight: 600;
+        color: var(--text);
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .pattern-title .num {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        border-radius: 6px;
+        background: var(--accent);
+        color: white;
+        font-size: 0.78em;
+        font-weight: 600;
+        flex-shrink: 0;
+    }
+
+    .pattern p {
+        color: var(--text-secondary);
+        font-size: 0.92em;
+        margin-bottom: 8px;
+    }
+
+    /* Table */
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 16px 0 24px;
+        font-size: 0.88em;
+    }
+
+    th {
+        text-align: left;
+        padding: 10px 14px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        font-weight: 600;
+        color: var(--text);
+        font-size: 0.82em;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    td {
+        padding: 10px 14px;
+        border: 1px solid var(--border);
+        color: var(--text-secondary);
+        vertical-align: top;
+    }
+
+    tr:nth-child(even) td {
+        background: #fcfcfd;
+    }
+
+    td strong {
+        color: var(--text);
+    }
+
+    /* Footer */
+    .footer {
+        padding: 32px 0 48px;
+        border-top: 1px solid var(--border);
+        margin-top: 48px;
+        text-align: center;
+        color: var(--text-secondary);
+        font-size: 0.82em;
+    }
+
+    .footer a {
+        color: var(--accent);
+        text-decoration: none;
+    }
+
+    @media (max-width: 640px) {
+        .hero { padding: 48px 0 32px; }
+        .hero h1 { font-size: 1.5em; }
+        .toc ul { grid-template-columns: 1fr; }
+        .pattern { padding: 18px 20px; }
+    }
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- Hero -->
+<div class="hero">
+    <h1>双板 ESP-NOW 对讲机 <span class="accent">需求与技术设计</span></h1>
+    <p class="subtitle">M5StickS3（按键 PTT）× ESP32-S3-Touch-AMOLED-1.8（触摸 PTT）：两块自带麦克风+扬声器的 ESP32-S3 板子，用 ESP-NOW 做半双工实时对讲机。本文是需求定义 + 技术方案设计，尚未开始实现。</p>
+    <div class="meta">
+        <span>📅 2026-09-17</span>
+        <span>🛠 StickS3 · AMOLED-1.8 · ESP-NOW · FreeRTOS</span>
+        <span>📌 状态：设计稿 v1</span>
+    </div>
+</div>
+
+<!-- TOC -->
+<div class="toc">
+    <h2>目录</h2>
+    <ul>
+        <li><a href="#tldr">0. 一句话需求与关键决策</a></li>
+        <li><a href="#hw">1. 硬件资源盘点（两块板）</a></li>
+        <li><a href="#ux">2. 交互设计（PTT 与 UI）</a></li>
+        <li><a href="#conn">3. 连接管理（伪长连接 + 5 秒扫描）</a></li>
+        <li><a href="#ptt">4. 半双工话权协议</a></li>
+        <li><a href="#audio">5. 音频管线</a></li>
+        <li><a href="#rtos">6. RTOS 任务架构</a></li>
+        <li><a href="#proj">7. 工程落位与编译烧录</a></li>
+        <li><a href="#risk">8. 风险与开放问题</a></li>
+        <li><a href="#mile">9. 里程碑</a></li>
+        <li><a href="#refs">10. 参考资源</a></li>
+    </ul>
+</div>
+
+<!-- Section 0 -->
+<div class="section" id="tldr">
+    <h2>0. 一句话需求与关键决策</h2>
+    <p><strong>需求</strong>：两块板通过 ESP-NOW 组成"按键说话、松开切换"的半双工对讲机——StickS3 用实体按键发起通话，AMOLED 用触摸屏虚拟按键发起通话；连接建立后保持长连接，掉线后每 5 秒低频扫描重连；同一时刻只有一方占用麦克风发送，另一方纯接收播放，互不抢占资源；全程基于 FreeRTOS 多任务，录音、播放、网络、UI 各自独立运行。</p>
+    <table>
+        <tr><th>决策点</th><th>选择</th><th>理由</th></tr>
+        <tr><td>传输层</td><td>ESP-NOW（无路由器、无关联、低延迟）</td><td>点对点 10cm~几十米场景，延迟远低于 WiFi+MQTT</td></tr>
+        <tr><td>双工模型</td><td>半双工 + 话权（floor）仲裁</td><td>用户明确要求"一方说另一方只能听"；也省带宽一半</td></tr>
+        <tr><td>音频格式</td><td>16 kHz / 16-bit / 单声道 PCM 起步</td><td>两侧均已有该配置的实测验证代码（tuner、M5Unified）；后续可降 ADPCM</td></tr>
+        <tr><td>并发模型</td><td>FreeRTOS：采集 / 播放 / 网络 / UI 分任务</td><td>I2S 读写是阻塞的，单线程必然顾此失彼</td></tr>
+        <tr><td>连接语义</td><td>握手 + 心跳模拟"长连接"</td><td>ESP-NOW 本身无连接概念，靠应用层状态机补</td></tr>
+        <tr><td>重连策略</td><td>掉线后每 5s 一轮短扫描（≤300ms）</td><td>持续扫描会发热（用户明确要求规避）</td></tr>
+    </table>
+</div>
+
+<!-- Section 1 -->
+<div class="section" id="hw">
+    <h2>1. 硬件资源盘点（两块板）</h2>
+    <table>
+        <tr><th>能力</th><th>M5StickS3</th><th>ESP32-S3-Touch-AMOLED-1.8</th></tr>
+        <tr><td>芯片</td><td>ESP32-S3-PICO-1-N8R8（8M Flash + 8M PSRAM）</td><td>ESP32-S3 QFN56（16M Flash + 8M PSRAM）</td></tr>
+        <tr><td>麦克风/扬声器</td><td>ES8311 codec（I2C 0x18）+ MEMS 麦克 + AW8737 功放</td><td>ES8311 codec（I2C 0x18）+ 麦克 + 功放（PA 使能 GPIO46，高有效）</td></tr>
+        <tr><td>音频引脚</td><td>MCLK G18 · BCLK G17 · LRCK G15 · DOUT G14 · DIN G16（官方 pin map）</td><td>MCLK G16 · BCLK G9 · WS G45 · DOUT G8 · DIN G10（tuner 实测）</td></tr>
+        <tr><td>PTT 输入</td><td>K1 = GPIO11（M5.BtnA）</td><td>触摸屏 FT3168，虚拟按键区域</td></tr>
+        <tr><td>屏幕</td><td>1.14" ST7789P3 135×240（M5GFX）</td><td>1.8" SH8601 AMOLED 368×448（QSPI）</td></tr>
+        <tr><td>音频驱动现状</td><td>M5Unified M5.Mic / M5.Speaker 一行搞定（Mic_FFT 示例即用）</td><td>esp_codec_dev 已在 tuner/ 实测打通录+放（16k/16bit/单声道）</td></tr>
+        <tr><td>供电管理</td><td>M5PM1（250mAh 电池）</td><td>AXP2101（PMU 轨道恢复是点亮屏幕前置条件，见 ZCODE.md）</td></tr>
+    </table>
+    <div class="callout info">
+        两块板用的是<strong>同一颗 ES8311 codec</strong>，采样率/位宽/声道约定可以完全一致，协议层不用做格式协商。AMOLED 侧 PA 开启瞬间有满幅瞬态（麦克风会收到 p2p=65535 的爆音），依赖音频统计的逻辑要跳过开启后前几帧——tuner 已踩过。
+    </div>
+</div>
+
+<!-- Section 2 -->
+<div class="section" id="ux">
+    <h2>2. 交互设计（PTT 与 UI）</h2>
+    <h3>2.1 交互时序（一次完整对话）</h3>
+    <div class="code-block">
+  <div class="code-head"><span class="code-name">时序</span><span class="code-lang">text</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+<pre><code>StickS3                                AMOLED
+   │ ── HELLO(广播) ──────────────────▶ │   上电/重连：互相发现，绑定对端 MAC
+   │ ◀─ HELLO_ACK ────────────────────  │   → 状态：已连接（心跳 1s 维持）
+   │                                     │
+   │ ── PTT_DOWN ──────────────────────▶ │   用户按住 StickS3 的 K1
+   │ ◀─ PTT_ACK ───────────────────────  │   AMOLED 锁定为"接收方"，麦克风关闭
+   │ ── AUDIO#1 ─ AUDIO#2 ─ … ────────▶ │   20ms 一帧连续发送，AMOLED 连续播放
+   │ ── PTT_UP ────────────────────────▶ │   用户松开 K1，发送 flush 后释放话权
+   │                                     │   两端回到空闲，AMOLED 现在可以按触摸说话
+   │ ◀─ PTT_DOWN / AUDIO… / PTT_UP ────  │   （反向同理）</code></pre>
+</div>
+    <h3>2.2 StickS3 界面与按键</h3>
+    <ul>
+        <li><strong>K1（GPIO11 / M5.BtnA）按住 = 说话</strong>，松开 = 停止并释放话权；K2 长按 = 关机（沿用 8 月 IR 项目习惯）。</li>
+        <li>屏幕四态：未连接（SEARCHING…）/ 已连接空闲（READY + 电池%）/ 我在讲（TX + 电平条）/ 对方在讲（RX + 电平条 + 丢包率）。</li>
+        <li>抢话失败提示：按住 K1 但对方已先讲话 → 显示"BUSY 对方先讲"，本地麦克风不启动。</li>
+    </ul>
+    <h3>2.3 AMOLED 触摸界面</h3>
+    <ul>
+        <li>屏幕下半部一个<strong>大圆钮 = PTT 虚拟按键</strong>：手指按下区域内 = 按下（发 PTT_DOWN），手指离开 = 松开（发 PTT_UP）。FT3168 的 press/release 事件天然映射，无需处理滑动。</li>
+        <li>状态栏（上方）：连接状态、对端名称（STICK）、RSSI、电池；说话时大钮高亮 + 实时输入电平。</li>
+        <li>听对方讲话时：显示波形/电平条（可直接搬 M5Unified Mic_FFT 的画法思路），大钮置灰表示"占用中"。</li>
+    </ul>
+    <div class="callout warn">
+        触摸 PTT 必须用"手指在区域内按下/抬起"原语（down/up），<strong>不要用点击计数</strong>——需求明确是"按住说话、松开即停"。FT3168 报点有偶发抖动，抬起判定加 50ms 去抖（期间视为仍按住）。
+    </div>
+</div>
+
+<!-- Section 3 -->
+<div class="section" id="conn">
+    <h2>3. 连接管理（伪长连接 + 5 秒扫描）</h2>
+    <p>ESP-NOW 是无连接协议，"长连接"在应用层实现：双方记住对端 MAC 后单向发数据即可，无需每次关联。状态机如下：</p>
+    <table>
+        <tr><th>状态</th><th>行为</th><th>迁移</th></tr>
+        <tr><td><strong>SEARCHING</strong></td><td>每 5s 发一轮广播 HELLO（连续 3 个，间隔 100ms），然后静默监听到本轮结束（总时长 ≤300ms）</td><td>收到 HELLO/HEARTBEAT → 绑定 MAC → LINKED</td></tr>
+        <tr><td><strong>LINKED</strong></td><td>心跳 HEARTBEAT 1s 一次（携带电池%、RSSI 回显）；音频/控制照常收发</td><td>连续 3 次心跳丢失（3s）→ SEARCHING</td></tr>
+    </table>
+    <ul>
+        <li><strong>上电首轮</strong>：立即做 3 轮快速握手（不做 5s 等待），失败才进入 5s 慢周期——开机体验和省电兼顾。</li>
+        <li><strong>固定信道</strong>：双方约定死信道（默认 ch1），不启用信道跳变；ESP-NOW 收发双方必须同信道。</li>
+        <li><strong>加密可选</strong>：预共享 LMK（本地主密钥）启用 ESP-NOW 加密，防止邻设备串音；v1 可先明文+MAC 白名单。</li>
+        <li><strong>发热控制</strong>（用户明确要求）：只有 SEARCHING 态的每轮 ≤300ms 窗口内开射频扫描/广播；LINKED 态只维持 1s 心跳；绝不连续扫描。</li>
+    </ul>
+    <div class="callout info">
+        MAC 绑定方式 v1 用"配置文件写死对端 MAC"（两台设备各烧各的固件时注入），v2 再做"首次发现即配对+按键确认"。这样把配对 UX 从首版范围里砍掉。
+    </div>
+</div>
+
+<!-- Section 4 -->
+<div class="section" id="ptt">
+    <h2>4. 半双工话权协议</h2>
+    <p>控制帧（与音频帧共用 ESP-NOW 载荷，首字节区分类型）：</p>
+    <table>
+        <tr><th>帧类型</th><th>字段</th><th>语义</th></tr>
+        <tr><td>HELLO / HELLO_ACK</td><td>设备名、电池%</td><td>发现与绑定</td></tr>
+        <tr><td>HEARTBEAT</td><td>电池%、序号</td><td>保活；3 丢即断</td></tr>
+        <tr><td>PTT_DOWN</td><td>会话 ID（递增）</td><td>请求话权；同时意味着"我马上要发音频"</td></tr>
+        <tr><td>PTT_ACK</td><td>会话 ID</td><td>对端确认进入接收态（话权授予）；20ms 内未收到 ACK 也照发（乐观锁，音频帧自带会话 ID 兜底）</td></tr>
+        <tr><td>AUDIO</td><td>会话 ID、帧序号、时间戳、PCM 数据</td><td>仅话权持有方发送</td></tr>
+        <tr><td>PTT_UP</td><td>会话 ID、总帧数</td><td>释放话权；接收方按序放完尾部数据后解锁 UI</td></tr>
+    </table>
+    <h3>4.1 仲裁规则（同时按下怎么办）</h3>
+    <div class="pattern">
+        <div class="pattern-title"><span class="num">1</span>先到先得</div>
+        <p>PTT_DOWN 先到者获得话权。后到方若本地也刚按下：比较双方 MAC（数值大者让），让方 UI 显示 BUSY。确定性仲裁，无随机退避、不会双讲。</p>
+    </div>
+    <div class="pattern">
+        <div class="pattern-title"><span class="num">2</span>单向资源独占</div>
+        <p>话权持有方：<strong>麦克风 + I2S 输入 + ESP-NOW TX</strong>，本地扬声器静音（功放关闭）；接收方：<strong>扬声器 + I2S 输出</strong>，麦克风任务挂起。半双工下两块板的 codec 永远只跑一个方向，不存在 I2S 争抢——这正是"不抢占资源"的实现方式。</p>
+    </div>
+    <div class="pattern">
+        <div class="pattern-title"><span class="num">3</span>释放与兜底</div>
+        <p>松开按键 → 发 PTT_UP（含总帧数，接收方把尾部放完再解锁）→ 本地释放麦克风资源 → 对端 UI 恢复可按。若 PTT_UP 丢失：接收方 500ms 无新音频帧即超时释放；话权最长 30s 强制回收（防按键卡死/掉线）。</p>
+    </div>
+</div>
+
+<!-- Section 5 -->
+<div class="section" id="audio">
+    <h2>5. 音频管线</h2>
+    <h3>5.1 参数与封包</h3>
+    <table>
+        <tr><th>项</th><th>值</th><th>说明</th></tr>
+        <tr><td>采样规格</td><td>16 kHz / 16-bit / 单声道 PCM</td><td>32 KB/s；两侧均有已验证实现；后续可换 IMA ADPCM（4:1 → 8 KB/s）</td></tr>
+        <tr><td>帧化</td><td>20ms 音频 = 640 采样 = 1280 B</td><td>拆 6 个 ESP-NOW 包（payload ≈ 213B + 8B 头，&lt;250B 上限）</td></tr>
+        <tr><td>发送节拍</td><td>每 20ms 发 6 包</td><td>50 帧/s、300 包/s；1Mbps PHY 下占用约 3 成空口，安全</td></tr>
+        <tr><td>接收缓冲</td><td>jitter buffer 60–120ms（PSRAM 环形队列）</td><td>按帧序号重排、去重；欠载时做上一帧衰减重复（简易丢包隐藏）</td></tr>
+        <tr><td>延迟预算</td><td>采集 20ms + 空口 ~10ms + jitter 80ms + 播放 20ms ≈ <strong>130–200ms</strong></td><td>对讲机可接受（&lt;300ms 即不觉得别扭）</td></tr>
+    </table>
+    <h3>5.2 两侧的采集/播放实现</h3>
+    <ul>
+        <li><strong>StickS3</strong>：M5Unified 原生 <code>M5.Mic.record()</code>（队列式读取）+ <code>M5.Speaker</code> 播放；Mic_FFT 示例可直接当采集参考。</li>
+        <li><strong>AMOLED</strong>：复用 tuner 的 esp_codec_dev 配置（es8311_codec_new → set_in_gain 24dB → read/write）；PA 使能后跳过前几帧统计。</li>
+    </ul>
+    <div class="callout warn">
+        两板 PSRAM 都有 8MB，jitter buffer 与发送队列放 PSRAM，不动内部 RAM（音频任务和 WiFi 缓冲都吃内部 RAM，别挤）。
+    </div>
+</div>
+
+<!-- Section 6 -->
+<div class="section" id="rtos">
+    <h2>6. RTOS 任务架构</h2>
+    <p>用户的核心担忧："单线程的话，我按下来之后不知道该发声音还是该怎样"。方案：FreeRTOS 五任务 + 队列，音频 I/O 全部阻塞式独占跑在专职任务里，其余逻辑靠消息驱动，互不阻塞。</p>
+    <table>
+        <tr><th>任务</th><th>核心</th><th>优先级</th><th>职责 / 循环</th></tr>
+        <tr><td><strong>mic_task</strong></td><td>0</td><td>高</td><td>话权持有时常驻：阻塞读 20ms 音频 → 打包 → 投递 tx_queue；无话权时挂起（vTaskSuspend）</td></tr>
+        <tr><td><strong>spk_task</strong></td><td>0</td><td>高</td><td>从 jitter buffer 取整帧 → 阻塞写 I2S；欠载时静音填充</td></tr>
+        <tr><td><strong>net_task</strong></td><td>1</td><td>中</td><td>发 tx_queue（控制帧+音频帧）；ESP-NOW 收包回调只做入队（不在 WiFi 任务里干重活）</td></tr>
+        <tr><td><strong>ui_task</strong></td><td>1</td><td>中</td><td>按键/触摸轮询（StickS3 M5.update()；AMOLED FT3168 读点）→ PTT 状态机；屏幕 5–10Hz 刷新</td></tr>
+        <tr><td><strong>conn_task</strong></td><td>1</td><td>低</td><td>连接状态机：心跳定时、5s 扫描调度、掉线重连</td></tr>
+    </table>
+    <h3>6.1 同步原语</h3>
+    <ul>
+        <li><code>tx_queue</code>（FreeRTOS queue）：net_task 唯一发送出口，避免并发调 esp_now_send。</li>
+        <li><code>floor_mutex</code> + 话权原子变量：ui_task 申请/释放，net_task 收到 PTT_DOWN 时授予/让位。</li>
+        <li>事件组（event group）：LINKED / FLOOR_HELD / RX_STREAMING 三个 bit，任务间无锁等待。</li>
+        <li>I2S/codec 的打开与关闭串行化在一个函数里（谁拿话权谁开对应方向），半双工保证无并发访问。</li>
+    </ul>
+    <div class="callout ok">
+        两边工具链不同（AMOLED = ESP-IDF 原生 FreeRTOS；StickS3 = Arduino，底层同样是 FreeRTOS，xTaskCreatePinnedToCore 直接可用），任务模型可以完全对称移植。
+    </div>
+</div>
+
+<!-- Section 7 -->
+<div class="section" id="proj">
+    <h2>7. 工程落位与编译烧录</h2>
+    <table>
+        <tr><th>板</th><th>代码位置</th><th>工具链</th></tr>
+        <tr><td>AMOLED（接收+触摸 PTT）</td><td>本仓库新目录 <code>intercom/</code>（以 <code>tuner/</code> 为模板：PMU 供电恢复 + SH8601 初始化必备，去掉调音逻辑）</td><td><code>./scripts/idf.sh -C intercom build / flash monitor</code></td></tr>
+        <tr><td>StickS3（按键 PTT）</td><td><code>~/work/m5stack/intercom_stick/</code>（arduino-cli sketch）</td><td><code>arduino-cli compile/upload --fqbn m5stack:esp32:m5stack_sticks3:PartitionScheme=default_8MB</code></td></tr>
+    </table>
+    <p>协议层（帧结构、状态机、打包）写成纯 C 的 <code>proto.c/.h</code> 两边原样共用，字节序与结构体打包用固定宽度类型 + 手工序列化（两边编译器一致但别赌 padding）。</p>
+    <div class="callout info">
+        当前串口分配（2026-09-17 实测）：StickS3 = <code>/dev/cu.usbmodem101</code>，AMOLED = <code>/dev/cu.usbmodem1101</code>（新插回的那个）。名字会漂，烧前 <code>arduino-cli board list</code> / <code>ls /dev/cu.usbmodem*</code> 确认。
+    </div>
+</div>
+
+<!-- Section 8 -->
+<div class="section" id="risk">
+    <h2>8. 风险与开放问题</h2>
+    <table>
+        <tr><th>#</th><th>风险/问题</th><th>对策</th></tr>
+        <tr><td>1</td><td>300 包/s 的 ESP-NOW 空口压力与丢包</td><td>v1 先测实测丢包率；&gt;5% 则上 IMA ADPCM（包数降 4 倍）或 8kHz</td></tr>
+        <tr><td>2</td><td>ESP-NOW 与 WiFi/BLE 共存干扰</td><td>两板无其他无线业务，固定信道；StickS3 用 BLE（空鼠）时勿并发</td></tr>
+        <tr><td>3</td><td>AMOLED 的 PA 开启瞬态爆音</td><td>开启后跳过前 2–3 帧（tuner 结论直接复用）</td></tr>
+        <tr><td>4</td><td>发热（用户点名）</td><td>已按"仅 SEARCHING 态 5s 一轮 ≤300ms 扫描"设计；LINKED 态 1s 心跳开销可忽略</td></tr>
+        <tr><td>5</td><td>StickS3 250mAh 电池续航</td><td>空闲态屏幕降亮度/息屏（按键唤醒）；粗估连续对讲 1–2h，v1 不做深睡</td></tr>
+        <tr><td>6</td><td>PTT_UP 丢失 → 对端卡在接收态</td><td>500ms 无音频帧超时释放 + 30s 话权强制回收</td></tr>
+        <tr><td>7</td><td>双工具链协议不一致</td><td>proto.c 共用 + 主机侧单元测试（帧序列化往返，仿 liquid 的主机侧测试纪律）</td></tr>
+    </table>
+    <p><strong>开放问题（等用户拍板）</strong>：① 对讲距离预期（同房间 / 隔墙）——决定是否开 ESP-NOW long-range 模式（TX rate 512kbps/256kbps）；② 要不要开机音量/静音键；③ AMOLED 是否也保留一个物理按键当备用 PTT（板上有 BOOT 键可复用）。</p>
+</div>
+
+<!-- Section 9 -->
+<div class="section" id="mile">
+    <h2>9. 里程碑</h2>
+    <table>
+        <tr><th>里程碑</th><th>内容</th><th>验收</th></tr>
+        <tr><td><strong>M1 连接层</strong></td><td>proto.c + 双板握手/心跳/5s 重连 + 双屏状态显示</td><td>拔电重上，5s 内自动重连；串口看心跳</td></tr>
+        <tr><td><strong>M2 单向语音</strong></td><td>AMOLED 触摸按住 → StickSL3 扬声器出声</td><td>人耳听连续无断裂，延迟 &lt;300ms</td></tr>
+        <tr><td><strong>M3 双向 PTT</strong></td><td>StickS3 K1 / AMOLED 触摸互抢话权，仲裁与 BUSY 提示</td><td>同时按下不死锁，双向可讲</td></tr>
+        <tr><td><strong>M4 打磨</strong></td><td>丢包统计 UI、ADPCM（如需）、息屏省电、加密 LMK</td><td>1 小时连续使用稳定</td></tr>
+    </table>
+</div>
+
+<!-- Section 10 -->
+<div class="section" id="refs">
+    <h2>10. 参考资源</h2>
+    <ul>
+        <li>atomic14/esp32-walkie-talkie（650★）：ESP-NOW/UDP 实时对讲机，PTT + jitter buffer 的完整参考 — https://github.com/atomic14/esp32-walkie-talkie</li>
+        <li>XksA-me/StickS3-EchoLink（3★）：StickS3 对讲机（ESP-NOW 近距 + MQTT 跨网），留言式非实时，但按键 UX/功耗策略/PSRAM 队列值得抄 — https://github.com/XksA-me/StickS3-EchoLink</li>
+        <li>23di/CardieTalkie（16★）：Cardputer 上的 ESP-NOW 对讲 — https://github.com/23di/CardieTalkie</li>
+        <li>espressif/esp-now（795★）：官方 ESP-NOW 封装组件（重连/安全/组网），IDF 侧可直接用 — https://github.com/espressif/esp-now</li>
+        <li>ESP-NOW 官方文档 — https://docs.espressif.com/projects/esp-idf/zh_CN/latest/esp32s3/api-reference/network/esp_now.html</li>
+        <li>本仓库已有基础：tuner/（ES8311 录放实测）、ZCODE.md（PMU/屏幕/四件套纪律）、M5Unified examples/Advanced/Mic_FFT（采集参考）</li>
+    </ul>
+</div>
+
+<div class="footer">
+    <p>双板 ESP-NOW 对讲机 需求与技术设计 · 2026-09-17 · 设计稿 v1（未开始实现）</p>
+    <p style="margin-top:8px;">硬件事实来源：StickS3 官方 pin map · AMOLED 侧 ZCODE.md/tuner 实测 · 参考项目见第 10 节</p>
+</div>
+
+</div>
+<script>
+function copyCode(btn) {
+    var block = btn.closest('.code-block');
+    var code = block.querySelector('pre').innerText;
+    function done() {
+        btn.textContent = '已复制 ✓';
+        btn.classList.add('copied');
+        setTimeout(function () {
+            btn.textContent = '复制';
+            btn.classList.remove('copied');
+        }, 1600);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(code).then(done, function () { fallbackCopy(code, btn, done); });
+    } else {
+        fallbackCopy(code, btn, done);
+    }
+}
+function fallbackCopy(text, btn, done) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch (e) {}
+    document.body.removeChild(ta);
+    done();
+}
+</script>
+
+
+</body>
+</html>

@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M5StickS3 开发与烧录调研 — arduino-cli 工作流 + 社区固件（AirMouse）</title>
+<style>
+    :root {
+        --bg: #fafbfc;
+        --surface: #ffffff;
+        --surface-hover: #f5f6f8;
+        --text: #1a1a2e;
+        --text-secondary: #5a5a7a;
+        --accent: #6366f1;
+        --accent-2: #8b5cf6;
+        --accent-glow: rgba(99, 102, 241, 0.08);
+        --border: #e8eaef;
+        --code-bg: #f1f3f5;
+        --code-border: #e0e2e7;
+        --tag-bg: #eef0ff;
+        --tag-color: #6366f1;
+        --warn: #d97706;
+        --ok: #059669;
+        --info: #3b82f6;
+        --danger: #dc2626;
+        --shadow: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.03);
+        --shadow-lg: 0 4px 12px rgba(0,0,0,0.06);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.8;
+        -webkit-font-smoothing: antialiased;
+    }
+
+    .container {
+        max-width: 860px;
+        margin: 0 auto;
+        padding: 0 24px;
+    }
+
+    /* Hero */
+    .hero {
+        padding: 80px 0 50px;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 48px;
+    }
+
+    .hero h1 {
+        font-size: 2em;
+        font-weight: 700;
+        color: var(--text);
+        margin-bottom: 12px;
+        letter-spacing: -0.02em;
+    }
+
+    .hero h1 .accent {
+        color: var(--accent);
+    }
+
+    .hero .subtitle {
+        color: var(--text-secondary);
+        font-size: 1.05em;
+        max-width: 660px;
+    }
+
+    .hero .meta {
+        margin-top: 16px;
+        display: flex;
+        gap: 16px;
+        font-size: 0.82em;
+        color: var(--text-secondary);
+        flex-wrap: wrap;
+    }
+
+    .hero .meta span {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    /* TOC */
+    .toc {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 28px 32px;
+        margin-bottom: 48px;
+        box-shadow: var(--shadow);
+    }
+
+    .toc h2 {
+        font-size: 1em;
+        font-weight: 600;
+        color: var(--text-secondary);
+        margin-bottom: 16px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .toc ul {
+        list-style: none;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px 24px;
+    }
+
+    .toc a {
+        color: var(--accent);
+        text-decoration: none;
+        font-size: 0.92em;
+        padding: 4px 0;
+        display: block;
+        border-bottom: 1px solid transparent;
+        transition: border-color 0.15s;
+    }
+
+    .toc a:hover {
+        border-bottom-color: var(--border);
+    }
+
+    /* Sections */
+    .section {
+        margin-bottom: 56px;
+    }
+
+    .section h2 {
+        font-size: 1.35em;
+        font-weight: 700;
+        color: var(--text);
+        margin-bottom: 20px;
+        padding-bottom: 12px;
+        border-bottom: 2px solid var(--accent);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .section h3 {
+        font-size: 1.05em;
+        font-weight: 600;
+        color: var(--text);
+        margin: 24px 0 12px;
+    }
+
+    .section p {
+        color: var(--text-secondary);
+        margin-bottom: 12px;
+        font-size: 0.95em;
+    }
+
+    .section ul, .section ol {
+        margin: 8px 0 16px 24px;
+        color: var(--text-secondary);
+        font-size: 0.95em;
+    }
+
+    .section li {
+        margin-bottom: 6px;
+    }
+
+    /* Code blocks */
+    pre {
+        background: var(--code-bg);
+        border: 1px solid var(--code-border);
+        border-radius: 8px;
+        padding: 18px 20px;
+        overflow-x: auto;
+        font-size: 0.82em;
+        line-height: 1.6;
+        margin: 12px 0 20px;
+        font-family: "SF Mono", "Fira Code", "Cascadia Code", "JetBrains Mono", monospace;
+        color: #24292e;
+    }
+
+    code {
+        font-family: "SF Mono", "Fira Code", "Cascadia Code", "JetBrains Mono", monospace;
+        background: var(--code-bg);
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.88em;
+        color: var(--accent);
+    }
+
+    pre code {
+        background: none;
+        padding: 0;
+        color: inherit;
+    }
+
+    /* Code block with copy button */
+    .code-block {
+        margin: 12px 0 20px;
+        border: 1px solid var(--code-border);
+        border-radius: 10px;
+        overflow: hidden;
+        background: var(--code-bg);
+        box-shadow: var(--shadow);
+    }
+
+    .code-block .code-head {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 14px;
+        background: #e6e8ee;
+        border-bottom: 1px solid var(--code-border);
+        font-size: 0.78em;
+        color: var(--text-secondary);
+    }
+
+    .code-block .code-name {
+        font-weight: 600;
+        color: var(--text);
+        font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .code-block .code-lang {
+        padding: 1px 8px;
+        border-radius: 5px;
+        background: var(--tag-bg);
+        color: var(--tag-color);
+        font-weight: 500;
+        font-size: 0.78em;
+        flex-shrink: 0;
+    }
+
+    .code-block .code-note {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: var(--text-secondary);
+    }
+
+    .code-block .copy-btn {
+        flex-shrink: 0;
+        border: 1px solid var(--code-border);
+        background: var(--surface);
+        color: var(--text-secondary);
+        font-size: 0.75em;
+        font-weight: 600;
+        padding: 3px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+
+    .code-block .copy-btn:hover {
+        background: var(--accent);
+        color: #fff;
+        border-color: var(--accent);
+    }
+
+    .code-block .copy-btn.copied {
+        background: #059669;
+        color: #fff;
+        border-color: #059669;
+    }
+
+    .code-block pre {
+        margin: 0;
+        border: none;
+        border-radius: 0;
+        max-height: 480px;
+    }
+
+
+    /* Tags */
+    .tag {
+        display: inline-block;
+        font-size: 0.75em;
+        padding: 3px 10px;
+        border-radius: 6px;
+        background: var(--tag-bg);
+        color: var(--tag-color);
+        font-weight: 500;
+        margin-right: 6px;
+        vertical-align: middle;
+    }
+
+    .tag.ok { background: #ecfdf5; color: #059669; }
+    .tag.warn { background: #fffbeb; color: #d97706; }
+    .tag.info { background: #eff6ff; color: #2563eb; }
+    .tag.danger { background: #fef2f2; color: #dc2626; }
+
+    /* Callouts */
+    .callout {
+        border-radius: 10px;
+        padding: 16px 20px;
+        margin: 16px 0 24px;
+        font-size: 0.92em;
+        border: 1px solid var(--border);
+    }
+
+    .callout.info {
+        background: #eff6ff;
+        border-color: #bfdbfe;
+        color: #1e40af;
+    }
+
+    .callout.ok {
+        background: #ecfdf5;
+        border-color: #a7f3d0;
+        color: #065f46;
+    }
+
+    .callout.warn {
+        background: #fffbeb;
+        border-color: #fde68a;
+        color: #92400e;
+    }
+
+    .callout.danger {
+        background: #fef2f2;
+        border-color: #fecaca;
+        color: #991b1b;
+    }
+
+    /* Cards */
+    .pattern {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 24px 28px;
+        margin-bottom: 16px;
+        box-shadow: var(--shadow);
+    }
+
+    .pattern-title {
+        font-size: 1em;
+        font-weight: 600;
+        color: var(--text);
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .pattern-title .num {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        border-radius: 6px;
+        background: var(--accent);
+        color: white;
+        font-size: 0.78em;
+        font-weight: 600;
+        flex-shrink: 0;
+    }
+
+    .pattern p {
+        color: var(--text-secondary);
+        font-size: 0.92em;
+        margin-bottom: 8px;
+    }
+
+    /* Table */
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 16px 0 24px;
+        font-size: 0.88em;
+    }
+
+    th {
+        text-align: left;
+        padding: 10px 14px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        font-weight: 600;
+        color: var(--text);
+        font-size: 0.82em;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    td {
+        padding: 10px 14px;
+        border: 1px solid var(--border);
+        color: var(--text-secondary);
+        vertical-align: top;
+    }
+
+    tr:nth-child(even) td {
+        background: #fcfcfd;
+    }
+
+    td strong {
+        color: var(--text);
+    }
+
+    /* Footer */
+    .footer {
+        padding: 32px 0 48px;
+        border-top: 1px solid var(--border);
+        margin-top: 48px;
+        text-align: center;
+        color: var(--text-secondary);
+        font-size: 0.82em;
+    }
+
+    .footer a {
+        color: var(--accent);
+        text-decoration: none;
+    }
+
+    @media (max-width: 640px) {
+        .hero { padding: 48px 0 32px; }
+        .hero h1 { font-size: 1.5em; }
+        .toc ul { grid-template-columns: 1fr; }
+        .pattern { padding: 18px 20px; }
+    }
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- Hero -->
+<div class="hero">
+    <h1>M5StickS3 开发与烧录 <span class="accent">调研笔记</span></h1>
+    <p class="subtitle">M5StickS3 怎么开发、怎么编译、怎么烧录：arduino-cli 工作流盘点、与已有 ESP-IDF 的关系、以及社区里可以直接烧的固件（重点：AirMouse 空气鼠标）。本文为纯调研，尚未在板子上做任何操作。</p>
+    <div class="meta">
+        <span>📅 2026-09-17</span>
+        <span>🛠 M5StickS3 · ESP32-S3 · arduino-cli</span>
+        <span>📌 状态：调研完成，待动手</span>
+    </div>
+</div>
+
+<!-- TOC -->
+<div class="toc">
+    <h2>目录</h2>
+    <ul>
+        <li><a href="#tldr">0. 结论先行（TL;DR）</a></li>
+        <li><a href="#hw">1. 硬件速查表</a></li>
+        <li><a href="#paths">2. 官方开发方式与路线对比</a></li>
+        <li><a href="#env">3. 本机 arduino-cli 环境现状盘点</a></li>
+        <li><a href="#build">4. 编译 / 烧录 / 监视标准命令</a></li>
+        <li><a href="#idf">5. 与已有 ESP-IDF（AMOLED 仓库）的关系</a></li>
+        <li><a href="#community">6. 社区可直烧固件盘点</a></li>
+        <li><a href="#airmouse">7. AirMouse 直烧方案（第一次操作的建议步骤）</a></li>
+        <li><a href="#links">8. 参考链接汇总</a></li>
+    </ul>
+</div>
+
+<!-- Section 0 -->
+<div class="section" id="tldr">
+    <h2>0. 结论先行（TL;DR）</h2>
+    <div class="pattern">
+        <div class="pattern-title"><span class="num">1</span>开发环境基本已经就绪</div>
+        <p>8 月做红外遥控器项目时装过的一套环境<strong>还在本机</strong>：<code>arduino-cli 1.5.1</code>（brew）、M5Stack 板包 <code>m5stack:esp32 3.3.8</code>（当前最新）、板包源 URL 也已配置。缺的只是<strong>库</strong>（M5Unified / M5GFX 都没了）和 sketch 目录（<code>~/work/m5stack</code> 下旧的 sketch 与打了补丁的 ESP32IRPulseKit 已被删除，只剩配置文件指向一个不存在的 sketchbook 路径）。</p>
+    </div>
+    <div class="pattern">
+        <div class="pattern-title"><span class="num">2</span>烧录完全不依赖 ESP-IDF</div>
+        <p><code>arduino-cli upload</code> 用的是板包自带的 esptool 5.2.0，不需要进 IDF 环境。反过来，烧<strong>预编译 merged bin</strong> 时用哪个 esptool 都行——包括 AMOLED 仓库 <code>.local-tools</code> 里 IDF 5.5.5 自带的那个，一条 <code>write_flash 0x0</code> 搞定。</p>
+    </div>
+    <div class="pattern">
+        <div class="pattern-title"><span class="num">3</span>AirMouse 有现成固件，可直接烧</div>
+        <p>社区项目 <strong>Teapot174/AirMouseS3</strong>（GitHub，20★）就是"听说的那个 AirMouse"：BMI270 陀螺仪驱动的 BLE 空气鼠标，v1.0 release 提供预编译全量镜像 <code>AirMouseS3.bin</code>（0x0 起烧），M5Burner 里也收录了。想自己写/魔改，参考 <strong>tomokusaba/m5stack-ble-mouse</strong>（Qiita 有完整设计文，StickS3 专属，完成度最高）。</p>
+    </div>
+    <div class="callout info">
+        本笔记只做调研，没有烧录任何东西。动手前的第一条纪律（沿用 AMOLED 项目的习惯）：<strong>先把 StickS3 的 8MB 原厂全量备份下来再烧第三方固件</strong>，命令见第 7 节。
+    </div>
+</div>
+
+<!-- Section 1 -->
+<div class="section" id="hw">
+    <h2>1. 硬件速查表</h2>
+    <table>
+        <tr><th>项目</th><th>规格 / 说明</th></tr>
+        <tr><td><strong>MCU</strong></td><td>ESP32-S3-PICO-1-<strong>N8R8</strong>（8MB Flash + 8MB PSRAM），原生 USB（USB-Serial/JTAG）</td></tr>
+        <tr><td><strong>屏幕</strong></td><td>1.14" IPS，ST7789P3，<strong>135×240</strong>（M5GFX 里 board_M5StickS3 自动适配）</td></tr>
+        <tr><td><strong>IMU</strong></td><td><strong>BMI270</strong> 6 轴（chip ID 0x24），M5Unified 的 <code>M5.Imu</code> 直接读 —— AirMouse 的核心器件</td></tr>
+        <tr><td><strong>音频</strong></td><td>ES8311 codec + MEMS 麦克风 + 1W 扬声器（和 AMOLED 板同款 codec，经验可迁移）</td></tr>
+        <tr><td><strong>红外</strong></td><td>TX GPIO46（IR928-6C，功率小，≤50cm）/ RX GPIO42（VSOP38338）—— 详见 8 月两篇 IR 笔记</td></tr>
+        <tr><td><strong>按键</strong></td><td>K1 = GPIO11（<code>M5.BtnA</code>），K2 = GPIO12（<code>M5.BtnB</code>），侧边电源/复位键</td></tr>
+        <tr><td><strong>电池/电源</strong></td><td>250mAh 锂电；<strong>M5PM1</strong> 电源管理（支持多档低功耗，见官方 m5pm1 文档）</td></tr>
+        <tr><td><strong>接口</strong></td><td>USB-C、Grove/HyRT 扩展口、RTC</td></tr>
+    </table>
+    <div class="callout warn">
+        屏幕是 <strong>135×240</strong>（不是 StickC Plus 的 135×240 之外的规格，也别和 240×280 的新 Card 系列混了）。IR 收发的实测特性（AGC 吞头、发射距离短）在 8 月排障笔记里已沉淀，做 IR 相关功能先回去翻。
+    </div>
+</div>
+
+<!-- Section 2 -->
+<div class="section" id="paths">
+    <h2>2. 官方开发方式与路线对比</h2>
+    <p>官方 Arduino 教程（docs.m5stack.com/en/arduino/m5sticks3/program）的路径：<strong>Arduino IDE/CLI + M5Stack 板包 + M5Unified/M5GFX 库</strong>，例程用 ScrollGraph 验证。版本要求：板包 ≥ 3.2.5、M5Unified ≥ 0.2.12、M5GFX ≥ 0.2.18（本机板包 3.3.8 满足）。</p>
+    <table>
+        <tr><th>路线</th><th>适合</th><th>备注</th></tr>
+        <tr><td><strong>Arduino（arduino-cli）</strong></td><td>主力路线，社区案例最多</td><td>本机环境已就绪；BLE HID（空鼠）、USB HID（Ducky 类）都有现成库</td></tr>
+        <tr><td>UIFlow2（MicroPython）</td><td>图形化/快速原型</td><td>出厂固件即 UIFlow2，M5Burner 可随时刷回</td></tr>
+        <tr><td>ESP-IDF</td><td>想用 AMOLED 仓库那套工具链</td><td>有社区 sample：ciniml/m5sticks3_idf_sample；对 StickS3 来没必要，Arduino 生态更全</td></tr>
+        <tr><td>ESPHome</td><td>接 Home Assistant</td><td>slochewie/M5StickS3-ESPHome、TitoTB/M5StickS3-ESPHome</td></tr>
+        <tr><td>Zephyr</td><td>RTOS 玩家</td><td>thc1006/zephyr-m5stack-sticks3（首个公开移植）</td></tr>
+    </table>
+</div>
+
+<!-- Section 3 -->
+<div class="section" id="env">
+    <h2>3. 本机 arduino-cli 环境现状盘点（2026-09-17 实测）</h2>
+    <table>
+        <tr><th>项</th><th>状态</th></tr>
+        <tr><td>arduino-cli</td><td>✅ 1.5.1（/opt/homebrew/bin，brew 安装）</td></tr>
+        <tr><td>板包源 URL</td><td>✅ 已配置 static-cdn.m5stack.com 的 package_m5stack_index.json</td></tr>
+        <tr><td>m5stack:esp32 板包</td><td>✅ 3.3.8 已装（= 最新版，含 esptool 5.2.0 / xtensa 工具链）</td></tr>
+        <tr><td>esp32:esp32 板包</td><td>✅ 3.3.10 也在（乐鑫官方源）</td></tr>
+        <tr><td>库</td><td>❌ <strong>一个都没装</strong>（lib list 为空；M5Unified / M5GFX 需重装）</td></tr>
+        <tr><td>sketchbook 目录</td><td>⚠️ 配置指向 <code>~/work/m5stack/.arduino_sketchbook</code>，但该目录<strong>已不存在</strong>（8 月的 sketch 与补丁版 ESP32IRPulseKit 一并没了）</td></tr>
+    </table>
+    <p>下次动手时的重建命令（只补缺的部分，其余都不用动）：</p>
+    <div class="code-block">
+  <div class="code-head"><span class="code-name">重建命令</span><span class="code-lang">sh</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+<pre><code>mkdir -p ~/work/m5stack/.arduino_sketchbook/libraries
+arduino-cli lib install M5Unified M5GFX        # 基础库（官方要求版本已满足）
+arduino-cli lib install ESP32-BLE-Mouse         # 做空鼠时再加（BLE HID 鼠标库）</code></pre>
+</div>
+    <div class="callout warn">
+        8 月给 ESP32IRPulseKit 打过的两个补丁（RX 128 符号+DMA、Haier 容差 55%）随目录删除一起丢了。以后要做 IR，重装库后<strong>补丁要重打</strong>，详见排障笔记第 4.3 节。
+    </div>
+</div>
+
+<!-- Section 4 -->
+<div class="section" id="build">
+    <h2>4. 编译 / 烧录 / 监视标准命令</h2>
+    <h3>4.1 三条主命令</h3>
+    <div class="code-block">
+  <div class="code-head"><span class="code-name">编译 / 烧录 / 监视</span><span class="code-lang">sh</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+<pre><code>FQBN="m5stack:esp32:m5stack_sticks3:PartitionScheme=default_8MB"
+arduino-cli board list                          # 找端口，/dev/cu.usbmodem*
+
+arduino-cli compile --fqbn $FQBN ~/work/m5stack/某sketch目录
+arduino-cli upload  --fqbn $FQBN -p /dev/cu.usbmodemXXXX ~/work/m5stack/某sketch目录
+arduino-cli monitor -p /dev/cu.usbmodemXXXX --config baudrate=115200</code></pre>
+</div>
+    <h3>4.2 下载模式（官方方法）</h3>
+    <p>板子正常会自动进下载模式；连不上时手动进入：<strong>按住侧边 RESET 约 2 秒，看到板内绿色 LED 闪烁后松开</strong>，再接 USB 烧录。</p>
+    <h3>4.3 板级编译选项（板包 3.3.8 实测）</h3>
+    <ul>
+        <li><strong>USB Mode</strong>：默认 Hardware CDC and JTAG；要做 <strong>USB HID</strong>（USB 鼠标/键盘，免蓝牙）时选 <code>USBMode=default</code>（USB-OTG / TinyUSB）+ Adafruit_TinyUSB 库。</li>
+        <li><strong>PartitionScheme</strong>：8MB flash，默认 <code>default_8MB</code> 即可（8 月项目同款）。</li>
+        <li>UploadSpeed 默认 921600。</li>
+    </ul>
+    <h3>4.4 8 月沉淀的坑（仍然有效）</h3>
+    <ul>
+        <li>"port busy" → 串口监视器没退干净，<code>lsof /dev/cu.usbmodemXXXX</code> 杀残留进程。</li>
+        <li>端口名会变（usbmodem1101 ↔ usbmodem101），每次烧前 <code>board list</code> 确认。</li>
+        <li>板载外设供电：<code>M5.Power.setExtOutput(true, m5::ext_none)</code>（IR 等外设需要）；用 IR 接收时 <code>M5.Speaker.end()</code> 防干扰。</li>
+    </ul>
+</div>
+
+<!-- Section 5 -->
+<div class="section" id="idf">
+    <h2>5. 与已有 ESP-IDF（AMOLED 仓库）的关系</h2>
+    <p>用户直觉是"arduino-cli 烧录 + 复用已下载的 IDF"。调研结论：<strong>两者解耦更好用</strong>。</p>
+    <table>
+        <tr><th>场景</th><th>用什么</th><th>说明</th></tr>
+        <tr><td>编译/烧录自己写的 Arduino sketch</td><td>arduino-cli 全包</td><td>板包自带 esptool 5.2.0 + xtensa 工具链，IDF 完全不参与</td></tr>
+        <tr><td>烧预编译 merged bin（如 AirMouseS3.bin）</td><td>任一 esptool</td><td>板包的 <code>~/Library/Arduino15/packages/m5stack/tools/esptool_py/5.2.0-cn/esptool</code>，或 AMOLED 仓库 <code>./scripts/idf.sh</code> 环境里的 <code>python -m esptool</code>（IDF 5.5.5）——效果一样</td></tr>
+        <tr><td>ESP-IDF 原生开发 StickS3</td><td>可选</td><td>有 ciniml/m5sticks3_idf_sample 可起步，但 Arduino 生态对这块板友好得多，不推荐</td></tr>
+    </table>
+    <div class="code-block">
+  <div class="code-head"><span class="code-name">烧 merged bin 的通用命令（两种 esptool 二选一）</span><span class="code-lang">sh</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+<pre><code># 方式 A：板包自带 esptool
+~/Library/Arduino15/packages/m5stack/tools/esptool_py/5.2.0-cn/esptool \
+  --chip esp32s3 -p /dev/cu.usbmodemXXXX -b 921600 write_flash 0x0 固件.bin
+
+# 方式 B：借用 AMOLED 仓库的 IDF（.local-tools）python 环境
+~/work/ESP32-S3-Touch-AMOLED-1.8/.local-tools/espressif/python_env/idf5.5_py3.11_env/bin/python \
+  -m esptool --chip esp32s3 -p /dev/cu.usbmodemXXXX -b 921600 write_flash 0x0 固件.bin</code></pre>
+</div>
+    <div class="callout info">
+        merged bin 是"bootloader + 分区表 + 应用"的 0x0 起全量镜像，和 AMOLED 板恢复出厂镜像的烧法一模一样，肌肉记忆直接复用。
+    </div>
+</div>
+
+<!-- Section 6 -->
+<div class="section" id="community">
+    <h2>6. 社区可直烧固件盘点</h2>
+    <h3>6.1 AirMouse（空气鼠标）—— 两个层次的选择</h3>
+    <table>
+        <tr><th>项目</th><th>方式</th><th>特点</th></tr>
+        <tr><td><strong>Teapot174/AirMouseS3</strong>（20★）</td><td><strong>直接烧</strong>：release 里的 <code>AirMouseS3.bin</code>（esptool merge_bin 产物，0x0 起烧），或 M5Burner 搜 "AirMouseS3"</td><td>陀螺仪+加速度计 BLE 鼠标；A 键=左键，B 键=冻结光标（校准用）；连蓝牙热点即用。源码是 PlatformIO 工程（想改参数需要 pio 或移植成 arduino-cli sketch）</td></tr>
+        <tr><td><strong>tomokusaba/m5stack-ble-mouse</strong></td><td>自己编译（PlatformIO，<code>-e m5stack-sticks3</code>）</td><td>StickS3 专属、完成度最高的参考实现：BMI270 配到 400Hz、上电静止校准陀螺零偏（3 次×1.5s）、加速度计 leveling、1°/s 死区 + 软膝 + 低通、8ms HID 节拍、按键瞬间冻结光标 150ms 防抖。Qiita 有逐行设计文</td></tr>
+    </table>
+    <h3>6.2 其他值得收藏的 StickS3 固件</h3>
+    <table>
+        <tr><th>项目</th><th>★</th><th>一句话</th></tr>
+        <tr><td>VolosR/M5StickS3</td><td>18</td><td>VolosR 的 demo 合集（他的项目通常附 .bin，刷完就能玩）</td></tr>
+        <tr><td>nicosuave/m5mic</td><td>15</td><td>WiFi/蓝牙/USB 流式麦克风固件（把 StickS3 变电脑麦克风）</td></tr>
+        <tr><td>EnemyofGLaDOS/PulseOS</td><td>9</td><td>口袋赛博系统：小游戏 + 小工具合集</td></tr>
+        <tr><td>M5RogueOps/M5StickS3-RogueDuck</td><td>5</td><td>DuckyScript USB 注入器 —— <strong>USB HID 路线</strong>的现成范例</td></tr>
+        <tr><td>dalianblue/M5VoiceStick</td><td>5</td><td>按住说话 → GLM-ASR 识别 → BLE 推给电脑自动粘贴（中文向，很对口）</td></tr>
+        <tr><td>steveruizok/chat-stick</td><td>180</td><td>弹幕/聊天互动设备（StickS3 支持列表里星数最高）</td></tr>
+        <tr><td>Kin1009/M5OS</td><td>3</td><td>带 .py App 机制的小系统</td></tr>
+        <tr><td>slochewie · TitoTB（ESPHome）</td><td>4/3</td><td>Home Assistant 接入配置</td></tr>
+        <tr><td>thc1006/zephyr-m5stack-sticks3</td><td>6</td><td>首个公开 Zephyr 移植</td></tr>
+        <tr><td>ciniml/m5sticks3_idf_sample</td><td>2</td><td>ESP-IDF 裸工程样例</td></tr>
+    </table>
+</div>
+
+<!-- Section 7 -->
+<div class="section" id="airmouse">
+    <h2>7. AirMouse 直烧方案（第一次操作的建议步骤）</h2>
+    <div class="pattern">
+        <div class="pattern-title"><span class="num">1</span>先备份原厂 8MB（纪律）</div>
+        <div class="code-block">
+  <div class="code-head"><span class="code-name">全量备份 + 校验</span><span class="code-lang">sh</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+<pre><code>~/Library/Arduino15/packages/m5stack/tools/esptool_py/5.2.0-cn/esptool \
+  --chip esp32s3 -p /dev/cu.usbmodemXXXX -b 921600 \
+  read_flash 0 0x800000 sticks3-factory-backup.bin
+shasum -a 256 sticks3-factory-backup.bin   # 记下哈希，和 AMOLED 板同款习惯</code></pre>
+</div>
+    </div>
+    <div class="pattern">
+        <div class="pattern-title"><span class="num">2</span>下载并烧录 AirMouseS3 v1.0</div>
+        <div class="code-block">
+  <div class="code-head"><span class="code-name">直烧</span><span class="code-lang">sh</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+<pre><code>curl -LO https://github.com/Teapot174/AirMouseS3/releases/download/v1.0/AirMouseS3.bin
+~/Library/Arduino15/packages/m5stack/tools/esptool_py/5.2.0-cn/esptool \
+  --chip esp32s3 -p /dev/cu.usbmodemXXXX -b 921600 write_flash 0x0 AirMouseS3.bin</code></pre>
+</div>
+    </div>
+    <div class="pattern">
+        <div class="pattern-title"><span class="num">3</span>使用</div>
+        <p>电脑蓝牙搜索并连接 AirMouse 热点 → 手持 StickS3 移动 = 移动光标；A 键左键，B 键冻结光标（漂了就按 B 稳住再动）。烧录不顺时：按住侧边 RESET ~2 秒，绿 LED 闪时松开，手动进下载模式。</p>
+    </div>
+    <div class="pattern">
+        <div class="pattern-title"><span class="num">4</span>不满意时的升级路径</div>
+        <p>手感/功能想改（如滚轮、中键、防抖策略）→ 直接读 tomokusaba 的源码 + Qiita 设计文，按需移植成 arduino-cli sketch（BLE 层用 T-vK/ESP32-BLE-Mouse 库），BMI270 数据从 <code>M5.Imu.getImuData()</code> 取。</p>
+    </div>
+    <div class="callout ok">
+        风险很低：随时可以用第 1 步的备份 <code>write_flash 0x0</code> 恢复出厂（UIFlow2），或者用 M5Burner 重刷任意官方固件。
+    </div>
+</div>
+
+<!-- Section 8 -->
+<div class="section" id="links">
+    <h2>8. 参考链接汇总</h2>
+    <ul>
+        <li>官方 Arduino 教程：https://docs.m5stack.com/en/arduino/m5sticks3/program</li>
+        <li>官方产品页：https://docs.m5stack.com/en/core/StickS3</li>
+        <li>IMU API：https://docs.m5stack.com/en/arduino/m5sticks3/imu （M5.Imu.update / getImuData）</li>
+        <li>M5Unified：https://github.com/m5stack/M5Unified · M5GFX：https://github.com/m5stack/M5GFX</li>
+        <li>AirMouseS3：https://github.com/Teapot174/AirMouseS3 （release: v1.0/AirMouseS3.bin）</li>
+        <li>Qiita 设计文：https://qiita.com/tomokusaba/items/579892dd8815679d54bd · 仓库：https://github.com/tomokusaba/m5stack-ble-mouse</li>
+        <li>BLE 鼠标库：https://github.com/T-vK/ESP32-BLE-Mouse</li>
+        <li>M5Burner：https://docs.m5stack.com/en/uiflow/m5burner/intro</li>
+        <li>CNX 评测（规格佐证）：https://www.cnx-software.com/2026/01/23/m5stack-sticks3-esp32-s3-mini-iot-dev-kit-features-1-14-inch-color-display-speaker-and-mic-for-voice-interaction/</li>
+        <li>GitHub 话题页：https://github.com/topics/sticks3</li>
+    </ul>
+</div>
+
+<div class="footer">
+    <p>M5StickS3 开发与烧录调研笔记 · 2026-09-17</p>
+    <p style="margin-top:8px;">前情：同目录《红外开发完全教程》《红外遥控器排障实录》（2026-08-10）· 待办：装库 → 备份 → 烧 AirMouseS3</p>
+</div>
+
+</div>
+<script>
+function copyCode(btn) {
+    var block = btn.closest('.code-block');
+    var code = block.querySelector('pre').innerText;
+    function done() {
+        btn.textContent = '已复制 ✓';
+        btn.classList.add('copied');
+        setTimeout(function () {
+            btn.textContent = '复制';
+            btn.classList.remove('copied');
+        }, 1600);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(code).then(done, function () { fallbackCopy(code, btn, done); });
+    } else {
+        fallbackCopy(code, btn, done);
+    }
+}
+function fallbackCopy(text, btn, done) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch (e) {}
+    document.body.removeChild(ta);
+    done();
+}
+</script>
+
+
+</body>
+</html>

@@ -31,3 +31,7 @@ wandlink/
 # 自研唤醒词：虚拟环境与可再生的训练数据（README 有复现命令）
 magic-wand/wakenet/.venv/
 magic-wand/wakenet/data/
+
+# 编辑器/Agent 插件根目录标记
+.v2c/
+.video_agent/
