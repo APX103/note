@@ -83,83 +83,115 @@
     <div class="section-title"><span class="dot"></span> 分类导览</div>
     <div class="grid">
         <a class="card" href="agent/" style="--accent:#6366f1;--accent-2:#6366f1">
-            <div class="card-title"><span class="arrow">&rarr;</span> <span style="width:10px;height:10px;border-radius:50%;background:#6366f1;display:inline-block"></span> Agent 与多智能体 <span class="cat-num">52 篇</span></div>
+            <div class="card-title"><span class="arrow">&rarr;</span> <span style="width:10px;height:10px;border-radius:50%;background:#6366f1;display:inline-block"></span> Agent 与多智能体 <span class="cat-num" data-unit="篇">52 篇</span></div>
             <div class="card-desc">Agent 架构、多智能体协作、框架源码分析（Claude Code / Kimi / ADK）、A2A 协议、沙箱与 MCP 调研</div>
         </a>
         <a class="card" href="llm/" style="--accent:#8b5cf6;--accent-2:#8b5cf6">
-            <div class="card-title"><span class="arrow">&rarr;</span> <span style="width:10px;height:10px;border-radius:50%;background:#8b5cf6;display:inline-block"></span> LLM 模型与推理 <span class="cat-num">4 篇</span></div>
+            <div class="card-title"><span class="arrow">&rarr;</span> <span style="width:10px;height:10px;border-radius:50%;background:#8b5cf6;display:inline-block"></span> LLM 模型与推理 <span class="cat-num" data-unit="篇">4 篇</span></div>
             <div class="card-desc">注意力机制、MoE 架构、推理优化 — 模型侧技术解析</div>
         </a>
         <a class="card" href="embedded/" style="--accent:#f97316;--accent-2:#f97316">
-            <div class="card-title"><span class="arrow">&rarr;</span> <span style="width:10px;height:10px;border-radius:50%;background:#f97316;display:inline-block"></span> 嵌入式与硬件 <span class="cat-num">18 篇</span></div>
+            <div class="card-title"><span class="arrow">&rarr;</span> <span style="width:10px;height:10px;border-radius:50%;background:#f97316;display:inline-block"></span> 嵌入式与硬件 <span class="cat-num" data-unit="篇">18 篇</span></div>
             <div class="card-desc">ESP32 / M5StickS3 / STM32 / HiSpark 开发实录、语音唤醒、摄像头驱动、仿真与游戏引擎调研</div>
         </a>
         <a class="card" href="products/" style="--accent:#10b981;--accent-2:#10b981">
-            <div class="card-title"><span class="arrow">&rarr;</span> <span style="width:10px;height:10px;border-radius:50%;background:#10b981;display:inline-block"></span> 产品与项目方案 <span class="cat-num">11 篇</span></div>
+            <div class="card-title"><span class="arrow">&rarr;</span> <span style="width:10px;height:10px;border-radius:50%;background:#10b981;display:inline-block"></span> 产品与项目方案 <span class="cat-num" data-unit="篇">11 篇</span></div>
             <div class="card-desc">全栈产品方案 — 儿童语音玩具「回声 Echo」、Vibecoding 魔杖</div>
         </a>
         <a class="card" href="books/" style="--accent:#eab308;--accent-2:#eab308">
-            <div class="card-title"><span class="arrow">&rarr;</span> <span style="width:10px;height:10px;border-radius:50%;background:#eab308;display:inline-block"></span> 书籍精读 <span class="cat-num">8 部</span></div>
+            <div class="card-title"><span class="arrow">&rarr;</span> <span style="width:10px;height:10px;border-radius:50%;background:#eab308;display:inline-block"></span> 书籍精读 <span class="cat-num" data-unit="部">8 部</span></div>
             <div class="card-desc">技术与跨领域书籍的章节精读与翻译，含 LaTeX 排版工程</div>
         </a>
         <a class="card" href="career/" style="--accent:#06b6d4;--accent-2:#06b6d4">
-            <div class="card-title"><span class="arrow">&rarr;</span> <span style="width:10px;height:10px;border-radius:50%;background:#06b6d4;display:inline-block"></span> 职业与学习 <span class="cat-num">3 篇</span></div>
+            <div class="card-title"><span class="arrow">&rarr;</span> <span style="width:10px;height:10px;border-radius:50%;background:#06b6d4;display:inline-block"></span> 职业与学习 <span class="cat-num" data-unit="篇">3 篇</span></div>
             <div class="card-desc">工程师职业发展、架构师学习路线图</div>
         </a>
         <a class="card" href="other/" style="--accent:#9ca3af;--accent-2:#9ca3af">
-            <div class="card-title"><span class="arrow">&rarr;</span> <span style="width:10px;height:10px;border-radius:50%;background:#9ca3af;display:inline-block"></span> 杂项 Other <span class="cat-num">3 项</span></div>
+            <div class="card-title"><span class="arrow">&rarr;</span> <span style="width:10px;height:10px;border-radius:50%;background:#9ca3af;display:inline-block"></span> 杂项 Other <span class="cat-num" data-unit="项">3 项</span></div>
             <div class="card-desc">飞书文档导出、示意图、Obsidian Copilot 配置等零散资料</div>
         </a>
     </div>
-    <div class="section-title"><span class="dot" style="background:#f97316"></span> 最新记录</div>
-    <div class="grid">
-        <a class="card" href="embedded/weact-esp32s3a-dev-setup.html">
+    <div class="section-title"><span class="dot" style="background:#f97316"></span> 最新记录 <span class="count">(按最后修改时间自动排序)</span></div>
+    <div class="grid" id="latest-grid">
+        <a class="card" data-date="2026-09-22" href="embedded/weact-esp32s3a-dev-setup.html">
             <div class="card-title"><span class="arrow">&rarr;</span> WeAct ESP32-S3-A 开发实录：从仓库考古到按键点灯</div>
             <div class="card-desc"><span class="tag">2026-09-22 · 实板验证</span> WROOM-1 资料仓库全景 · 原理图 PDF 逆向出 USER=GPIO45 / RGB=GPIO48 · esptool 判型 N16R8 · CH343 COM 口烧录八连败根因（电脑→芯片单向大块数据损坏，方向×包大小分诊法）· 原生 USB 口 3 秒一把过 · 按键换色 Demo 全代码</div>
         </a>
-        <a class="card" href="embedded/micropixel-gravity-balls-research.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> MicroPixel gravity-balls 拆解：MCU 上的三维小球 Demo</div>
-            <div class="card-desc"><span class="tag">2026-09-22 · 调研报告</span> 138 行物理 + 890 行渲染的教科书实现 — 加速度计取反即盒内重力（不做姿态融合）· INDEX8 预光照球体图集 × 24 行调色板 · 加法光晕先画不透明球后画 · 三缓冲脏矩形 · 240Hz 固定步长丢弃不追赶 · 显示记录架构与 Host/Guest 分工全图</div>
-        </a>
-        <a class="card" href="embedded/esp-mosaico-research.html">
+        <a class="card" data-date="2026-09-22" href="embedded/esp-mosaico-research.html">
             <div class="card-title"><span class="arrow">&rarr;</span> ESP-Mosaico 调研：乐鑫 ESP32-S31 磁吸拼接开发套件</div>
             <div class="card-desc"><span class="tag">2026-09-22 · 调研报告</span> 新芯片 S31 实勘（RISC-V 双核·Wi-Fi 6·PRELIMINARY v0.5）· CoreBoard+BaseBoard 硬件全景与引脚速查 · 双磁力计磁吸拼接 + EEPROM 模块槽 · esp-mosaico 组织四仓库（BSP 9 组件 17 例程/Vibe/Claw）· ¥379 淘宝限量 · 对讲机/AMOLED/语音玩具抄作业指南</div>
         </a>
-        <a class="card" href="embedded/stm32h743-openmv-camera/index.html">
+        <a class="card" data-date="2026-09-22" href="embedded/micropixel-gravity-balls-research.html">
+            <div class="card-title"><span class="arrow">&rarr;</span> MicroPixel gravity-balls 拆解：MCU 上的三维小球 Demo</div>
+            <div class="card-desc"><span class="tag">2026-09-22 · 调研报告</span> 138 行物理 + 890 行渲染的教科书实现 — 加速度计取反即盒内重力（不做姿态融合）· INDEX8 预光照球体图集 × 24 行调色板 · 加法光晕先画不透明球后画 · 三缓冲脏矩形 · 240Hz 固定步长丢弃不追赶 · 显示记录架构与 Host/Guest 分工全图</div>
+        </a>
+        <a class="card" data-date="2026-09-21" href="embedded/m5sticks3-dev-and-community-guide.html">
+            <div class="card-title"><span class="arrow">&rarr;</span> M5StickS3 开发与烧录调研</div>
+            <div class="card-desc"><span class="tag">开发实录</span> arduino-cli 工作流 + 社区固件（AirMouse）调研</div>
+        </a>
+        <a class="card" data-date="2026-09-21" href="embedded/sticks3-amoled-espnow-intercom-design.html">
+            <div class="card-title"><span class="arrow">&rarr;</span> 双板 ESP-NOW 对讲机：需求与技术设计</div>
+            <div class="card-desc"><span class="tag">方案设计</span> StickS3 × AMOLED-1.8 双板对讲 — 需求、链路选型与完整技术设计</div>
+        </a>
+        <a class="card" data-date="2026-09-21" href="embedded/hi3322-diting-env-setup.html">
+            <div class="card-title"><span class="arrow">&rarr;</span> Hi3322 谛听开发板环境搭建记录</div>
+            <div class="card-desc"><span class="tag">嵌入式</span> Mac 上 Docker 编译海思谛听固件 — 方案选型、踩坑、磁盘占用清算与回收命令</div>
+        </a>
+        <a class="card" data-date="2026-09-20" href="embedded/stm32h743-openmv-camera/index.html">
             <div class="card-title"><span class="arrow">&rarr;</span> STM32H743 摄像头驱动完全教程：WeAct OpenMV Plus 从零到取景上屏</div>
             <div class="card-desc"><span class="tag">2026-09-20 · 完整教程</span> 原理图逆向出引脚表 · macOS GCC+OpenOCD 工具链 · OV5640 自动识别 · DCMI 采集与 ST7735 显示 · 五个大坑复盘（找不到Camera/黑屏A·B对照/红蓝反字节相位/暗光曝光余量/IR极性）· 无示波器远程验证方法学 · 10 章含完整代码路径</div>
         </a>
-        <a class="card" href="products/vibecoding-wand/index.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> Vibecoding 魔杖方案：AI 编程 Agent 的物理遥控器</div>
-            <div class="card-desc"><span class="tag">2026-09-19 · 方案设计</span> 按住说话下咒 · 画圈发送 · 下劈接受 · 横挥拒绝 · 双摇急停 — M5StickS3 经 USB 直连 Mac，系统自带 ASR + tmux 注入，对 Agent 零侵入 · 复用自研唤醒词引擎与手势流水线 · 3 天出 Demo</div>
-        </a>
-        <a class="card" href="embedded/esp32-wakenet-diy-tutorial.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> ESP32 语音唤醒完全教程：WakeNet 与自研复刻</div>
-            <div class="card-desc"><span class="tag">教程</span> 官方 ESP-SR 用法 + 自研 33KB int8 唤醒词引擎全链路 — say 合成数据、类平衡训练、QAT 量化、C 运行时对拍与上板集成，附踩坑速查</div>
-        </a>
-        <a class="card" href="embedded/magic-wand/index.html">
+        <a class="card" data-date="2026-09-19" href="embedded/magic-wand/index.html">
             <div class="card-title"><span class="arrow">&rarr;</span> Lumos 魔杖玩具 Demo 方案</div>
             <div class="card-desc"><span class="tag">2026-09-19 · 方案设计</span> 唤醒词点灯 · IMU 手势施法 · ESP-NOW 远程控灯 — M5StickS3 + AMOLED 板零新增硬件 · 状态机/无线协议/里程碑/风险全拍板 · 自研唤醒词引擎已落地（见教程）</div>
-        </a>
-        <a class="card" href="products/kids-voice-toy/index.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> 系列总览 · 一页纸看懂回声 Echo</div>
-            <div class="card-desc"><span class="tag">总览</span> 三个访谈洞察 · 产品定义 · 技术架构速览 · 文档地图 — 孩子的玩伴，父母的声音日记</div>
-        </a>
-        <a class="card" href="embedded/hispark-hi3322/fbb-cli-mac-research.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> HiDiTing fbb CLI 调研：Agent 友好设计与 Mac 部署可行性</div>
-            <div class="card-desc"><span class="tag">2026-09-18 · 调研报告</span> 官方一站式 CLI 能力全景 · JSON 契约与 gdb agent 模式 · 毕昇 26.08.1 起支持 Apple Silicon · 旧克隆坑位与完整部署步骤</div>
-        </a>
-        <a class="card" href="embedded/hispark-cv610/mac-development-guide.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> CV610 Mac 开发教程：编译、串口部署与烧录</div>
-            <div class="card-desc"><span class="tag">2026-09-10 · 操作教程</span> 拉取官方镜像 → ARM 编译 → 串口校验上传 → Music 触屏实战 · NPU 更新与回滚 · 附小工具源码包</div>
-        </a>
-        <a class="card" href="embedded/hispark-cv610/session-2026-09-09.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> CV610 开发实录：从 Mac 编译到 NPU 实时检测</div>
-            <div class="card-desc"><span class="tag">2026-09-09 · 实板验证</span> Docker 编译 · 串口与 LVGL 触摸 · Agent 方案取舍 · 摄像头排障 · NPU 检测与复现手册</div>
         </a>
     </div>
 
     <div class="footer">托管于 <a href="https://github.com/APX103/note">GitHub - APX103/note</a></div>
 </div>
+
+<script>
+// 动态增强：fetch 各分类 index，重算分类计数并按 data-date 重建「最新记录」。
+// fetch 失败（file:// 等）时保留下方静态快照。
+(function () {
+    var cats = ["agent", "llm", "embedded", "products", "books", "career", "other"];
+    var pool = [], pending = cats.length;
+    cats.forEach(function (cat) {
+        fetch(cat + "/index.html").then(function (r) { return r.ok ? r.text() : null; })
+        .then(function (html) {
+            if (html) {
+                var doc = new DOMParser().parseFromString(html, "text/html");
+                var n = doc.querySelectorAll("a.card").length;
+                var badge = document.querySelector('a.card[href="' + cat + '/"] .cat-num');
+                if (badge && n) badge.textContent = n + " " + (badge.dataset.unit || "篇");
+                doc.querySelectorAll("a.card[data-date]").forEach(function (c) {
+                    var title = c.querySelector(".card-title");
+                    var desc = c.querySelector(".card-desc");
+                    var descTxt = desc ? [].filter.call(desc.childNodes, function (x) {
+                        return x.nodeType === 3; }).map(function (x) { return x.textContent; }).join("") : "";
+                    pool.push({
+                        d: c.dataset.date,
+                        t: title ? title.textContent.replace("→", "").trim() : "",
+                        desc: descTxt.trim(),
+                        href: cat + "/" + c.getAttribute("href")
+                    });
+                });
+            }
+        }).catch(function () {})
+        .then(function () { if (--pending === 0) render(); });
+    });
+    function esc(s) { var d = document.createElement("div"); d.textContent = s || ""; return d.innerHTML; }
+    function render() {
+        if (pool.length < 6) return; // 信息不足时保留静态快照
+        pool.sort(function (a, b) { return b.d.localeCompare(a.d); });
+        var grid = document.getElementById("latest-grid");
+        grid.innerHTML = pool.slice(0, 8).map(function (c) {
+            return '<a class="card" data-date="' + c.d + '" href="' + esc(c.href) + '">' +
+                '<div class="card-title"><span class="arrow">&rarr;</span> ' + esc(c.t) + '</div>' +
+                '<div class="card-desc"><span class="tag">' + esc(c.d) + '</span> ' + esc(c.desc) + '</div></a>';
+        }).join("");
+    }
+})();
+</script>
 </body>
 </html>

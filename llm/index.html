@@ -83,19 +83,19 @@
     </div>
     <div class="section-title"><span class="dot" style="background:#8b5cf6"></span> 文章列表 <span class="count">(4)</span></div>
     <div class="grid">
-        <a class="card" href="attention_mechanisms_guide.html">
+        <a class="card" data-date="2026-04-23" href="attention_mechanisms_guide.html">
             <div class="card-title"><span class="arrow">&rarr;</span> 高效注意力机制深度解析</div>
             <div class="card-desc"><span class="tag">模型架构</span> MLA / GQA / SWA 及前沿注意力机制原理与实践</div>
         </a>
-        <a class="card" href="moe_architecture_guide.html">
+        <a class="card" data-date="2026-04-23" href="moe_architecture_guide.html">
             <div class="card-title"><span class="arrow">&rarr;</span> MoE 架构与 Kimi K2.6 深度解析</div>
             <div class="card-desc"><span class="tag">模型架构</span> Mixture of Experts 架构原理及 Kimi K2.6 实现细节</div>
         </a>
-        <a class="card" href="llm_inference_optimization.html">
+        <a class="card" data-date="2026-04-23" href="llm_inference_optimization.html">
             <div class="card-title"><span class="arrow">&rarr;</span> 大模型推理优化技术深度解析</div>
             <div class="card-desc"><span class="tag">推理引擎</span> 系统架构 / 模型架构 / 推理引擎 — 2023-2024 工业界合流全景</div>
         </a>
-        <a class="card" href="llm_inference_optimization_2.html">
+        <a class="card" data-date="2026-06-17" href="llm_inference_optimization_2.html">
             <div class="card-title"><span class="arrow">&rarr;</span> 推理系统优化：技术细节手册</div>
             <div class="card-desc"><span class="tag">推理优化</span> 推理系统优化的进阶技术细节手册 — 与《大模型推理优化技术深度解析》成套阅读</div>
         </a>
@@ -103,5 +103,15 @@
 
     <div class="footer">托管于 <a href="https://github.com/APX103/note">GitHub - APX103/note</a></div>
 </div>
+
+<script>
+// 分区计数自动重算：以各 section 网格内实际卡片数为准
+document.querySelectorAll('.section-title').forEach(function (t) {
+    var g = t.nextElementSibling;
+    if (!g || !g.classList.contains('grid')) return;
+    var c = t.querySelector('.count');
+    if (c) c.textContent = '(' + g.querySelectorAll('a.card').length + ')';
+});
+</script>
 </body>
 </html>

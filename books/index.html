@@ -83,35 +83,35 @@
     </div>
     <div class="section-title"><span class="dot" style="background:#eab308"></span> 书籍列表 <span class="count">(8)</span></div>
     <div class="grid">
-        <a class="card" href="Politics-of-Bureaucracy-book/index.html">
+        <a class="card" data-date="2026-08-17" href="Politics-of-Bureaucracy-book/index.html">
             <div class="card-title"><span class="arrow">&rarr;</span> 官僚体制的政治 — 戈登·塔洛克</div>
             <div class="card-desc"><span class="tag">公共选择</span> 布坎南前言 + 4 篇 25 章全本 HTML — 政治人模型 · 等级制运行逻辑 · 官僚体制的效率边界</div>
         </a>
-        <a class="card" href="Fluent-C-book/">
+        <a class="card" data-date="2026-09-15" href="Fluent-C-book/">
             <div class="card-title"><span class="arrow">&rarr;</span> 《Fluent C》精读（英文原版）</div>
             <div class="card-desc"><span class="tag">书籍精读</span> C 模式 12 章 — 错误处理、内存管理、灵活 API、模块化组织、逃离 ifdef 地狱、日志与用户管理系统</div>
         </a>
-        <a class="card" href="Fluent-C-book-zh/">
+        <a class="card" data-date="2026-09-15" href="Fluent-C-book-zh/">
             <div class="card-title"><span class="arrow">&rarr;</span> 《Fluent C》精读（中文版）</div>
             <div class="card-desc"><span class="tag">书籍精读</span> 同一套 12 章模式笔记的中文翻译版</div>
         </a>
-        <a class="card" href="Memory-Consistency-Coherence-book/">
+        <a class="card" data-date="2026-08-12" href="Memory-Consistency-Coherence-book/">
             <div class="card-title"><span class="arrow">&rarr;</span> 《内存一致性和缓存连贯性理论》精读</div>
             <div class="card-desc"><span class="tag">书籍精读</span> 11 章 — 连贯性基础、SC / TSO / 松弛内存模型、监听与目录协议、异构系统与形式化验证</div>
         </a>
-        <a class="card" href="MCC-LaTeX/">
+        <a class="card" data-date="2026-08-12" href="MCC-LaTeX/">
             <div class="card-title"><span class="arrow">&rarr;</span> 《内存一致性和缓存连贯性理论》LaTeX 工程</div>
             <div class="card-desc"><span class="tag">书籍精读</span> md → LaTeX 排版脚本（md2tex.py）与成品 PDF</div>
         </a>
-        <a class="card" href="GenIV-Materials-book/">
+        <a class="card" data-date="2026-07-27" href="GenIV-Materials-book/">
             <div class="card-title"><span class="arrow">&rarr;</span> 《第四代核反应堆结构材料》精读</div>
             <div class="card-desc"><span class="tag">书籍精读</span> 18 章 — 液态金属 / 超临界水 / 熔盐腐蚀、辐照效应、ODS 钢、SiCf/SiC、碳碳与核级石墨</div>
         </a>
-        <a class="card" href="SMR-book/">
+        <a class="card" data-date="2026-07-21" href="SMR-book/">
             <div class="card-title"><span class="arrow">&rarr;</span> 《SMR 小型模块化反应堆》精读</div>
             <div class="card-desc"><span class="tag">书籍精读</span> 20 章 — IPWR 技术综述、美 / 韩 / 俄 / 中 / 日 / 阿根廷技术路线、安全性与经济性</div>
         </a>
-        <a class="card" href="Perovskite-Solar-Cell-book/">
+        <a class="card" data-date="2026-07-28" href="Perovskite-Solar-Cell-book/">
             <div class="card-title"><span class="arrow">&rarr;</span> 《钙钛矿太阳电池》精读</div>
             <div class="card-desc"><span class="tag">书籍精读</span> 11 章 — 材料与半导体物理、柔性器件、印刷 / 干法制备、叠层与室内光伏、表征技术</div>
         </a>
@@ -119,5 +119,15 @@
 
     <div class="footer">托管于 <a href="https://github.com/APX103/note">GitHub - APX103/note</a></div>
 </div>
+
+<script>
+// 分区计数自动重算：以各 section 网格内实际卡片数为准
+document.querySelectorAll('.section-title').forEach(function (t) {
+    var g = t.nextElementSibling;
+    if (!g || !g.classList.contains('grid')) return;
+    var c = t.querySelector('.count');
+    if (c) c.textContent = '(' + g.querySelectorAll('a.card').length + ')';
+});
+</script>
 </body>
 </html>
