@@ -25,6 +25,7 @@
 ```
 wakenet/
 ├── scripts/
+│   ├── record.py       # ⓪ 按空格录音：真声正样本/负样本采集器（可选）
 │   ├── synthesize.py   # ① macOS say 合成正/负样本（缓存，重跑只补新增）
 │   ├── make_dataset.py # ② 整理成 1s 定长数据集 + 说话人无关验证集切分
 │   ├── train.py        # ③ 训练：50ep 常规 + 20ep QAT（量化感知）+ 最优checkpoint
@@ -35,7 +36,7 @@ wakenet/
 │   ├── wakenet_model.h # 自动生成：权重/scale/滤波器组
 │   └── test_main.c     # 本机对拍（ESP32 上不要编译此文件）
 ├── data/  models/      # 生成物（63MB 音频可随时删，重跑可再生）
-└── .venv/              # torch + numpy
+└── .venv/              # torch + numpy（record.py 另需 sounddevice）
 ```
 
 ## 复现全流程
@@ -54,8 +55,18 @@ cd esp32 && clang -O2 -o /tmp/wntest wakenet.c mel_fbank.c test_main.c -lm
 ## 换唤醒词 / 加自己的声音
 
 - 换词：改 `synthesize.py` 的 `POS_TEXTS`（英文短词效果最好），删 `data/raw/` 重跑。
-- 加真声：`data/raw/mylumos/*.wav`（16k 或 44.1k 单声道均可），30~50 条不同距离/音量，
-  然后 `make_dataset.py && train.py && export_c.py`。
+- 加真声：`.venv/bin/pip install sounddevice` 后用采集器（空格开始/停止，一条一文件，
+  实时电平条 + 远/正常/近音量分桶统计，提醒你换距离换音量）：
+  ```bash
+  .venv/bin/python scripts/record.py --goal 50        # 正样本 → data/raw/mylumos/
+  .venv/bin/python scripts/record.py --dir data/raw/unknown \
+      --tag chat --chunk 2                            # 负样本：日常聊天，长录自动切 2s
+  .venv/bin/python scripts/record.py --test           # 先自检 1 秒 + 回放
+  ```
+  数量参考：个人用 50~100 条真声正样本足够（多样性 > 数量：0.3~3m 距离、正常/大声/耳语、
+  安静/有背景音都覆盖）；负样本随手录几十分钟日常中文聊天即可。
+  然后 `make_dataset.py && train.py && export_c.py`。注意留 5~10 条不放进 `mylumos/` 做真机验收；
+  录到 `unknown/` 的文件名首段会被当作"说话人"，别用 Daniel/Tessa 开头的 tag。
 - 训练按"说话人"切验证集（留出 Daniel/Tessa 两个语音），指标不会因数据泄漏虚高。
 
 ## ESP32 端集成（三步）
