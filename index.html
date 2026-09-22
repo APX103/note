@@ -6,634 +6,160 @@
 <title>Notes</title>
 <style>
     :root {
-        --bg: #0f0f12;
-        --surface: #1a1a1f;
-        --surface-hover: #222228;
-        --text: #e8e8ec;
-        --text-secondary: #9ca3af;
-        --accent: #6366f1;
-        --accent-glow: rgba(99, 102, 241, 0.15);
-        --accent-2: #8b5cf6;
+        --bg: #0f0f12; --surface: #1a1a1f; --surface-hover: #222228;
+        --text: #e8e8ec; --text-secondary: #9ca3af;
+        --accent: #6366f1; --accent-glow: rgba(99, 102, 241, 0.15); --accent-2: #8b5cf6;
         --border: rgba(255,255,255,0.06);
-        --a2a-accent: #10b981;
-        --a2a-accent-glow: rgba(16, 185, 129, 0.15);
     }
-
     * { margin: 0; padding: 0; box-sizing: border-box; }
-
     body {
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-        background: var(--bg);
-        color: var(--text);
-        line-height: 1.7;
-        -webkit-font-smoothing: antialiased;
-        min-height: 100vh;
+        background: var(--bg); color: var(--text); line-height: 1.7;
+        -webkit-font-smoothing: antialiased; min-height: 100vh;
     }
-
-    .bg-glow {
-        position: fixed;
-        width: 500px; height: 500px;
-        border-radius: 50%;
+    .bg-glow { position: fixed; width: 500px; height: 500px; border-radius: 50%;
         background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
-        top: -150px; right: -150px;
-        pointer-events: none;
-        z-index: 0;
-    }
-
-    .bg-glow-2 {
-        position: fixed;
-        width: 400px; height: 400px;
-        border-radius: 50%;
+        top: -150px; right: -150px; pointer-events: none; z-index: 0; }
+    .bg-glow-2 { position: fixed; width: 400px; height: 400px; border-radius: 50%;
         background: radial-gradient(circle, rgba(139, 92, 246, 0.08) 0%, transparent 70%);
-        bottom: -100px; left: -100px;
-        pointer-events: none;
-        z-index: 0;
-    }
-
-    .bg-glow-a2a {
-        position: fixed;
-        width: 400px; height: 400px;
-        border-radius: 50%;
-        background: radial-gradient(circle, var(--a2a-accent-glow) 0%, transparent 70%);
-        top: 30%; left: -200px;
-        pointer-events: none;
-        z-index: 0;
-    }
-
-    .container {
-        max-width: 720px;
-        margin: 0 auto;
-        padding: 0 24px;
-        position: relative;
-        z-index: 1;
-    }
-
-    .hero {
-        padding: 100px 0 60px;
-    }
-
-    .hero h1 {
-        font-size: 2.2em;
-        font-weight: 700;
+        bottom: -100px; left: -100px; pointer-events: none; z-index: 0; }
+    .container { max-width: 720px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+    .hero { padding: 80px 0 40px; }
+    .hero h1 { font-size: 2.2em; font-weight: 700;
         background: linear-gradient(135deg, var(--text) 0%, var(--accent) 50%, var(--accent-2) 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        margin-bottom: 12px;
-    }
-
-    .hero p {
-        color: var(--text-secondary);
-        font-size: 1.05em;
-    }
-
-    .section-title {
-        font-size: 1.1em;
-        font-weight: 600;
-        color: var(--text-secondary);
-        margin: 48px 0 20px;
-        padding-bottom: 10px;
-        border-bottom: 1px solid var(--border);
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-
-    .section-title .dot {
-        width: 8px; height: 8px;
-        border-radius: 50%;
-        background: var(--accent);
-    }
-
-    .section-title.a2a .dot {
-        background: var(--a2a-accent);
-    }
-
-    .grid {
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: 16px;
-        padding-bottom: 40px;
-    }
-
-    .card {
-        display: block;
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        padding: 28px 32px;
-        text-decoration: none;
-        color: inherit;
-        transition: all 0.25s ease;
-        position: relative;
-        overflow: hidden;
-    }
-
-    .card::before {
-        content: '';
-        position: absolute;
-        top: 0; left: 0;
-        width: 3px; height: 100%;
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        margin-bottom: 12px; }
+    .hero p { color: var(--text-secondary); font-size: 1.05em; }
+    .back { display: inline-block; margin-top: 24px; color: var(--text-secondary);
+        text-decoration: none; font-size: 0.9em; transition: color 0.2s; }
+    .back:hover { color: var(--accent); }
+    .section-title { font-size: 1.1em; font-weight: 600; color: var(--text-secondary);
+        margin: 48px 0 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border);
+        display: flex; align-items: center; gap: 10px; }
+    .section-title .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+    .section-title .count { font-size: 0.75em; font-weight: 400; opacity: 0.7; }
+    .grid { display: grid; grid-template-columns: 1fr; gap: 16px; padding-bottom: 40px; }
+    .card { display: block; background: var(--surface); border: 1px solid var(--border);
+        border-radius: 12px; padding: 24px 28px; text-decoration: none; color: inherit;
+        transition: all 0.25s ease; position: relative; overflow: hidden; }
+    .card::before { content: ''; position: absolute; top: 0; left: 0; width: 3px; height: 100%;
         background: linear-gradient(180deg, var(--accent), var(--accent-2));
-        opacity: 0;
-        transition: opacity 0.25s ease;
-    }
-
-    .card.a2a::before {
-        background: linear-gradient(180deg, var(--a2a-accent), #34d399);
-    }
-
-    .card:hover {
-        background: var(--surface-hover);
-        border-color: rgba(99, 102, 241, 0.2);
-        transform: translateY(-2px);
-        box-shadow: 0 8px 30px rgba(0,0,0,0.3);
-    }
-
-    .card.a2a:hover {
-        border-color: rgba(16, 185, 129, 0.2);
-    }
-
-    .card:hover::before {
-        opacity: 1;
-    }
-
-    .card-title {
-        font-size: 1.15em;
-        font-weight: 600;
-        color: var(--text);
-        margin-bottom: 6px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-
-    .card-title .arrow {
-        color: var(--accent);
-        opacity: 0;
-        transform: translateX(-4px);
-        transition: all 0.25s ease;
-        font-size: 0.9em;
-    }
-
-    .card.a2a .card-title .arrow {
-        color: var(--a2a-accent);
-    }
-
-    .card:hover .card-title .arrow {
-        opacity: 1;
-        transform: translateX(0);
-    }
-
-    .card-desc {
-        color: var(--text-secondary);
-        font-size: 0.9em;
-    }
-
-    .tag {
-        display: inline-block;
-        font-size: 0.72em;
-        padding: 2px 8px;
-        border-radius: 6px;
-        background: rgba(99, 102, 241, 0.1);
-        color: var(--accent);
-        font-weight: 500;
-    }
-
-    .tag.a2a {
-        background: rgba(16, 185, 129, 0.1);
-        color: var(--a2a-accent);
-    }
-
-    .footer {
-        padding: 30px 0;
-        border-top: 1px solid var(--border);
-        text-align: center;
-        color: var(--text-secondary);
-        font-size: 0.82em;
-    }
-
-    .footer a {
-        color: var(--accent);
-        text-decoration: none;
-    }
-
+        opacity: 0; transition: opacity 0.25s ease; }
+    .card:hover { background: var(--surface-hover); border-color: rgba(99, 102, 241, 0.2);
+        transform: translateY(-2px); box-shadow: 0 8px 30px rgba(0,0,0,0.3); }
+    .card:hover::before { opacity: 1; }
+    .card-title { font-size: 1.1em; font-weight: 600; color: var(--text);
+        margin-bottom: 6px; display: flex; align-items: center; gap: 10px; }
+    .card-title .arrow { color: var(--accent); opacity: 0; transform: translateX(-4px);
+        transition: all 0.25s ease; font-size: 0.9em; }
+    .card:hover .card-title .arrow { opacity: 1; transform: translateX(0); }
+    .card-desc { color: var(--text-secondary); font-size: 0.9em; }
+    .tag { display: inline-block; font-size: 0.72em; padding: 2px 8px; border-radius: 6px;
+        background: rgba(99, 102, 241, 0.1); color: var(--accent); font-weight: 500; }
+    .cat-num { font-size: 0.72em; padding: 2px 8px; border-radius: 6px; font-weight: 500;
+        background: rgba(255,255,255,0.06); color: var(--text-secondary); }
+    .plain-list { list-style: none; padding-bottom: 40px; }
+    .plain-list li { padding: 14px 4px; border-bottom: 1px solid var(--border); }
+    .plain-list a { color: var(--text); text-decoration: none; font-weight: 500; }
+    .plain-list a:hover { color: var(--accent); }
+    .plain-list .note { color: var(--text-secondary); font-size: 0.85em; margin-left: 10px; }
+    .footer { padding: 30px 0; border-top: 1px solid var(--border); text-align: center;
+        color: var(--text-secondary); font-size: 0.82em; }
+    .footer a { color: var(--accent); text-decoration: none; }
     @media (max-width: 600px) {
-        .hero { padding: 60px 0 40px; }
-        .hero h1 { font-size: 1.6em; }
-        .card { padding: 20px 24px; }
+        .hero { padding: 50px 0 30px; } .hero h1 { font-size: 1.6em; } .card { padding: 18px 22px; }
     }
 </style>
 </head>
 <body>
 <div class="bg-glow"></div>
 <div class="bg-glow-2"></div>
-<div class="bg-glow-a2a"></div>
 
 <div class="container">
     <div class="hero">
         <h1>Notes</h1>
-        <p>技术学习笔记与深度解析</p>
+        <p>技术学习笔记与深度解析 · 分类总览</p>
     </div>
-
-    <!-- HiDiTing / hs-fbb 调研 -->
-    <div class="section-title"><span class="dot"></span> 最新记录</div>
+    <div class="section-title"><span class="dot"></span> 分类导览</div>
     <div class="grid">
-        <a class="card" href="weact-esp32s3a-dev-setup.html">
+        <a class="card" href="agent/" style="--accent:#6366f1;--accent-2:#6366f1">
+            <div class="card-title"><span class="arrow">&rarr;</span> <span style="width:10px;height:10px;border-radius:50%;background:#6366f1;display:inline-block"></span> Agent 与多智能体 <span class="cat-num">52 篇</span></div>
+            <div class="card-desc">Agent 架构、多智能体协作、框架源码分析（Claude Code / Kimi / ADK）、A2A 协议、沙箱与 MCP 调研</div>
+        </a>
+        <a class="card" href="llm/" style="--accent:#8b5cf6;--accent-2:#8b5cf6">
+            <div class="card-title"><span class="arrow">&rarr;</span> <span style="width:10px;height:10px;border-radius:50%;background:#8b5cf6;display:inline-block"></span> LLM 模型与推理 <span class="cat-num">4 篇</span></div>
+            <div class="card-desc">注意力机制、MoE 架构、推理优化 — 模型侧技术解析</div>
+        </a>
+        <a class="card" href="embedded/" style="--accent:#f97316;--accent-2:#f97316">
+            <div class="card-title"><span class="arrow">&rarr;</span> <span style="width:10px;height:10px;border-radius:50%;background:#f97316;display:inline-block"></span> 嵌入式与硬件 <span class="cat-num">18 篇</span></div>
+            <div class="card-desc">ESP32 / M5StickS3 / STM32 / HiSpark 开发实录、语音唤醒、摄像头驱动、仿真与游戏引擎调研</div>
+        </a>
+        <a class="card" href="products/" style="--accent:#10b981;--accent-2:#10b981">
+            <div class="card-title"><span class="arrow">&rarr;</span> <span style="width:10px;height:10px;border-radius:50%;background:#10b981;display:inline-block"></span> 产品与项目方案 <span class="cat-num">11 篇</span></div>
+            <div class="card-desc">全栈产品方案 — 儿童语音玩具「回声 Echo」、Vibecoding 魔杖</div>
+        </a>
+        <a class="card" href="books/" style="--accent:#eab308;--accent-2:#eab308">
+            <div class="card-title"><span class="arrow">&rarr;</span> <span style="width:10px;height:10px;border-radius:50%;background:#eab308;display:inline-block"></span> 书籍精读 <span class="cat-num">8 部</span></div>
+            <div class="card-desc">技术与跨领域书籍的章节精读与翻译，含 LaTeX 排版工程</div>
+        </a>
+        <a class="card" href="career/" style="--accent:#06b6d4;--accent-2:#06b6d4">
+            <div class="card-title"><span class="arrow">&rarr;</span> <span style="width:10px;height:10px;border-radius:50%;background:#06b6d4;display:inline-block"></span> 职业与学习 <span class="cat-num">3 篇</span></div>
+            <div class="card-desc">工程师职业发展、架构师学习路线图</div>
+        </a>
+        <a class="card" href="other/" style="--accent:#9ca3af;--accent-2:#9ca3af">
+            <div class="card-title"><span class="arrow">&rarr;</span> <span style="width:10px;height:10px;border-radius:50%;background:#9ca3af;display:inline-block"></span> 杂项 Other <span class="cat-num">3 项</span></div>
+            <div class="card-desc">飞书文档导出、示意图、Obsidian Copilot 配置等零散资料</div>
+        </a>
+    </div>
+    <div class="section-title"><span class="dot" style="background:#f97316"></span> 最新记录</div>
+    <div class="grid">
+        <a class="card" href="embedded/weact-esp32s3a-dev-setup.html">
             <div class="card-title"><span class="arrow">&rarr;</span> WeAct ESP32-S3-A 开发实录：从仓库考古到按键点灯</div>
             <div class="card-desc"><span class="tag">2026-09-22 · 实板验证</span> WROOM-1 资料仓库全景 · 原理图 PDF 逆向出 USER=GPIO45 / RGB=GPIO48 · esptool 判型 N16R8 · CH343 COM 口烧录八连败根因（电脑→芯片单向大块数据损坏，方向×包大小分诊法）· 原生 USB 口 3 秒一把过 · 按键换色 Demo 全代码</div>
         </a>
-        <a class="card" href="micropixel-gravity-balls-research.html">
+        <a class="card" href="embedded/micropixel-gravity-balls-research.html">
             <div class="card-title"><span class="arrow">&rarr;</span> MicroPixel gravity-balls 拆解：MCU 上的三维小球 Demo</div>
             <div class="card-desc"><span class="tag">2026-09-22 · 调研报告</span> 138 行物理 + 890 行渲染的教科书实现 — 加速度计取反即盒内重力（不做姿态融合）· INDEX8 预光照球体图集 × 24 行调色板 · 加法光晕先画不透明球后画 · 三缓冲脏矩形 · 240Hz 固定步长丢弃不追赶 · 显示记录架构与 Host/Guest 分工全图</div>
         </a>
-        <a class="card" href="esp-mosaico-research.html">
+        <a class="card" href="embedded/esp-mosaico-research.html">
             <div class="card-title"><span class="arrow">&rarr;</span> ESP-Mosaico 调研：乐鑫 ESP32-S31 磁吸拼接开发套件</div>
             <div class="card-desc"><span class="tag">2026-09-22 · 调研报告</span> 新芯片 S31 实勘（RISC-V 双核·Wi-Fi 6·PRELIMINARY v0.5）· CoreBoard+BaseBoard 硬件全景与引脚速查 · 双磁力计磁吸拼接 + EEPROM 模块槽 · esp-mosaico 组织四仓库（BSP 9 组件 17 例程/Vibe/Claw）· ¥379 淘宝限量 · 对讲机/AMOLED/语音玩具抄作业指南</div>
         </a>
-        <a class="card" href="stm32h743-openmv-camera/index.html">
+        <a class="card" href="embedded/stm32h743-openmv-camera/index.html">
             <div class="card-title"><span class="arrow">&rarr;</span> STM32H743 摄像头驱动完全教程：WeAct OpenMV Plus 从零到取景上屏</div>
             <div class="card-desc"><span class="tag">2026-09-20 · 完整教程</span> 原理图逆向出引脚表 · macOS GCC+OpenOCD 工具链 · OV5640 自动识别 · DCMI 采集与 ST7735 显示 · 五个大坑复盘（找不到Camera/黑屏A·B对照/红蓝反字节相位/暗光曝光余量/IR极性）· 无示波器远程验证方法学 · 10 章含完整代码路径</div>
         </a>
-        <a class="card" href="vibecoding-wand/index.html">
+        <a class="card" href="products/vibecoding-wand/index.html">
             <div class="card-title"><span class="arrow">&rarr;</span> Vibecoding 魔杖方案：AI 编程 Agent 的物理遥控器</div>
             <div class="card-desc"><span class="tag">2026-09-19 · 方案设计</span> 按住说话下咒 · 画圈发送 · 下劈接受 · 横挥拒绝 · 双摇急停 — M5StickS3 经 USB 直连 Mac，系统自带 ASR + tmux 注入，对 Agent 零侵入 · 复用自研唤醒词引擎与手势流水线 · 3 天出 Demo</div>
         </a>
-        <a class="card" href="esp32-wakenet-diy-tutorial.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> ESP32 语音唤醒完全教程：官方 WakeNet 用法与自研复刻</div>
-            <div class="card-desc"><span class="tag">2026-09-19 · 完整教程</span> 不花定制费做一颗自己的唤醒词引擎 — 原理与 WakeNet 配方溯源 · 官方 ESP-SR 快速路径 · say 合成数据/训练/QAT 量化/int8 C 运行时七步实战 · 召回 100% · 全部代码实测</div>
+        <a class="card" href="embedded/esp32-wakenet-diy-tutorial.html">
+            <div class="card-title"><span class="arrow">&rarr;</span> ESP32 语音唤醒完全教程：WakeNet 与自研复刻</div>
+            <div class="card-desc"><span class="tag">教程</span> 官方 ESP-SR 用法 + 自研 33KB int8 唤醒词引擎全链路 — say 合成数据、类平衡训练、QAT 量化、C 运行时对拍与上板集成，附踩坑速查</div>
         </a>
-        <a class="card" href="magic-wand/index.html">
+        <a class="card" href="embedded/magic-wand/index.html">
             <div class="card-title"><span class="arrow">&rarr;</span> Lumos 魔杖玩具 Demo 方案</div>
             <div class="card-desc"><span class="tag">2026-09-19 · 方案设计</span> 唤醒词点灯 · IMU 手势施法 · ESP-NOW 远程控灯 — M5StickS3 + AMOLED 板零新增硬件 · 状态机/无线协议/里程碑/风险全拍板 · 自研唤醒词引擎已落地（见教程）</div>
         </a>
-        <a class="card" href="kids-voice-toy/index.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> AI 儿童声音玩具「回声 Echo」全栈方案（10 篇）</div>
-            <div class="card-desc"><span class="tag">2026-09-18 · 产品方案</span> 会回应、会留声、能一起回看成长的声音玩具 — PRD · 硬件 · 固件 · 后端 Agent · 家长端 · 14 天 Demo 路径 · 成本商业 · 抖音打法 · 团队路线图</div>
+        <a class="card" href="products/kids-voice-toy/index.html">
+            <div class="card-title"><span class="arrow">&rarr;</span> 系列总览 · 一页纸看懂回声 Echo</div>
+            <div class="card-desc"><span class="tag">总览</span> 三个访谈洞察 · 产品定义 · 技术架构速览 · 文档地图 — 孩子的玩伴，父母的声音日记</div>
         </a>
-        <a class="card" href="hispark-hi3322/fbb-cli-mac-research.html">
+        <a class="card" href="embedded/hispark-hi3322/fbb-cli-mac-research.html">
             <div class="card-title"><span class="arrow">&rarr;</span> HiDiTing fbb CLI 调研：Agent 友好设计与 Mac 部署可行性</div>
             <div class="card-desc"><span class="tag">2026-09-18 · 调研报告</span> 官方一站式 CLI 能力全景 · JSON 契约与 gdb agent 模式 · 毕昇 26.08.1 起支持 Apple Silicon · 旧克隆坑位与完整部署步骤</div>
         </a>
-        <a class="card" href="hispark-cv610/mac-development-guide.html">
+        <a class="card" href="embedded/hispark-cv610/mac-development-guide.html">
             <div class="card-title"><span class="arrow">&rarr;</span> CV610 Mac 开发教程：编译、串口部署与烧录</div>
             <div class="card-desc"><span class="tag">2026-09-10 · 操作教程</span> 拉取官方镜像 → ARM 编译 → 串口校验上传 → Music 触屏实战 · NPU 更新与回滚 · 附小工具源码包</div>
         </a>
-        <a class="card" href="hispark-cv610/session-2026-09-09.html">
+        <a class="card" href="embedded/hispark-cv610/session-2026-09-09.html">
             <div class="card-title"><span class="arrow">&rarr;</span> CV610 开发实录：从 Mac 编译到 NPU 实时检测</div>
             <div class="card-desc"><span class="tag">2026-09-09 · 实板验证</span> Docker 编译 · 串口与 LVGL 触摸 · Agent 方案取舍 · 摄像头排障 · NPU 检测与复现手册</div>
         </a>
     </div>
 
-    <!-- AI 儿童声音玩具方案 -->
-    <div class="section-title"><span class="dot" style="background:#f97316;"></span> AI 儿童声音玩具「回声 Echo」方案</div>
-    <div class="grid">
-        <a class="card" href="kids-voice-toy/index.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> 系列总览 · 一页纸看懂回声 Echo</div>
-            <div class="card-desc"><span class="tag">总览</span> 三个访谈洞察 · 产品定义 · 技术架构速览 · 文档地图 — 孩子的玩伴，父母的声音日记</div>
-        </a>
-        <a class="card" href="kids-voice-toy/01-prd.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> 01 · 产品需求文档（PRD）</div>
-            <div class="card-desc"><span class="tag">产品</span> 双角色模型 · 用户故事 · P0/P1/P2 功能 · 按键交互规格 · 五条产品红线 · 竞品对照与成功指标</div>
-        </a>
-        <a class="card" href="kids-voice-toy/02-hardware.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> 02 · 硬件方案：三档配置与 BOM</div>
-            <div class="card-desc"><span class="tag">硬件</span> ESP32-S3 选型 · 成品机/开发板/量产 BOM（¥43–64）· 毛绒外壳 · 华强北供应链与认证前置设计</div>
-        </a>
-        <a class="card" href="kids-voice-toy/03-firmware.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> 03 · 固件方案：小智生态分级改造</div>
-            <div class="card-desc"><span class="tag">固件</span> L0–L2 改造路线（Demo 可零固件改动）· 多段录音状态机 · 离线故事包红线兜底 · OTA 与配网</div>
-        </a>
-        <a class="card" href="kids-voice-toy/04-backend-agent.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> 04 · 后端与 AI Agent 方案</div>
-            <div class="card-desc"><span class="tag">后端</span> 小智服务器自建 · ASR/LLM/TTS/内容安全选型（零成本→量产两套组合）· 儿童人设 Prompt · 声音记忆数据模型</div>
-        </a>
-        <a class="card" href="kids-voice-toy/05-parent-web.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> 05 · 家长端：H5 三屏起步</div>
-            <div class="card-desc"><span class="tag">家长端</span> 声音时间线线框 · 原声优先原则 · 每周童言精选推送 · 隐私权利产品化 · 小程序演进路径</div>
-        </a>
-        <a class="card" href="kids-voice-toy/06-demo-mvp.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> 06 · Demo 最简实现路径（14 天）★ 先看</div>
-            <div class="card-desc"><span class="tag">Demo</span> Day-by-Day 计划 · &lt;¥800 零焊接近零固件改动 · 服务器侧全量落盘录音 · Go/No-Go 判据 · 避坑清单</div>
-        </a>
-        <a class="card" href="kids-voice-toy/07-cost-business.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> 07 · 成本模型与商业模式</div>
-            <div class="card-desc"><span class="tag">商业</span> 云成本公式（¥1–8/台·月）· ¥199–249 买断 + 会员 · 收费红线工程化 · 单位经济模型与现金流节奏</div>
-        </a>
-        <a class="card" href="kids-voice-toy/08-douyin-gtm.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> 08 · 抖音冷启动打法</div>
-            <div class="card-desc"><span class="tag">增长</span> 内容先行四阶段 · 三板斧与 20 条选题 · 爆款结构公式 · DOU+ 纪律 · 3C 前后转化路径 · 爆单预案</div>
-        </a>
-        <a class="card" href="kids-voice-toy/09-team-roadmap.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> 09 · 团队与路线图</div>
-            <div class="card-desc"><span class="tag">组织</span> 16 周五阶段甘特图 · 3 人最小团队 · 自建 vs 外包决策 · 风险登记册 Top10 · 本周行动清单</div>
-        </a>
-    </div>
-
-    <!-- A2A 专题 -->
-    <div class="section-title a2a"><span class="dot"></span> A2A 智能协作协议</div>
-    <div class="grid">
-        <a class="card a2a" href="a2a/a2a-unified-spec.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> A2A 统一标准规范</div>
-            <div class="card-desc"><span class="tag a2a">标准</span> Agent Card · JSON-RPC 2.0 · Polling 消息投递 — 团队统一接入约定</div>
-        </a>
-        <a class="card a2a" href="a2a/a2a-vs-google-official.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> 我们的 A2A 实现 vs Google 官方协议</div>
-            <div class="card-desc"><span class="tag a2a">已完成</span> 12 个维度差异分析 · 高优先级对齐已完成 · 互操作路径已打通</div>
-        </a>
-        <a class="card a2a" href="a2a/a2a-protocol-guide.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> A2A 协议系统性认知指南</div>
-            <div class="card-desc"><span class="tag a2a">协议</span> Agent2Agent 协议完整解析 — 定位、设计原则、技术栈、生命周期</div>
-        </a>
-        <a class="card a2a" href="a2a/a2a-platform-prd.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> A2A 智能协作平台 — PRD & 架构设计</div>
-            <div class="card-desc"><span class="tag a2a">架构</span> 多 Agent 去中心化协作基础设施 — 发现、代理、追踪、分析四大能力</div>
-        </a>
-        <a class="card a2a" href="a2a/a2a-platform-implementation.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> A2A 智能协作平台 — 详细实现方案</div>
-            <div class="card-desc"><span class="tag a2a">实现</span> NestJS 单体架构 · Prisma · Docker Compose · 完整模块代码与部署配置</div>
-        </a>
-        <a class="card a2a" href="a2a/a2a-platform-agent-sdk.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> A2A Agent 端开发指南</div>
-            <div class="card-desc"><span class="tag a2a">SDK</span> 平台 API 规范 · Agent SDK 完整实现 · A2A Server 搭建 · 可运行示例</div>
-        </a>
-        <a class="card a2a" href="a2a/a2a-multi-agents-enterprise-frame.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> 支持 A2A 协议的企业级多智能体解决方案</div>
-            <div class="card-desc"><span class="tag a2a">企业</span> 企业级多智能体系统架构分析与 A2A 协议实践</div>
-        </a>
-        <a class="card a2a" href="a2a/2026-05-07-a2a-agent-platform-design.html" style="opacity:0.6;">
-            <div class="card-title"><span class="arrow">&rarr;</span> A2A Agent Platform Design <span style="color:#f85149;">[已废弃]</span></div>
-            <div class="card-desc"><span class="tag a2a">设计</span> <span style="text-decoration:line-through;">go-zero + MySQL + Vue3 早期方案</span> → 请查看 NestJS 实现方案</div>
-        </a>
-        <a class="card a2a" href="a2a/A2A-Agent-Integration-Guide.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> A2A Agent 接入指南</div>
-            <div class="card-desc"><span class="tag a2a">对接</span> 会话式问答 Agent 最小化接入 — 2 个端点 + 1 个心跳循环</div>
-        </a>
-        <a class="card a2a" href="a2a/a2a-server-design.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> A2A Server — 生产版代理平台设计</div>
-            <div class="card-desc"><span class="tag a2a">架构</span> 生产级 A2A 代理平台 — 设计原则 · 核心架构 · Agent 注册发现 · 任务调度 · 安全认证</div>
-        </a>
-        <a class="card a2a" href="a2a/a2a-playground-design.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> A2A Playground 技术调研与架构设计</div>
-            <div class="card-desc"><span class="tag a2a">架构</span> 工程落地 + 全链路可观测 · Agent SDK · 远程注册 · 多接入方式</div>
-        </a>
-        <a class="card a2a" href="a2a/e2e-test-cases.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> A2A Playground E2E 测试用例</div>
-            <div class="card-desc"><span class="tag a2a">测试</span> 端到端测试覆盖 — 注册、发现、消息、错误场景</div>
-        </a>
-    </div>
-
-    <!-- Agent 工具设计 -->
-    <div class="section-title"><span class="dot"></span> Agent 工具设计</div>
-    <div class="grid">
-        <a class="card" href="agent-ssh-tool-design.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> Agent SSH Tool 插件设计方案</div>
-            <div class="card-desc"><span class="tag">技术设计</span> 任务状态机 · 前后台任务 · 队列调度 · 日志回传 · 错误分析 · 交互式会话</div>
-        </a>
-        <a class="card" href="agent-ssh-tool-product-flow.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> Agent SSH Tool 产品流程与交互设计</div>
-            <div class="card-desc"><span class="tag">产品设计</span> 配置 · 接入 · 使用 · 消息获取 · 用户交互 · 异常处理 · 完整 Walkthrough</div>
-        </a>
-    </div>
-
-    <!-- Kimi CLI 源码分析 -->
-    <div class="section-title"><span class="dot"></span> Kimi CLI 源码分析</div>
-    <div class="grid">
-        <a class="card" href="subagent_architecture_summary.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> Kimi CLI Subagent 架构深度解析</div>
-            <div class="card-desc"><span class="tag">架构</span> 启动逻辑、通信机制、Agent Team 对比与架构演进</div>
-        </a>
-        <a class="card" href="kimisoul_deep_dive.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> KimiSoul、DenwaRenji 与 Wire 协议深度解析</div>
-            <div class="card-desc"><span class="tag">源码分析</span> 核心循环、上下文压缩、D-Mail 时间旅行、Wire 通信协议</div>
-        </a>
-        <a class="card" href="kimi_cli_multiagent_investigation.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> Kimi CLI Multiagent 模式调研报告</div>
-            <div class="card-desc"><span class="tag">调研</span> Multiagent 现状、历史演变、与 Claude Code / MAS 的对比</div>
-        </a>
-        <a class="card" href="agent-team-implementation.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> Kimi CLI Agent Team 实现方案</div>
-            <div class="card-desc"><span class="tag">方案</span> 基于现有 Subagent 架构扩展为 Agent Team 的详细设计</div>
-        </a>
-        <a class="card" href="team_agent_primitives_report.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> 团队模式 Agent 原语与多 Agent 编排</div>
-            <div class="card-desc"><span class="tag">调研</span> Agent 原语抽象、多 Agent 编排模式与协作机制深度分析</div>
-        </a>
-    </div>
-
-    <!-- AgentPanel 架构 -->
-    <div class="section-title"><span class="dot"></span> AgentPanel 架构</div>
-    <div class="grid">
-        <a class="card" href="agentpanel/architecture.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> AgentPanel 全栈架构文档</div>
-            <div class="card-desc"><span class="tag">架构</span> React + FastAPI + PostgreSQL + LangGraph — 整体架构、前后端、数据库、部署拓扑</div>
-        </a>
-        <a class="card" href="agentpanel/agent-interaction.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> AgentPanel Agent 交互机制详解</div>
-            <div class="card-desc"><span class="tag">交互</span> 人发帖 → AI 回复 → AI 回复 AI — Event Outbox、ReAct 循环、评论树、防重复治理</div>
-        </a>
-    </div>
-
-    <!-- 协议与调研 -->
-    <div class="section-title"><span class="dot"></span> 协议与调研</div>
-    <div class="grid">
-        <a class="card" href="matrix_chat_agent_system.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> Matrix Chat Agent System</div>
-            <div class="card-desc"><span class="tag">实现</span> Synapse + Element + Python Bot — 多 Agent 在 Matrix 聊天室中实时对话的完整系统</div>
-        </a>
-        <a class="card" href="matrix_a2a_agent_protocol_comparison.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> Matrix vs A2A Agent 交互协议对比调研</div>
-            <div class="card-desc"><span class="tag">调研</span> Matrix 协议全景分析 · A2A 系统性对比 · 12+ 场景匹配 · Claude Code Channels 成本拆解</div>
-        </a>
-    </div>
-
-    <!-- Hermes Agent 调研 -->
-    <div class="section-title"><span class="dot"></span> Hermes Agent 调研</div>
-    <div class="grid">
-        <a class="card" href="deep_research_analysis.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> Hermes Agent 深度研究模式 — 完整技术分析</div>
-            <div class="card-desc"><span class="tag">调研</span> Deep Research 模式、子 Agent 协作、工具调用链与流式输出机制</div>
-        </a>
-        <a class="card" href="hermes_memory_skill_analysis.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> Hermes Agent 记忆系统与 Skill 机制</div>
-            <div class="card-desc"><span class="tag">调研</span> 三层记忆架构设计、读写触发机制、Skill 评估标准与更新流程</div>
-        </a>
-        <a class="card" href="agent-sandbox-research.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> Agent 沙盒方案深度调研</div>
-            <div class="card-desc"><span class="tag">调研</span> 多语言代码执行与环境自动构建 — 沙盒架构、安全隔离与实现路径</div>
-        </a>
-        <a class="card" href="agent-sandbox-review.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> Agent Sandbox 工程全量 Review</div>
-            <div class="card-desc"><span class="tag">Review</span> 沙盒工程代码审查、架构评估与工程实践总结</div>
-        </a>
-        <a class="card" href="daytona-complexity-analysis.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> Daytona 自托管部署复杂度分析</div>
-            <div class="card-desc"><span class="tag">部署</span> 14 容器架构、运维复杂度评估与最小化部署方案</div>
-        </a>
-        <a class="card" href="agentrun-code-interpreter-report.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> AgentRun Code Interpreter 沙箱服务评估</div>
-            <div class="card-desc"><span class="tag">评估</span> 代码执行沙箱能力、安全隔离与多语言支持评测</div>
-        </a>
-    </div>
-
-    <!-- 书籍精读 -->
-    <div class="section-title"><span class="dot"></span> 书籍精读</div>
-    <div class="grid">
-        <a class="card" href="Politics-of-Bureaucracy-book/index.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> 官僚体制的政治 — 戈登·塔洛克</div>
-            <div class="card-desc"><span class="tag">公共选择</span> 布坎南前言 + 4 篇 25 章全本 HTML — 政治人模型 · 等级制运行逻辑 · 官僚体制的效率边界</div>
-        </a>
-    </div>
-
-    <!-- 其他笔记 -->
-    <div class="section-title"><span class="dot"></span> 其他笔记</div>
-    <div class="grid">
-        <a class="card" href="hi3322-diting-env-setup.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> Hi3322 谛听开发板环境搭建记录</div>
-            <div class="card-desc"><span class="tag">嵌入式</span> Mac 上 Docker 编译海思谛听固件 — 方案选型、踩坑、磁盘占用清算与回收命令</div>
-        </a>
-        <a class="card" href="espnow-intercom-sticks3-amoled-plan.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> ESP-NOW 双机对讲方案：M5StickS3 × AMOLED 触摸屏</div>
-            <div class="card-desc"><span class="tag">方案设计</span> 两板同款 ES8311 音频链路 — Push-to-Talk 交互、回声治理与抢占仲裁、ADPCM 音频管线、协议帧设计与里程碑（未含代码）</div>
-        </a>
-        <a class="card" href="esp32-wakenet-diy-tutorial.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> ESP32 语音唤醒完全教程：WakeNet 与自研复刻</div>
-            <div class="card-desc"><span class="tag">教程</span> 官方 ESP-SR 用法 + 自研 33KB int8 唤醒词引擎全链路 — say 合成数据、类平衡训练、QAT 量化、C 运行时对拍与上板集成，附踩坑速查</div>
-        </a>
-        <a class="card" href="m5sticks3-demo-flashing-setup.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> M5StickS3 Demo 刷机路线：从官网调研到 Mic_FFT 上板</div>
-            <div class="card-desc"><span class="tag">嵌入式开发</span> 开发方式定型 arduino-cli — 官方 Mic_FFT 例程编译烧录实录、FQBN 参数表、USB 掉线排查与社区 Demo 清单</div>
-        </a>
-        <a class="card" href="esp32-s3-amoled-liquid-development.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> ESP32-S3 AMOLED 白色液体：开发与烧录实录</div>
-            <div class="card-desc"><span class="tag">嵌入式开发</span> Mac 与 SSD 上的 ESP-IDF 环境、完整固件备份、IMU 液体模拟、空洞与阻尼修复、双核优化及烧录恢复</div>
-        </a>
-        <a class="card" href="m5sticks3-ir-controller-guide.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> M5StickS3 红外开发完全教程</div>
-            <div class="card-desc"><span class="tag">教程</span> 从零把 StickS3 做成空调遥控器 — 环境搭建、方案选型、生成帧/学习回放、避坑清单</div>
-        </a>
-        <a class="card" href="m5sticks3-ir-remote-debug.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> M5StickS3 红外遥控器排障实录</div>
-            <div class="card-desc"><span class="tag">硬件调试</span> 从"能录不能发"到稳定控制空调 — 4 个真 bug + 硬件特性 + 可复用排查方法论</div>
-        </a>
-        <a class="card" href="multiagent_debate_paper_report.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> 论文精读：多智能体辩论提升事实性与推理</div>
-            <div class="card-desc"><span class="tag">论文</span> Multi-Agent Debate 机制、事实性提升与推理能力增强</div>
-        </a>
-        <a class="card" href="agentic_rl_deep_dive.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> Agentic RL 深度调研：智能体强化学习全景</div>
-            <div class="card-desc"><span class="tag">深度调研</span> 定义、算法族（PPO/GRPO/RLOO）、奖励设计、训练范式、框架、基准与开放挑战</div>
-        </a>
-        <a class="card" href="agent_swarm_research_report.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> Agent Swarm 项目深度研究报告</div>
-            <div class="card-desc"><span class="tag">项目研究</span> 自研 Agent Swarm 架构、实现与工程化评估 — 亮点、风险与改进建议</div>
-        </a>
-        <a class="card" href="agent_swarm_session_context_design.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> Agent Swarm 全量会话上下文存储设计</div>
-            <div class="card-desc"><span class="tag">架构设计</span> 参考 Google ADK — 记录人与 Agent、Agent 与 Agent 的完整对话并支持现场复现</div>
-        </a>
-        <a class="card" href="agent_swarm_session_vs_adk.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> Agent Swarm Session 上下文方案 vs ADK 对比分析</div>
-            <div class="card-desc"><span class="tag">对比分析</span> 结合最新 session disk persistence 改动 — 差距、借鉴与演进路径</div>
-        </a>
-        <a class="card" href="agent_swarm_update_review.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> Agent Swarm 更新后 Review：SQLite 持久化 + Metrics</div>
-            <div class="card-desc"><span class="tag">更新 Review</span> 针对最新改动 — 亮点、已解决问题、剩余缺口与下一步</div>
-        </a>
-        <a class="card" href="agent_swarm_update_review_2.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> Agent Swarm 更新后 Review 2：Cancel 传播 + Config 外置</div>
-            <div class="card-desc"><span class="tag">更新 Review</span> cancel propagation、DispatcherConfig YAML 化、shared_context 清理评估</div>
-        </a>
-        <a class="card" href="agent_swarm_update_review_3.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> Agent Swarm 更新后 Review 3：Cancel 闭环修复</div>
-            <div class="card-desc"><span class="tag">更新 Review</span> cancel 状态持久化、External Agent 处理、测试覆盖评估</div>
-        </a>
-        <a class="card" href="adk_workflow_deep_dive.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> ADK Workflow 深度调研</div>
-            <div class="card-desc"><span class="tag">框架调研</span> Collaboration / Graph Workflow / Multi-Agent Patterns / Human-in-the-loop / Agent Router — 机制、实现与接入权衡</div>
-        </a>
-        <a class="card" href="thinking-packs.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> Agent 思维包：实践闭环与五个核心模块</div>
-            <div class="card-desc"><span class="tag">AI Agent</span> Agent 实践闭环、五个核心模块与系统性工程思维</div>
-        </a>
-        <a class="card" href="AI时代工程师价值重构指南.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> AI时代工程师价值重构指南</div>
-            <div class="card-desc"><span class="tag">职业发展</span> 探讨 AI 时代下工程师如何重构自身价值与核心竞争力</div>
-        </a>
-        <a class="card" href="PrFaaS_learning_roadmap.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> PrFaaS 架构师学习路线图</div>
-            <div class="card-desc"><span class="tag">推理服务</span> 从前后端开发到万亿参数推理服务的完整学习路径</div>
-        </a>
-        <a class="card" href="agent_architecture_guide.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> Agent 架构深度解析</div>
-            <div class="card-desc"><span class="tag">AI Agent</span> 从 Single Agent 到 Agent Swarm 的架构演进与实践</div>
-        </a>
-        <a class="card" href="moe_architecture_guide.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> MoE 架构与 Kimi K2.6 深度解析</div>
-            <div class="card-desc"><span class="tag">模型架构</span> Mixture of Experts 架构原理及 Kimi K2.6 实现细节</div>
-        </a>
-        <a class="card" href="attention_mechanisms_guide.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> 高效注意力机制深度解析</div>
-            <div class="card-desc"><span class="tag">模型架构</span> MLA / GQA / SWA 及前沿注意力机制原理与实践</div>
-        </a>
-        <a class="card" href="llm_inference_optimization.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> 大模型推理优化技术深度解析</div>
-            <div class="card-desc"><span class="tag">推理引擎</span> 系统架构 / 模型架构 / 推理引擎 — 2023-2024 工业界合流全景</div>
-        </a>
-        <a class="card" href="learning-roadmap/html/index.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> 多智能体系统架构师学习路线图</div>
-            <div class="card-desc"><span class="tag">系统架构</span> 2025-2026 完整学习路线图 — 从基础到 MAS 架构师的五阶段路径</div>
-        </a>
-        <a class="card" href="adk-report.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> Google ADK 全方位技术解析</div>
-            <div class="card-desc"><span class="tag">AI Agent</span> 面向 A2A Proxy 与群组服务构建的完整技术指南</div>
-        </a>
-        <a class="card" href="deep_agent_skill_guru_report.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> Deep Agent + Skill Guru — 深度研究范式报告</div>
-            <div class="card-desc"><span class="tag">深度研究</span> 开源Agent三强对比 · MCP/A2A/AP2协议 · 自进化算法与多模态研究架构</div>
-        </a>
-        <a class="card" href="skillrouter_skillreducer_architecture.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> SkillRouter × SkillReducer — 大规模Agent技能系统架构解析</div>
-            <div class="card-desc"><span class="tag">AI Agent</span> 全文本Embedding路由 · 技能压缩去冗余 · 55K+技能实证分析</div>
-        </a>
-        <a class="card" href="agent_skill_routing_research.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> Agent Skill 调用流程与万级 Skill 优化策略调研报告</div>
-            <div class="card-desc"><span class="tag">AI Agent</span> 检索层向量召回 · 压缩层去膨胀 · 架构层与缓存优化 — 万级 Skill 实战方案</div>
-        </a>
-        <a class="card" href="claude_code_context_compaction.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> Claude Code 上下文压缩实现深度解析</div>
-            <div class="card-desc"><span class="tag">源码分析</span> 5 层压缩体系 · AutoCompact 阈值与熔断 · Session Memory 实验路径</div>
-        </a>
-        <a class="card" href="claude_code_subagent_architecture.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> Claude Code Subagent 调用流程深度解析</div>
-            <div class="card-desc"><span class="tag">源码分析</span> AgentTool 入口 · Fork 路径与普通路径 · 同步异步执行 · Prompt Cache 共享</div>
-        </a>
-        <a class="card" href="claude_code_agent_team_architecture.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> Claude Code Agent Team 系统深度解析</div>
-            <div class="card-desc"><span class="tag">源码分析</span> Leader-Worker 协作模型 · 三种执行后端 · Mailbox 通信 · 权限同步 · 任务系统</div>
-        </a>
-        <a class="card" href="agent-team-deep-dive.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> Claude Code Agent Team 深度调研报告</div>
-            <div class="card-desc"><span class="tag">调研</span> Agent Team 协作机制、任务调度、通信协议与实现细节全景分析</div>
-        </a>
-        <a class="card" href="research/taste-test-analysis-report.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> Taste Test 算法诊断报告</div>
-            <div class="card-desc"><span class="tag">算法分析</span> 为什么全是"安静精准派"？— 算法诊断与结果分析</div>
-        </a>
-        <a class="card" href="claude_loop_patterns_research.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> Claude Loop 模式全景 — 行业实践总结</div>
-            <div class="card-desc"><span class="tag">调研</span> 核心循环架构 · System Prompt 模板 · Context Engineering · 12 个 Prompt 技巧 · Multi-Agent 模式 · 生产级安全控制</div>
-        </a>
-        <a class="card" href="claude_science_artifacts_system.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> Claude-Science Artifacts 系统源码解析</div>
-            <div class="card-desc"><span class="tag">源码分析</span> 反编译 operon bundle — Workspace/Artifact Store 两层存储 · 数据模型 · 写回三通道 · "文件生成了却查不到"根因</div>
-        </a>
-    </div>
-
-    <div class="footer">
-        <a href="https://github.com/APX103/note">GitHub</a>
-    </div>
+    <div class="footer">托管于 <a href="https://github.com/APX103/note">GitHub - APX103/note</a></div>
 </div>
-
 </body>
 </html>

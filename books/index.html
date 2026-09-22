@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>书籍精读</title>
+<style>
+    :root {
+        --bg: #0f0f12; --surface: #1a1a1f; --surface-hover: #222228;
+        --text: #e8e8ec; --text-secondary: #9ca3af;
+        --accent: #6366f1; --accent-glow: rgba(99, 102, 241, 0.15); --accent-2: #8b5cf6;
+        --border: rgba(255,255,255,0.06);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+        background: var(--bg); color: var(--text); line-height: 1.7;
+        -webkit-font-smoothing: antialiased; min-height: 100vh;
+    }
+    .bg-glow { position: fixed; width: 500px; height: 500px; border-radius: 50%;
+        background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+        top: -150px; right: -150px; pointer-events: none; z-index: 0; }
+    .bg-glow-2 { position: fixed; width: 400px; height: 400px; border-radius: 50%;
+        background: radial-gradient(circle, rgba(139, 92, 246, 0.08) 0%, transparent 70%);
+        bottom: -100px; left: -100px; pointer-events: none; z-index: 0; }
+    .container { max-width: 720px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+    .hero { padding: 80px 0 40px; }
+    .hero h1 { font-size: 2.2em; font-weight: 700;
+        background: linear-gradient(135deg, var(--text) 0%, var(--accent) 50%, var(--accent-2) 100%);
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        margin-bottom: 12px; }
+    .hero p { color: var(--text-secondary); font-size: 1.05em; }
+    .back { display: inline-block; margin-top: 24px; color: var(--text-secondary);
+        text-decoration: none; font-size: 0.9em; transition: color 0.2s; }
+    .back:hover { color: var(--accent); }
+    .section-title { font-size: 1.1em; font-weight: 600; color: var(--text-secondary);
+        margin: 48px 0 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border);
+        display: flex; align-items: center; gap: 10px; }
+    .section-title .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+    .section-title .count { font-size: 0.75em; font-weight: 400; opacity: 0.7; }
+    .grid { display: grid; grid-template-columns: 1fr; gap: 16px; padding-bottom: 40px; }
+    .card { display: block; background: var(--surface); border: 1px solid var(--border);
+        border-radius: 12px; padding: 24px 28px; text-decoration: none; color: inherit;
+        transition: all 0.25s ease; position: relative; overflow: hidden; }
+    .card::before { content: ''; position: absolute; top: 0; left: 0; width: 3px; height: 100%;
+        background: linear-gradient(180deg, var(--accent), var(--accent-2));
+        opacity: 0; transition: opacity 0.25s ease; }
+    .card:hover { background: var(--surface-hover); border-color: rgba(99, 102, 241, 0.2);
+        transform: translateY(-2px); box-shadow: 0 8px 30px rgba(0,0,0,0.3); }
+    .card:hover::before { opacity: 1; }
+    .card-title { font-size: 1.1em; font-weight: 600; color: var(--text);
+        margin-bottom: 6px; display: flex; align-items: center; gap: 10px; }
+    .card-title .arrow { color: var(--accent); opacity: 0; transform: translateX(-4px);
+        transition: all 0.25s ease; font-size: 0.9em; }
+    .card:hover .card-title .arrow { opacity: 1; transform: translateX(0); }
+    .card-desc { color: var(--text-secondary); font-size: 0.9em; }
+    .tag { display: inline-block; font-size: 0.72em; padding: 2px 8px; border-radius: 6px;
+        background: rgba(99, 102, 241, 0.1); color: var(--accent); font-weight: 500; }
+    .cat-num { font-size: 0.72em; padding: 2px 8px; border-radius: 6px; font-weight: 500;
+        background: rgba(255,255,255,0.06); color: var(--text-secondary); }
+    .plain-list { list-style: none; padding-bottom: 40px; }
+    .plain-list li { padding: 14px 4px; border-bottom: 1px solid var(--border); }
+    .plain-list a { color: var(--text); text-decoration: none; font-weight: 500; }
+    .plain-list a:hover { color: var(--accent); }
+    .plain-list .note { color: var(--text-secondary); font-size: 0.85em; margin-left: 10px; }
+    .footer { padding: 30px 0; border-top: 1px solid var(--border); text-align: center;
+        color: var(--text-secondary); font-size: 0.82em; }
+    .footer a { color: var(--accent); text-decoration: none; }
+    @media (max-width: 600px) {
+        .hero { padding: 50px 0 30px; } .hero h1 { font-size: 1.6em; } .card { padding: 18px 22px; }
+    }
+</style>
+</head>
+<body>
+<div class="bg-glow"></div>
+<div class="bg-glow-2"></div>
+
+<div class="container">
+    <div class="hero">
+        <h1>书籍精读</h1>
+        <p>技术与跨领域书籍的章节精读与翻译，含 LaTeX 排版工程</p>
+        <a class="back" href="../index.html">&larr; 返回总览</a>
+    </div>
+    <div class="section-title"><span class="dot" style="background:#eab308"></span> 书籍列表 <span class="count">(8)</span></div>
+    <div class="grid">
+        <a class="card" href="Politics-of-Bureaucracy-book/index.html">
+            <div class="card-title"><span class="arrow">&rarr;</span> 官僚体制的政治 — 戈登·塔洛克</div>
+            <div class="card-desc"><span class="tag">公共选择</span> 布坎南前言 + 4 篇 25 章全本 HTML — 政治人模型 · 等级制运行逻辑 · 官僚体制的效率边界</div>
+        </a>
+        <a class="card" href="Fluent-C-book/">
+            <div class="card-title"><span class="arrow">&rarr;</span> 《Fluent C》精读（英文原版）</div>
+            <div class="card-desc"><span class="tag">书籍精读</span> C 模式 12 章 — 错误处理、内存管理、灵活 API、模块化组织、逃离 ifdef 地狱、日志与用户管理系统</div>
+        </a>
+        <a class="card" href="Fluent-C-book-zh/">
+            <div class="card-title"><span class="arrow">&rarr;</span> 《Fluent C》精读（中文版）</div>
+            <div class="card-desc"><span class="tag">书籍精读</span> 同一套 12 章模式笔记的中文翻译版</div>
+        </a>
+        <a class="card" href="Memory-Consistency-Coherence-book/">
+            <div class="card-title"><span class="arrow">&rarr;</span> 《内存一致性和缓存连贯性理论》精读</div>
+            <div class="card-desc"><span class="tag">书籍精读</span> 11 章 — 连贯性基础、SC / TSO / 松弛内存模型、监听与目录协议、异构系统与形式化验证</div>
+        </a>
+        <a class="card" href="MCC-LaTeX/">
+            <div class="card-title"><span class="arrow">&rarr;</span> 《内存一致性和缓存连贯性理论》LaTeX 工程</div>
+            <div class="card-desc"><span class="tag">书籍精读</span> md → LaTeX 排版脚本（md2tex.py）与成品 PDF</div>
+        </a>
+        <a class="card" href="GenIV-Materials-book/">
+            <div class="card-title"><span class="arrow">&rarr;</span> 《第四代核反应堆结构材料》精读</div>
+            <div class="card-desc"><span class="tag">书籍精读</span> 18 章 — 液态金属 / 超临界水 / 熔盐腐蚀、辐照效应、ODS 钢、SiCf/SiC、碳碳与核级石墨</div>
+        </a>
+        <a class="card" href="SMR-book/">
+            <div class="card-title"><span class="arrow">&rarr;</span> 《SMR 小型模块化反应堆》精读</div>
+            <div class="card-desc"><span class="tag">书籍精读</span> 20 章 — IPWR 技术综述、美 / 韩 / 俄 / 中 / 日 / 阿根廷技术路线、安全性与经济性</div>
+        </a>
+        <a class="card" href="Perovskite-Solar-Cell-book/">
+            <div class="card-title"><span class="arrow">&rarr;</span> 《钙钛矿太阳电池》精读</div>
+            <div class="card-desc"><span class="tag">书籍精读</span> 11 章 — 材料与半导体物理、柔性器件、印刷 / 干法制备、叠层与室内光伏、表征技术</div>
+        </a>
+    </div>
+
+    <div class="footer">托管于 <a href="https://github.com/APX103/note">GitHub - APX103/note</a></div>
+</div>
+</body>
+</html>
