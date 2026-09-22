@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="WeAct ESP32-S3-A（ESP32-S3-WROOM-1-N16R8）开发实录：GitHub 仓库与原理图考古、esptool 判型、按键点灯 Demo、CH343 COM 口烧录失败的完整根因分析与原生 USB 口解决方案。">
+<title>WeAct ESP32-S3-A 开发实录：从仓库考古到按键点灯</title>
+<style>
+:root{color-scheme:light;--bg:#f6f7fa;--paper:#fff;--ink:#202435;--muted:#626b80;--line:#dfe3ec;--accent:#4f46e5;--soft:#eef2ff}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:24px}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.85 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}main{max-width:1040px;margin:auto;padding:38px 28px 72px}a{color:var(--accent);text-underline-offset:3px}a:focus-visible{outline:3px solid var(--accent);outline-offset:4px}.back{font-size:14px}.eyebrow{color:var(--accent);font-weight:700;letter-spacing:.12em;font-size:12px;margin-top:30px}h1{font-size:clamp(29px,5vw,44px);line-height:1.28;letter-spacing:-.03em;margin:12px 0 18px}h2{font-size:25px;line-height:1.45;margin:0 0 22px}h3{font-size:18px;margin:25px 0 10px}p{margin:12px 0}.lead,.meta{color:var(--muted)}.meta{font-size:13px}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:30px 0}.metric{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:17px}.metric strong{display:block;font-size:26px;line-height:1.3}.metric span{font-size:12px;color:var(--muted)}nav{background:var(--soft);padding:22px 26px;border-radius:14px;margin-bottom:28px}nav ol{columns:2;column-gap:36px;margin:10px 0 0;padding-left:22px}nav li{break-inside:avoid;padding:2px 0}section{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:30px;margin:22px 0}.note{border-left:3px solid var(--accent);padding:12px 18px;background:var(--soft);margin:20px 0}.table-wrap{overflow:auto;margin:18px 0}table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;vertical-align:top;padding:12px 14px;border-bottom:1px solid var(--line)}th{background:#f4f5f9;font-weight:650}code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.88em;overflow-wrap:anywhere}p code,li code,td code{background:#f1f3f8;padding:2px 5px;border-radius:4px}pre{background:#171c2b;color:#e8ecf7;overflow:auto;border-radius:10px;padding:20px;line-height:1.65;font-size:13px;tab-size:4}pre code{font-size:inherit;overflow-wrap:normal}ul,ol{padding-left:24px}li{margin:5px 0}.footer{font-size:13px;color:var(--muted);margin-top:32px}section:target{border-color:var(--accent)}
+@media(max-width:700px){main{padding:24px 16px 45px}section{padding:23px 18px}.metrics{grid-template-columns:repeat(2,1fr)}nav ol{columns:1}pre{padding:14px}th,td{padding:10px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+@media print{body{background:white;font-size:11pt}main{max-width:none;padding:0}section{border:0;border-radius:0;padding:18px 0;break-inside:auto}nav,.back{display:none}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f3f4f7;color:#111}h2,h3{break-after:avoid}.metrics{break-inside:avoid}}
+</style>
+</head>
+<body>
+<main>
+<a class="back" href="index.html">← 返回 Notes</a>
+<header>
+<div class="eyebrow">EMBEDDED / ESP32-S3 / ARDUINO-CLI</div>
+<h1>WeAct ESP32-S3-A 开发实录<br>从仓库考古到按键点灯</h1>
+<p class="lead">WeAct Studio ESP32-S3-A（ESP32-S3-WROOM-1-N16R8）· Apple Silicon Mac · GitHub 资料考古、原理图引脚提取、esptool 判型、按键换色 Demo，以及一场 CH343 串口烧录失败的完整攻防复盘。</p>
+<p class="meta">记录日期：2026-09-22　｜　关联笔记：<a href="m5sticks3-demo-flashing-setup.html">M5StickS3 刷机路线</a>（同代工具链 arduino-cli + esp32:esp32 3.3.10） · <a href="esp-mosaico-research.html">ESP-Mosaico 调研</a>（ESP32-S31）。</p>
+</header>
+<div class="metrics" aria-label="本次结果">
+<div class="metric"><strong>N16R8</strong><span>模组判型（16M Flash + 8M Octal PSRAM）</span></div>
+<div class="metric"><strong>45 / 48</strong><span>USER 键 / WS2812 RGB 引脚（原理图考古）</span></div>
+<div class="metric"><strong>3 s</strong><span>原生 USB 口烧录 319 KB 固件</span></div>
+<div class="metric"><strong>8 连败</strong><span>COM 口 CH343 链路烧录尝试全数失败</span></div>
+</div>
+<nav aria-label="文章目录"><strong>阅读导航</strong><ol>
+<li><a href="#conclusion">结论先行</a></li>
+<li><a href="#repo">仓库与资料考古</a></li>
+<li><a href="#pins">原理图引脚考古</a></li>
+<li><a href="#identify">esptool 判型与编译参数</a></li>
+<li><a href="#demo">按键点灯 Demo</a></li>
+<li><a href="#ch343">攻防战：CH343 口烧录八连败</a></li>
+<li><a href="#usb">终局：原生 USB 口一把过</a></li>
+<li><a href="#archive">归档与来源</a></li>
+</ol></nav>
+
+<section id="conclusion"><h2>01 / 结论先行</h2>
+<ul>
+<li><strong>板子与资料</strong>：WeAct ESP32-S3-A = 乐鑫原装 ESP32-S3-WROOM-1 模组的 P2P 开发板（对标官方 DevKitC-1），硬件资料全在 <a href="https://github.com/WeActStudio/WeActStudio.ESP32S3-AorB">WeActStudio.ESP32S3-AorB</a> 仓库，A 版用 WROOM-1 模组、B 版用裸片 ESP32-S3-R8。</li>
+<li><strong>本板关键引脚</strong>：USER 键（SW3）= <strong>GPIO45</strong>（按下为 HIGH，接 3V3 + 板载 10k 下拉）；RGB 灯（WS2812B）= <strong>GPIO48</strong>；BOOT = IO0。比官方 DevKitC-1 多一颗独立 USER 键。</li>
+<li><strong>烧录铁律</strong>：本板（本机）<strong>必须走丝印 USB 的原生 USB-C 口</strong>（ESP32-S3 内置 USB Serial/JTAG，VID 303a:1001），丝印 COM 的 CH343 串口链路存在单向大块数据损坏，无法完成烧录（详见第 06 节）。</li>
+<li><strong>本机工具链零新增</strong>：arduino-cli 1.5.1 + esp32:esp32 3.3.10 直接可用，FQBN 加参数即可，不用装任何板包。</li>
+</ul>
+</section>
+
+<section id="repo"><h2>02 / 仓库与资料考古</h2>
+<p>WeAct Studio 的 GitHub 组织名是 <code>WeActStudio</code>（86 个仓库）。ESP32-S3 相关只有两个：<code>WeActStudio.ESP32S3-AorB</code>（本文主角）和 <code>WeActStudio.ESP32S3-MINI</code>（MINI-1 模组版）。AorB 仓库按板型分目录，A 版目录结构：</p>
+<div class="table-wrap"><table><thead><tr><th>路径</th><th>内容</th></tr></thead><tbody>
+<tr><td><code>ESP32S3-A/Hardware/</code></td><td>原理图 PDF、Altium 三件套（SchLib/PcbLib/IntLib）、3D STEP、外形尺寸 PDF</td></tr>
+<tr><td><code>ESP32S3-A/Doc/</code></td><td>乐鑫官方文档搬运：WROOM-1 模组手册（中文）、S3 数据手册/勘误/硬件设计指南/技术参考手册</td></tr>
+<tr><td><code>ESP32S3-A/Tool/</code></td><td>预编译 MicroPython 固件（N16R8 版）+ arduino/esp-idf/thonny 三份上手说明（内容极简，仅指路）</td></tr>
+</tbody></table></div>
+<p>注意：WeAct <strong>没有</strong>为 S3 单独建例程仓库。但 A 版是官方 ESP32-S3-DevKitC-1 的引脚兼容替代板，esp-bsp / ESP-IDF / Arduino 官方例程开箱即用；Zephyr 上游也有 WeAct ESP32-S3 板级页（其引脚定义可作为原理图结论的独立交叉验证源）。</p>
+<pre><code>git clone --depth 1 https://github.com/WeActStudio/WeActStudio.ESP32S3-AorB.git
+# 判型铁证：Doc 目录里躺着 esp32-s3-wroom-1_wroom-1u_datasheet_cn.pdf</code></pre>
+</section>
+
+<section id="pins"><h2>03 / 原理图引脚考古</h2>
+<p>原理图 <code>ESP32S3-A/Hardware/ESP32_S3_A_Sch.pdf</code> 是单页 Altium 导出 PDF。纯文本提取（pypdf）能拿到全部网络标号但丢失空间关系，需要两步走：</p>
+<pre><code>pip3 install --user pypdf pypdfium2   # 文本提取 + 定位渲染
+
+# 第一步：全文提取，确认模组型号与按键/LED 的存在
+# KEY@BOOT / KEY@RESET / KEY@USER —— 三颗按键！
+# LED3 (WS2812B)：VDD1 DOUT2 VSS3 DIN4
+
+# 第二步：pypdfium2 搜索标签坐标，按坐标裁剪渲染 PNG 局部图
+searcher = tp.search('KEY@USER')  # 拿到字符框 -> crop -> save</code></pre>
+<p>裁剪出的局部图交给视觉模型读取网络连接，再用 Zephyr 板级定义交叉验证，结论一致：</p>
+<div class="table-wrap"><table><thead><tr><th>元件</th><th>引脚</th><th>备注</th></tr></thead><tbody>
+<tr><td>USER 键（SW3）</td><td><strong>GPIO45</strong></td><td>按键接 3V3、R12 10k 下拉到 GND → 空闲 LOW、按下 HIGH（主动高，串口实测确认）</td></tr>
+<tr><td>RGB 灯（LED3，WS2812B）</td><td><strong>GPIO48</strong></td><td>DIN 经 0R 电阻接入</td></tr>
+<tr><td>BOOT 键（SW2）</td><td>GPIO0</td><td>常规 strapping 用法</td></tr>
+<tr><td>RESET 键（SW1）</td><td>EN/CHIP_PU</td><td>—</td></tr>
+<tr><td>USB 转串口</td><td>CH343P</td><td>走 COM 口 USB-C，接 UART0（GPIO43/44）</td></tr>
+<tr><td>原生 USB</td><td>GPIO19/20</td><td>另一个 USB-C 口，S3 内置 USB Serial/JTAG</td></tr>
+</tbody></table></div>
+<div class="note">两个实战细节：① GPIO45 是 strapping 引脚（VDD_SPI 电压选择），WeAct 用 10k 下拉保证上电采样为 0（3.3V flash 供电），作普通输入用没问题；② 原理图上按键极性两次视觉识别有分歧，最终用「固件开机采样空闲电平」的自适应写法一劳永逸（见第 05 节），上板实测空闲电平 = 0、按下 = HIGH。</div>
+</section>
+
+<section id="identify"><h2>04 / esptool 判型与编译参数</h2>
+<pre><code>pip3 install --user esptool   # ~/Library/Python/3.9/bin/esptool.py（4.7）
+
+esptool.py --port /dev/cu.usbmodemXXXX --chip esp32s3 --no-stub flash_id
+# Chip is ESP32-S3 (QFN56) (revision v0.2)
+# Features: WiFi, BLE, Embedded PSRAM 8MB (AP_3v3)
+# Manufacturer: c8   Device: 4018   → 16MB
+# Flash type set in eFuse: quad
+# ⇒ ESP32-S3-WROOM-1-N16R8（16M Quad Flash + 8M Octal PSRAM）</code></pre>
+<p>判型信息与仓库 <code>Tool/WeAct-ESP32S3N16R8-mpy-V1.2.bin</code> 的命名互为印证。<code>--no-stub</code> 是因为 stub 上传在本板 COM 口必挂（见第 06 节），ROM 直读虽然慢但稳。据此定 FQBN：</p>
+<pre><code>esp32:esp32:esp32s3:FlashSize=16M,PSRAM=opi,CDCOnBoot=cdc</code></pre>
+<div class="table-wrap"><table><thead><tr><th>参数</th><th>取值</th><th>原因</th></tr></thead><tbody>
+<tr><td>FlashSize</td><td><code>16M</code></td><td>16MB 板载 Flash</td></tr>
+<tr><td>PSRAM</td><td><code>opi</code></td><td>R8 = 8MB Octal PSRAM，选错运行时堆分配失败</td></tr>
+<tr><td>CDCOnBoot</td><td><code>cdc</code></td><td>Serial 走原生 USB CDC，日志直接在 USB 口看（默认 Disabled 时日志走 UART0/COM 口）</td></tr>
+</tbody></table></div>
+</section>
+
+<section id="demo"><h2>05 / 按键点灯 Demo</h2>
+<p>行为：每按一次 USER 键，RGB 依次 红 → 绿 → 蓝 → 白 → 灭 循环；串口打印事件与极性判断。WS2812 用 Arduino 核心内置的 <code>neopixelWrite()</code>（RMT 驱动），零外部依赖：</p>
+<pre><code>#define KEY_PIN 45   // SW3 USER，空闲 LOW / 按下 HIGH
+#define RGB_PIN 48   // LED3 WS2812B
+
+static const uint8_t kColors[][3] = {
+    {0,0,0},{32,0,0},{0,32,0},{0,0,32},{32,32,32}};  // 灭红绿蓝白
+static const char *kColorNames[] = {"灭 OFF","红 RED","绿 GREEN","蓝 BLUE","白 WHITE"};
+static int colorIdx = 0, idleLevel = -1;
+static bool pressed = false;
+static uint32_t lastChangeMs = 0;
+
+void setup() {
+  Serial.begin(115200);
+  delay(300);
+  neopixelWrite(RGB_PIN, 0, 0, 0);
+  pinMode(KEY_PIN, INPUT);          // 板载 10k 下拉决定空闲电平
+  delay(200);
+  idleLevel = digitalRead(KEY_PIN); // 自适应极性：按下 = 电平翻转
+  Serial.printf("KEY 空闲电平 = %d，即按下时为 %s\r\n",
+                idleLevel, idleLevel ? "LOW" : "HIGH");
+}
+
+void loop() {
+  bool now = digitalRead(KEY_PIN) != idleLevel;
+  if (now != pressed &amp;&amp; millis() - lastChangeMs > 30) {  // 30ms 消抖
+    lastChangeMs = millis();  pressed = now;
+    if (pressed) {
+      colorIdx = (colorIdx + 1) % 5;
+      neopixelWrite(RGB_PIN, kColors[colorIdx][0],
+                    kColors[colorIdx][1], kColors[colorIdx][2]);
+      Serial.printf("KEY 按下 -> RGB: %s\r\n", kColorNames[colorIdx]);
+    }
+  }
+  delay(5);
+}</code></pre>
+<p>编译一次通过：<strong>319,504 字节（24% APP 区），全局变量 22.6 KB（6% RAM）</strong>。上板串口实测输出 <code>KEY 空闲电平 = 0，即按下时为 HIGH</code>，与原理图分析一致。</p>
+</section>
+
+<section id="ch343"><h2>06 / 攻防战：CH343 口烧录八连败</h2>
+<p>这是本次最有价值的部分，完整记录排障树。症状：线插 COM 口（CH343P，macOS 识别 VID <code>1a86:55d3</code>，走 Apple 通用 CDC 驱动，设备名 <code>cu.usbmodem*</code>），esptool <strong>连接、同步、读芯片信息、擦除全部正常，唯独 stub 上传必失败</strong>：</p>
+<div class="table-wrap"><table><thead><tr><th>#</th><th>尝试</th><th>结果</th></tr></thead><tbody>
+<tr><td>1</td><td>esptool 4.7 / 115200，默认复位</td><td>写 RAM 超时（0107）</td></tr>
+<tr><td>2</td><td>arduino-cli（esptool 5.3）/ 921600</td><td>stub 校验错误（checksum）</td></tr>
+<tr><td>3</td><td>同上 / 115200</td><td>校验错误</td></tr>
+<tr><td>4</td><td>pip esptool 4.7 / 460800、230400</td><td>超时</td></tr>
+<tr><td>5</td><td>venv 装 esptool 3.3（另一代 stub 二进制）/ 115200、921600</td><td>超时</td></tr>
+<tr><td>6</td><td>先 no-stub 进 bootloader，再 <code>--before no_reset</code> 链式 stub 写（排除 DTR/RTS 自动复位干扰）</td><td>超时</td></tr>
+<tr><td>7</td><td>检查 macOS tty 层：<code>termios.tcgetattr</code> 实测 iflag/oflag/lflag 全 0（纯 raw，无 IXON/OPOST 污染）</td><td>排除</td></tr>
+<tr><td>8</td><td>monkey-patch pyserial，把每次写入拆成 64 字节小块（排除单次大写入被驱动截断）</td><td>超时（5653 字节全部发完，等不到 ROM 应答）</td></tr>
+<tr><td>—</td><td><code>--no-stub write_flash</code> 直写</td><td>擦除成功后报 <code>0105: Requested resource not found</code> —— ESP32-S3 ROM 不提供写 flash 命令，此路天生不通</td></tr>
+</tbody></table></div>
+<h3>定性证据链</h3>
+<ul>
+<li><strong>芯片→电脑方向完全正常</strong>：flash 擦空后芯片 boot 循环刷屏 <code>invalid header: 0xffffffff</code>，2 秒稳定收到 22 KB，无一错字。</li>
+<li><strong>小命令双向正常</strong>：sync、chip_id、flash_id、erase 这类几十字节的小包全部秒回。</li>
+<li><strong>只有「电脑→芯片」的持续大块数据必坏</strong>：esptool 5.3 明确报 checksum error（收到数据的 MD5 与发出不符，字节级损坏实锤）。</li>
+</ul>
+<p>结论：CH343 发送 → ESP32-S3 RX0 这段链路（板级信号完整性/器件，或 Apple CDC 驱动深层 bug）在持续传输时损坏数据。波特率、esptool 版本、复位时序、tty 层、写入分块全部排除后，软件侧无牌可打，判定为硬件级问题。</p>
+<div class="note"><strong>方法论沉淀</strong>：串口烧录排障按「方向 × 包大小」二维分诊——读 OK + 小命令 OK + 大块挂 = 发送链路问题，别在协议层空转，直接换物理通道。另外两个知识点：① S3 的 ROM 不支持 no-stub 写 flash（读取可以），stub 是硬需求；② no-stub 尝试的擦除是真实生效的——本次 bootloader 就是这么被擦掉的（板子没砖，ROM 下载模式永远在；原厂 MicroPython 备份就在仓库 Tool 目录，可随时刷回）。</div>
+</section>
+
+<section id="usb"><h2>07 / 终局：原生 USB 口一把过</h2>
+<p>线换到板另一个 USB-C（丝印 <code>USB</code>），Mac 立刻识别出新设备 <code>/dev/cu.usbmodem21201</code>，描述 <strong>"USB JTAG/serial debug unit"，VID 303a:1001（Espressif）</strong>——这是 S3 芯片内置的 USB Serial/JTAG，硬件级复位进下载模式，不依赖任何外部电路：</p>
+<pre><code>BOOTAPP=~/Library/Arduino15/packages/esp32/hardware/esp32/3.3.10/tools/partitions/boot_app0.bin
+
+esptool.py --chip esp32s3 --port /dev/cu.usbmodem21201 \
+  --before usb_reset --after hard_reset write_flash \
+  0x0     build/*.bootloader.bin \
+  0x8000  build/*.partitions.bin \
+  0xe000  "$BOOTAPP" \
+  0x10000 build/*.ino.bin
+
+# Wrote 319504 bytes in 2.4 seconds — Hash of data verified ✓</code></pre>
+<p>复位后固件自启，串口横幅、极性判断、按键事件全部按预期输出。原生 USB 通道从此为这块板子的唯一烧录/调试通道；COM 口只剩「理论上的日志口」用途（本机连日志都建议别指望它）。</p>
+<div class="note">若哪天要用 arduino-cli 一条龙：<code>arduino-cli upload -p /dev/cu.usbmodem21201 -b &lt;FQBN&gt;</code> 同样走原生 USB，esptool 会自动识别 USJ 设备。</div>
+</section>
+
+<section id="archive"><h2>08 / 归档与来源</h2>
+<ul>
+<li>工程：<code>work/esp32s3a-key-rgb</code>（esp32s3a-key-rgb.ino + build/），仓库克隆：<code>work/WeActStudio.ESP32S3-AorB</code>。</li>
+<li>环境：arduino-cli 1.5.1 · esp32:esp32 3.3.10 · esptool 4.7（pip --user）· 端口 原生 USB <code>/dev/cu.usbmodem21201</code>（COM 口 <code>/dev/cu.usbmodem58960468021</code> 已弃用）。</li>
+<li>来源：<a href="https://github.com/WeActStudio/WeActStudio.ESP32S3-AorB">WeActStudio.ESP32S3-AorB</a> · <a href="https://docs.zephyrproject.org/latest/boards/espressif/esp32s3/index.html">Zephyr ESP32-S3 板级文档</a>（引脚交叉验证） · <a href="https://docs.espressif.com/projects/esptool/en/latest/esp32s3/troubleshooting.html">esptool 排障文档</a>。</li>
+</ul>
+</section>
+
+<p class="footer">本文为真实操作会话记录；命令与输出按本机实际路径与版本摘录。</p>
+</main>
+</body>
+</html>
