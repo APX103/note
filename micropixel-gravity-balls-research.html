@@ -1,0 +1,204 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="MicroPixel gravity-balls 三维小球 Demo 调研：乐鑫 MCU 上 WebAssembly 运行时里的 3D 弹珠箱——加速度计惯性力物理、INDEX8 预光照球体图集、调色板行复用、加法光晕、脏矩形渲染与显示记录架构的完整拆解。"><title>MicroPixel gravity-balls 调研 · 三维小球 Demo 的实现思路与架构</title>
+<style>
+:root{--bg:#f5f7fa;--paper:#fff;--ink:#1c293d;--muted:#52627a;--line:#dce3ec;--blue:#315cc5;--green:#067465;--amber:#925411;--code:#101d30}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:24px}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.85 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}a{color:var(--blue);text-underline-offset:3px}a:hover{text-decoration-thickness:2px}a:focus-visible,summary:focus-visible{outline:3px solid var(--blue);outline-offset:4px}p{margin:12px 0 18px}strong{font-weight:650}code,pre{font-family:ui-monospace,SFMono-Regular,Consolas,monospace}code{font-size:.86em;background:#edf1f7;padding:2px 5px;border-radius:4px;overflow-wrap:anywhere}pre{background:var(--code);color:#e5edf9;padding:22px;border-radius:12px;overflow:auto;font-size:13px;line-height:1.75}pre code{background:none;padding:0;font-size:inherit;overflow-wrap:normal}h1,h2,h3{line-height:1.35}h1{font-size:clamp(30px,4vw,46px);letter-spacing:-1.6px;margin:20px 0}h2{font-size:27px;letter-spacing:-.6px;margin:0 0 24px}h3{font-size:19px;margin:28px 0 12px}ul,ol{padding-left:24px}li{margin:6px 0}small,.muted{color:var(--muted)}.wrap{max-width:1260px;margin:auto;padding:0 36px}.top{padding:25px 0;font-size:14px}.top a{text-decoration:none}.hero{padding:26px 0 42px;border-bottom:1px solid var(--line)}.eyebrow{color:var(--green);font:600 12px/1.5 ui-monospace,monospace;letter-spacing:2px}.hero p{max-width:780px;font-size:18px;color:var(--muted)}.meta{display:flex;flex-wrap:wrap;gap:8px 20px;font-size:13px;color:var(--muted)}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:32px}.metric{padding:19px 20px;background:var(--paper);border:1px solid var(--line);border-radius:12px}.metric b{display:block;font-size:26px;line-height:1.4;letter-spacing:-.8px}.metric span{font-size:12px;color:var(--muted)}.layout{display:grid;grid-template-columns:205px minmax(0,1fr);gap:44px;padding:42px 0 60px}aside{position:sticky;top:24px;align-self:start}aside b{font-size:12px;color:var(--muted);letter-spacing:2px}nav{display:grid;gap:0;margin-top:14px}nav a{font-size:13px;text-decoration:none;color:var(--muted);padding:4px 10px;border-left:2px solid var(--line)}nav a:hover{color:var(--blue);border-color:var(--blue);background:#eaf0fb}main{min-width:0}section{padding:32px;background:var(--paper);border:1px solid var(--line);border-radius:15px;margin-bottom:24px}h2 .n{font-size:13px;display:block;letter-spacing:2px;color:var(--green);margin-bottom:7px}.table{overflow-x:auto;margin:20px 0;border:1px solid var(--line);border-radius:9px}table{border-collapse:collapse;width:100%;font-size:14px;min-width:570px}th,td{padding:13px 15px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{background:#edf2f8;font-size:12px;color:#3c506b}tr:last-child td{border-bottom:0}td:first-child{font-weight:550}.badge{display:inline-block;padding:2px 8px;border-radius:5px;font-size:12px;white-space:nowrap;background:#e9f1fe;color:#2854a8}.ok{background:#e3f4ee;color:#075e4b}.pending{background:#fff0dc;color:#825015}.removed{background:#f0edf5;color:#64566d}.callout{padding:17px 20px;border-left:4px solid var(--green);background:#eef8f5;border-radius:0 9px 9px 0;margin:22px 0}.callout.warn{border-color:#c08631;background:#fff7e9}.callout p{margin:4px 0}.source{font-size:12px;color:var(--muted)}.sources li{font-size:14px;padding-bottom:8px;overflow-wrap:anywhere}details{border:1px solid var(--line);border-radius:9px;padding:15px 18px;margin:16px 0}summary{cursor:pointer;font-weight:600}details p:last-child{margin-bottom:0}.foot{padding:4px 0 40px;color:var(--muted);font-size:13px}.skip{position:absolute;left:16px;top:-80px;background:white;padding:10px;z-index:2}.skip:focus{top:10px}
+@media(max-width:960px){.layout{grid-template-columns:1fr;gap:24px}aside{position:static}nav{grid-template-columns:repeat(3,1fr)}.wrap{padding:0 24px}h1{letter-spacing:-1px}.metrics{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){body{font-size:15px}.wrap{padding:0 16px}.hero{padding-top:10px}.hero p{font-size:16px}.metrics{grid-template-columns:1fr;gap:10px}.metric{padding:14px}.metric b{font-size:23px}nav{grid-template-columns:1fr 1fr}.layout{padding-top:26px}section{padding:22px 18px;border-radius:12px}h2{font-size:23px}.table{min-width:0}table{min-width:0;font-size:12px}pre{padding:16px;font-size:12px}.meta{font-size:12px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+@media print{body{background:white;font-size:11pt}.wrap{max-width:none;padding:0}.top,aside,.skip{display:none}.hero{padding:0 0 20px}.hero p{font-size:12pt}.layout{display:block;padding:20px 0}section{border:0;padding:18px 0;margin:0;border-radius:0}h2,h3{break-after:avoid}tr,.callout,.metric{break-inside:avoid}.table,pre{overflow:visible}table{min-width:0;font-size:9pt}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#edf1f7;color:#14243d}a{color:inherit}details{display:block}.foot{padding-top:20px}}
+</style></head><body><a class="skip" href="#tldr">跳到正文</a><div class="wrap"><div class="top"><a href="index.html">← Notes</a> / research</div><header class="hero"><div class="eyebrow">MICROPIXEL / GRAVITY-BALLS 3D DEMO</div><h1>MCU 上的一箱弹珠：<br>gravity-balls 三维小球 Demo 拆解</h1><p class="lead">MicroPixel（<a href="https://github.com/78/micropixel">github.com/78/micropixel</a>）是跑在乐鑫 MCU 上的 <strong>WebAssembly 应用运行时</strong>：应用用 C++23 SDK 编写、编译成 AOT 产物，由固件里的 WAMR 执行。它仓库里的 <strong>gravity-balls（重力彩球）</strong>是一个教科书级的 3D demo——8~64 颗预光照小球关在固定于设备的透明盒子里，加速度计直接提供惯性力，倾斜/甩动/旋转设备，球就像真实弹珠箱一样运动。本文拆解它的完整实现：<strong>不用姿态融合的传感器物理、INDEX8 预烘焙球体图集 + 调色板行复用的"零 GPU"渲染、脏矩形节流、显示记录（draw records）架构</strong>，以及背后的 Host/Guest 分工。</p><div class="meta"><span>整理：2026-09-22</span><span>基线：本地仓库 78/micropixel @ 461bde5（LVGL 9.6.0~1）源码实读</span><span>对象：guest/apps/gravity-balls v0.1.1 · main.cpp 890 行 + physics.hpp 138 行</span></div><div class="metrics"><div class="metric"><b>138 行物理</b><span>240 Hz 半隐式 Euler + 旋转参考系三惯性力 + 冲量碰撞求解</span></div><div class="metric"><b>0 个浮点像素循环</b><span>Guest 只发绘制记录，逐像素内核在 Host 侧整数完成</span></div><div class="metric"><b>1 条 Sprite = 1 颗球</b><span>INDEX8 预光照图集 × 24 行调色板换色换亮度</span></div><div class="metric"><b>3 缓冲脏矩形</b><span>纯黑背景下每帧只清上一帧碰过的矩形，AMOLED 友好</span></div></div></header><div class="layout"><aside><b>调研目录</b><nav aria-label="报告目录"><a href="#tldr">00 · 结论速览</a><a href="#platform">01 · 平台背景：MicroPixel</a><a href="#concept">02 · Demo 是什么</a><a href="#arch">03 · 总体架构与分工</a><a href="#render">04 · 渲染管线详解</a><a href="#physics">05 · 物理引擎详解</a><a href="#loop">06 · 帧循环与时序</a><a href="#quality">07 · 工程质量与降级</a><a href="#takeaways">08 · 值得抄的思路</a><a href="#sources">09 · 来源与本地路径</a></nav></aside><main>
+
+<section id="tldr"><h2><span class="n">00 / TL;DR</span>结论速览</h2>
+<p><strong>gravity-balls 用约 1000 行 C++ 在没有 GPU、没有 FPU 吞吐可依赖的 MCU 上做出了可信的三维弹珠箱</strong>，全部秘密在三处工程取舍：</p>
+<ul>
+<li><strong>物理上不做姿态融合</strong>——加速度计读数取相反数就是盒子坐标系里"重力 + 墙壁推力"的合力（比力），静止时指向地、甩动时自动含墙壁推球的反作用力；有陀螺仪再加旋转参考系三个惯性力（离心、欧拉、科里奥利）。设备坐标系 = 盒子坐标系，一步到位，省掉姿态估计整套状态机。</li>
+<li><strong>渲染上不画三角形</strong>——启动时把球面光照烘焙成 11 种直径的 INDEX8 灰度图集（含覆盖率抗锯齿边缘），24 行调色板把强度映射成"8 种球色 + 8 种光晕 + 8 种光斑"，一颗球 = 一条 Sprite 绘制记录；线框盒 = 22 条 2px FlatQuad，深度雾靠调色板行变体。逐像素填充由 Host 的整数内核执行（P4 还能走 DMA2D 批量搬运）。</li>
+<li><strong>负载上靠内容节流</strong>——纯黑背景 + 每个 buffer 记录上一帧画过的脏矩形，下一帧只清这些矩形（超过 60% 屏幕才整屏清）；720px 面板按一半分辨率渲染再由 Host 2× 放大；物理固定 240 Hz 但每帧最多 8 步、多余时间丢弃不追赶。</li>
+</ul>
+<div class="table"><table><thead><tr><th>维度</th><th>做法</th><th>为什么</th></tr></thead><tbody>
+<tr><td>3D 感知</td><td>加速度计取反当重力 + 陀螺仪惯性力</td><td>盒子固定在设备上，无需世界系姿态（不需要融合）</td></tr>
+<tr><td>球体渲染</td><td>预烘焙 INDEX8 图集（11 直径）+ 调色板行选色</td><td>避免运行时逐像素光照；换色 = 换调色板行，零成本</td></tr>
+<tr><td>遮挡排序</td><td>画家算法：按视深从远到近画不透明球</td><td>无深度缓冲，凸球 + 不透明 sprite 足够正确</td></tr>
+<tr><td>光晕/光斑</td><td>加法混合 Sprite，全部先于球体绘制</td><td>光晕只照亮背景，被后画的不透明球自然遮挡</td></tr>
+<tr><td>清除开销</td><td>三缓冲各自记脏矩形，黑 FillRect 回擦</td><td>AMOLED 黑色省电且免整屏带宽</td></tr>
+<tr><td>物理节奏</td><td>240 Hz 固定步长 + 累加器 + 每帧 ≤8 步 + 丢弃</td><td>慢帧不滚雪球，行为确定性可回归测试</td></tr>
+</tbody></table></div>
+<div class="callout"><p><strong>一句话：</strong>这是"把 3D 问题降维成 2D sprite + 一条物理捷径"的典范——平台侧只提供整数光栅内核和调色板，应用侧用聪明的预处理（烘焙图集）和聪明的物理（比力直接当重力）把三维体验塞进了 WASM 应用的预算里。</p></div>
+</section>
+
+<section id="platform"><h2><span class="n">01 / PLATFORM</span>平台背景：MicroPixel 是什么</h2>
+<p><a href="https://micropixel.ai">MicroPixel</a> 是 <strong>Espressif 微控制器上的 WebAssembly 应用运行时</strong>：应用（Guest）用受限 C++23 SDK 编写，经 WASI SDK 编译为 AOT v6 Bundle；固件（Host）基于 ESP-IDF 6.1 + 固定 commit 的 <a href="https://github.com/78/wasm-micro-runtime">WAMR fork</a>，负责硬件管理、应用隔离（商店/App Store、BundleFS）和系统 UI。应用开发<strong>不需要 ESP-IDF</strong>，一条 <code>micropixel --transport usb run</code> 完成构建-安装-启动-跟日志。</p>
+<div class="table"><table><thead><tr><th>芯片</th><th>开发板</th><th>与本 demo 的关系</th></tr></thead><tbody>
+<tr><td>ESP32-P4</td><td>Metalio-Claw4（720×720）</td><td>buffer 按 360×360 渲染、Host 2× 放生的代表场景</td></tr>
+<tr><td>ESP32-S31</td><td><strong>ESP-Mosaico</strong>（480×480 圆屏）</td><td>README 的主参照板：触摸逻辑坐标 720×720 → buffer 480×480</td></tr>
+<tr><td>ESP32-S3</td><td>ESP32-S3-BOX-3 / 立创 SZPI / M5Stack CoreS3</td><td>S3 三板型支持</td></tr>
+</tbody></table></div>
+<h3>图形的两种应用模型（demo 选了第二种）</h3>
+<ul>
+<li><strong>Scene（保留模式）</strong>：Guest 提交对象树与属性变化，Host 验证后只重绘受影响区域——适合页面/精灵类 UI。</li>
+<li><strong>DirectSurface / HostSurface（立即模式显示记录）</strong>：Host 持有多缓冲，Guest 每帧提交一批 <em>RasterResources 绘制记录</em>（FillRect / FlatQuad / Sprite / AdditiveSprite / Text），<strong>算法和场景判断留在 Guest，逐像素循环在 Host 执行</strong>。运行时内核把连续不透明块攒批交给设备契约 <code>Graphics::CopyOpaqueBlocks</code>（P4 用 DMA2D 实现），失败由 CPU 内核重画。</li>
+</ul>
+<p>设计文档的原则一句话：<strong>"billboard 变成 RasterResources 记录，每像素填充由 Host 的 INDEX8 + 光照调色板整数内核完成；不提供通用浮点网格与逐像素深度缓冲——MCU 没有值得依赖的浮点吞吐。"</strong>gravity-balls 就是这条路线的旗舰示范：Guest 里没有任何逐像素循环。</p>
+<div class="callout"><p><strong>顺带一提：</strong>Guest 运行时里还有一个更小的兄弟 <code>guest/runtime/sphere_view.cpp</code>——系统 UI 自己的 3D 球视图，因为 Guest 不链接 libm，连 sin/cos 都是手写的多项式逼近（最大误差 ~1e-3 rad）。同一套"球 = 纹理索引表 + 投影到整像素"的思路在平台内复用了两次。</p></div>
+</section>
+
+<section id="concept"><h2><span class="n">02 / WHAT</span>Demo 是什么</h2>
+<p><strong>gravity-balls v0.1.1</strong>（app id <code>micropixel.gravity-balls</code>）是一个独立 Guest 应用，清单 <code>app.json</code> 声明：单线程（<code>threading: none</code>）、支持 square/portrait/landscape 三种布局、最小 320×320，传感器与触摸全是<strong>可选能力</strong>（<code>sensor.acceleration</code> / <code>sensor.gyroscope</code> / <code>input.touch</code>）——没有 IMU 也能跑，重力退化为固定指向远墙。</p>
+<ul>
+<li><strong>画面</strong>：纯黑背景上一个线框透明盒子（远墙矩形 + 四条深度棱 + 深度标尺 + 远墙网格，共 22 条线），24 颗（默认）不同大小、8 种颜色的预光照小球在里面滚撞；每颗球带加法光晕和投在远墙上的光斑。面向 AMOLED 的黑色设计。</li>
+<li><strong>交互</strong>：倾斜/甩动/旋转设备 = 盒内惯性力变化；点画面 = 全部球获得确定性弹起速度（观察前后遮挡）；点顶部 1/8 = 重置；右上 MENU = 设置面板（球数 8/16/24/32/48/64、盒深 6/9/12/15、重力 ×0.5~×2），面板开着模拟不停。</li>
+<li><strong>传感器失效策略</strong>：500ms 没有新加速度样本，重力缓慢回到指向远墙的 9.8 m/s²——demo 永不因缺传感器而死。</li>
+</ul>
+<p>代码规模：渲染 + 应用主体 <code>main.cpp</code> 890 行，物理 <code>physics.hpp</code> 138 行，回归测试 <code>physics_test.cpp</code> 56 行。运行画面<strong>不依赖任何图片素材</strong>（大厅封面 JPEG 只用于商店）。</p>
+</section>
+
+<section id="arch"><h2><span class="n">03 / ARCHITECTURE</span>总体架构与分工</h2>
+<pre><code>┌─ Guest（WASM/AOT，C++23，无 libc/libm）──────────────────────┐
+│ Demo::Run() 主循环                                            │
+│  ├─ Application app_          能力入口（renderer/sensors/…）  │
+│  ├─ HostSurface  surface_     3 缓冲 + AcquireFree/Present    │
+│  ├─ RasterResources resources_  纹理槽/调色板槽上传           │
+│  ├─ World world_ + Forces     物理（240Hz，见 §5）            │
+│  ├─ BuildFrame()              投影/选尺寸/光斑/远到近排序     │
+│  └─ Draw(RasterDrawList&)     发出本帧绘制记录                │
+└───────────────┬──────────────────────────────────────────────┘
+                │ surface_.Update(index, λ) —— Guest 编码记录
+                ▼
+┌─ Host（ESP-IDF 固件 + WAMR）─────────────────────────────────┐
+│ RasterDrawList 解释器：FillRect/FlatQuad/Sprite/Text 内核     │
+│  ├─ INDEX8 sprite + UploadLitPalette 整数内核                 │
+│  ├─ ADDITIVE 加法混合（能力位 RASTER_SPRITE_ADDITIVE）        │
+│  ├─ 连续不透明块攒批 → Graphics::CopyOpaqueBlocks（DMA2D）    │
+│  └─ 系统手势/菜单/返回大厅 由 Host 处理，App 不重复实现       │
+└──────────────────────────────────────────────────────────────┘</code></pre>
+<h3>资源模型：纹理槽 + 调色板槽</h3>
+<p>启动时 Guest 做三件上传：① <code>UploadTexture(0, 图集宽×高, kColumnMajor, atlas_)</code>——一张 INDEX8 图集（球 11 档直径 + 64×64 径向渐变 blob）；② <code>UploadLitPalette(0, 24 行, palette_)</code>——24 行 × 256 项 RGB565；③ 之后绘制记录里只需要引用"槽号 + 调色板行号"，<strong>换颜色、换亮度、换深度雾全在调色板行上做，图集纹丝不动</strong>。</p>
+<h3>坐标系与多分辨率</h3>
+<ul>
+<li><strong>世界系</strong>：原点在盒中心，y 向上，z 朝屏幕里；相机在原点看 +z，针孔模型 <code>scale = focal / (z + extent.z + 10)</code>，盒子开口（玻璃面）在深度 10 处正好铺满 buffer 短边（<code>focal = min(w,h)/2 × 10/4.4</code>）。</li>
+<li><strong>三套像素坐标系</strong>：逻辑显示坐标（触摸、safe area，Mosaico 为 720×720）→ buffer 像素（<code>surface_.ToBuffer()</code> 换算，480 或 360）→ 面板物理像素。大于 480 的面板以 2 倍降采样创建 surface（Claw4 720→360 buffer），<strong>Host 放大</strong>，降低近球的填充率与带宽。</li>
+<li><strong>自适应</strong>：图集直径按 buffer 短边缩放（最多 1.5×，避免放大出锯齿）；盒子的宽高比跟随 buffer；标题放在 <code>RendererInfo::safe_area()</code> 内（圆屏角部 inset）；MENU 按钮贴 buffer 角；字体度量从逻辑像素换算（Raster 文字不随 buffer 缩小）。</li>
+</ul>
+</section>
+
+<section id="render"><h2><span class="n">04 / RENDERING</span>渲染管线详解</h2>
+<h3>4.1 烘焙：一颗球的所有样子</h3>
+<p><code>BuildAtlas()</code> 启动时为 11 档直径（480 buffer 下 14~52px）逐 texel 计算：像素圆外的覆盖率先行钳位（<code>coverage = clamp(radius+0.5-dist, 0, 1)</code>，黑底上等价于 alpha 抗锯齿）；圆内重建法线 <code>n=(dx,dy,nz)</code>，做 <strong>Lambert 漫反射 + Blinn-Phong 高光（^32）</strong>，光向左上略偏前（<code>light=(-0.45,-0.60,0.66)</code>，half-vector 归一化），强度 <code>0.14 + 0.70·diffuse + 0.32·specular</code>，乘覆盖率后量化到 1..252（0 = 圆外，253/254 留给线框）。再烘焙一个 64×64 的 (1-r)² 径向 blob 给光晕和光斑共用。<strong>运行时不再有任何光照计算。</strong></p>
+<h3>4.2 调色板：24 行就是全部配色自由度</h3>
+<div class="table"><table><thead><tr><th>行号</th><th>用途</th><th>生成规则</th></tr></thead><tbody>
+<tr><td>0..7</td><td>8 种球色</td><td>强度 ≤0.78 线性缩放到本色；顶部 22% 只向白混合 55%（防止球堆变白块）；253 号 = 远墙网格色、254 号 = 盒棱色，且随行号变暗 → <strong>深度雾</strong></td></tr>
+<tr><td>8..15</td><td>光晕色</td><td>30% 本色 × 强度，供 ADDITIVE 叠加</td></tr>
+<tr><td>16..23</td><td>光斑色</td><td>28% 本色 × 强度</td></tr>
+</tbody></table></div>
+<p>线框的深度衰减因此是免费的：画棱时按端点深度选"第几行球色"的 254 号条目，越远越暗。</p>
+<h3>4.3 每帧绘制顺序（painter's algorithm 的关键排序）</h3>
+<ol>
+<li><strong>SetPalette</strong> 绑定调色板槽；</li>
+<li><strong>清除</strong>：该 buffer 首次使用 → 整屏黑 FillRect；否则回擦上一帧记录的脏矩形（球矩形 ∪ 光晕矩形，与光斑相交时合并），脏矩形总面积 &gt; 60% 屏幕则退化成一次整屏清；</li>
+<li><strong>线框盒</strong>：22 条世界空间线段投影后，各向法向偏移 ±1px 构成 2px 宽四边形，<code>FlatQuad</code> 四顶点带深度亮度（顶点"色"其实是调色板行内的亮度索引 0..7）；无 <code>polygon_supported()</code> 能力则整段跳过；</li>
+<li><strong>全部光斑</strong>（AdditiveSprite，行 16..23）：球在远墙上的投影，越高越大越淡（<code>0.9 + 1.5·离墙高度</code>），贴墙时被球完全盖住而省略；</li>
+<li><strong>全部光晕</strong>（AdditiveSprite，行 8..15）：1.6 倍球径的 blob；</li>
+<li><strong>全部球体</strong>（不透明 Sprite，行 0..7）：按视深<strong>从远到近</strong>插入排序后绘制；投影半径就近选择 11 档直径中最接近的一档；</li>
+<li><strong>HUD</strong>：标题 Text + MENU 按钮 FillRect/Text；面板打开时再约 30 条记录。</li>
+</ol>
+<div class="callout"><p><strong>为什么光晕必须全部先画：</strong>加法混合的光晕如果画在球后会叠加到别的球的高光上，球堆会糊成白块；先画光（只照亮黑背景），再画不透明球，遮挡关系由后画的球自然建立——这是整个渲染正确性的支点。</p></div>
+<h3>4.4 帧成本账本</h3>
+<p>默认 24 球一帧约：1 SetPalette + 若干清除 FillRect（脏矩形数 ≤ 球数×2+4）+ 22 FlatQuad + 24 光斑 + 24 光晕 + 24 Sprite + 4 条 HUD ≈ <strong>100 余条记录</strong>；每条记录的逐像素代价都在 Host 的整数内核里（INDEX8 查调色板写 RGB565；加法按通道饱和加）。遥测按帧累计 <code>records / clear_px / sprite_px</code>，把"清除像素数远小于整屏 230400"当作验收指标。</p>
+</section>
+
+<section id="physics"><h2><span class="n">05 / PHYSICS</span>物理引擎详解（138 行）</h2>
+<h3>5.1 核心洞察：加速度计读数取反 = 盒内合力</h3>
+<p>盒子固定在设备上，<strong>盒子坐标系就是设备坐标系</strong>。加速度计输出的是比力（specific force），其相反数恰好是盒内质点感受到的"重力 + 墙壁推力"：静止时指下方，甩动时自动包含墙壁推球的惯性反作用力。<strong>不需要姿态融合、不需要世界坐标系</strong>——这是整个 demo 最值钱的一步简化。轴映射沿用 Tilt 约定（屏幕右为 -X、下为 +Y），重力 = <code>(-ax, -ay, kDepthAxisSign·az)</code>，z 符号常量留了一个翻转开关应对装机方向。</p>
+<p>有陀螺仪时再加旋转参考系三个惯性力，让"转设备"本身产生可感效果：</p>
+<pre><code>acceleration = gravity
+             - ω × (ω × r)      // 离心：球被甩向外圈
+             - dω/dt × r        // 欧拉：角加速时推向反方向
+             - 2 ω × v          // 科里奥利：运动中的球被侧推</code></pre>
+<h3>5.2 数值与单位</h3>
+<div class="table"><table><thead><tr><th>参数</th><th>值</th><th>说明</th></tr></thead><tbody>
+<tr><td>积分</td><td>240 Hz 半隐式 Euler</td><td>先更新速度再更新位置，固定步长保证确定性可回归</td></tr>
+<tr><td>单位比例</td><td>16 单位/米</td><td>8.8 单位的盒子 ≈ 55cm 弹珠箱；不缩放的话 4 单位落差要 0.9s，"像在水里漂"</td></tr>
+<tr><td>每帧上限</td><td>8 步（≈33ms）</td><td>累加器溢出部分<strong>丢弃不追赶</strong>，慢帧不滚雪球</td></tr>
+<tr><td>球数</td><td>默认 24 / 最大 64</td><td>不同半径、同密度 → 质量正比 r³，逆质量 1/r³</td></tr>
+<tr><td>恢复系数</td><td>球-球 0.65 / 球-墙 0.55</td><td>低于 kRestSpeed=2 的接触弹性归零，消静止抖动</td></tr>
+<tr><td>摩擦</td><td>min(0.12×法向冲量, 切向所需)</td><td>类库仑摩擦的冲量形式，不产生反向切速</td></tr>
+<tr><td>穿透修正</td><td>一次修正 85%，按逆质量分配</td><td>位置投影法，两层迭代</td></tr>
+<tr><td>稳定器</td><td>速度上限 60 u/s；0.9995/步空气阻力</td><td>防爆值 + 微弱耗散</td></tr>
+<tr><td>求解迭代</td><td>每步 2 轮（球对 + 墙）</td><td>64 球全对检测 O(n²) 也就 2016 对，MCU 够用</td></tr>
+</tbody></table></div>
+<h3>5.3 传感器调理</h3>
+<ul>
+<li><strong>采样</strong>：以 5ms 请求间隔打开加速度计/陀螺仪（钳到传感器 min/max），每帧读一次最新样本（timestamp 去重，实际样本率不超过帧率）；</li>
+<li><strong>加速度</strong>：NaN 防御 → 限幅 40 m/s² → ×16×重力倍数 → <strong>单样本低通 α=0.6</strong>（一拍延迟，保甩动锐利）；</li>
+<li><strong>陀螺仪</strong>：ω 直接用；角加速度由相邻样本差分再 α=0.5 平滑（dt 窗口 0.1ms~200ms 才采信）；</li>
+<li><strong>失效</strong>：500ms 无新样本 → 加速度通道重力缓慢回默认（α=0.1），陀螺仪项清零。</li>
+</ul>
+<h3>5.4 回归测试（宿主机跑，不进 Bundle）</h3>
+<p><code>physics_test.cpp</code> 五组断言：① 正碰后动量守恒（和 &lt;1e-6）且动能不增；② 完全重合球心仍有限且被分开（法向退化到 (1,0,0)）；③ 64 球 150 秒正弦变化重力 + 周期 Kick 压力测试，全程有限且不出盒；④ 20 秒静止收敛到远墙上（位置误差 &lt;0.01、动能 &lt;0.01）；⑤ 旋转系方向性：纯 ωz 自旋把静止球向外甩（离心 vx&gt;0），角加速度把它推向旋转反方向（欧拉 vy&lt;0）。<strong>确定性物理 + 纯函数世界 = 可以无硬件验收</strong>，这与我们 Renode 调研里"嵌入式测试难进 CI"的痛点正好是一套可行答案。</p>
+</section>
+
+<section id="loop"><h2><span class="n">06 / FRAME LOOP</span>帧循环与时序</h2>
+<pre><code>for (;;) {
+    DrainEvents();                       // Stop/Resume/Touch
+    while (!surface_.AcquireFree(index)) // 等空闲 buffer（面板受限时增大）
+        HandleEvent(app_.WaitEvent());   // 等事件时顺便处理，不忙等
+    Sample(now);                         // 读 IMU → 调理 forces_
+    Advance(now);                        // 累加器 → ≤8 步 world_.Step()
+    BuildFrame();                        // 投影/选档/光斑/远到近插入排序
+    surface_.Update(index, [&](list){ Draw(list, index); }); // 编码+Host内核
+    surface_.Present(index);             // 提交，Host 可能直接扫描输出
+}   // 每阶段耗时进遥测桶：wait/physics/geometry/update/present</code></pre>
+<ul>
+<li><strong>三缓冲流水</strong>：Guest 在 AcquireFree 拿到的 buffer 上画，Present 后 Host 合成/扫描输出，Guest 立刻去拿下一块——等待时间被计成 <code>wait_us</code>，是"面板受限"的信号。</li>
+<li><strong>暂停/恢复</strong>：应用时钟冻结；Resume 时三个 buffer 内容未知（<code>buffer_ready_=false</code> → 下帧整屏清一次）、累加器清零、力清零，<strong>时间没有为球流逝</strong>，杜绝恢复瞬间的巨步长穿透。</li>
+<li><strong>遥测</strong>：每 120 帧输出两行日志——性能行（fps×100、五个耗时桶均值、记录数、清除/精灵像素数）与仿真行（球数、深度、步数、丢弃步、慢帧、平均深度/速度、IMU/陀螺实际样本率）。<strong>没有画面时靠 <code>z_avg / speed_avg</code> 判断球是否落到远墙、是否在动</strong>——远程验收友好的设计。</li>
+<li><strong>平台约束</strong>：Guest 单线程、1 秒 watchdog（进 Host ABI 时重置）、Stop 后 500ms 内必须退出、无 libc/libm（连整数 abs 都是手写内联）。</li>
+</ul>
+</section>
+
+<section id="quality"><h2><span class="n">07 / QUALITY</span>工程质量与降级路径</h2>
+<div class="table"><table><thead><tr><th>情况</th><th>行为</th></tr></thead><tbody>
+<tr><td>Host 无 raster 内核</td><td>直接退出（<code>raster_supported()</code> 是硬门槛）</td></tr>
+<tr><td>无 ADDITIVE 能力</td><td>不画光晕和光斑，球和线框照常（旧 Host 优雅降级）</td></tr>
+<tr><td>无多边形能力</td><td>不画线框盒</td></tr>
+<tr><td>无加速度计 / 数据超时</td><td>重力回默认方向，触摸弹起仍可玩</td></tr>
+<tr><td>面板 &gt;480px</td><td>半分辨率 buffer + Host 放大</td></tr>
+<tr><td>慢帧</td><td>物理步丢弃、遥测记 slow 帧数，不积压</td></tr>
+<tr><td>NaN 传感器样本</td><td>整条丢弃，不进积分器</td></tr>
+<tr><td>轴向装反（平放球贴玻璃）</td><td>翻转 <code>kDepthAxisSign</code> 一个常量</td></tr>
+</tbody></table></div>
+<p>README 还写明真机验收清单（平放落远墙、四向倾斜正确、甩动撞玻璃、离心方向正确、恢复无残影、<code>clear_px</code> 远小于整屏、<code>dropped</code>≈0）——把"看起来对"翻译成了可测的遥测断言。</p>
+</section>
+
+<section id="takeaways"><h2><span class="n">08 / TAKEAWAYS</span>值得抄的思路</h2>
+<ul>
+<li><strong>比力即重力</strong>：任何"设备固定容器 + 里面东西"的交互（弹珠、液体、粒子、平衡球），都不要做姿态融合——加速度计取反对到设备系就完事。我们的 AMOLED 液体 demo、magic-wand 手势之前都在用 IMU，这条捷径直接适用。</li>
+<li><strong>烘焙图集 + 调色板行</strong>：把"形状×光照×颜色"分解成 <em>灰度索引图 × 行调色板</em>，换色换雾零运行时成本；覆盖率写进亮度即得黑底抗锯齿。任何 SPI 屏 + RGB565 的项目都能搬（我们 StickS3 的 AMOLED 完全同构）。</li>
+<li><strong>加法光晕先画、不透明体后画</strong>：无深度缓冲时建立遮挡秩序的最廉价手段，且避免光晕叠加成白块。</li>
+<li><strong>脏矩形 + 纯黑背景</strong>：三缓冲各自记账，只回擦上一帧碰过的矩形；这是 AMOLED 省电 + 降带宽的通用姿势（与我们 esp32-s3-amoled 笔记里的局部刷新思路互相印证）。</li>
+<li><strong>固定步长 + 丢弃</strong>：240Hz 确定性物理每帧 ≤8 步、溢出丢弃——比"追时间"的变步长在嵌入式上稳得多，还让 150 秒压力测试成为可能。</li>
+<li><strong>逻辑搬到 Guest、像素留给 Host</strong>：即使不做 WASM，这个分层也值得抄——应用层产出<em>显示记录</em>（矩形/精灵/文本），渲染内核集中一处优化（DMA2D/整数化），多板适配只在内核层发生。</li>
+<li><strong>遥测即验收</strong>：fps×100、分桶耗时、清除像素数、平均深度/速度——把"效果对不对"变成没有屏幕也能断言的数字。</li>
+</ul>
+<div class="callout warn"><p><strong>边界与注意：</strong>① 画家算法只对"凸 + 不透明 sprite"正确，球互相裁切或半透明物体的场景不能直接推广；② O(n²) 碰撞在 64 球封顶是刻意为之，上百物体要上空间划分；③ 陀螺仪欧拉/科里奥利项的方向 README 自述"需真机确认"，抄的时候先跑它给的测试断言；④ 图集最大 1.5× 缩放上限是烘焙抗锯齿的边界，更大的 buffer 应重烘焙而不是硬放大。</p></div>
+</section>
+
+<section id="sources"><h2><span class="n">09 / SOURCES</span>来源与本地路径</h2>
+<pre><code>/Volumes/ssd/main_link/work/micropixel/          # 仓库 78/micropixel @ 461bde5
+├── guest/apps/gravity-balls/
+│   ├── app.json / README.zh-CN.md              # 清单与官方自述（物理/渲染全参数）
+│   ├── src/main.cpp                            # 渲染 + 应用主体（890 行）
+│   ├── src/physics.hpp                         # 物理（138 行）
+│   └── src/physics_test.cpp                    # 宿主机回归（56 行）
+├── guest/runtime/sphere_view.cpp               # 系统UI的另一个球（无 libm 三角函数）
+├── guest/sdk/README.zh-CN.md                   # SDK 契约（事件/资源/watchdog）
+├── docs/design/architecture.zh-CN.md           # Host/Guest 图形架构设计
+└── firmware/                                   # ESP-IDF 6.1 Host（p4/s31/s3 构建脚本）</code></pre>
+<ul class="sources">
+<li>仓库：<a href="https://github.com/78/micropixel">github.com/78/micropixel</a>（Apache-2.0）· 官网 <a href="https://micropixel.ai">micropixel.ai</a></li>
+<li>关联阅读：本库 <a href="esp-mosaico-research.html">ESP-Mosaico 调研</a>（MicroPixel 支持板之一，480×480 参照屏即 Mosaico）</li>
+<li>本文所有实现细节均出自上述源码逐行阅读；官方 README 与代码注释在个别措辞上略有出入时（如触摸控制器型号），以代码为准。</li>
+</ul>
+</section>
+
+</main></div><div class="foot">MicroPixel gravity-balls 调研 · 整理于 2026-09-22 · 供个人学习研究用途</div></div></body></html>
