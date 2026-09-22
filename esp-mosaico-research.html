@@ -1,0 +1,229 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="ESP-Mosaico 调研：乐鑫基于新芯片 ESP32-S31 的磁吸拼接开发套件——芯片规格、CoreBoard/BaseBoard 硬件全景、双磁力计拼接与模块扩展系统、esp-mosaico 开源生态（BSP/Vibe/Claw）、购买渠道与项目参考价值。"><title>ESP-Mosaico 调研 · 乐鑫 ESP32-S31 磁吸拼接开发套件</title>
+<style>
+:root{--bg:#f5f7fa;--paper:#fff;--ink:#1c293d;--muted:#52627a;--line:#dce3ec;--blue:#315cc5;--green:#067465;--amber:#925411;--code:#101d30}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:24px}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.85 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}a{color:var(--blue);text-underline-offset:3px}a:hover{text-decoration-thickness:2px}a:focus-visible,summary:focus-visible{outline:3px solid var(--blue);outline-offset:4px}p{margin:12px 0 18px}strong{font-weight:650}code,pre{font-family:ui-monospace,SFMono-Regular,Consolas,monospace}code{font-size:.86em;background:#edf1f7;padding:2px 5px;border-radius:4px;overflow-wrap:anywhere}pre{background:var(--code);color:#e5edf9;padding:22px;border-radius:12px;overflow:auto;font-size:13px;line-height:1.75}pre code{background:none;padding:0;font-size:inherit;overflow-wrap:normal}h1,h2,h3{line-height:1.35}h1{font-size:clamp(30px,4vw,46px);letter-spacing:-1.6px;margin:20px 0}h2{font-size:27px;letter-spacing:-.6px;margin:0 0 24px}h3{font-size:19px;margin:28px 0 12px}ul,ol{padding-left:24px}li{margin:6px 0}small,.muted{color:var(--muted)}.wrap{max-width:1260px;margin:auto;padding:0 36px}.top{padding:25px 0;font-size:14px}.top a{text-decoration:none}.hero{padding:26px 0 42px;border-bottom:1px solid var(--line)}.eyebrow{color:var(--green);font:600 12px/1.5 ui-monospace,monospace;letter-spacing:2px}.hero p{max-width:780px;font-size:18px;color:var(--muted)}.meta{display:flex;flex-wrap:wrap;gap:8px 20px;font-size:13px;color:var(--muted)}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:32px}.metric{padding:19px 20px;background:var(--paper);border:1px solid var(--line);border-radius:12px}.metric b{display:block;font-size:26px;line-height:1.4;letter-spacing:-.8px}.metric span{font-size:12px;color:var(--muted)}.layout{display:grid;grid-template-columns:205px minmax(0,1fr);gap:44px;padding:42px 0 60px}aside{position:sticky;top:24px;align-self:start}aside b{font-size:12px;color:var(--muted);letter-spacing:2px}nav{display:grid;gap:0;margin-top:14px}nav a{font-size:13px;text-decoration:none;color:var(--muted);padding:4px 10px;border-left:2px solid var(--line)}nav a:hover{color:var(--blue);border-color:var(--blue);background:#eaf0fb}main{min-width:0}section{padding:32px;background:var(--paper);border:1px solid var(--line);border-radius:15px;margin-bottom:24px}h2 .n{font-size:13px;display:block;letter-spacing:2px;color:var(--green);margin-bottom:7px}.table{overflow-x:auto;margin:20px 0;border:1px solid var(--line);border-radius:9px}table{border-collapse:collapse;width:100%;font-size:14px;min-width:570px}th,td{padding:13px 15px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{background:#edf2f8;font-size:12px;color:#3c506b}tr:last-child td{border-bottom:0}td:first-child{font-weight:550}.badge{display:inline-block;padding:2px 8px;border-radius:5px;font-size:12px;white-space:nowrap;background:#e9f1fe;color:#2854a8}.ok{background:#e3f4ee;color:#075e4b}.pending{background:#fff0dc;color:#825015}.removed{background:#f0edf5;color:#64566d}.callout{padding:17px 20px;border-left:4px solid var(--green);background:#eef8f5;border-radius:0 9px 9px 0;margin:22px 0}.callout.warn{border-color:#c08631;background:#fff7e9}.callout p{margin:4px 0}.source{font-size:12px;color:var(--muted)}.sources li{font-size:14px;padding-bottom:8px;overflow-wrap:anywhere}details{border:1px solid var(--line);border-radius:9px;padding:15px 18px;margin:16px 0}summary{cursor:pointer;font-weight:600}details p:last-child{margin-bottom:0}.foot{padding:4px 0 40px;color:var(--muted);font-size:13px}.skip{position:absolute;left:16px;top:-80px;background:white;padding:10px;z-index:2}.skip:focus{top:10px}
+@media(max-width:960px){.layout{grid-template-columns:1fr;gap:24px}aside{position:static}nav{grid-template-columns:repeat(3,1fr)}.wrap{padding:0 24px}h1{letter-spacing:-1px}.metrics{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){body{font-size:15px}.wrap{padding:0 16px}.hero{padding-top:10px}.hero p{font-size:16px}.metrics{grid-template-columns:1fr;gap:10px}.metric{padding:14px}.metric b{font-size:23px}nav{grid-template-columns:1fr 1fr}.layout{padding-top:26px}section{padding:22px 18px;border-radius:12px}h2{font-size:23px}.table{min-width:0}table{min-width:0;font-size:12px}pre{padding:16px;font-size:12px}.meta{font-size:12px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+@media print{body{background:white;font-size:11pt}.wrap{max-width:none;padding:0}.top,aside,.skip{display:none}.hero{padding:0 0 20px}.hero p{font-size:12pt}.layout{display:block;padding:20px 0}section{border:0;padding:18px 0;margin:0;border-radius:0}h2,h3{break-after:avoid}tr,.callout,.metric{break-inside:avoid}.table,pre{overflow:visible}table{min-width:0;font-size:9pt}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#edf1f7;color:#14243d}a{color:inherit}details{display:block}.foot{padding-top:20px}}
+</style></head><body><a class="skip" href="#tldr">跳到正文</a><div class="wrap"><div class="top"><a href="index.html">← Notes</a> / research</div><header class="hero"><div class="eyebrow">ESP-MOSAICO / ESP32-S31 MAGNETIC DEV KIT</div><h1>磁吸积木遇上 AI Coding：<br>ESP-Mosaico 调研</h1><p class="lead">ESP-Mosaico 是乐鑫 2026 年 8-9 月刚发布的<strong>可扩展智能交互开发套件</strong>，首发搭载全新芯片 <strong>ESP32-S31</strong>（RISC-V 双核、Wi-Fi 6、片内 16MB PSRAM）。它的玩法核心是<strong>多板磁吸拼接</strong>——每块板带 480×480 方形 AMOLED 触摸屏、六轴 IMU 和<strong>双磁力计</strong>，板子吸在一起的瞬间能自动识别彼此方位并组成拓扑；软件上主打 <strong>AI Agent / Vibe Coding 开发工作流</strong>。本文调研其芯片规格、硬件全景、模块扩展系统、开源生态与购买渠道，并评估对我们现有 ESP32-S3 项目的参考价值。</p><div class="meta"><span>整理：2026-09-22</span><span>基线：esp-dev-kits master 文档 + esp-mosaico 组织四仓库（2026-09-21 推送）实勘</span><span>硬件版本：CoreBoard V1.0（原理图 2026-08-18）</span></div><div class="metrics"><div class="metric"><b>ESP32-S31</b><span>新芯片：RISC-V 双核 320 MHz · Wi-Fi 6 · 数据手册 PRELIMINARY v0.5</span></div><div class="metric"><b>4 仓库 · 17 例程</b><span>esp-mosaico 独立组织：BSP / Vibe / Claw / Utils 全开源</span></div><div class="metric"><b>480 × 480 AMOLED</b><span>2.16 寸方形 QSPI 屏（CO5300）+ 双磁力计磁吸拼接</span></div><div class="metric"><b>约 ¥379</b><span>淘宝乐鑫官方店，每日 12 点限量发售，已售 1000+</span></div></div></header><div class="layout"><aside><b>调研目录</b><nav aria-label="报告目录"><a href="#tldr">00 · 结论速览</a><a href="#what">01 · 定位与发布背景</a><a href="#chip">02 · ESP32-S31 芯片实勘</a><a href="#hw">03 · 硬件架构全景</a><a href="#module">04 · 磁吸拼接与模块扩展</a><a href="#sw">05 · 软件生态与 BSP</a><a href="#agent">06 · AI Agent 工作流</a><a href="#buy">07 · 购买与可得性</a><a href="#verdict">08 · 参考价值与风险</a><a href="#sources">09 · 本地资料与来源</a></nav></aside><main>
+
+<section id="tldr"><h2><span class="n">00 / TL;DR</span>结论速览</h2>
+<p><strong>ESP-Mosaico 是乐鑫为"AI Coding + 磁吸拼接硬件"打造的第一块官方开发板</strong>，也是 ESP32-S31 芯片的首发平台。硬件上它是 CoreBoard + BaseBoard 双板结构：核心板集成 SoC、2.16 寸 480×480 方形 AMOLED 触摸屏、ES8311 音频、BMI270 IMU、<strong>两颗 BMM150 磁力计</strong>（磁吸识别的核心）、16MB NOR + 128MB NAND、65mAh 电池与完整电源管理；底板提供喇叭、左右两个 2×10P 模块槽（带 EEPROM 热插拔识别）和调试焊盘。软件生态出乎意料地完整：<a href="https://github.com/esp-mosaico">esp-mosaico 独立 GitHub 组织</a>下 BSP（9 组件 + 17 例程）、Agent 开发工作区 Vibe、基于 ESP-Claw 的出厂固件全部开源。</p>
+<p><strong>拍板：</strong>这块板的看点不在"又一块 ESP32 开发板"，而在三点——① <strong>ESP32-S31 芯片预览</strong>（RISC-V + Wi-Fi 6 + 双无线电，但数据手册还是 PRELIMINARY v0.5）；② <strong>双磁力计磁吸拼接方案</strong>（对我们的多设备 ESP-NOW 项目是现成参考）；③ <strong>官方 AI Agent 开发工作流</strong>（ESP-Claw Chat Coding 框架 + Vibe 工作区，出厂就带 CLAUDE.md/AGENTS.md）。风险同样明确：芯片未定稿、每日限量抢购、IDF 需 6.2+ 且目标名要 <code>--preview</code> 解锁。<span class="badge pending">值得关注，暂不押注</span></p>
+<div class="table"><table><thead><tr><th>维度</th><th>状态</th><th>要点</th></tr></thead><tbody>
+<tr><td>芯片成熟度</td><td><span class="badge pending">PRELIMINARY v0.5</span></td><td>ESP32-S31 数据手册预发布，规格未定稿；IDF 里 <code>idf.py --preview set-target esp32s31</code></td></tr>
+<tr><td>硬件资料</td><td><span class="badge ok">全公开</span></td><td>CoreBoard V1.0 原理图 PDF（2026-08-18）、AMOLED 规格书、完整引脚表都在官方文档</td></tr>
+<tr><td>软件生态</td><td><span class="badge ok">超预期完整</span></td><td>独立 esp-mosaico 组织：BSP + 17 例程（含磁吸拓扑、双屏游戏、语音、摄像头 AI）+ Vibe + Claw</td></tr>
+<tr><td>磁吸拼接</td><td><span class="badge ok">核心卖点</span></td><td>双 BMM150 + <code>mosaico_interaction</code> 分类/拓扑重建 + ESP-NOW <code>mosaico_peer_link</code> 组网</td></tr>
+<tr><td>购买</td><td><span class="badge pending">限量</span></td><td>淘宝 "Espressif Online" 官方店约 ¥379（原 ¥299），每日 12 点限量 10 套，已售 1000+</td></tr>
+<tr><td>vs 我们手上的 S3</td><td><span class="badge">并存</span></td><td>S31 = RISC-V/Wi-Fi6/HS-USB/千兆 EMAC；S3 生态成熟量产无忧——原型参考 Mosaico，量产仍走 S3</td></tr>
+</tbody></table></div>
+<div class="callout"><p><strong>一句话：</strong>Mosaico 是乐鑫对"下一代 ESP32 该长什么样"的一次公开彩排——芯片、板卡、拼接玩法、AI Agent 工作流四件套一起亮相；即使不买板，它的双磁力计拼接软件栈和 480×480 QSPI AMOLED 驱动也值得抄作业。</p></div>
+</section>
+
+<section id="what"><h2><span class="n">01 / WHAT &amp; WHY</span>定位与发布背景</h2>
+<p>按官方文档的自我定义：<strong>"面向磁吸扩展、运动感知、方形触摸显示与边缘多媒体场景的可扩展智能交互开发套件"</strong>。对应四类目标应用：磁吸扩展玩具（magtile 类）、运动感知交互、方形触摸屏 HMI、边缘语音/多媒体。发布节奏可以从公开物料还原：</p>
+<ul>
+<li><strong>2026-04</strong>：ESP-Claw 框架仓库（espressif/esp-claw）创建，"Chat Coding" AI Agent 框架先行铺垫；</li>
+<li><strong>2026-08-18</strong>：ESP-Mosaico CoreBoard V1.0 原理图定稿归档（dl.espressif.com PDF 文件名自带日期）；</li>
+<li><strong>2026-09</strong>：官方发布新闻（espressif.com/zh-hans/news/ESP_Mosaico_Release）宣布开售，淘宝官方店上架；esp-mosaico 组织四仓库持续活跃推送（最近一次 2026-09-21）。</li>
+</ul>
+<p>官方新闻的关键词是<strong>"为 Coding Agent 设计的开发板"</strong>：多机拼接（乐高式硬件组合）、打通 AI Coding 从软件到硬件落地的链路、适配主流 AI 编程工具、支持从 Chat Coding 到 Vibe Coding 的工作流。换句话说，乐鑫把"用 AI Agent 写固件"当成了这块板的一等公民场景——这在全球 MCU 厂商里属于相当激进的产品定位。</p>
+<div class="callout"><p><strong>背景板：</strong>同期 esp-dev-kits 文档树里还出现了 <code>esp32-s31-function-coreboard-1</code> 和 <code>esp32-s31-korvo-1</code> 两块兄弟板——S31 芯片的官方评估路线是成体系的，Mosaico 是其中"玩法旗舰"。</p></div>
+</section>
+
+<section id="chip"><h2><span class="n">02 / CHIP</span>ESP32-S31 芯片实勘</h2>
+<p>ESP32-S31 是乐鑫新系列，<strong>数据手册目前为 PRELIMINARY v0.5 预发布版</strong>（<a href="https://documentation.espressif.com/esp32-s31_datasheet_en.html">documentation.espressif.com</a>），规格可能在正式版前调整。Mosaico 板载型号 <strong>ESP32-S31NRV16</strong>（16MB 片内 PSRAM；另有 NRV32 = 32MB 版本），工作温度 -40~85°C。</p>
+<h3>计算与内存</h3>
+<ul>
+<li><strong>HP 主核</strong>：32 位 <strong>RISC-V 双核</strong>，最高 320 MHz，RV32IMAFC + Zc/Zb 扩展 + <strong>自定义 AI/DSP 与硬件循环指令</strong>；Sv32 MMU、每核 FPU、分支预测；CoreMark 约 2195（6.86/MHz，双核）；</li>
+<li><strong>LP 低功耗核</strong>：单核 RISC-V，最高 40 MHz，负责深睡域任务；</li>
+<li><strong>内存</strong>：320KB ROM / 512KB HP SRAM / 32KB LP SRAM；<strong>片内 1.8V Octal DDR PSRAM（250 MHz）</strong>，支持 flash 与 PSRAM 并发访问；片外 flash 最高可挂 256MB（SPI/Dual/Quad/QPI）；</li>
+<li>调试：RISC-V trace encoder；<strong>首个带 Secure Debug Controller（SDC）的乐鑫芯片</strong>。</li>
+</ul>
+<h3>无线与外设</h3>
+<ul>
+<li><strong>三无线电</strong>：Wi-Fi 6（802.11ax，20MHz 非 AP，OFDMA/TWT/MU-MIMO beamformee）+ 完整 802.11b/g/n 至 150Mbps；<strong>蓝牙 5.4 双模</strong>（LE：Mesh 1.1 / LE Audio / Direction Finding，同时保留 BR/EDR Classic 至 3Mbps EDR）；802.15.4（Zigbee 3.0 / Thread 1.4 / Matter）。发射 +21dBm，BLE 125Kbps 灵敏度 -105dBm；</li>
+<li><strong>接口外设</strong>：USB 2.0 <strong>High-Speed</strong> OTG + USB Serial/JTAG、LCD/摄像头控制器、<strong>JPEG 编解码</strong>、PPA 像素加速器、2D-DMA（带色彩空间转换）、ASRC、CORDIC、BitScrambler、PARLIO；</li>
+<li><strong>模拟</strong>：2× 12-bit SAR ADC（16 通道）、2× DAC、14 通道触摸传感器、模拟比较器、温度传感器；</li>
+<li><strong>数字</strong>：4× UART + LP UART、6× SPI + LP SPI、2× I2C + LP I2C、2× I2S、<strong>千兆 EMAC</strong>、CAN FD、双槽 SDIO host、4× MCPWM、2× LED PWM、RMT、4× 54-bit 定时器；</li>
+<li><strong>封装</strong>：QFN80 8×8mm，60 个 GPIO（其中 8 个 LP GPIO 深睡可用）。</li>
+</ul>
+<h3>vs ESP32-S3 对照（我们现有项目的主力芯片）</h3>
+<div class="table"><table><thead><tr><th>维度</th><th>ESP32-S31</th><th>ESP32-S3</th></tr></thead><tbody>
+<tr><td>CPU</td><td>RISC-V 双核 320 MHz + LP 核 40 MHz</td><td>Xtensa LX7 双核 240 MHz + LP 核</td></tr>
+<tr><td>指令扩展</td><td>RV32IMAFC + Zc/Zb + 自定义 AI/DSP</td><td>自定义向量指令（ESP-DSP/NN 生态成熟）</td></tr>
+<tr><td>Wi-Fi</td><td><strong>Wi-Fi 6</strong>（OFDMA/TWT）+ b/g/n</td><td>Wi-Fi 4（b/g/n）</td></tr>
+<tr><td>蓝牙</td><td><strong>5.4 LE + Classic 双模</strong></td><td>5.0 LE（仅 LE）</td></tr>
+<tr><td>802.15.4</td><td>内置（Thread 1.4/Zigbee/Matter）</td><td>可选型号内置</td></tr>
+<tr><td>片内 PSRAM</td><td>16/32MB Octal DDR 250MHz</td><td>无片内（模组外挂 2/8MB）</td></tr>
+<tr><td>USB</td><td><strong>HS OTG</strong> + Serial/JTAG</td><td>FS OTG + Serial/JTAG</td></tr>
+<tr><td>以太网</td><td>千兆 EMAC</td><td>百兆 EMAC</td></tr>
+<tr><td>GPIO / 封装</td><td>60 GPIO · QFN80</td><td>45 GPIO · QFN56</td></tr>
+<tr><td>安全</td><td>+ SDC 安全调试</td><td>常规 crypto 套件</td></tr>
+<tr><td>生态成熟度</td><td><span class="badge pending">PRELIMINARY</span></td><td><span class="badge ok">量产验证多年</span></td></tr>
+</tbody></table></div>
+<div class="callout warn"><p><strong>注意：</strong>S31 的 RISC-V 路线意味着 Xtensa 专有优化（ESP-SR 部分库、esp32s3-bt-lib 这类预编译二进制）不能直接平移，但乐鑫已同步提供 <code>esp32s31-bt-lib</code>。工具链侧 IDF ≥ 6.2 且需要 <code>idf.py --preview set-target esp32s31</code>，属于"能开发，别量产"的阶段。</p></div>
+</section>
+
+<section id="hw"><h2><span class="n">03 / HARDWARE</span>硬件架构全景</h2>
+<p>ESP-Mosaico 采用 <strong>CoreBoard + BaseBoard 双板结构</strong>，通过 60-pin 0.5mm 板对板连接器扣合：核心板是"SoC + 屏 + 传感器 + 电源"的最小系统（可以理解为下一代的"核心模组 + 外围"设计），底板承载喇叭、电池和扩展排针。官方文档覆盖 V1.0 硬件，BSP 已支持 v1.0/v1.1/v1.2 三个修订（<strong>硬件版本写入 eFuse USER_DATA，BSP 上电读取自动适配</strong>，未烧录版本返回 <code>ESP_ERR_NOT_SUPPORTED</code>）。</p>
+<h3>核心板主要器件（正面/背面）</h3>
+<div class="table"><table><thead><tr><th>功能域</th><th>器件</th><th>说明</th></tr></thead><tbody>
+<tr><td>SoC</td><td>ESP32-S31NRV16</td><td>RISC-V 双核 + 16MB 片内 PSRAM，KH-3216-A35 陶瓷天线</td></tr>
+<tr><td>显示</td><td>2.16" 480×480 QSPI AMOLED</td><td>CO5300 驱动（QSPI）+ CST9220 系列触摸（BSP 特性表写作 CST9217）；规格书 H0216F002AMT004-1</td></tr>
+<tr><td>音频</td><td>ES8311 + NS4150B</td><td>mono codec（I2C 0x19，走 I2S）+ 3W D 类功放；LMA2718 麦克风；HE9073A33 独立 LDO 供电降噪</td></tr>
+<tr><td>运动感知</td><td>BMI270 + 双 BMM150</td><td>6 轴 IMU（0x69）+ 两颗 3 轴磁力计（<strong>0x11 与 0x12</strong>，分别位于板缘两侧，用于磁吸方位识别）</td></tr>
+<tr><td>存储</td><td>GD25Q128 + GD5F1GM7</td><td>16MB SPI NOR（程序/数据）+ 1Gbit SPI NAND（大容量素材缓存）</td></tr>
+<tr><td>电源</td><td>TLV62569 / SY7088 / TP4057 / BQ27220 / SAM8108 / HUSB320</td><td>Buck 3V3 → 负载开关 VCC_3V3；Boost 供高于电池的轨；65mAh 电池充电（65mA 额定电流）；电量计（0x55）；整机开关机；Type-C CC 控制器</td></tr>
+<tr><td>用户 IO</td><td>三按键 + LED + 马达</td><td>BOOT / POWER / AI 功能键（GPIO7，低有效）；橙色状态 LED（GPIO3，v1.0）；振动马达（GPIO8，低边 MOS 驱动）</td></tr>
+<tr><td>接口</td><td>Type-C + 调试焊盘</td><td>USB 2.0 HS OTG（供电/调试/通信）；底板背面 GND/TX/RX/BOOT/EN/3V3 焊盘；背面扩展焊盘对外供 I2C 与电源</td></tr>
+</tbody></table></div>
+<h3>电源架构与电源域控制</h3>
+<p>供电三入口：Type-C 5V、底板背面扩展焊盘、电池；Type-C 接 USB sink 设备时自动切换为 source 模式对外输出 5V/500mA，负载超 1A 自动关断并延时恢复。左右模块槽也提供 3V/5V 输出（受 GPIO60 控制）与 VIN 输入（可为电池充电）。电源域由三个 GPIO 精细控制：</p>
+<div class="table"><table><thead><tr><th>信号</th><th>GPIO</th><th>行为</th></tr></thead><tbody>
+<tr><td>VCC_3V3 / VCC_PW</td><td>GPIO60</td><td>系统 3.3V 轨开关，<strong>低有效</strong>；BSP 使能时做软启动斜坡</td></tr>
+<tr><td>CODEC_3V3</td><td>GPIO56</td><td>codec 供电开关，高有效（独立 LDO 降噪）</td></tr>
+<tr><td>POWER_SWITCH</td><td>GPIO57</td><td>整机关机请求；BSP 平时保持高阻，需关机时开漏拉低</td></tr>
+</tbody></table></div>
+<h3>烧录与调试链路（有个坑）</h3>
+<p><strong>原生芯片只支持 download 模式烧录，ROM 本身不提供自动下载和日志输出</strong>——出厂固件集成了 CDC 虚拟串口后才支持自动下载与串口日志。因此首次烧录失败时要按住 BOOT 再上电进 download 模式。旁路方案：左模块槽引出 USB Serial/JTAG、右模块槽引出 UART TX0/RX0，两者都能烧录调试。烧录后 CDC 控制台受 <code>CONFIG_BSP_USB_CONSOLE</code> / <code>CONFIG_BSP_USB_AUTO_DOWNLOAD</code> 等 Kconfig 控制；芯片复位时 USB 会短暂掉线，IDF Monitor 一般能自动重连。</p>
+<pre><code># BSP 推荐的最小开发循环
+idf.py --preview set-target esp32s31
+idf.py -p /dev/ttyACM0 flash monitor
+# monitor 挂接而不重启应用时：
+idf.py monitor --no-reset</code></pre>
+</section>
+
+<section id="module"><h2><span class="n">04 / MAGNETIC &amp; MODULES</span>磁吸拼接与模块扩展</h2>
+<h3>双磁力计：磁吸拼接的感知基础</h3>
+<p>每块 Mosaico 板缘布置<strong>两颗 BMM150 磁力计</strong>（I2C 0x11 / 0x12）配合板间磁铁。两块板磁吸接触时，两颗磁力计的磁场读数差异被 <code>mosaico_interaction</code> 组件用于<strong>磁性分类、方位判定与多板拓扑重建</strong>，再经 <code>mosaico_peer_link</code>（ESP-NOW 传输 + 接触会话协商 + 拓扑传播）和 <code>mosaico_network</code>（多设备拓扑路由与应用消息）把物理拼接变成逻辑组网——官方 demo 里有多屏"能量接力"和双屏乒乓球。<strong>磁校准 profile 与机械安装强相关</strong>：换磁铁、改外壳、装配公差变化都要重新校准（BSP 硬件注意事项原文），说明该方案对结构设计敏感，抄作业时要连结构一起抄。</p>
+<h3>模块槽：EEPROM 热插拔识别</h3>
+<p>底板左右各一个 <strong>2×10P、2.54mm 间距排针槽</strong>（左 H2 / 右 H1），模块上带 EEPROM：<strong>左槽 0x50（GPIO14 拉低选址）、右槽 0x51（GPIO39 拉高选址，且与左槽 180° 反装</strong>——同一模块物理上可以插任意一侧）。BSP 通过 <code>mosaico_module_mgr</code> 做模块发现、描述符校验与槽位独占式生命周期管理。官方已开源三种扩展模块：</p>
+<div class="table"><table><thead><tr><th>模块</th><th>内容</th><th>槽位</th></tr></thead><tbody>
+<tr><td>摄像头模块</td><td>OV3640 / SC101IOT DVP 摄像头 + 可选硬件 JPEG 解码辅助</td><td><strong>仅左槽</strong></td></tr>
+<tr><td>摇杆模块</td><td>双轴摇杆 + 五按键，非阻塞校准</td><td>左 / 右皆可</td></tr>
+<tr><td>交互模块</td><td>触摸/按键 + 运动感应 + 光感 + WS2812 + 红外</td><td>左 / 右皆可</td></tr>
+</tbody></table></div>
+<h3>引脚分配速查（BSP 实测口径）</h3>
+<div class="table"><table><thead><tr><th>功能域</th><th>信号 → GPIO</th></tr></thead><tbody>
+<tr><td>I2C / 传感器</td><td>SDA=0 · SCL=1 · SENSOR_INT=2 · TOUCH_INT=6（触摸、codec、IMU、磁力计、电量计、模块 EEPROM 全挂在同一条 I2C 上）</td></tr>
+<tr><td>用户 IO</td><td>状态 LED=3（低有效）· AI 按键=7（低有效）· 振动马达=8（高有效）</td></tr>
+<tr><td>屏幕（QSPI）</td><td>DATA0=36 · DATA1=51 · DATA2=35 · DATA3=9 · SCL=44 · CS=50 · RST=42 · TE=43</td></tr>
+<tr><td>音频（I2S）</td><td>BCK=37 · DOUT=40 · DIN=52 · WS=49 · MCLK=54 · PA_EN=45 · CODEC_PW=56</td></tr>
+<tr><td>NAND</td><td>CLK=20 · D=21 · Q=22 · CS=23 · HOLD=24 · WP=25</td></tr>
+<tr><td>电源控制</td><td>POWER_SWITCH=57 · VCC_3V3_CTRL=60</td></tr>
+</tbody></table></div>
+<h3>I2C 总线地址全景</h3>
+<div class="table"><table><thead><tr><th>地址</th><th>器件</th><th>位置</th></tr></thead><tbody>
+<tr><td>0x11 / 0x12</td><td>BMM150 #2 / #3</td><td>板载（核心板）</td></tr>
+<tr><td>0x19</td><td>ES8311 codec</td><td>板载（核心板）</td></tr>
+<tr><td>0x55</td><td>BQ27220 电量计</td><td>板载</td></tr>
+<tr><td>0x5A</td><td>CST9220 触摸</td><td>板载</td></tr>
+<tr><td>0x69</td><td>BMI270 IMU</td><td>板载</td></tr>
+<tr><td>0x50 / 0x51</td><td>模块 EEPROM（左/右）</td><td><strong>在模块上</strong>，插上才出现</td></tr>
+</tbody></table></div>
+<div class="callout warn"><p><strong>复用陷阱（自研扩展必读）：</strong>① 右槽 5 个引脚（GPIO49/52/54/37/40）与板载音频 I2S 复用——要用右槽扩展就不能同时用 ES8311/喇叭/麦克风；② 摄像头模块占用 DVP 引脚时，GPIO14 被复用为 DVP D4，该槽 EEPROM 识别暂停；③ 部分摄像头信号与 USB Serial/JTAG 冲突，摄像头例程必须走 UART 烧录；④ 两槽共享 I2C 等资源，槽位在模块驱动存活期间独占；⑤ 模块 EEPROM 编程属于产线操作，不在公开例程工作流内。</p></div>
+</section>
+
+<section id="sw"><h2><span class="n">05 / SOFTWARE</span>软件生态与 BSP</h2>
+<p>Mosaico 的开源生态不在 espressif 主组织下，而在<strong>独立组织 <a href="https://github.com/esp-mosaico">esp-mosaico</a></strong>（搜 esp-mosaico/esp-mosaico 才能找到）：</p>
+<div class="table"><table><thead><tr><th>仓库</th><th>定位</th><th>状态</th></tr></thead><tbody>
+<tr><td><a href="https://github.com/esp-mosaico/esp-mosaico-bsp">esp-mosaico-bsp</a></td><td>BSP + 可复用组件 + 全部例程（Apache-2.0）</td><td>11★ · 2026-09-21 推送</td></tr>
+<tr><td><a href="https://github.com/esp-mosaico/esp-mosaico-vibe">esp-mosaico-vibe</a></td><td>Agent 主导的开发工作区（vibe coding）</td><td>17★ · 2026-09-21 推送</td></tr>
+<tr><td><a href="https://github.com/esp-mosaico/esp-mosaico-claw">esp-mosaico-claw</a></td><td>出厂固件源码（基于 ESP-Claw）</td><td>7★ · 2026-09-07 推送</td></tr>
+<tr><td><a href="https://github.com/esp-mosaico/esp-mosaico-utils">esp-mosaico-utils</a></td><td>工具集（作为 vibe 的子模块引用）</td><td>1★ · 2026-09-21 推送</td></tr>
+</tbody></table></div>
+<p>BSP 兼容性：<strong>ESP-IDF ≥ 6.2</strong>，板卡修订 v1.0 与 v1.2（v1.1 按 v1.2 映射处理）。主头文件 <code>bsp/esp_mosaico.h</code>，提供显示/触摸/音频/传感器/存储/电源/输入/扩展槽统一 API，并按 eFuse 硬件版本自适配修订相关引脚。menuconfig 里可调 CO5300 TE 同步、QSPI 驱动强度、NAND QIO、马达 PWM、3.3V 软启动时间等板级选项。</p>
+<h3>九大组件</h3>
+<div class="table"><table><thead><tr><th>组件</th><th>职责</th></tr></thead><tbody>
+<tr><td>esp-mosaico-bsp</td><td>板级统一 API（显示/触摸/音频/传感/存储/电源/输入/槽位）</td></tr>
+<tr><td>esp_lcd_co5300</td><td>CO5300 屏驱（SPI/QSPI/MIPI-DSI，支持 Sleep-In 与 Deep Standby 低功耗态）</td></tr>
+<tr><td>mosaico_module_mgr</td><td>模块发现、描述符校验、槽位独占生命周期</td></tr>
+<tr><td>mosaico_interaction</td><td><strong>硬件无关</strong>的磁性分类、拓扑与游戏原语</td></tr>
+<tr><td>mosaico_peer_link</td><td>ESP-NOW 传输、接触会话协商、拓扑传播</td></tr>
+<tr><td>mosaico_network</td><td>多设备拓扑、路由与应用消息服务</td></tr>
+<tr><td>mosaico_module_camera</td><td>OV3640/SC101IOT 托管驱动 + 硬件 JPEG 辅助（仅左槽）</td></tr>
+<tr><td>mosaico_module_joystick</td><td>双轴五键摇杆 + 非阻塞校准（左右皆可）</td></tr>
+<tr><td>mosaico_module_interact</td><td>触摸/按键/运动/光感/WS2812/红外交互模块</td></tr>
+</tbody></table></div>
+<h3>十七个例程一览</h3>
+<div class="table"><table><thead><tr><th>类别</th><th>例程</th></tr></thead><tbody>
+<tr><td>板卡基础</td><td>button_led_test（按键/LED）· audio_loopback（麦克风采播）· hmi_demo（CO5300+CST9217+LVGL 基准）· imu_gesture（摇一摇/翻转识别）· low_power_wakeup（关机时序+定时深睡唤醒）· device_settings（NVS 版本化设置）</td></tr>
+<tr><td>摄像头与 AI</td><td>camera_lcd_preview · camera_photo_app（JPEG 存 NAND + USB MSC 导出）· wifi_http_cam（SoftAP HTTP 快照/MJPEG 流）· ai_model_gallery（人脸 + COCO 检测模型画廊）</td></tr>
+<tr><td>语音/音频/USB</td><td>gmf_audio_player（ESP-GMF MP3）· voice_tts（中文 TTS，小乐音色）· voice_wake_cmd（唤醒词+命令词+TTS 反馈）· usb_extend_screen（Windows 副屏 + HID 触摸 + UAC 音频）</td></tr>
+<tr><td>多设备交互</td><td>espnow_chat（多板聊天）· magnetic_interaction_demo（磁吸拓扑+多屏能量接力）· dual_screen_pong（双板双摇杆同步乒乓球）· module_slot_scan（槽位扫描）</td></tr>
+</tbody></table></div>
+<p>这个例程覆盖面基本就是把"语音玩具 + 副屏 + 多板游戏 + 摄像头 AI"四类热门边缘应用各写了一个可运行参考——对我们 kids-voice-toy / wandlink 这类项目，<code>voice_wake_cmd</code> 和 <code>gmf_audio_player</code> 是直接对口的参考实现。</p>
+</section>
+
+<section id="agent"><h2><span class="n">06 / AI AGENT WORKFLOW</span>ESP-Claw 与 Vibe：AI Agent 开发工作流</h2>
+<h3>ESP-Claw：设备端 Chat Coding 框架</h3>
+<p><a href="https://github.com/espressif/esp-claw">ESP-Claw</a>（2026-04 创建，2.1k★，官网 <a href="https://esp-claw.com/">esp-claw.com</a>）是乐鑫的 <strong>"Chat Coding" IoT AI Agent 框架</strong>，自我定位受 OpenClaw 概念启发、用 C 重实现：把对话、记忆、技能、Lua 扩展、MCP client/server 的 Agent Runtime 跑在 ESP32 系列芯片上，"感知—决策—执行"闭环本地完成。配套在线烧录页（esp-claw.com/en/flash）降低了尝鲜门槛。Mosaico 的<strong>出厂固件就跑在 ESP-Claw 上</strong>（esp-mosaico-claw 仓库，含 Mosaic UI、天气/相机/相册/蓝牙音乐应用、Wi-Fi 配网、网页配置、即时通讯、语音识别与固件更新检查），编译入口：</p>
+<pre><code>source /path/to/esp-idf/export.sh    # IDF 6.x + esp32s31 支持
+python -m pip install -r requirements.txt
+git submodule update --init --recursive
+idf.py bmgr -c ./boards -b esp_mosaico
+idf.py build &amp;&amp; idf.py -p PORT flash monitor</code></pre>
+<h3>Vibe：Agent 主导的开发工作区</h3>
+<p><a href="https://github.com/esp-mosaico/esp-mosaico-vibe">esp-mosaico-vibe</a> 是最有意思的一个仓库——官方定义是 <strong>"Agent-led development workspace"</strong>：用户描述应用与预期行为，AI Agent 基于参考工程、模拟器与 ESP-Iris 设备工具完成开发；用户只负责定目标、做必要的物理操作（插拔/按键）、在设备上验收结果。仓库根目录直接带 <code>CLAUDE.md</code> 和 <code>AGENTS.md</code>，工作流围绕 <code>mosaico.py</code> CLI 展开：</p>
+<pre><code>python mosaico.py project init my_app   # 建工程（无需装 IDF/接设备）
+python mosaico.py doctor               # 体检依赖并解析满足 esp32s31 的 IDF
+python mosaico.py recover              # 空机/校验失败时先走恢复
+python mosaico.py iris system-update --project projects/my_app  # 烧系统
+python mosaico.py iris logs --project projects/my_app --timeout 20
+python mosaico.py iris run --project projects/my_app  # 打开 Gateway Web 工作台</code></pre>
+<p>开发与观测分三条线：<strong>GSP Hello World</strong>（GSP UI 框架，PC/设备共享 UI 逻辑 + GSP 模拟器，基于 espressif/esp-gsp 1.4.0）；<strong>Raylib 游戏线</strong>（共享 C 渲染代码 + 确定性 Host 回放）；<strong>设备持续观测</strong>（ESP-Iris + Gateway Web 工作台，管理会话与设备所有权）。改动分区表/换应用走 <code>system-update</code>，纯代码改动走 <code>app-update</code>，并保留 Recovery 恢复路径防止变砖。</p>
+<div class="callout"><p><strong>为什么值得注意：</strong>这是头一回看到芯片厂把"AI Agent 怎么开发嵌入式"做进官方产品交付物——CLAUDE.md/AGENTS.md、Host 模拟回放、Web 网关观测、防变砖 Recovery，全是给 Agent 设计的地板。对我们自己做 agent-ssh-tool / wandlink 这类"Agent 操作物理设备"的项目，这套交互契约是现成的抄作业对象。</p></div>
+</section>
+
+<section id="buy"><h2><span class="n">07 / AVAILABILITY</span>购买与可得性</h2>
+<ul>
+<li><strong>渠道</strong>：淘宝 "Espressif Online" 官方店（乐鑫官方指定渠道之一）；海外走官方样品页 espressif.com/zh-hans/contact-us/get-samples 列出的平台。</li>
+<li><strong>价格</strong>：什么值得买评测记录原价约 <strong>¥299</strong>，后上调约 80 元至 <strong>¥379 左右</strong>（2026-09 时点，以店铺实时价为准）。</li>
+<li><strong>供货</strong>：淘宝页面显示"每日 12 点限量 10 套"，已售 1000+——现货紧俏，要买得蹲点抢。</li>
+<li><strong>官方新闻</strong>：<a href="https://www.espressif.com/zh-hans/news/ESP_Mosaico_Release">ESP_Mosaico_Release</a> 已宣布开放购买。</li>
+</ul>
+<p class="source">注：搜索结果里淘宝商品页出现过 "¥99999" 的占位价格（无货/候补状态的常见表现），判断实际成交价以 smzdm 评测的 ¥299→¥379 记录与店铺页为准。</p>
+</section>
+
+<section id="verdict"><h2><span class="n">08 / VERDICT</span>参考价值与风险</h2>
+<h3>对我们现有项目的直接价值</h3>
+<ul>
+<li><strong>多设备 ESP-NOW 拼接（对讲机/魔杖方向）</strong>：<code>mosaico_peer_link</code>（接触会话协商+拓扑传播）与 <code>mosaico_network</code>（多跳路由+应用消息）是我们 espnow-intercom 多机拓扑问题的完整官方参考实现，且是 ESP-IDF C 代码可直接读；双磁力计磁吸识别方案（含校准敏感性教训）适合 wandlink 的"设备物理对接"场景。</li>
+<li><strong>480×480 QSPI AMOLED（esp32-s3-amoled 液晶开发方向）</strong>：<code>esp_lcd_co5300</code> 组件覆盖 SPI/QSPI/DSI 三种接口与 Sleep-In/Deep Standby 低功耗态——对我们 StickS3/自制 AMOLED 板的屏驱和功耗优化直接可抄。</li>
+<li><strong>语音玩具（kids-voice-toy）</strong>：<code>voice_wake_cmd</code>（唤醒词+命令词+TTS）与 <code>gmf_audio_player</code> 例程 = 现成的工程级参考；ES8311 + 独立 LDO 降噪的音频硬件布局也值得对标。</li>
+<li><strong>Agent 工作流（vibecoding-wand / agent-ssh-tool）</strong>：Vibe 的 mosaico.py CLI + Iris/Gateway 观测 + Recovery 防变砖 + CLAUDE.md 契约，是"Agent 安全操作物理设备"的最佳实践范本。</li>
+<li><strong>芯片选型前瞻</strong>：S31 = S3 的 RISC-V 继任者（Wi-Fi 6 / 双模 BT / HS USB / 千兆 EMAC）。S3 项目保持现状，但<strong>新项目架构设计时可以按"未来平移 S31"预留</strong>（避免依赖 Xtensa 专有二进制库）。</li>
+</ul>
+<h3>风险与不押注的理由</h3>
+<ul>
+<li><strong>芯片 PRELIMINARY v0.5</strong>：规格未定稿，量产选型此刻入场等于跟乐鑫一起踩坑；IDF 目标还要 <code>--preview</code> 解锁。</li>
+<li><strong>RISC-V 生态迁移成本</strong>：ESP-SR、bt-lib 等在 S31 上是平行世界（esp32s31-bt-lib 刚起步），Xtensa 上的存量优化与社区经验不能直接复用。</li>
+<li><strong>供货紧俏 + 涨价</strong>：限量抢购、原价上调，说明产能爬坡中，批量拿货短期不现实。</li>
+<li><strong>磁吸校准对结构敏感</strong>：自研拼接硬件需要连磁铁布置、外壳、装配公差一起复刻校准流程，不是纯软件问题。</li>
+</ul>
+<div class="callout"><p><strong>行动建议：</strong>① 不急着买板——先把 <code>esp-mosaico-bsp</code> 和 <code>esp-mosaico-vibe</code> 当参考代码库读（已克隆到本地 work/）；② 若多机拼接/AMOLED 低功耗某块卡壳，直接翻对应组件源码抄实现；③ S31 正式版数据手册发布、IDF 去掉 preview 标记、淘宝现货常态化——三个信号满足两个再考虑入手实物。</p></div>
+</section>
+
+<section id="sources"><h2><span class="n">09 / SOURCES</span>本地资料与信息来源</h2>
+<h3>已拉到本地 work/ 目录</h3>
+<pre><code>work/
+├── esp-mosaico-bsp/            # BSP + 9 组件 + 17 例程（浅克隆，2.5MB）
+├── esp-mosaico-vibe/           # Agent 开发工作区（浅克隆，16MB，含 CLAUDE.md/AGENTS.md）
+└── esp-mosaico-hw-docs/
+    ├── ESP-Mosaico_CoreBoard_V1.0_Schematic.pdf   # 官方原理图（2026-08-18，5 页）
+    └── AMOLED_2.16inch_480x480_QSPI_Datasheet.pdf # 屏幕规格书 H0216F002AMT004-1</code></pre>
+<h3>关键链接</h3>
+<ul class="sources">
+<li>官方文档：esp-dev-kits → <a href="https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp-mosaico/ESP-Mosaico/docs_index.html">ESP-Mosaico V1.0 文档</a>（含完整 user guide：器件表/引脚表/电源/I2C 地址/模块槽）</li>
+<li>硬件 PDF：<a href="https://dl.espressif.com/AE/SCH_SCH_ESP-Mosaico_CoreBoard_V1_0_2026-08-18.pdf">CoreBoard V1.0 原理图</a> · <a href="https://dl.espressif.com/AE/H0216F002AMT004-1%20V1%E8%A7%84%E6%A0%BC%E4%B9%A62.16%E5%AF%B8%20480X480%20QSPI%20MIPI%20%20AMOLED.pdf">2.16 寸 480×480 AMOLED 规格书</a></li>
+<li>芯片：<a href="https://documentation.espressif.com/esp32-s31_datasheet_en.html">ESP32-S31 数据手册（PRELIMINARY v0.5）</a> · <a href="https://docs.espressif.com/projects/esp-idf/en/latest/esp32s31/get-started/index.html">ESP-IDF esp32s31 入门</a></li>
+<li>代码：<a href="https://github.com/esp-mosaico">esp-mosaico 组织</a>（bsp / vibe / claw / utils）· <a href="https://github.com/espressif/esp-dev-kits">espressif/esp-dev-kits</a>（文档仓）· <a href="https://github.com/espressif/esp-claw">espressif/esp-claw</a> · <a href="https://esp-claw.com/">esp-claw.com</a></li>
+<li>购买与新闻：<a href="https://www.espressif.com/zh-hans/news/ESP_Mosaico_Release">乐鑫官方发布新闻</a> · <a href="https://www.espressif.com/zh-hans/contact-us/get-samples">官方样品购买页</a> · <a href="https://post.smzdm.com/p/aomx2evn">什么值得买评测（价格 ¥299→¥379 记录）</a></li>
+</ul>
+<p class="source">调研方法：gh api 实勘 esp-dev-kits master 文档树与 esp-mosaico 组织四仓库（2026-09-22）；WebFetch 芯片数据手册；硬件 PDF 直接下载归档。所有结论均有上述一手来源支撑，二手信息（价格）已标注。</p>
+</section>
+
+</main></div><div class="foot">ESP-Mosaico 调研 · 整理于 2026-09-22 · 供个人学习研究用途</div></div></body></html>
