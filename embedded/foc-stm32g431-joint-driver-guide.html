@@ -4,6 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FOC 算法落地 STM32G431：机器人关节驱动从原理到代码架构</title>
+<script>
+window.MathJax = {
+    tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] },
+    svg: { fontCache: 'global' },
+    options: { renderActions: { addMenu: [] } }
+};
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
 <style>
     :root { --bg:#0f0f12; --surface:#1a1a1f; --text:#e8e8ec; --dim:#9ca3af;
             --accent:#6366f1; --accent2:#8b5cf6; --green:#10b981; --orange:#f97316;
@@ -34,10 +42,8 @@
     .warn::before { content:'⚠ 踩坑'; display:block; color:var(--orange); font-weight:600; font-size:0.85em; margin-bottom:6px; }
     .dim { color:var(--dim); }
     .formula { background:var(--surface); border:1px solid var(--border); border-radius:10px;
-               padding:12px 18px; margin:12px 0; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-               font-size:0.92em; line-height:2.1; overflow-x:auto; color:#c7d2fe; }
-    .formula .hl { color:var(--orange); }
-    .formula .cm { color:var(--dim); }
+               padding:14px 18px; margin:12px 0; overflow-x:auto; text-align:left; }
+    .formula mjx-container { margin:0.35em 0 !important; }
     .fig { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px; margin:16px 0; }
     .fig svg { display:block; width:100%; height:auto; }
     .figcap { text-align:center; color:var(--dim); font-size:0.85em; margin-top:8px; }
@@ -50,24 +56,48 @@
 <div class="container">
     <a class="back" href="index.html">← 返回嵌入式总览</a>
     <h1>FOC 算法落地 STM32G431：机器人关节驱动从原理到代码架构</h1>
-    <p class="sub">调研报告 · 2026-09-23 · 讲清三件事：FOC 在算什么、G431 拿什么算、代码怎么搭</p>
+    <p class="sub">技术报告 · 2026-09-23 · 讲清四件事：电磁学底座、FOC 在算什么、G431 拿什么算、代码怎么搭</p>
 
     <h2>§0 为什么是 FOC + G431</h2>
     <p>机器人关节的要害是<b>力矩要平滑、响应要快、体积要小</b>。六步换相（方波驱动）每 60° 电角换一次相，力矩纹波大、低速有顿挫、有换相噪声——用在关节上就是"齿轮感"和异响。FOC（Field-Oriented Control，磁场定向控制）把三相电流当成一个<b>可以连续旋转、连续调幅的电流矢量</b>来控制，力矩恒定无纹波、低速到零速都平稳、电流利用率最高，所以关节驱动清一色 FOC。</p>
-    <p>而 STM32G431 的选型逻辑一句话：<b>FOC 电流环需要的整条信号链——放大（运放 PGA）、采样（双 ADC 同步）、保护（比较器→刹车）、运算（CORDIC/FMAC 数学加速器 + M4F 浮点）、输出（TIM1 互补 PWM）、通信（FDCAN）——全部在一颗芯片里</b>，几乎不需要外加模拟器件。本文按"原理 → 算法 → G431 硬件映射 → 代码架构"四层展开，原理求简，实践求细。</p>
+    <p>而 STM32G431 的选型逻辑一句话：<b>FOC 电流环需要的整条信号链——放大（运放 PGA）、采样（双 ADC 同步）、保护（比较器→刹车）、运算（CORDIC/FMAC 数学加速器 + M4F 浮点）、输出（TIM1 互补 PWM）、通信（FDCAN）——全部在一颗芯片里</b>，几乎不需要外加模拟器件。本文按"电磁学底座 → FOC 原理 → 算法 → G431 硬件映射 → 代码架构"五层展开，原理求简，实践求细。</p>
 
-    <h2>§1 FOC 原理：最短路径讲透</h2>
-    <h3>1.1 电机里到底发生了什么</h3>
-    <p>PMSM（永磁同步电机）转子上是永磁体，定子三相绕组通电产生旋转磁场，两个磁场相互作用出力矩。力矩正比于两个磁场磁通密的叉积：</p>
-    <div class="formula">T ∝ |B<sub>r</sub> × B<sub>s</sub>| ∝ sin&theta;<sub>gap</sub>&nbsp;&nbsp;<span class="cm">← 两磁场夹角 90° 时力矩最大</span></div>
+    <h2>§1 电磁学底座：四块基石</h2>
+    <p class="dim">FOC 的全部公式只站在四块基石上，不需要麦克斯韦方程组。每一块都直接对应后文的一个环节——记住这四块，后面所有"为什么"都能落回来。</p>
+
+    <h3>1.1 电流生磁：定子绕组就是三块可控电磁铁</h3>
+    <p>导线通电，周围产生环形磁场，方向由右手定则给出（右手握导线，拇指指电流，四指弯曲的方向就是磁场方向）。绕成线圈后匝数把磁场放大 \(N\) 倍——这就是电磁铁。定子上嵌着三个绕组，轴线互差 120°，各自电流产生的磁场矢量叠加，得到一个<b>大小和方向都由三相电流比例决定</b>的合成磁场。这个"合成磁场矢量"就是后文所说的"电流矢量"的物理实体：控制三相电流的比例，就是控制这个矢量的方向和幅值。</p>
+
+    <h3>1.2 磁场施力：力矩的来源</h3>
+    <p>磁场中的载流导线受力（安培力，微观上是洛伦兹力），一根长度 \(L\)、电流 \(i\) 的导线在磁场 \(\mathbf{B}\) 中受力：</p>
+    <div class="formula">\[ \mathbf{F} = i\,\mathbf{L} \times \mathbf{B} \qquad \text{（方向由叉积决定，垂直于两者所在平面）} \]</div>
+    <p>把它宏观化：转子永磁体自带磁场 \(\mathbf{B}_r\)，定子电流造出磁场 \(\mathbf{B}_s\)，两个磁场像两块磁铁一样相互作用。作用在转子上的力矩正比于两者的叉积——<b>夹角 90° 时最大，同向时为零</b>。这就是 §2 整个 FOC 控制目标的出发点。</p>
+
+    <h3>1.3 磁生电：反电动势，速度的天花板</h3>
+    <p>转子磁铁转过定子绕组，绕组里感应出电动势（法拉第定律），它对抗外加电压，所以叫<b>反电动势</b>，记作 \(e\)，幅值正比于转速：\(e \propto \omega\)。这解释了两件事：其一，转速越高，反电动势吃掉越多母线电压，电机存在最高转速上限（弱磁可以突破它，见 §2.3 的 \(i_d\)）；其二，反电动势是转子位置的"广播信号"——<b>无感 FOC</b> 正是从电压电流里"听"出反电动势来估计转子角度的（§4.3 CORDIC 的 atan2 在这里登场）。</p>
+
+    <h3>1.4 绕组的电路模型：电流环被控对象的真身</h3>
+    <p>每个绕组电气上就是一个电阻串一个电感：电流 \(i\) 流过电感 \(L\) 建立磁链，端电压要同时供养电阻压降、电感压降和反电动势：</p>
+    <div class="formula">\[ v = R\,i + L\,\frac{\mathrm{d}i}{\mathrm{d}t} + e \qquad \Longleftrightarrow \qquad \frac{\mathrm{d}i}{\mathrm{d}t} = \frac{v - e - R\,i}{L} \]</div>
+    <p>读右边这个式子：<b>电压是"油门"，电流是"车速"，电感是"惯性"</b>。想让电流快速、精准地跟上指令，就得靠一个控制器不停地调电压——这正是电流环 PI 的工作，而 §3.5 的整定闭式解 \(K_P = 2\pi f_{bw} L\)、\(K_I = 2\pi f_{bw} R\) 就是从这个一阶方程直接导出的。电机参数 R、L 不是玄学，是这个模型的两个系数。</p>
+
+    <h3>1.5 电机结构速览：极对数与"电角度"</h3>
+    <p>转子上的永磁体有 \(p\) 对磁极（常见关节电机 7 对或 14 对）。转子机械转一圈，气隙磁场扫过 \(p\) 个完整周期，所以绕组里的电信号频率是机械频率的 \(p\) 倍，两者的换算就是<b>电角度</b>：</p>
+    <div class="formula">\[ \theta_e = p\,\theta_m + \theta_0 \qquad \text{（电角 = 极对数 × 机械角 + 标定零点）} \]</div>
+    <p>最后两个"为什么"：为什么是三相？三个互差 120° 的绕组通对称三相电流，合成磁场<b>幅值恒定、匀速旋转</b>（两相也行但每相要扛全功率，三相最省铜最经济）。BLDC 和 PMSM 有什么区别？按反电动势波形分：梯形波→配六步换相（方波电流），正弦波→配 FOC（正弦电流）；结构上经常是同一种电机，差别主要在绕组分布设计。关节电机一律是正弦反电动势的 PMSM + FOC。</p>
+
+    <h2>§2 FOC 原理：最短路径讲透</h2>
+    <h3>2.1 电机里到底发生了什么</h3>
+    <p>把 §1.2 的结论写完整：PMSM 的输出力矩是转子磁场与定子磁场叉积的结果——</p>
+    <div class="formula">\[ T \;\propto\; \bigl|\mathbf{B}_r \times \mathbf{B}_s\bigr| \;\propto\; \sin\theta_{gap} \qquad \text{（}\theta_{gap}\text{ 为两磁场夹角，90° 时力矩最大）} \]</div>
     <p>所以 FOC 的全部目标就一句话：<b>不管转子转到哪个角度，都让定子电流产生的磁场方向始终垂直于转子磁场</b>。垂直 ⇒ 每安培出力矩最大且恒定；偏离 90° ⇒ 同样电流出力变小且波动。六步换相的问题是磁场夹角在 60°~120° 之间来回摆，纹波就来自这里；FOC 让夹角锁死在 90°，纹波消失。</p>
 
-    <h3>1.2 三个坐标系：abc → αβ → dq</h3>
+    <h3>2.2 三个坐标系：abc → αβ → dq</h3>
     <p>直接控制三相交流量（三个 120° 错开的正弦波）很别扭，FOC 的思路是换坐标系，把"交流"变"直流"：</p>
     <ul>
         <li><b>abc</b>：三相定子坐标系，三个随时间变化的正弦电流——物理真实存在，但难控制。</li>
         <li><b>αβ</b>：两相静止坐标系（Clarke 变换得到）。α 对齐 A 相绕组轴，β 领先 90°。两个量仍是交流，但少了一个变量，且与 PWM 合成（SVPWM）天然同平面。</li>
-        <li><b>dq</b>：两相<b>旋转</b>坐标系（Park 变换得到），d 轴对准转子磁场方向、q 轴领先 90°（正是目标垂直方向）。站在这个跟着转子转的坐标系里看，定子电流是<b>两个直流量</b>：i<sub>d</sub>（与转子磁场同向，励磁分量）和 i<sub>q</sub>（垂直，力矩分量）。</li>
+        <li><b>dq</b>：两相<b>旋转</b>坐标系（Park 变换得到），d 轴对准转子磁场方向、q 轴领先 90°（正是目标垂直方向）。站在这个跟着转子转的坐标系里看，定子电流是<b>两个直流量</b>：\(i_d\)（与转子磁场同向，励磁分量）和 \(i_q\)（垂直，力矩分量）。</li>
     </ul>
 
     <div class="fig">
@@ -103,26 +133,26 @@
         <line x1="176" y1="209" x2="296" y2="108" stroke="#f97316" stroke-width="5" opacity="0.35"/>
         <line x1="210" y1="180" x2="296" y2="108" stroke="#f97316" stroke-width="2.4" marker-end="url(#ar3)"/>
         <text x="302" y="104" fill="#f97316" font-size="14" font-weight="600">d（转子磁场）</text>
-        <text x="262" y="216" fill="#f97316" font-size="11" opacity="0.8">转子永磁体 N→</text>
+        <text x="252" y="218" fill="#f97316" font-size="11" opacity="0.8">转子永磁体 N→</text>
         <line x1="210" y1="180" x2="128" y2="88" stroke="#10b981" stroke-width="2.4" marker-end="url(#ar4)"/>
-        <text x="72" y="82" fill="#10b981" font-size="14" font-weight="600">q（力矩方向）</text>
+        <text x="64" y="80" fill="#10b981" font-size="14" font-weight="600">q（力矩方向）</text>
         <line x1="210" y1="180" x2="168" y2="98" stroke="#8b5cf6" stroke-width="2.4" marker-end="url(#ar5)"/>
         <text x="150" y="140" fill="#8b5cf6" font-size="13" font-weight="600">I<tspan baseline-shift="sub" font-size="10">s</tspan></text>
-        <path d="M 258 180 A 48 48 0 0 0 247 146" fill="none" stroke="#e8e8ec" stroke-width="1.2" marker-end="url(#ar1)"/>
-        <text x="266" y="158" fill="#e8e8ec" font-size="13">θ<tspan baseline-shift="sub" font-size="10">e</tspan></text>
+        <path d="M 254 180 A 44 44 0 0 0 244 150" fill="none" stroke="#e8e8ec" stroke-width="1.2" marker-end="url(#ar1)"/>
+        <text x="262" y="158" fill="#e8e8ec" font-size="13">θ<tspan baseline-shift="sub" font-size="10">e</tspan></text>
         <text x="60" y="340" fill="#9ca3af" font-size="11.5">abc/αβ 静止 · dq 随转子旋转 · FOC 目标：I 总是贴近 q 轴，d 轴压零</text>
     </svg>
     <div class="figcap">图 1 · 坐标系与矢量：转子转到哪，θ<sub>e</sub> 由编码器实时给出，电流矢量被控制指向 q 轴</div>
     </div>
 
-    <h3>1.3 直流电机类比（记住这个就懂了 FOC）</h3>
-    <p>变换到 dq 系之后，PMSM 在数学上变成一台<b>解耦的直流电机</b>：i<sub>q</sub> 就是"电枢电流"，直接比例于力矩；i<sub>d</sub> 就是"励磁电流"，对表贴式转子（SPM）我们把它压到 0（不增力矩只会浪费电流和发热），高速弱磁时才给负值。于是整个控制问题退化为：<b>用两个 PI 控制两个直流量，再变换回三相去执行</b>。这就是 FOC 的全部。</p>
+    <h3>2.3 直流电机类比（记住这个就懂了 FOC）</h3>
+    <p>变换到 dq 系之后，PMSM 在数学上变成一台<b>解耦的直流电机</b>：\(i_q\) 就是"电枢电流"，直接比例于力矩；\(i_d\) 就是"励磁电流"，对表贴式转子（SPM）我们把它压到 0（不增力矩只会浪费电流和发热），高速弱磁时才给负值去"抵消"转子磁场、压低反电动势。于是整个控制问题退化为：<b>用两个 PI 控制两个直流量，再变换回三相去执行</b>。这就是 FOC 的全部。</p>
 
-    <h3>1.4 完整控制环路</h3>
-    <p>外环（位置/速度）输出 i<sub>q</sub> 指令，电流环负责让实际 i<sub>d</sub>/i<sub>q</sub> 跟上指令。环路里每个框就是一个算法模块，§2 逐个讲怎么算，§3 讲 G431 拿什么算：</p>
+    <h3>2.4 完整控制环路</h3>
+    <p>外环（位置/速度）输出 \(i_q\) 指令，电流环负责让实际 \(i_d\)、\(i_q\) 跟上指令。环路里每个框就是一个算法模块，§3 逐个讲怎么算，§4 讲 G431 拿什么算：</p>
 
     <div class="fig">
-    <svg viewBox="0 0 800 330" xmlns="http://www.w3.org/2000/svg">
+    <svg viewBox="0 0 880 380" xmlns="http://www.w3.org/2000/svg">
         <defs>
             <marker id="br1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
                 <path d="M0,0 L10,5 L0,10 z" fill="#9ca3af"/>
@@ -130,104 +160,118 @@
             <marker id="br2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
                 <path d="M0,0 L10,5 L0,10 z" fill="#f97316"/>
             </marker>
+            <marker id="br3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M0,0 L10,5 L0,10 z" fill="#10b981"/>
+            </marker>
+            <marker id="br4" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M0,0 L10,5 L0,10 z" fill="#6b7280"/>
+            </marker>
         </defs>
         <g font-size="12" text-anchor="middle">
-            <rect x="8" y="34" width="86" height="48" rx="9" fill="rgba(99,102,241,0.10)" stroke="#6366f1"/>
-            <text x="51" y="54" fill="#e8e8ec">电流采样</text><text x="51" y="71" fill="#9ca3af" font-size="11">iₐ iᵦ（双ADC）</text>
-            <rect x="128" y="34" width="72" height="48" rx="9" fill="rgba(99,102,241,0.10)" stroke="#6366f1"/>
-            <text x="164" y="62" fill="#e8e8ec">Clarke</text>
-            <rect x="236" y="34" width="76" height="48" rx="9" fill="rgba(99,102,241,0.10)" stroke="#6366f1"/>
-            <text x="274" y="54" fill="#e8e8ec">Park</text><text x="274" y="71" fill="#9ca3af" font-size="11">θₑ</text>
-            <rect x="348" y="34" width="76" height="48" rx="9" fill="rgba(16,185,129,0.10)" stroke="#10b981"/>
-            <text x="386" y="54" fill="#e8e8ec">PI ×2</text><text x="386" y="71" fill="#9ca3af" font-size="11">d / q 独立</text>
-            <rect x="460" y="34" width="80" height="48" rx="9" fill="rgba(99,102,241,0.10)" stroke="#6366f1"/>
-            <text x="500" y="54" fill="#e8e8ec">反 Park</text><text x="500" y="71" fill="#9ca3af" font-size="11">θₑ</text>
-            <rect x="576" y="34" width="76" height="48" rx="9" fill="rgba(99,102,241,0.10)" stroke="#6366f1"/>
-            <text x="614" y="62" fill="#e8e8ec">SVPWM</text>
-            <rect x="688" y="20" width="102" height="76" rx="9" fill="rgba(245,158,11,0.08)" stroke="#f59e0b"/>
-            <text x="739" y="44" fill="#e8e8ec">TIM1 互补 PWM</text><text x="739" y="61" fill="#9ca3af" font-size="11">死区 + BRK</text><text x="739" y="77" fill="#9ca3af" font-size="11">三相逆变器</text>
-            <rect x="688" y="140" width="102" height="56" rx="9" fill="rgba(139,92,246,0.10)" stroke="#8b5cf6"/>
-            <text x="739" y="162" fill="#e8e8ec">PMSM 关节</text><text x="739" y="180" fill="#9ca3af" font-size="11">τ ω 输出</text>
-            <rect x="216" y="252" width="128" height="48" rx="9" fill="rgba(148,163,184,0.08)" stroke="#6b7280"/>
-            <text x="280" y="271" fill="#e8e8ec">编码器</text><text x="280" y="288" fill="#9ca3af" font-size="11">电角度 θₑ = p·θₘ+θ₀</text>
-            <rect x="16" y="140" width="118" height="56" rx="9" fill="rgba(16,185,129,0.10)" stroke="#10b981"/>
-            <text x="75" y="162" fill="#e8e8ec">位置环 + 速度环</text><text x="75" y="180" fill="#9ca3af" font-size="11">输出 i*_q（1 kHz）</text>
+            <rect x="10" y="60" width="92" height="50" rx="9" fill="rgba(99,102,241,0.10)" stroke="#6366f1"/>
+            <text x="56" y="80" fill="#e8e8ec">电流采样</text><text x="56" y="97" fill="#9ca3af" font-size="11">iₐ iᵦ 双ADC</text>
+            <rect x="142" y="60" width="76" height="50" rx="9" fill="rgba(99,102,241,0.10)" stroke="#6366f1"/>
+            <text x="180" y="89" fill="#e8e8ec">Clarke</text>
+            <rect x="258" y="60" width="76" height="50" rx="9" fill="rgba(99,102,241,0.10)" stroke="#6366f1"/>
+            <text x="296" y="89" fill="#e8e8ec">Park</text>
+            <rect x="374" y="60" width="84" height="50" rx="9" fill="rgba(16,185,129,0.10)" stroke="#10b981"/>
+            <text x="416" y="80" fill="#e8e8ec">PI ×2</text><text x="416" y="97" fill="#9ca3af" font-size="11">d / q</text>
+            <rect x="498" y="60" width="84" height="50" rx="9" fill="rgba(99,102,241,0.10)" stroke="#6366f1"/>
+            <text x="540" y="89" fill="#e8e8ec">反 Park</text>
+            <rect x="622" y="60" width="84" height="50" rx="9" fill="rgba(99,102,241,0.10)" stroke="#6366f1"/>
+            <text x="664" y="89" fill="#e8e8ec">SVPWM</text>
+            <rect x="746" y="40" width="124" height="70" rx="9" fill="rgba(245,158,11,0.08)" stroke="#f59e0b"/>
+            <text x="808" y="62" fill="#e8e8ec">TIM1 互补 PWM</text><text x="808" y="80" fill="#9ca3af" font-size="11">死区 · BRK</text><text x="808" y="97" fill="#9ca3af" font-size="11">三相逆变器</text>
+            <rect x="746" y="170" width="124" height="60" rx="9" fill="rgba(139,92,246,0.10)" stroke="#8b5cf6"/>
+            <text x="808" y="192" fill="#e8e8ec">PMSM 关节电机</text><text x="808" y="210" fill="#9ca3af" font-size="11">τ ω 输出</text>
+            <rect x="250" y="300" width="170" height="54" rx="9" fill="rgba(148,163,184,0.08)" stroke="#6b7280"/>
+            <text x="335" y="322" fill="#e8e8ec">编码器</text><text x="335" y="340" fill="#9ca3af" font-size="11">θₑ = p·θₘ + θ₀</text>
+            <rect x="10" y="300" width="160" height="54" rx="9" fill="rgba(16,185,129,0.10)" stroke="#10b981"/>
+            <text x="90" y="322" fill="#e8e8ec">位置环 + 速度环</text><text x="90" y="340" fill="#9ca3af" font-size="11">输出 i*<tspan baseline-shift="sub" font-size="9">q</tspan>（1 kHz）</text>
         </g>
         <g stroke="#9ca3af" stroke-width="1.4" fill="none">
-            <line x1="94" y1="58" x2="126" y2="58" marker-end="url(#br1)"/>
-            <line x1="200" y1="58" x2="234" y2="58" marker-end="url(#br1)"/>
-            <line x1="312" y1="58" x2="346" y2="58" marker-end="url(#br1)"/>
-            <line x1="424" y1="58" x2="458" y2="58" marker-end="url(#br1)"/>
-            <line x1="540" y1="58" x2="574" y2="58" marker-end="url(#br1)"/>
-            <line x1="652" y1="58" x2="686" y2="58" marker-end="url(#br1)"/>
-            <line x1="739" y1="96" x2="739" y2="138" marker-end="url(#br1)"/>
-            <path d="M 739 196 L 739 236 L 51 236 L 51 84" marker-end="url(#br1)"/>
-            <line x1="134" y1="168" x2="344" y2="168" stroke-dasharray="5 4"/>
-            <path d="M 344 168 L 386 168 L 386 84" marker-end="url(#br1)"/>
-            <path d="M 280 252 L 274 232 L 274 84" marker-end="url(#br1)"/>
-            <path d="M 344 232 L 500 232 L 500 84" stroke-dasharray="5 4" marker-end="url(#br1)"/>
+            <line x1="102" y1="85" x2="138" y2="85" marker-end="url(#br1)"/>
+            <line x1="218" y1="85" x2="254" y2="85" marker-end="url(#br1)"/>
+            <line x1="334" y1="85" x2="370" y2="85" marker-end="url(#br1)"/>
+            <line x1="458" y1="85" x2="494" y2="85" marker-end="url(#br1)"/>
+            <line x1="582" y1="85" x2="618" y2="85" marker-end="url(#br1)"/>
+            <line x1="706" y1="85" x2="742" y2="85" marker-end="url(#br1)"/>
+            <line x1="808" y1="110" x2="808" y2="166" marker-end="url(#br1)"/>
         </g>
-        <g font-size="11" fill="#9ca3af">
-            <text x="106" y="50" text-anchor="middle">iₐ,iᵦ</text>
-            <text x="217" y="50" text-anchor="middle">iα,iβ</text>
-            <text x="329" y="50" text-anchor="middle">i<i>d</i>,i<i>q</i></text>
-            <text x="441" y="50" text-anchor="middle">v<i>d</i>,v<i>q</i></text>
-            <text x="557" y="50" text-anchor="middle">vα,vβ</text>
-            <text x="386" y="246" text-anchor="middle" fill="#10b981">i*_q</text>
-            <text x="330" y="226" text-anchor="middle" fill="#f97316">θₑ → Park / 反Park</text>
-            <text x="60" y="226">相电流反馈</text>
+        <g font-size="10" fill="#9ca3af" text-anchor="middle">
+            <rect x="105" y="68" width="30" height="15" rx="3" fill="#1a1a1f"/>
+            <rect x="221" y="68" width="30" height="15" rx="3" fill="#1a1a1f"/>
+            <rect x="337" y="68" width="30" height="15" rx="3" fill="#1a1a1f"/>
+            <rect x="461" y="68" width="30" height="15" rx="3" fill="#1a1a1f"/>
+            <rect x="585" y="68" width="30" height="15" rx="3" fill="#1a1a1f"/>
+            <rect x="709" y="68" width="30" height="15" rx="3" fill="#1a1a1f"/>
+            <text x="120" y="80">iₐ,iᵦ</text>
+            <text x="236" y="80">iα,iβ</text>
+            <text x="352" y="80">i<i>d</i>,i<i>q</i></text>
+            <text x="476" y="80">v<i>d</i>,v<i>q</i></text>
+            <text x="600" y="80">vα,vβ</text>
+            <text x="724" y="80">duty</text>
         </g>
+        <path d="M 746 200 L 424 200 A 8 8 0 0 0 408 200 L 320 200 L 320 296"
+              fill="none" stroke="#6b7280" stroke-width="1.3" stroke-dasharray="5 4" marker-end="url(#br4)"/>
+        <text x="530" y="191" fill="#6b7280" font-size="11">机械角 θₘ</text>
+        <line x1="290" y1="300" x2="290" y2="114" stroke="#f97316" stroke-width="1.4" marker-end="url(#br2)"/>
+        <text x="266" y="285" fill="#f97316" font-size="11">θₑ</text>
+        <path d="M 290 150 L 408 150 A 8 8 0 0 1 424 150 L 540 150 L 540 114"
+              fill="none" stroke="#f97316" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#br2)"/>
+        <circle cx="290" cy="150" r="3" fill="#f97316"/>
+        <text x="302" y="142" fill="#f97316" font-size="11">θₑ → 反 Park</text>
+        <path d="M 90 300 L 90 240 L 282 240 A 8 8 0 0 1 298 240 L 416 240 L 416 114"
+              fill="none" stroke="#10b981" stroke-width="1.4" marker-end="url(#br3)"/>
+        <text x="386" y="232" fill="#10b981" font-size="11">i*<tspan baseline-shift="sub" font-size="9">q</tspan></text>
     </svg>
-    <div class="figcap">图 2 · FOC 级联控制框图：内环电流（10–40 kHz）→ 中环速度 → 外环位置（~1 kHz）</div>
+    <div class="figcap">图 2 · FOC 级联控制框图：内环电流（10–40 kHz）→ 中环速度 → 外环位置（~1 kHz）；电机三相电流回到最左端采样（联轴器上的机械角送编码器），为读图清晰省略这两根连线</div>
     </div>
 
-    <h2>§2 FOC 是怎么算的：逐模块公式速讲</h2>
+    <h2>§3 FOC 是怎么算的：逐模块公式速讲</h2>
     <p class="dim">以下公式全部是"每拍执行一次"的离散运算，没有任何迭代或收敛问题——这是 FOC 看似神秘、实则工程友好的原因。</p>
 
-    <h3>2.1 电流采样</h3>
-    <p>三相电流之和恒为零，<b>采两相即可推出第三相</b>。主流方案两种：<b>低侧采样</b>（两个电阻串在下管源极到地，便宜，但必须在下管导通窗口内采样，见 §3.2）和<b>相线 inline 采样</b>（电阻+差分运放串在相线，任意时刻可采，成本高）。G431 的双 ADC 同步采样两相，正好匹配两电阻方案。</p>
+    <h3>3.1 电流采样</h3>
+    <p>三相电流之和恒为零，<b>采两相即可推出第三相</b>。主流方案两种：<b>低侧采样</b>（两个电阻串在下管源极到地，便宜，但必须在下管导通窗口内采样，见 §4.1）和<b>相线 inline 采样</b>（电阻+差分运放串在相线，任意时刻可采，成本高）。G431 的双 ADC 同步采样两相，正好匹配两电阻方案。</p>
 
-    <h3>2.2 Clarke 变换（abc → αβ，降维）</h3>
-    <div class="formula">i<sub>α</sub> = i<sub>a</sub><br>
-i<sub>β</sub> = (i<sub>a</sub> + 2·i<sub>b</sub>) / √3 &nbsp;&nbsp;<span class="cm">≈ (iₐ + 2iᵦ) × 0.5774，等幅值形式</span><br>
-i<sub>c</sub> = −i<sub>a</sub> − i<sub>b</sub></div>
-    <p>计算量：2 次乘 1 次除（√3 提前折算成系数）加几次加法，浮点约 15 个周期。就这么多。</p>
+    <h3>3.2 Clarke 变换（abc → αβ，降维）</h3>
+    <div class="formula">\[ i_\alpha = i_a \qquad\qquad i_\beta = \frac{i_a + 2\,i_b}{\sqrt{3}} \;\approx\; (i_a + 2\,i_b)\times 0.5774 \qquad\qquad i_c = -i_a - i_b \]</div>
+    <p>等幅值形式（保持变换前后矢量幅值不变，电流的物理安培数直接可用）。计算量：2 次乘 1 次加（√3 提前折算成系数），浮点约 15 个周期。就这么多。</p>
 
-    <h3>2.3 Park 变换（αβ → dq，旋转到转子视角）</h3>
-    <div class="formula"><span class="hl">i<sub>d</sub></span> = &nbsp;i<sub>α</sub>·cosθ<sub>e</sub> + i<sub>β</sub>·sinθ<sub>e</sub><br>
-<span class="hl">i<sub>q</sub></span> = −i<sub>α</sub>·sinθ<sub>e</sub> + i<sub>β</sub>·cosθ<sub>e</sub><br>
-<span class="cm">θₑ = p·θₘ + θ₀　（电角度 = 极对数 × 机械角度 + 标定零点，编码器给出）</span></div>
-    <p>这是整个 FOC 里唯一需要三角函数的地方之一（sinθ、cosθ 成对出现）。计算量：4 乘 2 加很便宜，贵的是那对 sin/cos——这正是 §3.3 CORDIC 登场的原因。物理含义：把电流矢量投影到"转子磁场方向（d）"和"垂直方向（q）"上，投影结果在稳态是直流量。</p>
+    <h3>3.3 Park 变换（αβ → dq，旋转到转子视角）</h3>
+    <div class="formula">\[ i_d = \;\;\, i_\alpha\cos\theta_e + i_\beta\sin\theta_e \qquad\qquad i_q = -\,i_\alpha\sin\theta_e + i_\beta\cos\theta_e \]</div>
+    <p>角度来自编码器（\(\theta_e = p\,\theta_m + \theta_0\)，§1.5）。这是整个 FOC 里唯一需要三角函数的地方之一（sinθ、cosθ 成对出现）。计算量：4 乘 2 加很便宜，贵的是那对 sin/cos——这正是 §4.3 CORDIC 登场的原因。物理含义：把电流矢量投影到"转子磁场方向（d）"和"垂直方向（q）"上，投影结果在稳态是直流量。</p>
 
-    <h3>2.4 dq 系 PI 调节（把直流误差变成电压指令）</h3>
-    <div class="formula">v<sub>d</sub> = K<sub>P,d</sub>·(i<sub>d</sub><sup>*</sup> − i<sub>d</sub>) + ∫K<sub>I,d</sub>·(i<sub>d</sub><sup>*</sup> − i<sub>d</sub>)dt &nbsp;&nbsp;<span class="cm">i*ₕ = 0（SPM 压 d 轴）</span><br>
-v<sub>q</sub> = K<sub>P,q</sub>·(i<sub>q</sub><sup>*</sup> − i<sub>q</sub>) + ∫K<sub>I,q</sub>·(i<sub>q</sub><sup>*</sup> − i<sub>q</sub>)dt &nbsp;&nbsp;<span class="cm">i*q 来自速度环</span><br>
-输出限幅：|v| = √(v²<sub>d</sub>+v²<sub>q</sub>) ≤ V<sub>dc</sub>/√3 &nbsp;&nbsp;<span class="cm">电压限幅圆 + 积分钳位抗饱和</span></div>
-    <p>被控对象是绕组的 R–L 一阶惯性，PI 参数有闭式解（带宽法，§4.6）。教科书上还有交叉解耦前馈项（v<sub>d</sub> −= ω<sub>e</sub>L<sub>q</sub>i<sub>q</sub> 等），关节电机转速不高、交叉项小，<b>绝大多数关节实现直接忽略</b>，靠 PI 的积分顶掉。</p>
+    <h3>3.4 dq 系 PI 调节（把直流误差变成电压指令）</h3>
+    <div class="formula">\[ v_d = K_{P,d}\,\bigl(i_d^{*} - i_d\bigr) + \int K_{I,d}\,\bigl(i_d^{*} - i_d\bigr)\,\mathrm{d}t \qquad (i_d^{*} = 0\ \text{，SPM 压 d 轴}) \]</div>
+    <div class="formula">\[ v_q = K_{P,q}\,\bigl(i_q^{*} - i_q\bigr) + \int K_{I,q}\,\bigl(i_q^{*} - i_q\bigr)\,\mathrm{d}t \qquad (i_q^{*}\ \text{来自速度环}) \]</div>
+    <div class="formula">\[ \text{输出限幅：}\quad \sqrt{v_d^2 + v_q^2} \;\le\; \frac{V_{dc}}{\sqrt{3}} \qquad \text{（电压限幅圆 + 积分钳位抗饱和）} \]</div>
+    <p>被控对象就是 §1.4 那个 R–L 一阶惯性，PI 参数有闭式解（带宽法，§5.5）。教科书上还有交叉解耦前馈项（\(v_d \mathrel{-}= \omega_e L_q i_q\) 等），关节电机转速不高、交叉项小，<b>绝大多数关节实现直接忽略</b>，靠 PI 的积分顶掉。</p>
 
-    <h3>2.5 反 Park 变换（dq → αβ，转回定子平面）</h3>
-    <div class="formula">v<sub>α</sub> = v<sub>d</sub>·cosθ<sub>e</sub> − v<sub>q</sub>·sinθ<sub>e</sub><br>
-v<sub>β</sub> = v<sub>d</sub>·sinθ<sub>e</sub> + v<sub>q</sub>·cosθ<sub>e</sub></div>
-    <p>与 Park 用同一对 sin/cos（CORDIC 一次调用两个都给出），4 乘 2 加。至此，"转子视角的直流指令"已经变回"定子平面的旋转电压矢量 (v<sub>α</sub>, v<sub>β</sub>)"，剩下的问题是：三相逆变器只有 6 个开关，怎么输出一个任意方向、任意幅值的电压矢量？——SVPWM。</p>
+    <h3>3.5 反 Park 变换（dq → αβ，转回定子平面）</h3>
+    <div class="formula">\[ v_\alpha = v_d\cos\theta_e - v_q\sin\theta_e \qquad\qquad v_\beta = v_d\sin\theta_e + v_q\cos\theta_e \]</div>
+    <p>与 Park 用同一对 sin/cos（CORDIC 一次调用两个都给出），4 乘 2 加。至此，"转子视角的直流指令"已经变回"定子平面的旋转电压矢量 \((v_\alpha, v_\beta)\)"，剩下的问题是：三相逆变器只有 6 个开关，怎么输出一个任意方向、任意幅值的电压矢量？——SVPWM。</p>
 
-    <h3>2.6 SVPWM（αβ 电压 → 三相占空比）</h3>
-    <p>三相半桥共 8 种开关组合：6 个有效矢量（幅值 2V<sub>dc</sub>/3，方向互差 60°）+ 2 个零矢量。SVPWM 的原理是<b>用相邻两个有效矢量 + 零矢量按时间加权，在一个 PWM 周期里"平均出"目标矢量</b>，七段式对称排布使谐波最小。其线性区可达 |v| ≤ V<sub>dc</sub>/√3，比正弦 PWM（V<sub>dc</sub>/2）多 15% 母线利用率——同样母线电压出更大力矩。</p>
+    <h3>3.6 SVPWM（αβ 电压 → 三相占空比）</h3>
+    <p>三相半桥共 8 种开关组合：6 个有效矢量（幅值 \(2V_{dc}/3\)，方向互差 60°）+ 2 个零矢量。SVPWM 的原理是<b>用相邻两个有效矢量 + 零矢量按时间加权，在一个 PWM 周期里"平均出"目标矢量</b>，七段式对称排布使谐波最小。其线性区可达 \(|v| \le V_{dc}/\sqrt{3}\)，比正弦 PWM（\(V_{dc}/2\)）多 15% 母线利用率——同样母线电压出更大力矩。</p>
     <p>教科书做法要判扇区、解三角方程；<b>工程实现用等价的 min–max 注入法，零分支判断</b>，是嵌入式实现的标准姿势：</p>
-    <div class="formula">V<sub>a</sub> = v<sub>α</sub>;&nbsp;&nbsp;V<sub>b</sub> = (−v<sub>α</sub> + √3·v<sub>β</sub>)/2;&nbsp;&nbsp;V<sub>c</sub> = (−v<sub>α</sub> − √3·v<sub>β</sub>)/2 &nbsp;<span class="cm">← 投影回三相幅值</span><br>
-offset = −( max(V<sub>a</sub>,V<sub>b</sub>,V<sub>c</sub>) + min(V<sub>a</sub>,V<sub>b</sub>,V<sub>c</sub>) ) / 2 &nbsp;<span class="cm">← 共模注入，等效七段式</span><br>
-duty<sub>x</sub> = 1/2 + (V<sub>x</sub> + offset) / V<sub>dc</sub> &nbsp;&nbsp;<span class="cm">x = a,b,c，写入 TIM1 的 CCR 寄存器</span></div>
+    <div class="formula">\[ V_a = v_\alpha; \qquad V_b = \frac{-v_\alpha + \sqrt{3}\,v_\beta}{2}; \qquad V_c = \frac{-v_\alpha - \sqrt{3}\,v_\beta}{2} \qquad \text{（投影回三相幅值）} \]</div>
+    <div class="formula">\[ V_{off} = -\,\frac{\max(V_a,V_b,V_c) + \min(V_a,V_b,V_c)}{2} \qquad \text{（共模注入，等效七段式）} \]</div>
+    <div class="formula">\[ \mathrm{duty}_x = \frac{1}{2} + \frac{V_x + V_{off}}{V_{dc}} \qquad (x = a,b,c\ \text{，写入 TIM1 的 CCR 寄存器}) \]</div>
 
-    <h3>2.7 级联环路：电流环外面套两层</h3>
+    <h3>3.7 级联环路：电流环外面套两层</h3>
     <table>
         <tr><th>环路</th><th>频率</th><th>输入 → 输出</th><th>整定要点</th></tr>
-        <tr><td><b>电流环</b></td><td>10–40 kHz（PWM 同频）</td><td>i<sub>q</sub> 指令 → v<sub>dq</sub></td><td>带宽法闭式解，机器人关节通常 0.5–2 kHz 带宽</td></tr>
-        <tr><td><b>速度环</b></td><td>1–5 kHz</td><td>ω 指令 → i<sub>q</sub> 指令</td><td>带宽比电流环低 5–10 倍，否则互相打架</td></tr>
-        <tr><td><b>位置环</b></td><td>0.5–1 kHz</td><td>位置指令 → ω 指令（或 MIT 协议直接 kp·Δp+kd·Δω+i<sub>q</sub> 前馈）</td><td>关节多用"位置+速度+前馈"混合指令，即 MIT Cheetah 协议的 5 字段</td></tr>
+        <tr><td><b>电流环</b></td><td>10–40 kHz（PWM 同频）</td><td>\(i_q\) 指令 → \(v_{dq}\)</td><td>带宽法闭式解，机器人关节通常 0.5–2 kHz 带宽</td></tr>
+        <tr><td><b>速度环</b></td><td>1–5 kHz</td><td>ω 指令 → \(i_q\) 指令</td><td>带宽比电流环低 5–10 倍，否则互相打架</td></tr>
+        <tr><td><b>位置环</b></td><td>0.5–1 kHz</td><td>位置指令 → ω 指令（或 MIT 协议直接 kp·Δp+kd·Δω+\(i_q\) 前馈）</td><td>关节多用"位置+速度+前馈"混合指令，即 MIT Cheetah 协议的 5 字段</td></tr>
     </table>
-    <p>力矩由 i<sub>q</sub> 唯一决定：T = 3/2·p·λ<sub>f</sub>·i<sub>q</sub>（p 极对数，λ<sub>f</sub> 转子磁链）。所以关节控制器本质上就是一个"力矩接口"：上层发 i<sub>q</sub>（或等价的 kp/kd/前馈参数），底层保证电流又快又准。</p>
+    <p>力矩由 \(i_q\) 唯一决定：</p>
+    <div class="formula">\[ T = \frac{3}{2}\,p\,\lambda_f\,i_q \qquad \text{（}p\text{ 极对数，}\lambda_f\text{ 转子磁链）} \]</div>
+    <p>所以关节控制器本质上就是一个"力矩接口"：上层发 \(i_q\)（或等价的 kp/kd/前馈参数），底层保证电流又快又准。</p>
 
-    <h2>§3 G431 拿什么算：算法 → 硬件逐条对号</h2>
-    <p>这是本文核心。§2 的每个算法模块在 G431 上都有明确的硬件归宿，映射关系如下，然后逐个展开：</p>
+    <h2>§4 G431 拿什么算：算法 → 硬件逐条对号</h2>
+    <p>这是本文核心。§3 的每个算法模块在 G431 上都有明确的硬件归宿，映射关系如下，然后逐个展开：</p>
     <table>
         <tr><th>算法环节</th><th>G431 硬件单元</th><th>关键特性</th></tr>
         <tr><td>相电流放大</td><td><b>3× 片内运放（PGA）</b></td><td>增益 2/4/8/16 编程可切，轨到轨，输出<b>内部直连 ADC</b>，不走 PCB 走线</td></tr>
@@ -241,7 +285,7 @@ duty<sub>x</sub> = 1/2 + (V<sub>x</sub> + offset) / V<sub>dc</sub> &nbsp;&nbsp;<
         <tr><td>关节总线</td><td><b>FDCAN</b></td><td>多关节 CAN 级联收发指令与状态（MIT Cheetah 风格协议）</td></tr>
     </table>
 
-    <h3>3.1 信号链总指挥：TIM1（一切都由它同步）</h3>
+    <h3>4.1 信号链总指挥：TIM1（一切都由它同步）</h3>
     <p>FOC 实时性的灵魂是"<b>采样时刻与 PWM 相位精确锁定</b>"。TIM1 配成中央对齐模式（计数器上数到峰值再下数到零，一个 PWM 周期 = 上数 + 下数），同时承担四个角色：<b>发互补 PWM（带死区）</b>、<b>在计数器谷底硬件触发 ADC</b>、接受<b>比较器触发的刹车（BRK）</b>、CCR <b>预装载双缓冲</b>（本周期写入的占空比在下个更新事件才生效，杜绝毛刺）。20 kHz 时 ARR ≈ 4249（170 MHz ÷ 2 ÷ 20 kHz − 1）。</p>
 
     <div class="fig">
@@ -256,8 +300,8 @@ duty<sub>x</sub> = 1/2 + (V<sub>x</sub> + offset) / V<sub>dc</sub> &nbsp;&nbsp;<
         <text x="30" y="44" fill="#9ca3af" font-size="11">计数器</text>
         <text x="30" y="124" fill="#9ca3af" font-size="11">峰值/谷底</text>
         <line x1="180" y1="120" x2="180" y2="205" stroke="#f97316" stroke-width="1.2" stroke-dasharray="4 3"/>
-        <line x1="300" y1="120" x2="300" y2="205" stroke="#9ca3af" stroke-width="1" stroke-dasharray="4 3"/>
-        <line x1="420" y1="120" x2="420" y2="205" stroke="#9ca3af" stroke-width="1" stroke-dasharray="4 3"/>
+        <line x1="300" y1="120" x2="300" y2="205" stroke="#9ca3af" stroke-width="1.2" stroke-dasharray="4 3"/>
+        <line x1="420" y1="120" x2="420" y2="205" stroke="#9ca3af" stroke-width="1.2" stroke-dasharray="4 3"/>
         <circle cx="180" cy="120" r="4" fill="#f97316"/>
         <circle cx="300" cy="120" r="4" fill="#9ca3af"/>
         <circle cx="420" cy="120" r="4" fill="#9ca3af"/>
@@ -265,7 +309,6 @@ duty<sub>x</sub> = 1/2 + (V<sub>x</sub> + offset) / V<sub>dc</sub> &nbsp;&nbsp;<
         <rect x="262" y="128" width="112" height="26" rx="6" fill="rgba(16,185,129,0.14)" stroke="#10b981"/>
         <text x="318" y="146" fill="#10b981" font-size="11.5" text-anchor="middle">② 电流环 ISR 计算</text>
         <text x="428" y="215" fill="#9ca3af" font-size="12">③ 更新事件：新占空比装载（双缓冲）</text>
-        <path d="M 175 158 L 175 196" stroke="#10b981" stroke-width="1.2" marker-end="url(#tr1)" transform="translate(105,-20)"/>
         <text x="48" y="30" fill="#9ca3af" font-size="11">开关沿都发生在峰值附近；谷底是三相下管全导通的"静默窗口" → 采样噪声最小</text>
     </svg>
     <div class="figcap">图 3 · 一个 PWM 周期内的时间轴：谷底采样 → ISR 计算 → 下个更新事件装载新占空比</div>
@@ -273,30 +316,30 @@ duty<sub>x</sub> = 1/2 + (V<sub>x</sub> + offset) / V<sub>dc</sub> &nbsp;&nbsp;<
 
     <p><b>为什么钉在谷底</b>：低侧采样方案里，谷底对应三相下管全部导通、相电流全部流过采样电阻的时刻；且此刻离任何开关沿最远，开关噪声对 ADC 的串扰最小。这个"何时采样"的决策由 TIM1 触发 ADC 在硬件层面完成，<b>与软件执行无关</b>——软件晚一点进中断只影响控制延迟，不会破坏采样时刻的准确。这就是 G431 方案"力矩干净"的底层原因。</p>
 
-    <h3>3.2 片内运放 PGA + 双 ADC：电流采样的前半程</h3>
+    <h3>4.2 片内运放 PGA + 双 ADC：电流采样的前半程</h3>
     <p>采样电阻上的电压通常是毫伏级（例如 1 mΩ 电阻走 20 A 只有 20 mV），必须放大后才能喂给 ADC。G431 的做法：<b>运放编成 PGA 模式（增益 2/4/8/16 由软件切换），同相端接采样电阻，输出在芯片内部直接路由到 ADC 输入通道</b>——零外部运放、零模拟 PCB 走线，这在布板空间以毫米计的关节里是实打实的好处。两路相电流分别由 ADC1/ADC2 在同一触发沿<b>同步采样</b>（同时刻、同孔径，两相电流才可比），0.25 µs 完成转换。慢信号（母线电压、NTC 温度、基准分压）用硬件过采样升到 16-bit，CPU 拿到的已经是平均完的值。</p>
 
-    <h3>3.3 CORDIC：三角函数从"贵"变"免费"（G431 最特别的东西）</h3>
+    <h3>4.3 CORDIC：三角函数从"贵"变"免费"（G431 最特别的东西）</h3>
     <p>CORDIC（坐标旋转数字计算机）的原理一句话：<b>用一连串固定的微小旋转去逼近目标角，每步只需移位和加法</b>——硬件实现极其便宜，却把三角函数/反三角函数变成了几个周期的外设调用。G431 把它做成了独立协处理器，对 FOC 的意义分三层：</p>
     <ol>
-        <li><b>一次调用出一对 sin/cos</b>。Park 和反 Park 需要同一对 sinθ<sub>e</sub>、cosθ<sub>e</sub>，CORDIC 的调用约定是：往 WDATA 写入角度（注意格式：<b>θ/π 的 Q1.31 定点</b>，不是弧度原值），RDATA 顺序读出 cos、sin 两个 Q1.31 结果。整个电流环只需这一次三角函数调用。</li>
-        <li><b>省下的周期很可观</b>。软件浮点 sinf()+cosf() 在 M4F 上是上百周期的库函数调用；CORDIC 满配置几十个周期出双结果，且精度随迭代次数可配。更重要的是它是<b>独立外设：启动后 CPU 可以转身去算 Clarke/PI，回头再取结果</b>——流水线并行，不占 FPU。</li>
-        <li><b>atan2（phase 模式）是无感 FOC 的钥匙</b>。观测器（反电动势/磁链）从 αβ 电压电流里估计转子角度，最后一步全是从 atan2 出角度；有感 FOC 也用它做电流矢量角监控、编码器标定校验。CORDIC 的 phase 模式同样几十周期。</li>
+        <li><b>一次调用出一对 sin/cos</b>。Park 和反 Park 需要同一对 \(\sin\theta_e\)、\(\cos\theta_e\)，CORDIC 的调用约定是：往 WDATA 写入角度（注意格式：<b>θ/π 的 Q1.31 定点</b>，不是弧度原值），RDATA 顺序读出 cos、sin 两个 Q1.31 结果。整个电流环只需这一次三角函数调用。</li>
+        <li><b>省下的周期很可观</b>。软件浮点 <code>sinf()</code>+<code>cosf()</code> 在 M4F 上是上百周期的库函数调用；CORDIC 满配置几十个周期出双结果，且精度随迭代次数可配。更重要的是它是<b>独立外设：启动后 CPU 可以转身去算 Clarke/PI，回头再取结果</b>——流水线并行，不占 FPU。</li>
+        <li><b>atan2（phase 模式）是无感 FOC 的钥匙</b>。观测器（反电动势/磁链）从 αβ 电压电流里估计转子角度，最后一步全是从 atan2 出角度（§1.3 说的"听反电动势"）；有感 FOC 也用它做电流矢量角监控、编码器标定校验。CORDIC 的 phase 模式同样几十周期。</li>
     </ol>
     <p>诚实的工程账：Park 变换本身（4 乘 2 加）在 M4F 的 FPU 上只要十几个周期，<b>用不用 CORDIC 都算得动</b>；CORDIC 的真正价值是把 sin/cos/atan2 这类"贵函数"从电流环时间预算里拿掉，给观测器、保护、通信腾 CPU。20 kHz 电流环 G431 游刃有余，上到 40 kHz 依然从容。</p>
 
-    <h3>3.4 FMAC：滤波白嫖一个 MAC 阵列</h3>
-    <p>FMAC 是"滤波器专用小 DSP"：256 字内部 SRAM 划成输入/输出/系数三段，硬件执行 FIR/IIR 的乘累加，可挂 DMA 持续供数。FOC 里的正确用法：<b>放慢环、别放电流环</b>——电流反馈若经低通滤波会引入相位滞后，直接吃掉电流环相位裕度。典型用途是速度估计滤波（差分编码器计数噪声大）、母线电压前馈滤波（V<sub>dc</sub> 波动实时折算进 SVPWM）、无感观测器的低通环节。这些滤波从 CPU 的周期预算里整体消失，且不占 FPU。</p>
+    <h3>4.4 FMAC：滤波白嫖一个 MAC 阵列</h3>
+    <p>FMAC 是"滤波器专用小 DSP"：256 字内部 SRAM 划成输入/输出/系数三段，硬件执行 FIR/IIR 的乘累加，可挂 DMA 持续供数。FOC 里的正确用法：<b>放慢环、别放电流环</b>——电流反馈若经低通滤波会引入相位滞后，直接吃掉电流环相位裕度。典型用途是速度估计滤波（差分编码器计数噪声大）、母线电压前馈滤波（\(V_{dc}\) 波动实时折算进 SVPWM）、无感观测器的低通环节。这些滤波从 CPU 的周期预算里整体消失，且不占 FPU。</p>
 
-    <h3>3.5 保护：比较器 → TIM1 刹车，独立于软件</h3>
+    <h3>4.5 保护：比较器 → TIM1 刹车，独立于软件</h3>
     <p>4 个片内比较器的一路接电流信号（PGA 输出），阈值写 DAC 由软件设定（等效过流门限 = 阈值 ÷ 增益 ÷ 采样电阻）。比较器翻转直接路由到 TIM1 的 BRK 输入，<b>同一个 PWM 周期内封锁六路输出</b>——从过流发生到关断是纳秒级硬件路径，不依赖中断响应，CPU 死循环、栈溢出、看门狗打架时照样关得掉。软件侧再叠一层慢保护（堵转限时、过温、过压欠压）在主循环里巡检。关节会堵转、会摔，这条硬件底线是选 G431 的隐性理由。</p>
 
-    <h3>3.6 20 kHz 一拍的周期预算（170 MHz）</h3>
+    <h3>4.6 20 kHz 一拍的周期预算（170 MHz）</h3>
     <table>
         <tr><th>电流环 ISR 内的动作</th><th>周期量级</th><th>由谁执行</th></tr>
         <tr><td>中断进出 + FPU 惰性压栈</td><td>~80</td><td>内核</td></tr>
         <tr><td>读 ADC 结果 + 偏置校正 + 定标</td><td>~60</td><td>CPU（DMA 已搬运）</td></tr>
-        <tr><td>sinθ/cosθ</td><td>~40</td><td><b>CORDIC</b>（期间 CPU 并行算 Clarke）</td></tr>
+        <tr><td>\(\sin\theta_e/\cos\theta_e\)</td><td>~40</td><td><b>CORDIC</b>（期间 CPU 并行算 Clarke）</td></tr>
         <tr><td>Clarke</td><td>~15</td><td>FPU</td></tr>
         <tr><td>Park + 反 Park</td><td>~40</td><td>FPU</td></tr>
         <tr><td>PI×2 + 电压限幅圆 + 抗饱和</td><td>~40</td><td>FPU</td></tr>
@@ -305,8 +348,8 @@ duty<sub>x</sub> = 1/2 + (V<sub>x</sub> + offset) / V<sub>dc</sub> &nbsp;&nbsp;<
     </table>
     <p>这就是"单芯片 FOC"的含金量：电流环本身只花掉不到 5% 的算力，剩下 95% 留给速度/位置环、无感观测器（可选）、CAN 协议栈和上层逻辑。把 PWM 提到 40 kHz（预算 4250 拍）依然轻松。ISR 代码链到 10 KB CCM SRAM 上执行，零等待、无 cache 抖动，每一拍的耗时是常数——电流环的确定性就是力矩的干净度。</p>
 
-    <h2>§4 代码架构：不写代码，讲清楚骨架</h2>
-    <h3>4.1 分层</h3>
+    <h2>§5 代码架构：不写代码，讲清楚骨架</h2>
+    <h3>5.1 分层</h3>
     <table>
         <tr><th>层</th><th>模块</th><th>职责</th></tr>
         <tr><td rowspan="3"><b>应用层</b><br><span class="dim">主循环 / 低优先级</span></td><td>joint_protocol</td><td>CAN 收发（MIT Cheetah 5 字段：位置/速度/kp/kd/前馈力矩，1 kHz），状态上报</td></tr>
@@ -321,30 +364,30 @@ duty<sub>x</sub> = 1/2 + (V<sub>x</sub> + offset) / V<sub>dc</sub> &nbsp;&nbsp;<
     </table>
     <p>分层的检验标准：<b>foc_core 不知道 G431 的存在</b>，可以在 PC 上用录制的 ADC 数据离线回放整定；驱动层薄到每个外设一个文件；换一颗芯片只动驱动层。</p>
 
-    <h3>4.2 实时骨架：一个中断扛电流环，主循环扛一切慢的</h3>
+    <h3>5.2 实时骨架：一个中断扛电流环，主循环扛一切慢的</h3>
     <p>整个系统的实时结构极其简单——<b>没有 RTOS 的必要</b>（用了也只是给慢任务分时）：</p>
     <ul>
-        <li><b>ADC 转换完成中断（最高抢占优先级）＝ 电流环</b>：读两相电流 → 偏置校正 → Clarke → CORDIC 取 sin/cos → Park → PI(d,q) → 反 Park → SVPWM → 写 CCR → 退出。整个 ISR 执行时间常数化（§3.6），必须在一个 PWM 周期内收尾。</li>
-        <li><b>主循环（或 RTOS 线程）</b>：1 kHz 跑速度/位置环和 CAN 协议，算出新的 i<sub>q</sub><sup>*</sup> 后<b>原子交换</b>交给电流环（单写者单读者，一个 volatile float 就够）；100 Hz 跑温度/母线巡检与故障状态机。</li>
+        <li><b>ADC 转换完成中断（最高抢占优先级）＝ 电流环</b>：读两相电流 → 偏置校正 → Clarke → CORDIC 取 sin/cos → Park → PI(d,q) → 反 Park → SVPWM → 写 CCR → 退出。整个 ISR 执行时间常数化（§4.6），必须在一个 PWM 周期内收尾。</li>
+        <li><b>主循环（或 RTOS 线程）</b>：1 kHz 跑速度/位置环和 CAN 协议，算出新的 \(i_q^{*}\) 后<b>原子交换</b>交给电流环（单写者单读者，一个 volatile float 就够）；100 Hz 跑温度/母线巡检与故障状态机。</li>
         <li><b>中断优先级从高到低</b>：ADC(电流环) → 编码器定时器 → SysTick → CAN → 其它通信。<b>任何中断都不允许比电流环高</b>，包括你的调试打印。</li>
     </ul>
 
-    <h3>4.3 上电状态机（顺序错了就是炸管教学）</h3>
+    <h3>5.3 上电状态机（顺序错了就是炸管教学）</h3>
     <table>
         <tr><th>状态</th><th>做什么</th><th>为什么</th></tr>
-        <tr><td>INIT</td><td>外设按 §4.4 清单起好，PWM 输出使能但占空比 50/50/50（零矢量）</td><td>零矢量 = 三相短路到地/母线，电机不受力，安全的"待机挡"</td></tr>
+        <tr><td>INIT</td><td>外设按 §5.4 清单起好，PWM 输出使能但占空比 50/50/50（零矢量）</td><td>零矢量 = 三相短路到地/母线，电机不受力，安全的"待机挡"</td></tr>
         <tr><td>CAL_OFFSET</td><td>PWM 保持零矢量，采 N 次电流取平均存为偏置</td><td>PGA/ADC 直流偏置每颗板都不同，上电实测最准</td></tr>
-        <tr><td>ALIGN（电角度标定）</td><td>输出固定电压矢量 θ<sub>e</sub>=0（vd&gt;0, vq=0），转子被电磁力拉到 d 轴对齐位置，读此时编码器机械角 = θ₀</td><td>FOC 一切以"编码器零点 = 转子 d 轴"为前提，这步定标定点；产线可换多角度最小二乘提高精度</td></tr>
+        <tr><td>ALIGN（电角度标定）</td><td>输出固定电压矢量 \(\theta_e = 0\)（\(v_d &gt; 0\)，\(v_q = 0\)），转子被电磁力拉到 d 轴对齐位置，读此时编码器机械角 = θ₀</td><td>FOC 一切以"编码器零点 = 转子 d 轴"为前提，这步定标定点；产线可换多角度最小二乘提高精度</td></tr>
         <tr><td>RUN</td><td>闭环电流/速度/位置模式运行</td><td>—</td></tr>
         <tr><td>FAULT</td><td>BRK 或软件保护触发 → 封锁输出 → 等待清除条件 → 回 INIT</td><td>故障必须锁存，不允许自动重启打火花</td></tr>
     </table>
 
-    <h3>4.4 CubeMX 配置清单（抄作业区）</h3>
+    <h3>5.4 CubeMX 配置清单（抄作业区）</h3>
     <table>
         <tr><th>外设</th><th>关键配置</th></tr>
         <tr><td>时钟</td><td>PLLN/P 拉满 170 MHz（ADC 时钟分频注意不超过其上限）</td></tr>
         <tr><td>TIM1</td><td>中央对齐模式 2；PWM 频率 20 kHz（ARR≈4249）；死区按管子选（典型 0.4–1 µs）；BRK 输入使能（低有效，来自 COMP）；CCR 预装载使能；CH4/更新事件配置为 ADC 触发沿钉在谷底</td></tr>
-        <tr><td>ADC1+ADC2</td><td>双 ADC <b>同步规则并联</b>模式；外部硬件触发选 TIM1 对应事件；两路相电流选 fast channel；母线电压/温度通道挂<code>下一拍/慢速轮转</code>并开硬件过采样；DMA 循环缓冲放 <b>SRAM1（不是 CCM！）</b></td></tr>
+        <tr><td>ADC1+ADC2</td><td>双 ADC <b>同步规则并联</b>模式；外部硬件触发选 TIM1 对应事件；两路相电流选 fast channel；母线电压/温度通道挂慢速轮转并开硬件过采样；DMA 循环缓冲放 <b>SRAM1（不是 CCM！）</b></td></tr>
         <tr><td>OPAMP×2</td><td>PGA 模式，增益 = 目标满量程电流 ÷ (采样电阻 × 3.3 V)；运放输出选内部连 ADC 通道</td></tr>
         <tr><td>COMP×2</td><td>正端接运放输出，负端接 DAC 给阈值；输出路由 TIM1_BKIN；使能迟滞防抖</td></tr>
         <tr><td>CORDIC / FMAC</td><td>使能时钟；CORDIC 用 HAL 的轮询接口包一层"喂 θ/π 出 sin/cos"；FMAC 按需装载滤波系数</td></tr>
@@ -353,28 +396,32 @@ duty<sub>x</sub> = 1/2 + (V<sub>x</sub> + offset) / V<sub>dc</sub> &nbsp;&nbsp;<
         <tr><td>FDCAN</td><td>1 Mbit/s（关节总线惯例）；RX 中断里解析 MIT 帧 → 更新指令缓存</td></tr>
     </table>
 
-    <h3>4.5 整定顺序与调参闭式解</h3>
+    <h3>5.5 整定顺序与调参闭式解</h3>
     <ol>
         <li><b>不接电机</b>：跑 PWM+ADC，示波器/上位机看死区、触发时刻、电流底噪。</li>
         <li><b>开环 I/F</b>：旋转电压矢量拖动电机空转，验证相序、SVPWM、电流采样链路（这一步电流环还没闭）。</li>
-        <li><b>电角度标定</b>（§4.3 ALIGN）。</li>
-        <li><b>电流环</b>：用带宽法一步到位——<code>K<sub>P</sub> = 2π·f<sub>bw</sub>·L</code>，<code>K<sub>I</sub> = 2π·f<sub>bw</sub>·R</code>，f<sub>bw</sub> 取 PWM 频率的 1/10~1/20（R、L 用万用表+LCR 表或 ST Motor Profiler 自动辨识）。i<sub>q</sub> 阶跃看响应，超调 &gt;20% 就降 f<sub>bw</sub>。</li>
+        <li><b>电角度标定</b>（§5.3 ALIGN）。</li>
+        <li><b>电流环</b>：用带宽法一步到位——</li>
+    </ol>
+    <div class="formula">\[ K_P = 2\pi f_{bw} L \qquad\qquad K_I = 2\pi f_{bw} R \]</div>
+    <p>\(f_{bw}\) 取 PWM 频率的 1/10~1/20（R、L 用万用表+LCR 表或 ST Motor Profiler 自动辨识）。\(i_q\) 阶跃看响应，超调 &gt;20% 就降 \(f_{bw}\)。</p>
+    <ol start="5">
         <li><b>速度环 → 位置环</b>：带宽依次降 5–10 倍，从外向内不许反超内环。</li>
         <li><b>带上关节负载</b>复验：堵转力矩、温升、CAN 指令到力矩的延迟。</li>
     </ol>
 
-    <h3>4.6 踩坑速查（每条都是真实事故风格）</h3>
+    <h3>5.6 踩坑速查（每条都是真实事故风格）</h3>
     <div class="card warn">
         <b>① DMA 访问不了 CCM SRAM</b>——把 ADC 的 DMA 缓冲放进 CCMRAM，采到的全是旧数据或 HardFault；CCM 只放代码和纯 CPU 数据。<br>
         <b>② CORDIC 角度格式是 θ/π 的 Q1.31</b>，不是弧度；直接喂浮点弧度转的定点会得到"看似有波形、实则角度随机"的灵异现场。<br>
         <b>③ M4F 的 FPU 是单精度</b>——代码里混进 <code>double</code>（比如 <code>3.14</code> 字面量传参）瞬间掉到软浮点，ISR 周期翻几倍；全链路强制 <code>float</code> + <code>3.14f</code>。<br>
-        <b>④ 电角度 ≠ 机械角度</b>：θ<sub>e</sub> = p·θ<sub>m</sub> + θ₀ 忘乘极对数，现象是"电机嗡嗡抖动不转"；θ₀ 没标定，现象是"能转但力矩软、电流大"。多极对数下标定点还要防 360°/p 的机械周期混叠。<br>
+        <b>④ 电角度 ≠ 机械角度</b>：\(\theta_e = p\,\theta_m + \theta_0\) 忘乘极对数，现象是"电机嗡嗡抖动不转"；θ₀ 没标定，现象是"能转但力矩软、电流大"。多极对数下标定点还要防 360°/p 的机械周期混叠。<br>
         <b>⑤ 低侧采样的窗口</b>：占空比接近 100% 时下管导通窗口消失，谷底采到的是开关噪声——重载工况突然电流波形发毛，先查最小脉宽限制。<br>
         <b>⑥ FPU 惰性压栈是隐形开销</b>：任何用了 FPU 的中断都有 ~26 字压栈成本，频繁的低优先级浮点中断会偷电流环的时间；慢任务里少用浮点，或降频。<br>
-        <b>⑦ 电流环里别滤电流</b>（§3.4）；同理别在 ISR 里 printf。
+        <b>⑦ 电流环里别滤电流</b>（§4.4）；同理别在 ISR 里 printf。
     </div>
 
-    <h2>§5 生态与参考实现</h2>
+    <h2>§6 生态与参考实现</h2>
     <table>
         <tr><th>资源</th><th>定位</th><th>用法建议</th></tr>
         <tr><td><b>ST MCSDK 6.x</b>（Motor Control SDK）</td><td>工业级 FOC 中间件，G4 一等公民；含 Motor Profiler 自动辨识 R/L/磁链</td><td>正路；参考其 ISR 结构与观测器实现，嫌重可以只搬库不搬框架</td></tr>
@@ -385,12 +432,13 @@ duty<sub>x</sub> = 1/2 + (V<sub>x</sub> + offset) / V<sub>dc</sub> &nbsp;&nbsp;<
     </table>
 
     <div class="card verdict">
+        电磁学底座四块：电流生磁（绕组=可控磁场）、磁场施力（叉积定力矩）、磁生电（反电动势）、RL 电路（电流环被控对象）。<br>
         FOC 的原理一页纸：换个跟着转子转的坐标系（Clarke+Park），三相交流变两个直流量的 PI 问题，再变回去（反 Park）用 SVPWM 执行——目标是让电流矢量永远垂直于转子磁场。<br>
         G431 的答案一页纸：TIM1 中央对齐 PWM 在谷底硬件触发双 ADC 同步采样片内 PGA 放大过的相电流；比较器→BRK 硬件过流；Clarke/Park/PI/SVPWM 的乘加交给 170 MHz M4F，sin/cos/atan2 交给 CORDIC 协处理器，滤波交给 FMAC；一个 20 kHz 中断 ≈350 周期干完电流环，剩 95% 算力跑速度/位置环和 CAN——这颗芯片就是为这个数据流而生的。<br>
         代码骨架一句话：<b>驱动/算法/应用三层 + 一个最高优先级中断扛电流环 + 主循环扛一切慢的 + 一个把顺序走对的上电状态机</b>。
     </div>
 
-    <div class="footer">参考：<a href="https://www.st.com/en/microcontrollers-microprocessors/stm32g431cb.html">STM32G431 产品页 / DS12550</a> · <a href="https://www.st.com/resource/en/reference_manual/rm0440-stm32g4-series-advanced-armbased-32bit-mcus-stmicroelectronics.pdf">RM0440 参考手册（CORDIC/FMAC 章节）</a> · <a href="https://github.com/STMicroelectronics/STM32CubeG4">STM32CubeG4（CORDIC 示例）</a> · <a href="https://www.st.com/en/evaluation-tools/b-g431b-esc1.html">B-G431B-ESC1</a> · <a href="https://www.st.com/en/embedded-software/stm32-motor-control-sdk.html">MCSDK 6</a> · <a href="https://community.simplefoc.com/t/embedded-world-2023-stm32-cordic-co-processor/3133">SimpleFOC 社区 CORDIC 实测</a> · <a href="https://notblackmagic.com/bitsandpieces/dsp-accelerators/">STM32 DSP 加速器综述</a> · <a href="https://docs.simplefoc.com/">SimpleFOC 文档</a></div>
+    <div class="footer">公式由 MathJax（CDN）渲染，离线打开时显示原始 TeX 源码 · 参考：<a href="https://www.st.com/en/microcontrollers-microprocessors/stm32g431cb.html">STM32G431 产品页 / DS12550</a> · <a href="https://www.st.com/resource/en/reference_manual/rm0440-stm32g4-series-advanced-armbased-32bit-mcus-stmicroelectronics.pdf">RM0440 参考手册（CORDIC/FMAC 章节）</a> · <a href="https://github.com/STMicroelectronics/STM32CubeG4">STM32CubeG4（CORDIC 示例）</a> · <a href="https://www.st.com/en/evaluation-tools/b-g431b-esc1.html">B-G431B-ESC1</a> · <a href="https://www.st.com/en/embedded-software/stm32-motor-control-sdk.html">MCSDK 6</a> · <a href="https://community.simplefoc.com/t/embedded-world-2023-stm32-cordic-co-processor/3133">SimpleFOC 社区 CORDIC 实测</a> · <a href="https://notblackmagic.com/bitsandpieces/dsp-accelerators/">STM32 DSP 加速器综述</a> · <a href="https://docs.simplefoc.com/">SimpleFOC 文档</a></div>
 </div>
 </body>
 </html>
