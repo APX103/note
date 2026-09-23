@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>开源 AFE 调研 — 嵌入式音频前端（魔杖项目）</title>
+<style>
+    :root { --bg:#0f0f12; --surface:#1a1a1f; --text:#e8e8ec; --dim:#9ca3af;
+            --accent:#6366f1; --accent2:#8b5cf6; --green:#10b981; --orange:#f97316;
+            --border:rgba(255,255,255,0.06); }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+           background:var(--bg); color:var(--text); line-height:1.75; -webkit-font-smoothing:antialiased; }
+    .container { max-width:780px; margin:0 auto; padding:60px 24px 80px; }
+    h1 { font-size:1.8em; margin:16px 0 8px;
+         background:linear-gradient(135deg,var(--text) 0%,var(--accent) 60%,var(--accent2) 100%);
+         -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    .sub { color:var(--dim); margin-bottom:8px; }
+    .back { display:inline-block; margin-bottom:8px; color:var(--dim); text-decoration:none; font-size:0.9em; }
+    .back:hover { color:var(--accent); }
+    h2 { font-size:1.25em; margin:44px 0 14px; padding-bottom:10px; border-bottom:1px solid var(--border); }
+    h3 { font-size:1.05em; margin:26px 0 10px; }
+    p { margin:10px 0; }
+    ul { margin:10px 0 10px 22px; } li { margin:6px 0; }
+    code { background:rgba(99,102,241,0.12); color:#a5b4fc; padding:1px 6px; border-radius:5px; font-size:0.88em; }
+    table { width:100%; border-collapse:collapse; margin:14px 0; font-size:0.9em; }
+    th { text-align:left; color:var(--dim); font-weight:600; padding:8px 10px; border-bottom:1px solid var(--border); white-space:nowrap; }
+    td { padding:9px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+    .card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:18px 22px; margin:14px 0; }
+    .verdict { border-left:3px solid var(--green); }
+    .verdict::before { content:'✦ 拍板'; display:block; color:var(--green); font-weight:600; font-size:0.85em; margin-bottom:6px; }
+    .dim { color:var(--dim); }
+    .footer { margin-top:60px; padding-top:20px; border-top:1px solid var(--border); color:var(--dim); font-size:0.82em; }
+    .footer a { color:var(--accent); text-decoration:none; }
+</style>
+</head>
+<body>
+<div class="container">
+    <a class="back" href="../index.html">← 返回总览</a>
+    <h1>开源 AFE 调研：嵌入式音频前端能自己攒吗</h1>
+    <p class="sub">魔杖项目配套调研 · 2026-09-22 · 结论：能，而且传统算法档全部 BSD 宽松许可</p>
+
+    <h2>§1 背景与问题</h2>
+    <p>魔杖音频链路当前是裸前端：<code>PDM → mel → 自研 wakenet CNN</code>。乐鑫 esp-sr 的 AFE（AEC+NS+VAD）免费但闭源（预编译 .a）。本文回答：有没有<b>真开源</b>的 AFE 组件能替代/前置，量级是否适合 ESP32-S3。先说一个关键认知：<b>esp-sr 里的"WebRTC 模式"本身就是静态编译进闭源壳里的开源 WebRTC 算法</b>——所以传统算法档的"开源 vs 闭源"之争其实是壳之争，算法本体（BSD）谁都拿得到。</p>
+
+    <h2>§2 候选清单（按工程量排序）</h2>
+    <table>
+        <tr><th>方案</th><th>许可</th><th>量级（S3 @240MHz, 16k）</th><th>ESP32 现成移植</th><th>适用</th></tr>
+        <tr><td><b>WebRTC VAD</b>（GMM）</td><td>BSD-3</td><td>几 KB 代码，&lt;0.5ms/10ms 帧</td><td>遍地都是（esp-sr 内置同款）</td><td>静音预门，省算力+防误触</td></tr>
+        <tr><td><b>speexdsp</b><br><span class="dim">NS+AEC+VAD+AGC+重采样</span></td><td>BSD</td><td>NS ~几十 KB RAM，几 ms/帧</td><td>✅ <a href="https://github.com/rjsachse/ESP32-SpeexDSP" style="color:var(--accent)">rjsachse/ESP32-SpeexDSP</a>，Arduino Library Manager 直装</td><td>一步到位要降噪就选它</td></tr>
+        <tr><td><b>WebRTC NS</b>（谱 MMSE）</td><td>BSD-3</td><td>与 speex NS 同档</td><td>需自己从 webrtc-audio-processing 抽文件（有 webrtc-noise-gain 等先例）</td><td>想要 speex 之外的备选</td></tr>
+        <tr><td><b>RNNoise</b>（xiph）<br><span class="dim">GRU+pitch 滤波混合 NN</span></td><td>BSD</td><td>int8 化后权重 ~200KB 级，每帧 GRU ~0.2M MAC@10ms → 估 5–15% 单核；float 版吃紧</td><td>❌ 无官方 ESP32 移植；Teensy(Cortex-M4/M7) 移植讨论证实 MCU 级可行</td><td>非平稳噪声质量最好，v2 挑战题</td></tr>
+        <tr><td><b>esp-nn</b>（乐鑫）</td><td>Apache-2.0，<b>真开源</b></td><td>int8 conv 等 SIMD 内核</td><td>✅ 就是给 ESP32 的</td><td>不是 AFE：给自研 wakenet 前向提速用</td></tr>
+        <tr><td><b>esp-dsp</b>（乐鑫）</td><td>乐鑫宽松开源</td><td>FFT/滤波</td><td>✅</td><td>可替换 mel 里手写 FFT</td></tr>
+    </table>
+
+    <h2>§3 关键事实</h2>
+    <ul>
+        <li><b>speexdsp 是为嵌入式而生的老牌 C 库</b>（Valin 出品，当年跑 Blackfin/ARM9），BSD 许可，ESP32-SpeexDSP 移植 2025 年进了 Adafruit 视野和 Arduino 库管理器——<b>这是"零移植成本"的最短路径</b>。</li>
+        <li><b>RNNoise 无现成 ESP32 移植</b>，但 Teensy 社区（M4/M7）证明量化后 MCU 实时可行；ESP32-S3 双核 LX7+向量指令属同一档，工程量在自写 int8 GRU 内核。</li>
+        <li><b>微软 NSNet2</b>（esp-sr 的"NET"降噪档）闭源打包，开源自搞要走 ONNX→TFLM，量级比 RNNoise 大，不值当。</li>
+        <li><b>AEC 全部不需要</b>：魔杖无音频回放，不存在回声路径（speex AEC / WebRTC AEC3 备查）。</li>
+        <li><b>存在性证明</b>：microWakeWord（开源，ESPHome 生态）在 ESP32-S3 上常跑 streaming mel + TFLM——"开源前端+开源模型"整条路在这颗芯片上是走得通的。</li>
+    </ul>
+
+    <h2>§4 拍板：魔杖分阶段</h2>
+    <div class="card verdict">
+        <b>阶段 0（现在）</b>：不加任何 AFE。安静玩具场景 + 触发平滑已够，先跑通主链路。<br>
+        <b>阶段 1（要省算力/防误触时）</b>：VAD 预门挡在 wakenet 前。来源二选一：继续用 esp-sr AFE 的 WebRTC VAD（已接好，闭源壳里的开源算法），或纯开源路线装 <b>ESP32-SpeexDSP</b> 只用其 VAD。<br>
+        <b>阶段 2（嘈杂场景误唤醒变多时）</b>：第一刀是<b>训练侧加噪声增强重训</b>（混入音乐/电视/键盘声，合成流水线现成）——这是照抄乐鑫自家设计（见 §6，唤醒链路不挂 NS，抗噪来自训练数据）。仍不够再考虑 speexdsp NS；RNNoise 是 v2 挑战题。<br>
+        <b>顺手账</b>：esp-nn（真开源 SIMD 内核）可给自研 wakenet 整窗前向提速，对冲 3.12M MACs 的标量整窗成本——比换任何 AFE 都直接。
+    </div>
+
+    <h2>§6 WakeNet9 官方流水线拆解（我们架构的锚点）</h2>
+    <p>官方 ESP32-S3 唤醒链路（benchmark 文档原表）：</p>
+    <pre style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 18px;overflow-x:auto;font-size:0.88em;line-height:1.9">唤醒(SR)链路：  麦克风 → AEC(SR_LOW_COST) → VAD(vadnet1_medium) → WakeNet9(wn9_hilexin)
+通话(VC)链路：  麦克风 → AEC(VOIP) → NS(nsnet2) → VAD(vadnet1_medium) → 输出干净音频</pre>
+    <p>两个关键读数：</p>
+    <ul>
+        <li><b>唤醒链路里没有 NS</b>——WakeNet9 在 SNR=4dB 噪声下 96% 的唤醒率不是靠前端降噪洗出来的，是训练时喂了带噪语料。降噪器会连带损伤语音，唤醒要的是"在噪声里认词"。</li>
+        <li><b>AEC 是为智能音箱"边播边听"准备的</b>（用回放信号做参考减回声）；VAD（vadnet1 神经版，或 WebRTC GMM 档）用于静音期跳过前向 + 压误触发。</li>
+    </ul>
+    <p>对齐结论：<b>我们的"裸链路 + VAD 预门 +（将来）加噪重训"恰好就是乐鑫架构去掉 AEC 的精简版，是同构不是凑合</b>。</p>
+
+    <h2>§5 与闭源 esp-sr AFE 的对位关系</h2>
+    <table>
+        <tr><th>能力</th><th>esp-sr（闭源壳）</th><th>开源等价物</th><th>差距</th></tr>
+        <tr><td>VAD</td><td>WebRTC 内核（传 NULL 模型名）</td><td>同款算法，speex/webrtc 源码</td><td>零</td></tr>
+        <tr><td>NS（传统）</td><td>WebRTC NS</td><td>speex NS / WebRTC NS</td><td>≈ 零（实现细节小差异）</td></tr>
+        <tr><td>NS（神经网络）</td><td>nsnet2（闭源打包）</td><td>RNNoise（需自移植）</td><td>工程量在你这边</td></tr>
+        <tr><td>AEC / 波束</td><td>闭源</td><td>speex AEC / WebRTC AEC3</td><td>魔杖用不上</td></tr>
+    </table>
+
+    <div class="footer">参考：<a href="https://github.com/rjsachse/ESP32-SpeexDSP">ESP32-SpeexDSP</a> · <a href="https://github.com/xiph/rnnoise">xiph/rnnoise</a> · <a href="https://jmvalin.ca/demo/rnnoise/">RNNoise 论文页</a> · <a href="https://forum.pjrc.com/threads/56059-RNNoise-porting-to-Teensy">Teensy RNNoise 移植讨论</a> · <a href="https://docs.espressif.com/projects/esp-sr/zh_CN/latest/benchmark.html">esp-sr benchmark</a> · 关联：<a href="magic-wand/index.html">魔杖方案</a> / <a href="../products/vibecoding-wand/gesture-nav-design.html">手势导航设计</a></div>
+</div>
+</body>
+</html>

@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>手势导航设计 — 上一条 / 下一条 / 确定 / 返回 · Vibecoding 魔杖</title>
+<style>
+    :root {
+        --bg: #0f0f12; --surface: #1a1a1f; --surface-hover: #222228;
+        --text: #e8e8ec; --text-secondary: #9ca3af;
+        --accent: #6366f1; --accent-2: #8b5cf6; --green: #10b981; --orange: #f97316;
+        --border: rgba(255,255,255,0.06);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+        background: var(--bg); color: var(--text); line-height: 1.75;
+        -webkit-font-smoothing: antialiased;
+    }
+    .container { max-width: 780px; margin: 0 auto; padding: 60px 24px 80px; }
+    h1 { font-size: 1.9em; margin: 16px 0 8px;
+        background: linear-gradient(135deg, var(--text) 0%, var(--accent) 60%, var(--accent-2) 100%);
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .sub { color: var(--text-secondary); margin-bottom: 8px; }
+    .back { display: inline-block; margin-bottom: 8px; color: var(--text-secondary);
+        text-decoration: none; font-size: 0.9em; }
+    .back:hover { color: var(--accent); }
+    h2 { font-size: 1.3em; margin: 48px 0 16px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+    h3 { font-size: 1.05em; margin: 28px 0 10px; color: var(--text); }
+    p { margin: 10px 0; color: var(--text); }
+    ul, ol { margin: 10px 0 10px 22px; }
+    li { margin: 6px 0; }
+    code { background: rgba(99,102,241,0.12); color: #a5b4fc; padding: 1px 6px; border-radius: 5px; font-size: 0.88em; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+        padding: 20px 24px; margin: 14px 0; }
+    .verdict { border-left: 3px solid var(--green); }
+    .verdict::before { content: '✦ 拍板'; display: block; color: var(--green); font-weight: 600; font-size: 0.85em; margin-bottom: 6px; }
+    .warn { border-left: 3px solid var(--orange); }
+    .warn::before { content: '⚠ 风险'; display: block; color: var(--orange); font-weight: 600; font-size: 0.85em; margin-bottom: 6px; }
+    table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.92em; }
+    th { text-align: left; color: var(--text-secondary); font-weight: 600; padding: 8px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    td { padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    td:first-child { white-space: nowrap; }
+    .num { color: var(--accent); font-variant-numeric: tabular-nums; }
+    .dim { color: var(--text-secondary); }
+    .tag { display: inline-block; font-size: 0.75em; padding: 2px 8px; border-radius: 6px;
+        background: rgba(99,102,241,0.1); color: var(--accent); font-weight: 500; }
+    .footer { margin-top: 60px; padding-top: 20px; border-top: 1px solid var(--border);
+        color: var(--text-secondary); font-size: 0.82em; }
+    .footer a { color: var(--accent); text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="container">
+    <a class="back" href="../../index.html">← 返回总览</a> · <a class="back" href="index.html">← Vibecoding 魔杖方案</a>
+    <h1>手势导航设计：上一条 / 下一条 / 确定 / 返回</h1>
+    <p class="sub">Vibecoding 魔杖扩展方案 · 2026-09-22 · 状态：待评审（本地未提交）</p>
+
+    <h2>§1 这是什么</h2>
+    <p>给 Vibecoding 魔杖（见 <a href="index.html" style="color:var(--accent)">主方案</a>）补上「选单导航」能力：agent 抛出选项列表 / 计划评审 / diff 翻页时，用四个手势完成 <b>上一条、下一条、确定、返回</b>，全程不碰键盘。这四个是高频动作——AskUserQuestion 的选项、fzf 列表、y/n 确认——比打字快，而且和已拍板的四个裁定手势（画圈=发送、下劈=接受、横挥=拒绝、双摇=急停）共用同一条识别流水线，<b>只是词汇表从 4 类扩到 6 类，映射按状态机分发</b>。</p>
+    <p>本文回答三个问题：① 手势怎么设计、怎么映射；② 识别的窗口 / 触发 / 去抖怎么做（与 WakeNet 同构）；③ 实时算力到底够不够（结论：够，且余量很大）。</p>
+
+    <h2>§2 手势词汇表与状态映射</h2>
+    <h3>2.1 词汇表：4 → 6 类（+ 背景）</h3>
+    <p>原 4 类里的「横挥」按左右拆开（互为镜像，CNN 区分无压力），再新增「翻腕」。全部 6 类 + 背景类 = <span class="num">7</span> 分类：</p>
+    <table>
+        <tr><th>手势</th><th>动作</th><th>IMU 特征（为什么不易混）</th><th>新增/沿用</th></tr>
+        <tr><td><b>画圈</b></td><td>手腕画圆</td><td>某轴角速度完整正弦周期（~0.5–1 Hz），能量包络平滑</td><td class="dim">沿用</td></tr>
+        <tr><td><b>下劈</b></td><td>竖直向下快劈</td><td>垂直轴加速度单脉冲 + 横轴角速度尖峰</td><td class="dim">沿用</td></tr>
+        <tr><td><b>左挥</b></td><td>水平向左快挥</td><td>水平轴加速度单脉冲（负向起），与右挥镜像</td><td>横挥拆分</td></tr>
+        <tr><td><b>右挥</b></td><td>水平向右快挥</td><td>水平轴加速度单脉冲（正向起）</td><td>横挥拆分</td></tr>
+        <tr><td><b>双摇</b></td><td>上下摇两下</td><td>两个清晰加速度峰 + ~200 ms 节奏间隔</td><td class="dim">沿用</td></tr>
+        <tr><td><b>翻腕</b></td><td>持杖手旋后翻 90–180°</td><td><b>陀螺仪主导</b>：|ω| 大而加速度尖峰小——与其余平动类天然正交</td><td>新增</td></tr>
+    </table>
+
+    <h3>2.2 状态 × 手势映射总表（手势 map）</h3>
+    <table>
+        <tr><th>状态</th><th>手势 → 动作</th><th>注入按键（tmux send-keys）</th></tr>
+        <tr><td><b>选单态</b>（新增）</td><td>左挥=上一条 · 右挥=下一条 · 下劈=确定 · 翻腕=返回</td><td><code>Up</code> · <code>Down</code> · <code>Enter</code> · <code>Escape</code></td></tr>
+        <tr><td><b>确认态</b>（转写评审）</td><td>画圈=发送 · 左挥/右挥=作废重说</td><td><code>Enter</code> · 无注入，仅状态回退</td></tr>
+        <tr><td><b>施法中</b>（agent 运行）</td><td>下劈=接受 y · 左挥/右挥=拒绝 Esc · 双摇=急停 Esc Esc</td><td><code>y</code> · <code>Escape</code> · <code>Escape Escape</code></td></tr>
+        <tr><td><b>空闲</b></td><td>手势只做杖屏反馈，不注入任何按键（防误伤）</td><td>—</td></tr>
+    </table>
+    <div class="card verdict">「确定」复用已有的<b>下劈</b>（物理隐喻一致：下劈=拍板）；「返回」用<b>翻腕</b>（新增），语义像「把这一页翻过去」，且陀螺主导的信号与平动类手势正交，是最省训练成本的一个新类。左/右挥在确认态与施法态退化为原「横挥」语义（任一水平挥都算），只在选单态才有方向性——<b>同一个分类器，映射随状态走</b>。</div>
+
+    <h3>2.3 选单态怎么进出</h3>
+    <p>agent 什么时候在等选择，daemon 并不总是知道。两步走：</p>
+    <ul>
+        <li><b>v0.5（拍板）</b>：双击杖侧键（BtnA）手动进 / 出选单态。简单、可靠、零解析成本，杖屏显示 <code>☰</code> 提示当前处于选单态。</li>
+        <li><b>v1（增强）</b>：daemon 用 <code>tmux capture-pane -p</code> 抓目标窗格文本，命中选项列表特征（数字编号行、AskUserQuestion 的选项卡）自动进入，超时或出现提示符自动退出。识别失败无害——只是没自动进。</li>
+    </ul>
+    <p>选单态下的 <code>Up/Down/Enter/Escape</code> 是 TUI 通用按键：ZCode 选项列表、fzf、vim 弹出菜单、htop 全都吃这套键，所以手势导航天然通吃各种终端交互，不绑定具体 agent。</p>
+
+    <h2>§3 识别流水线：与 WakeNet 同构</h2>
+    <p>手势识别和唤醒词确实是同一个问题形态——<b>固定长度滑窗 + 触发门限 + 时间去抖</b>，只是流从音频帧换成 IMU 帧。对照表：</p>
+    <table>
+        <tr><th>WakeNet（音频）</th><th>手势版（IMU）</th><th>本方案取值</th></tr>
+        <tr><td>PDM → 16 kHz PCM</td><td>BMI270 → 100 Hz 6 轴原始流</td><td class="num">100 Hz × 6ch = 600 样本/s（已定）</td></tr>
+        <tr><td>VAD / 能量门</td><td>加速度能量门（武装/收段）</td><td>‖a‖−1g 偏差 &gt; 0.25g 持续 ≥30 ms → 武装</td></tr>
+        <tr><td>log-mel 特征帧</td><td>原始 6 轴直接进网（IMU 无需手工特征）</td><td>窗口 0.8 s = 80 帧 × 6ch</td></tr>
+        <tr><td>滑窗推理（帧移 ~30 ms）</td><td>滑窗推理（步长 100 ms，仅武装期间）</td><td class="num">10 Hz 滑窗</td></tr>
+        <tr><td>unknown / 背景类</td><td>背景类（拿起、放下、打字震动的负样本）</td><td>第 7 类，采集时重点喂</td></tr>
+        <tr><td>连续 N 帧判稳 + 状态锁定</td><td>top-1 score &gt; 0.8 连续 2 窗（2/3 投票）→ 触发</td><td>+ 冷却锁定 700 ms</td></tr>
+    </table>
+    <h3>3.1 分段与触发细节</h3>
+    <ul>
+        <li><b>武装（arm）</b>：能量门命中 → 从触发点<b>回看 0.3 s</b> 开始缓存（快挥的先导动作在尖峰前）。</li>
+        <li><b>收段（close）</b>：能量回落到门限以下持续 150 ms → 段结束，缓冲补齐 / 截取到固定 0.8 s 窗。</li>
+        <li><b>早发（emit-early）</b>：不等收段——滑窗一旦凑够 2/3 投票立即触发。<b>左/右挥这类 300 ms 短动作，从动作开始到杖屏反馈约 250–400 ms</b>，体感「即时」。</li>
+        <li><b>冷却锁定</b>：触发后 700 ms 内只缓存不发（一次物理动作只出一条命令）；杖屏箭头反馈 + 蜂鸣 tick 一声。</li>
+        <li><b>误触发三件套沿用主方案 §4.5</b>（能量门 + 置信度 + 冷却），这里只是把参数和 WakeNet 对齐写死。</li>
+    </ul>
+
+    <h2>§4 算力账：实时够不够</h2>
+    <h3>4.1 部署位置（分两步，均已拍板）</h3>
+    <ul>
+        <li><b>v0 / v0.5</b>：分类器跑在 Mac 端 daemon（主方案已拍板的架构），杖端只上行 IMU 裸流（1.2 KB/s）——<b>杖端零算力问题</b>，导航功能先跑起来。</li>
+        <li><b>v1</b>：分类器与唤醒词一起下沉到杖端（主方案预留的路）。算力账如下。</li>
+    </ul>
+    <h3>4.2 杖端预算（ESP32-S3，双核 LX7 @240 MHz）— 精算 + Mac 实测，上板待验</h3>
+    <p class="dim">2026-09-22 修订：原"&lt;15% 单核"为纸面估算。现按 wakenet 真实架构精算 MACs、其 C 运行时在 Mac 本机（clang -O2）实测耗时，再外推 S3。ESP32-S3 标量按 2–3 cycle/MAC（80–120 M MAC/s）、ESP-NN 8-bit SIMD 按 3–5× 计；<b>最终数字以上板实测为准</b>（基准脚本已备：<code>wakenet/esp32/stick_s3_bench/</code>，15 分钟出数）。</p>
+    <table>
+        <tr><th>负载</th><th>精算成本</th><th>Mac 实测</th><th>ESP32-S3 估算（标量 / SIMD）</th><th>占空比</th></tr>
+        <tr><td>唤醒词 wn_forward<br><span class="dim">（整窗重算，3.12M MACs/窗）</span></td><td class="num">3.12 M MACs</td><td class="num">620 µs/窗</td><td class="num">20–35 ms / 6–12 ms</td><td>100ms 滑窗：6–33%<br>300ms 滑窗：2–11%</td></tr>
+        <tr><td>mel 前端（常开）</td><td class="num">~35k ops/帧 ×100fps</td><td class="num">10.1 µs/帧</td><td class="num">50–150 µs/帧</td><td>0.5–1.5%（连续）</td></tr>
+        <tr><td>手势模型（仅武装期）</td><td class="num">0.2 M MACs/0.8s 窗 ×10Hz</td><td>未训（估）</td><td class="num">1–3 ms/窗</td><td>武装期 1–3%；<b>待机 0</b>（能量门拦截）</td></tr>
+        <tr><td><b>双引擎合计（最坏）</b></td><td colspan="3">全标量 + 100ms 滑窗：~35% 单核；ESP-NN + 300ms 滑窗：~5% 单核</td><td>双核分摊：音频引擎独占 Core0、手势 Core1，互不抢占</td></tr>
+        <tr><td>内存</td><td colspan="4">激活 24.8KB（static）+ 特征 3.9KB + 权重 33KB + mel/环形缓冲 &lt; 10KB ≈ <b>&lt; 72KB</b>，片内 512KB SRAM 富余</td></tr>
+    </table>
+    <div class="card verdict">结论：<b>单芯片成立，不需要外挂芯片</b>。最坏假设（全标量 C、整窗 100ms 重算、双引擎全开）也只吃掉一个核的 ~35%；实际部署（ESP-NN + 合理滑窗节奏）&lt;10%，且两个引擎分属两个核。若上板实测超标，优化阶梯依次是：① 唤醒滑窗 100ms→300ms（触发平滑已容许）② 手势仅在能量门武装后推理（设计如此）③ 唤醒前向流式化（帧级复用激活，边际成本 ~32k MAC/帧，降 10×）④ 砍模型宽度 —— <b>永远轮不到加芯片</b>。存在性证明：乐鑫自家 WakeNet9 + AFE（比本方案重得多）就在同款 ESP32-S3 上量产常跑。</div>
+
+    <h2>§5 数据与训练</h2>
+    <ul>
+        <li><b>采集</b>：复用 magic-wand/wakenet 的 record.py 模式——杖插 USB，Mac 端脚本收 <code>'I'</code> IMU 帧，键盘敲标签，按「手势名_序号」落盘。每类 ≥ 50 次 × 3 种姿态（坐姿正握 / 站姿 / 换手），背景类随手日常动作 ≥ 10 分钟（含拿起放下、打字、走路）。</li>
+        <li><b>增强</b>：时间扭曲 ±15%、高斯噪声、绕重力轴 ±10° 旋转抖动（模拟握姿差异）、随机左右镜像生成对称样本（注意：镜像会交换左/右挥标签，只用于非方向类）。</li>
+        <li><b>训练</b>：沿用 wakenet 流水线（类平衡采样 + QAT + int8 逐通道量化 + C/numpy 对拍）。</li>
+        <li><b>验收指标</b>：逐类准确率 &gt; 97%；混淆矩阵重点盯<b>左挥↔右挥</b>（快而敷衍的挥动）和<b>翻腕↔拿起放下</b>（背景类）。</li>
+    </ul>
+
+    <h2>§6 里程碑与风险</h2>
+    <table>
+        <tr><th>里程碑</th><th>内容</th><th>估时</th></tr>
+        <tr><td>M-G0</td><td>IMU 采集脚本（CDC 收流 + 打标签）</td><td class="num">2 h</td></tr>
+        <tr><td>M-G1</td><td>7 类模型训练 + 量化 + 对拍（电脑端验证）</td><td class="num">0.5 d</td></tr>
+        <tr><td>M-G2</td><td>daemon 集成：选单态状态机 + 手势映射 + 杖屏反馈</td><td class="num">0.5 d</td></tr>
+        <tr><td>M-G3</td><td>tmux 实测（ZCode AskUserQuestion / fzf 列表导航）</td><td class="num">0.5 d</td></tr>
+        <tr><td>M-G4</td><td>姿态鲁棒性加固 + 误触发率调参（补采、阈值回归）</td><td class="num">1 d</td></tr>
+    </table>
+    <p class="dim">总计约 3 天，其中 M-G0–G1 与魔杖控灯那套手势流水线完全共享。</p>
+    <div class="card warn">① 左/右挥混淆：用户敷衍时会挥成斜线 → 靠采集时故意混入「快速随便挥」样本 + 镜像类数据增强；仍混则 UX 兜底（选单态左右挥连续误跳只是光标移动，无破坏性）。② 翻腕误触：自然的拿笔/放笔动作接近翻腕 → 背景类负样本重点覆盖；必要时给翻腕加时长下限（&gt; 400 ms 的持续旋转才算）。③ 选单态忘退：双击进入后 30 s 无手势自动退回空闲态，杖屏闪烁提示。</div>
+
+    <h2>§7 与既有文档的合并点</h2>
+    <ul>
+        <li>主方案 <code>index.html</code> §2.1 手势语义表：4 → 6 类，补「选单态」一行；状态机图加一个节点。</li>
+        <li>主方案 §3 架构图：分类器标注 v1 下沉杖端（算力账见本文 §4.2）。</li>
+        <li>magic-wand 方案 §4 手势流水线：窗口 / 触发参数以本文 §3 为准（对齐 WakeNet）。</li>
+    </ul>
+
+    <div class="footer">Vibecoding 魔杖 · 手势导航扩展方案 · 2026-09-22 · <a href="index.html">返回主方案</a> · <a href="../../index.html">返回总览</a></div>
+</div>
+</body>
+</html>
