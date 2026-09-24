@@ -5,7 +5,7 @@
   <option timestep="0.001" gravity="0 0 -9.81" solver="Newton" iterations="50"/>
 
   <visual>
-    <global offwidth="960" offheight="720"/>
+    <global offwidth="1280" offheight="960"/>
     <headlight ambient="0.25 0.25 0.28" diffuse="0.7 0.7 0.72"/>
   </visual>
 
@@ -112,7 +112,7 @@
 
   <keyframe>
     <!-- 站立: 下臂/上臂微前倾, 灯罩朝前下 -->
-    <key name="stand" qpos="0 0 0.011 1 0 0 0  0  1.00 1.20 0.40"/>
+    <key name="stand" qpos="0 0 0.011 1 0 0 0  0  0.10 2.20 -0.35"/>
     <key name="crouch" qpos="0 0 0.011 1 0 0 0  0  0.85 2.30 0.40"/>
   </keyframe>
 </mujoco>

@@ -464,7 +464,7 @@ class JumpControllerV2:
     repeat=True: 落地稳定后自动进入下一跳(移动任务)。"""
 
     PHASE_SETTLE, PHASE_FIRE, PHASE_FLIGHT, PHASE_LAND, PHASE_STAND, PHASE_HOLD = 0, 1, 2, 3, 4, 5
-    STAND_POSE = (1.00, 1.20, 0.40)   # 天鹅颈站姿: 下臂前伸57°, 肘折正向(开口朝前下), 头探出底盘前缘、罩口照地
+    STAND_POSE = (0.10, 2.20, -0.35)  # 问号站姿: 下臂近竖直(?的竖笔), 肘在顶点, 上臂前下勾回(?的弯钩), 头挂钩末端罩口朝下
 
     def __init__(self, p, repeat=False, stand_after=True, stop_t=None):
         self.p0 = np.array(p, dtype=float)

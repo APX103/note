@@ -31,6 +31,9 @@ class LuxoJumpEnv(gym.Env):
         self.model = mujoco.MjModel.from_xml_path(self.xml_path)
         self.data = mujoco.MjData(self.model)
 
+        self.floor_geom_id = self.model.geom("floor").id
+        self.base_geom_id = self.model.geom("base_geom").id
+
         self.nu = self.model.nu
         self.n_actuated = self.nu
 
@@ -79,11 +82,24 @@ class LuxoJumpEnv(gym.Env):
 
     def _base_contact(self) -> float:
         """
-        Return 1.0 if the base is near the ground.
-        The base is now a flat cylinder of half-height 0.025; when settled
-        the base body z is about 0.075.  Use a threshold a few cm above that.
+        Return 1.0 if the base is actually touching the floor.
+
+        v9 fix: this used to threshold on qpos[2] < 0.12, but the base only
+        settles at ~0.025 and a real, physically-verified liftoff (hand-tuned
+        crouch+extend torques) only reaches ~0.08-0.11m -- well under the old
+        0.12 threshold. That meant every real jump in this height range was
+        silently reported as "still touching the ground", so the agent never
+        got takeoff/landing event rewards and jumped_this_episode never
+        flipped true, even when it was correctly jumping. Use MuJoCo's own
+        contact list instead of a height guess.
         """
-        return 1.0 if self.data.qpos[2] < 0.12 else 0.0
+        for i in range(self.data.ncon):
+            c = self.data.contact[i]
+            if (c.geom1 == self.floor_geom_id and c.geom2 == self.base_geom_id) or (
+                c.geom2 == self.floor_geom_id and c.geom1 == self.base_geom_id
+            ):
+                return 1.0
+        return 0.0
 
     def _get_obs(self) -> np.ndarray:
         q = self.data.qpos
@@ -222,6 +238,24 @@ class LuxoJumpEnv(gym.Env):
         if contact == 0.0:
             r_upward += max(0.0, base_lin[2]) * 0.2
 
+        # 2b) Dense height-shaping: reward being higher than the settled
+        # ground height. This gives a continuous, non-sparse gradient
+        # towards "push up harder" that the purely event-triggered
+        # takeoff/landing rewards cannot provide on their own.
+        # Hard-gated on (airborne AND upright > 0.9): earlier versions only
+        # gated on upright, which let the agent rock the flat cylindrical
+        # base up onto its own rim while still touching the floor (contact
+        # stays 1 the whole time since it's the same base_geom) to raise
+        # its center of mass and farm this reward without ever jumping.
+        # Requiring contact == 0 closes that loophole -- only a genuine
+        # liftoff counts.
+        r_height = (
+            max(0.0, base_z - self.ground_z) * 6.0
+            if (contact == 0.0 and upright > 0.9)
+            else 0.0
+        )
+        r_height = max(0.0, base_z - self.ground_z) * 6.0 if upright > 0.9 else 0.0
+
         # 3) Height regulation while airborne only (based on current z, not a
         #    permanently-elevated running max) -- soft, not punitive.
         r_peak = 0.0
@@ -302,6 +336,12 @@ class LuxoJumpEnv(gym.Env):
         # 9) Keep head joints near neutral.
         r_yaw = -abs(jnt_pos[0]) * 0.1 - abs(jnt_pos[4]) * 0.1
 
+        # 9b) Persistent anti-flailing penalty: large base angular velocity
+        # is what turns a vertical hop into a tipping/somersaulting fall.
+        # Penalize it on every step (not just post-landing) so the policy
+        # learns to jump without spinning up rotation in the first place.
+        r_spin = -float(np.linalg.norm(base_ang)) * 0.05
+
         # 10) Regularization.
         r_energy = -np.sum(np.square(action)) * 0.005
         r_smooth = -np.sum(np.square(action - self.last_action)) * 0.03
@@ -318,8 +358,8 @@ class LuxoJumpEnv(gym.Env):
             self.low_upright_steps = 0
 
         reward = float(
-            r_alive + r_upright + r_urgency + r_upward + r_peak + r_forward + r_air + r_takeoff
-            + r_landing + r_stable + r_yaw + r_energy + r_smooth
+            r_alive + r_upright + r_urgency + r_upward + r_height + r_peak + r_forward + r_air
+            + r_takeoff + r_landing + r_stable + r_yaw + r_spin + r_energy + r_smooth
         )
 
         # ---- Termination conditions ------------------------------------------
@@ -354,6 +394,7 @@ class LuxoJumpEnv(gym.Env):
             "r_upright": r_upright,
             "r_urgency": r_urgency,
             "r_upward": r_upward,
+            "r_height": r_height,
             "r_peak": r_peak,
             "r_forward": r_forward,
             "r_air": r_air,
@@ -361,6 +402,7 @@ class LuxoJumpEnv(gym.Env):
             "r_landing": r_landing,
             "r_stable": r_stable,
             "r_yaw": r_yaw,
+            "r_spin": r_spin,
             "r_energy": r_energy,
             "r_smooth": r_smooth,
             "base_x": base_pos[0],

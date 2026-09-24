@@ -96,8 +96,8 @@
 
   <actuator>
     <motor joint="base_yaw"  name="act_base_yaw"  ctrlrange="-5 5"/>
-    <motor joint="hip_pitch" name="act_hip_pitch" ctrlrange="-15 15"/>
-    <motor joint="elbow_pitch" name="act_elbow_pitch" ctrlrange="-15 15"/>
+    <motor joint="hip_pitch" name="act_hip_pitch" ctrlrange="-6 6"/>
+    <motor joint="elbow_pitch" name="act_elbow_pitch" ctrlrange="-6 6"/>
     <motor joint="head_pitch" name="act_head_pitch" ctrlrange="-10 10"/>
     <motor joint="head_yaw"  name="act_head_yaw"  ctrlrange="-5 5"/>
   </actuator>
