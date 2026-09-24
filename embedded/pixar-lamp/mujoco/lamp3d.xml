@@ -86,6 +86,7 @@
               <geom name="camera_lens" type="cylinder" size="0.009 0.008" euler="0 1.5708 0"
                     pos="0.052 0 0.009" rgba="0.95 0.42 0.10 1" contype="0" conaffinity="0" density="0"/>
               <camera name="head_cam" mode="fixed" pos="0.060 0 0.009" euler="0 1.5708 0" fovy="72"/>
+              <site name="imu_head" pos="0.030 0 0.012" type="sphere" size="0.003" rgba="0 0 0 0"/>
               <inertial pos="0.030 0 0.012" mass="0.112" diaginertia="1.6e-4 1.5e-4 2.0e-4"/>
             </body>
           </body>
@@ -101,6 +102,19 @@
     <exclude body1="base" body2="upper_arm"/>
     <exclude body1="lower_arm" body2="head"/>
   </contact>
+
+  <sensor>
+    <!-- 底盘 IMU(主控板载): 三轴陀螺仪 + 三轴比力 + 姿态四元数 -->
+    <gyro name="imu_base_gyro" site="imu_site" noise="0.005" cutoff="30"/>
+    <accelerometer name="imu_base_acc" site="imu_site" noise="0.05" cutoff="30"/>
+    <framequat name="imu_base_quat" objtype="site" objname="imu_site"/>
+    <!-- 头部 IMU(灯罩内摄像头旁): 供万向节云台与视觉定向 -->
+    <gyro name="imu_head_gyro" site="imu_head" noise="0.005" cutoff="30"/>
+    <accelerometer name="imu_head_acc" site="imu_head" noise="0.05" cutoff="30"/>
+    <framequat name="imu_head_quat" objtype="site" objname="imu_head"/>
+    <!-- 足底接触推断用: 关节扭矩已由电机反馈, 这里补充底盘三轴力 -->
+    <framepos name="base_pos" objtype="body" objname="base"/>
+  </sensor>
 
   <actuator>
     <motor joint="th1" name="m1" gear="1" ctrlrange="-12.5 12.5"/>
