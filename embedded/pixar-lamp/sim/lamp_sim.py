@@ -535,10 +535,10 @@ class JumpControllerV2:
             self.t_stand = getattr(self, "t_stand", 0.0) + sim.dt
             return self._stand(sim, q, qd, dt_stand=self.t_stand)
         if self.phase == self.PHASE_HOLD:
-            tau, kd = self._pd(sim, q, self._hold_tgt, 1.0)
+            tau, kd = self._pd(sim, q, self._hold_tgt, 1.6)   # 软簧后主动刚度顶上
             com = sim.com_pos(q); comv = sim.com_vel(q, qd)
-            fb = kx * (0.0 - (com[0] - q[0])) - kdx * comv[0] - 2.0 * qd[2]
-            tau[0] += float(np.clip(fb, -10.0, 10.0))
+            fb = kx * (0.0 - (com[0] - q[0])) - kdx * comv[0] - 3.0 * qd[2]
+            tau[0] += float(np.clip(fb, -12.5, 12.5))
             return tau, kd
         com_now = sim.com_pos(q)
         calm = abs(com_now[0] - q[0] - com_ref) < 0.07 and np.abs(qd).max() < 1.5

@@ -23,10 +23,10 @@ RESULTS = os.path.join(HERE, "results")
 os.makedirs(RESULTS, exist_ok=True)
 
 BOUNDS = np.array([
-    [0.15, 1.60], [0.80, 2.60], [-12.5, -2.0], [-12.5, -2.0],
-    [0.0, 0.25], [0.0, 0.25], [0.0, 80.0], [0.0, 1.0],
+    [-0.85, 1.00], [0.80, 2.90], [-12.5, 12.5], [-12.5, 12.5],
+    [0.0, 0.25], [0.0, 0.25], [0.0, 300.0], [0.0, 3.0],
     [0.8, 2.40], [0.80, 2.40], [0.4, 1.6], [0.45, 0.90],
-    [0.10, 0.80], [0.20, 0.50], [0.0, 400.0], [0.0, 60.0], [-0.045, 0.045]])
+    [0.05, 0.80], [0.20, 0.60], [0.0, 500.0], [0.0, 80.0], [-0.045, 0.045]])
 
 
 def base_pitch(d):
@@ -98,7 +98,7 @@ class Env:
             for _ in range(int(self.rng.integers(1, 4))):
                 t0p = float(self.rng.uniform(max(cmd_schedule[1], 0.9) + 0.15, T - 0.8))
                 dur = float(self.rng.uniform(0.10, 0.25))
-                fx = float(self.rng.uniform(3.0, 9.0)) * (-1 if self.rng.random() < 0.5 else 1)
+                fx = float(self.rng.uniform(2.0, 5.0)) * (-1 if self.rng.random() < 0.5 else 1)  # 戳(2-5N): 9N推翻力矩超底盘裕度
                 fz = float(self.rng.uniform(-2.0, 2.0))
                 self._pushes.append((t0p, dur, fx, fz))
         else:
@@ -108,6 +108,8 @@ class Env:
         rec = dict(t=[], q=[], com=[], contact=[], phase=[]) if record else None
         air_streak, registered, air_t, com_apex = 0, False, 0.0, -9.9
         hold_err_sum, hold_n, x_cmd = 0.0, 0, 0.0
+        flip_rot = 0.0            # 单次滞空内的最大俯仰摆动(翻转度量)
+        pitch_at_lift = 0.0
         for i in range(n):
             t_now = i * dt
             q, qd = self.q_like(), self.qd_like()
@@ -136,11 +138,14 @@ class Env:
             comz = self.d.subtree_com[1][2]
             in_air = self.d.qpos[2] > 0.0135
             if in_air and t_now > 0.5:
+                if air_streak == 0:
+                    pitch_at_lift = base_pitch(self.d)
                 air_streak += 1
                 if air_streak * dt > 0.02:
                     registered = True
                     air_t += dt
                     com_apex = max(com_apex, comz)
+                    flip_rot = max(flip_rot, abs(base_pitch(self.d) - pitch_at_lift))
             else:
                 air_streak = 0
             if record and i % 8 == 0:
@@ -159,8 +164,9 @@ class Env:
         lamp_pose = bool(abs(pitch_e) < 0.25 and not in_air
                          and abs(qe[3] - sp1) < 0.30 and abs(qe[4] - sp2) < 0.45
                          and np.abs(self.d.qvel).max() < 0.8)
-        info = dict(x_end=float(disp @ heading), apex_at=apex_at, air_t=air_t,
-                    lamp_pose=lamp_pose, x_cmd=x_cmd,
+        deform = (abs(qe[3] - sp1) + abs(qe[4] - sp2) + abs(qe[5] - JumpControllerV2.STAND_POSE[2]))
+        info = dict(x_end=float(disp @ heading), apex_at=apex_at, air_t=air_t, flip_rot=flip_rot,
+                    deform=deform, lamp_pose=lamp_pose, x_cmd=x_cmd,
                     hold_err=(hold_err_sum / max(1, hold_n)) if hold_n else 0.0,
                     n_push=len(self._pushes),
                     upright=bool(abs(pitch_e) < 0.30 and not in_air),
@@ -179,9 +185,18 @@ def reward_leap(info, ctrl=None):
         - 30.0 * abs(info["pitch_end"]) + 8.0 * min(info["apex_at"], 0.05) \
         + (80.0 if info["air_t"] > 0.06 else 0.0) \
         - (40.0 if info["air_t"] < 0.03 and x > 0.02 else 0.0)
+    r -= 400.0 * max(0.0, info["flip_rot"] - 0.35)     # 空中翻转: 0.35rad内正常晃, 超过重罚(咚!)
+    r -= 120.0 * min(info["deform"], 1.0)              # 跳完变形(不回冻结姿态)
+    r -= 400.0 * max(0.0, info["flip_rot"] - 0.35)     # 空中翻转: 0.35rad内正常晃, 超过重罚(咚!)
+    r -= 120.0 * min(info["deform"], 1.0)              # 跳完变形(不回冻结姿态)
+    r -= 400.0 * max(0.0, info["flip_rot"] - 0.35)     # 空中翻转: 0.35rad内正常晃, 超过重罚(咚!)
+    r -= 120.0 * min(info["deform"], 1.0)              # 跳完变形(不回冻结姿态)
     if info["apex_at"] > 1.0 or abs(info["x_end"]) > 3.0:
         return -500.0
     return r
+
+
+_STAGE = os.environ.get("MJ_STAGE", "2")
 
 
 def reward_travel(info, ctrl=None):
@@ -191,8 +206,11 @@ def reward_travel(info, ctrl=None):
     r = (400.0 * min(x, 0.60) + (150.0 if info.get("lamp_pose") else -120.0)
          - (100.0 if info["fell"] else 0.0) - 30.0 * abs(info["pitch_end"])
          + 60.0 * min(info["air_t"], 0.30) / 0.30 + 20.0 * per_hop
-         - (250.0 if info["air_t"] < 0.12 and x > 0.05 else 0.0)
-         - 150.0 * max(0.0, info["apex_at"] - 0.10))
+         - (250.0 if _STAGE == "2" and info["air_t"] < 0.12 and x > 0.05 else 0.0)
+         - (150.0 if _STAGE == "2" else 0.0) * max(0.0, info["apex_at"] - 0.10))
+    if _STAGE == "2":
+        r -= 400.0 * max(0.0, info["flip_rot"] - 0.35)
+        r -= 120.0 * min(info["deform"], 1.0)
     if info["apex_at"] > 1.0 or x > 3.0:
         return -500.0
     return r
@@ -206,6 +224,8 @@ def reward_gated(info, ctrl=None):
          - 40.0 * abs(info["pitch_end"])
          + (40.0 if info["air_t"] > 0.05 else 0.0)
          - 300.0 * min(info["hold_err"], 0.6) / 0.6)
+    r -= 400.0 * max(0.0, info["flip_rot"] - 0.35)     # 空中翻转: 0.35rad内正常晃, 超过重罚(咚!)
+    r -= 120.0 * min(info["deform"], 1.0)              # 跳完变形(不回冻结姿态))
     if info["apex_at"] > 1.0 or abs(info["x_end"]) > 3.0:
         return -500.0
     return r
@@ -238,7 +258,7 @@ def cem(iters=45, pop=64, elites=12, seeds=3, workers=6, out=None, task="leap"):
     global _TASK
     _TASK = task
     lo, hi = BOUNDS[:, 0], BOUNDS[:, 1]
-    p0 = np.array([1.0, 1.8, -8.0, -8.0, 0.02, 0.08, 30.0, 0.3,
+    p0 = np.array([0.0, 1.9, -8.0, -8.0, 0.02, 0.08, 30.0, 0.3,
                    1.2, 1.8, 0.8, 0.70, 0.30, 0.35, 200.0, 20.0, -0.005])
     mu = p0.copy()
     for fn in INIT_FILES[task]:

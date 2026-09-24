@@ -54,7 +54,7 @@
         <!-- 肩关节 pitch: 下连杆接底盘中心立柱顶端 -->
         <body name="lower_arm" pos="0 0 0">
           <joint name="th1" type="hinge" axis="0 1 0" pos="0 0 0" range="-0.90 1.75"
-                 springref="0" stiffness="1.5" frictionloss="0.15"/>
+                 springref="-0.65" stiffness="0.5" frictionloss="0.15"/>
           <geom name="lower_cap" type="capsule" fromto="0 0 0 0 0 0.170" size="0.0115" material="mat_body"
                 mass="0.060" density="0"/>
           <geom name="elbow_motor" type="cylinder" size="0.017 0.020" euler="1.5708 0 0"
