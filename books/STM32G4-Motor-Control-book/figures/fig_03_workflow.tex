@@ -1,0 +1,32 @@
+\documentclass[border=3pt]{standalone}
+\input{common.tex}
+\begin{document}
+\begin{tikzpicture}[x=1mm, y=1mm, font=\small, node distance=6mm and 12mm]
+
+% ===== 目标板（中）=====
+\node[block, minimum width=30mm, minimum height=16mm, fill=lan!10, draw=lan] (board) at (0,0) {P-NUCLEO-IHM03\\NUCLEO-G431RB + IHM16M1\\+ GBM2804H 电机};
+\node[note, anchor=south] at (board.north) {运行 MC SDK 固件（FOC / 方波）};
+
+% ===== 工具链（上方一排）=====
+\node[block, minimum width=24mm] (mcwb) at (-38, 26) {MC Workbench\\电机控制图形配置};
+\node[block, minimum width=22mm] (ide) at (0, 26) {IDE\\CubeIDE / MDK / IAR};
+\node[block, minimum width=22mm] (prof) at (38, 26) {Motor Profiler\\电机参数自辨识};
+\node[block, minimum width=22mm] (mon) at (38, -2) {ST MC Monitor\\实时监控调参};
+
+% 数据流
+\draw[sig, very thick] (mcwb.south) -- node[left, note] {生成工程\\（含 FOC 参数）} (ide.west) .. controls (-16,20) .. (-15, 6);
+\draw[sig, very thick] (ide.south) -- node[right, note] {编译 / 烧录} (board.north);
+\draw[sig, very thick] (prof.south) -- node[right, note] {串口指令 + 测量} (board.north east);
+\draw[fbsig, very thick] (board.east) -- node[below, note] {电流 / 转速数据} (mon.south west);
+\draw[sig, color=zhusha] (prof.west) to[bend right=28] node[above, note] {R · L · λ · J 回填} (mcwb.north east);
+
+% CubeMX 位置说明
+\node[block, minimum width=24mm, fill=qianhui] (cubemx) at (-38, -2) {STM32CubeMX\\通用外设 / 时钟配置};
+\draw[sig, dashed] (cubemx.north) -- node[left, note] {MC SDK 工程\\内嵌其能力} (mcwb.south);
+
+% 下方：产物
+\node[block, minimum width=34mm, fill=zhusha!8, draw=zhusha] (fw) at (0, -22) {固件工程：STM32CubeIDE / MDK-ARM / IAR / GCC Makefile};
+\draw[sig] (board.south) -- node[right, note] {} (fw.north);
+
+\end{tikzpicture}
+\end{document}

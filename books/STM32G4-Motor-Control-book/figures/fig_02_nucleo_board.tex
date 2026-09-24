@@ -1,0 +1,49 @@
+\documentclass[border=3pt]{standalone}
+\input{common.tex}
+\begin{document}
+\begin{tikzpicture}[x=1mm, y=1mm, font=\small]
+
+% ===== 板框（加大，四周留引脚位）=====
+\draw[very thick, mohei, rounded corners=3pt, fill=qianhui!40] (-46,-28) rectangle (46,28);
+
+% ===== 左端 ST-LINK 区 =====
+\draw[thick, shenhui, rounded corners=2pt, fill=white] (-46,-28) rectangle (-26,28);
+\node[block, minimum width=15mm, minimum height=9mm, fill=lan!12, draw=lan] (stlink) at (-36, 14) {ST-LINK\\V2-1};
+\node[block, minimum width=15mm] (usb) at (-36, -2) {USB\\CN1};
+\node[note, align=center] at (-36, -12) {LD3 电源\\LD1 通信};
+\draw[sig] (-36, 2.5) -- (stlink.south);
+
+% ===== MCU（四行文字，含封装）=====
+\node[block, minimum width=18mm, minimum height=22mm, fill=lan!12, draw=lan, font=\bfseries]
+  (mcu) at (8, 2) {STM32\\G431\\RBT6\\{\mdseries\footnotesize (LQFP64)}};
+
+% ===== 右列：LED / 按键 / 复位（避开右排针）=====
+\node[circle, draw=zhusha, fill=zhusha, minimum size=4mm] (ld2) at (28, 14) {};
+\node[note, anchor=south] at (28, 16.5) {LD2 用户 LED（PA5）};
+\node[block, minimum width=10mm, minimum height=5mm, draw=zhusha, fill=zhusha!10] (b1) at (24, -4) {B1};
+\node[note, anchor=north] at (26, -7.5) {B1（PC13）};
+\node[block, minimum width=13mm, minimum height=5mm] (rst) at (24, -16) {RESET};
+\draw[sig, color=zhusha] (mcu.east) -- ++(4mm,0) coordinate (mx) |- (ld2.west);
+\draw[sig, color=zhusha] (mx) |- (b1.west);
+
+% ===== 虚拟串口注记（顶部，远离所有图元）=====
+\node[note, anchor=north] at (-10, -31.5) {USART2 · PA2(TX)/PA3(RX) 经 ST-LINK 虚拟串口连 PC};
+\draw[fbsig] (stlink.east) -- ++(3mm,0) |- (mcu.north west);
+
+% ===== 引针：左列（避开 ST-LINK 区）、右列、上下沿 =====
+\foreach \i in {1,...,8} {
+  \node[draw, fill=white, minimum size=2.4mm, inner sep=0] at (-20, 14-\i*4.4) {};
+  \node[draw, fill=white, minimum size=2.4mm, inner sep=0] at (36, 14-\i*4.4) {};
+}
+\node[note, rotate=90] at (-23.5, -3) {CN4/CN5};
+\node[note, rotate=-90] at (39.5, -3) {CN8/CN9};
+\foreach \i in {0,...,5} {
+  \node[draw, fill=white, minimum size=2.4mm, inner sep=0] at (-36+\i*13, 25.5) {};
+  \node[draw, fill=white, minimum size=2.4mm, inner sep=0] at (-36+\i*13, -25.5) {};
+}
+
+% ===== 顶部说明（板外）=====
+\node[note] at (0, 31.5) {Arduino UNO R3 兼容排针 + ST Morpho 全引脚引出（CN6/CN7 沿上下两沿）};
+
+\end{tikzpicture}
+\end{document}

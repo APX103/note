@@ -1,0 +1,52 @@
+\documentclass[border=3pt]{standalone}
+\input{common.tex}
+\begin{document}
+\begin{tikzpicture}[x=1mm, y=1mm, font=\small, >=Stealth]
+
+% ===== 六边形顶点（基本矢量）=====
+\def\R{34mm}
+\foreach \k in {1,...,6} {
+  \pgfmathsetmacro{\a}{(\k-1)*60+30}
+  \coordinate (V\k) at (\a:\R);
+}
+% 六边形的 6 条边
+\draw[very thick, lan] (V1) -- (V2) -- (V3) -- (V4) -- (V5) -- (V6) -- cycle;
+
+% 基本矢量箭头 + 标签（开关状态）
+\foreach \k/\st/\labpos in {1/100/{right}, 2/110/{above right}, 3/010/{above left}, 4/011/{left}, 5/001/{below left}, 6/101/{below right}} {
+  \draw[vec, color=lan] (0,0) -- (V\k);
+  \node[\labpos, lab, text=lan] at (V\k) {$\vec{V}_{\k}$\\{\scriptsize (\st)}};
+}
+
+% ===== 扇区标注 =====
+\foreach \s/\a in {I/30, II/90, III/150, IV/210, V/270, VI/330} {
+  \node[lab, text=shenhui] at (\a:11mm) {\s};
+}
+
+% ===== 零矢量 =====
+\node[circle, fill=zhusha, inner sep=1.2pt] at (0,0) {};
+\node[note, anchor=north east, text=zhusha] at (-1mm, 1mm) {$\vec{V}_0(000)$\\$\vec{V}_7(111)$};
+
+% ===== 参考矢量（扇区 I）=====
+\coordinate (ur) at (50:{0.86*\R});
+\draw[vec, very thick] (0,0) -- (ur);
+\node[above right=1mm, lab, text=zhusha] at (ur) {$\vec{U}_{ref}$（角度 $\theta$）};
+
+% 平行四边形分解：T1 沿 V1，T2 沿 V2
+\coordinate (p1) at ($(V1)!0.5!(ur)$);
+\draw[dashed, thick, zhusha] (ur) -- ++($(-30:0.0)$);
+\path (ur) -- ++(210:{0.42*\R}) coordinate (h1);
+\draw[dashed, thick, zhusha] (ur) -- (h1) -- (V1);
+\node[note, text=zhusha] at ($(ur)!0.5!(h1)$) [above left=0.3mm] {$T_2/T$};
+\node[note, text=zhusha] at ($(V1)!0.5!(h1)$) [below=0.4mm] {$T_1/T$};
+\node[note, text=zhusha] at ($(0,0)!0.5!(V1)$) [below right=0.3mm] {$T_0/T$（零矢量）};
+
+% ===== 线性区圆 =====
+\draw[thin, qing, dashed] (0,0) circle (29.4mm);
+\node[note, text=qing, anchor=south west] at (150:30mm) {线性区边界 $|\vec{U}| \le V_{dc}/\sqrt{3}$};
+
+% ===== 幅值标注 =====
+\node[note, anchor=south] at (90:{\R+3mm}) {基本矢量幅值 $2V_{dc}/3$，互差 60°};
+
+\end{tikzpicture}
+\end{document}

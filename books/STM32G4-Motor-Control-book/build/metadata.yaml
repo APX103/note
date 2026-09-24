@@ -1,0 +1,9 @@
+title: STM32G4入门与电机控制实战
+subtitle: 基于X-CUBE-MCSDK的无刷直流电机与永磁同步电机控制实现
+author: 李佳伦　编著
+date: 2026 年
+lang: zh-CN
+documentclass: ctexbook
+classoption:
+  - UTF8
+  - scheme=plain

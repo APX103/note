@@ -1,0 +1,57 @@
+\documentclass[border=3pt]{standalone}
+\input{common.tex}
+\begin{document}
+\begin{tikzpicture}[x=1mm, y=1mm]
+
+% ===== CPU 域（左）=====
+\node[core, minimum width=34mm, minimum height=11mm] (m4) at (0,0) {Cortex-M4F\\170 MHz · FPU · DSP};
+\node[block, below=3mm of m4, fill=zhusha!10, draw=zhusha] (cordic) {CORDIC\\三角函数加速};
+\node[block, below=3mm of cordic, fill=zhusha!10, draw=zhusha] (fmac) {FMAC\\FIR/IIR 滤波加速};
+\node[draw=lan, thick, rounded corners=2pt, fit=(m4)(cordic)(fmac), inner sep=3mm, fill=lan!4] (cpudom) {};
+\node[note, anchor=south west] at (cpudom.north west) {数学加速器域};
+
+% ===== 存储（中左）=====
+\node[block] (flash) at (30mm, 8mm) {Flash\\128 KB 双 bank};
+\node[block, below=3mm of flash] (sram) {SRAM 32 KB\\(含 CCM SRAM)};
+\node[block, below=3mm of sram, fill=qianhui] (bus) {总线矩阵\\AHB / APB 桥};
+
+% ===== 模拟外设（右）=====
+\node[periph] (tim) at (60mm, 24mm) {TIM1/TIM8 高级定时器\\互补 PWM · 死区 · 刹车};
+\node[periph, below=2.5mm of tim] (adc) {2× ADC 12-bit 4 MSPS\\双 ADC 同步 · 硬件过采样};
+\node[periph, below=2.5mm of adc] (dac) {4 通道 DAC 12-bit};
+\node[periph, below=2.5mm of dac] (opamp) {3× 运放（PGA 增益 2--16）};
+\node[periph, below=2.5mm of opamp] (comp) {4× 超快比较器 → 刹车};
+\node[periph, below=2.5mm of comp] (vref) {VREFBUF 基准};
+
+% ===== 数字外设（右 2）=====
+\node[block] (dma) at (94mm, 24mm) {DMA×2};
+\node[block, below=2.5mm of dma] (fdcan) {FDCAN};
+\node[block, below=2.5mm of fdcan] (usb) {USB FS};
+\node[block, below=2.5mm of usb] (com) {SPI / I2C / USART};
+\node[block, below=2.5mm of com] (gpio) {EXTI / GPIO};
+\node[block, below=2.5mm of gpio, fill=qianhui] (dbg) {调试 SWD / ST-LINK};
+
+% 连线
+\draw[sig] (cpudom.east) -- (bus.west);
+\draw[sig] (flash.south) -- (bus.north);
+\draw[sig] (sram.north) -- ($(flash.south)+(6mm,0)$) -- ($(bus.north)+(6mm,0)$);
+\draw[sig] (bus.east) -- ++(4mm,0) coordinate (bx);
+\draw[sig, color=shenhui] (bx) -- (tim.west);
+\draw[sig, color=shenhui] (bx) -- (adc.west);
+\draw[sig, color=shenhui] (bx) -- (dac.west);
+\draw[sig, color=shenhui] (bx) -- (opamp.west);
+\draw[sig, color=shenhui] (bx) -- (comp.west);
+\draw[sig, color=shenhui] (bx) -- (vref.west);
+\draw[sig] (dma.west) -- ++(-4mm,0) coordinate (bx2);
+\draw[sig, color=shenhui] (bx2) -- (fdcan.west);
+\draw[sig, color=shenhui] (bx2) -- (usb.west);
+\draw[sig, color=shenhui] (bx2) -- (com.west);
+\draw[sig, color=shenhui] (bx2) -- (gpio.west);
+\draw[sig, color=shenhui] (bx2) -- (dbg.west);
+
+% 电机控制强调：TIM1 ↔ ADC ↔ COMP ↔ OPAMP 圈出
+\node[draw=qing, thick, rounded corners=3pt, fit=(tim)(adc)(opamp)(comp), inner sep=2.5mm, dashed] (mc) {};
+\node[note, text=qing, anchor=south] at (mc.north) {电机控制信号链（单芯片闭环）};
+
+\end{tikzpicture}
+\end{document}

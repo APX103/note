@@ -1,0 +1,50 @@
+\documentclass[border=3pt]{standalone}
+\input{common.tex}
+\begin{document}
+\begin{tikzpicture}[x=1mm, y=1mm, font=\small]
+
+% ===== LED 支路（上）：PA5 — 电阻 — LED — GND =====
+\node[block, minimum width=11mm] (pa5) at (-24, 8) {PA5};
+\coordinate (w1) at (-12, 8);
+\draw[thick] (pa5.east) -- (w1);
+% 电阻（矩形）
+\draw[thick, fill=white] (-8, 6.2) rectangle (-2, 9.8);
+\node[note, above=1mm] at (-5, 10) {限流电阻};
+\draw[thick] (w1) -- (-8, 8) (-2, 8) -- (2, 8);
+% LED（三角+横线+箭头）
+\draw[thick, fill=zhusha!20, draw=zhusha] (2,5.5) -- (2,10.5) -- (7,8) -- cycle;
+\draw[thick, zhusha] (7,5.5) -- (7,10.5);
+\draw[-{Stealth}, thin, zhusha] (6.5,3.2) -- (4,0.8);
+\draw[-{Stealth}, thin, zhusha] (8.5,3.2) -- (6,0.8);
+\node[note, above=1mm] at (5, 10.6) {LD2};
+\draw[thick] (7,8) -- (13,8);
+% 地
+\draw[thick] (13,8) -- (12,6) (13,8) -- (14,6) (11.4,6) -- (14.6,6) (12.2,4.9) -- (13.8,4.9) (12.8,3.8) -- (13.2,3.8);
+\node[note, below] at (13, 2.6) {GND};
+
+% ===== 按键支路（下）：PC13 — 按钮 — GND，片内上拉 =====
+\node[block, minimum width=11mm] (pc13) at (-24, -12) {PC13};
+\draw[thick] (pc13.east) -- (-12, -12);
+% 片内上拉（虚线支路向上）
+\draw[thick, dashed, shenhui] (-12,-12) -- (-12,-2);
+\node[note, anchor=south] at (-12, -1.5) {内部上拉（读 1）};
+% 按钮触点
+\draw[thick] (-12,-12) -- (-6,-12) circle (0.6);
+\draw[thick] (0,-12) circle (0.6) -- (6,-12);
+\draw[thick] (-5.4,-11) -- (-0.6,-8.5);
+\node[note, above=0.5mm] at (-3, -8) {按下接通};
+% 地
+\draw[thick] (6,-12) -- (5,-14) (6,-12) -- (7,-14) (3.4,-14) -- (6.6,-14) (4.2,-15.1) -- (5.8,-15.1) (4.8,-16.2) -- (5.2,-16.2);
+\node[note, below] at (6, -17.4) {GND（按下读 0）};
+
+% ===== 中断路径（右）=====
+\node[block, minimum width=17mm, fill=qing!10, draw=qing] (exti) at (22, -12) {EXTI13\\下降沿检测};
+\node[block, minimum width=17mm] (nvic) at (48, -12) {NVIC\\中断控制器};
+\node[block, minimum width=17mm, fill=zhusha!8, draw=zhusha] (isr) at (48, 4) {EXTI15\_10\_IRQHandler\\（中断服务函数）};
+\draw[sig, dashed, zhusha] (6,-12) -- (-0,-12);
+\draw[sig, dashed, zhusha] (6,-19) -- ++(4,0) |- node[pos=0.75, below, note] {电平变化} (exti.west);
+\draw[sig] (exti.east) -- node[above, note] {触发} (nvic.west);
+\draw[sig] (nvic.north) -- (isr.south);
+
+\end{tikzpicture}
+\end{document}

@@ -1,0 +1,22 @@
+% 公共导言区 —— 所有 TikZ 图 \input 本文件后使用
+\usepackage[UTF8, fontset=mac]{ctex}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, positioning, calc, shapes.geometric, decorations.pathmorphing, backgrounds, fit}
+\definecolor{zhusha}{HTML}{9B2D20}
+\definecolor{mohei}{HTML}{1A1A1A}
+\definecolor{shenhui}{HTML}{555555}
+\definecolor{qianhui}{HTML}{F5F0EC}
+\definecolor{lan}{HTML}{1F4E79}
+\definecolor{qing}{HTML}{2E7D6E}
+\tikzset{
+  block/.style={draw=shenhui, fill=white, thick, rounded corners=1.5pt,
+                font=\small, align=center, inner sep=4pt, minimum height=7mm},
+  core/.style={block, fill=lan!12, draw=lan, font=\small\bfseries},
+  periph/.style={block, fill=qing!10, draw=qing},
+  power/.style={block, fill=zhusha!8, draw=zhusha},
+  note/.style={font=\footnotesize, text=shenhui, align=center},
+  lab/.style={font=\footnotesize, text=mohei},
+  sig/.style={-{Stealth[length=2.2mm]}, thick, color=mohei},
+  fbsig/.style={-{Stealth[length=2.2mm]}, thick, color=zhusha, dashed},
+  vec/.style={-{Stealth[length=3mm]}, very thick, color=zhusha},
+}

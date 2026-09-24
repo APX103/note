@@ -1,0 +1,37 @@
+\documentclass[border=3pt]{standalone}
+\input{common.tex}
+\begin{document}
+\begin{tikzpicture}[x=1mm, y=1mm, font=\small]
+
+% ===== 四层 =====
+\node[block, minimum width=64mm, minimum height=10mm, fill=zhusha!10, draw=zhusha] (app) at (0, 21) {};
+\node[anchor=west, font=\bfseries\small, text=zhusha] at (-31mm, 23.5) {应用层（用户代码）};
+\node[anchor=west, font=\footnotesize] at (-31mm, 19.5) {main 循环：MC\_StartMotor1() · MC\_ProgramSpeedRampMotor1() · 故障处理 · 用户 UI};
+
+\node[block, minimum width=64mm, minimum height=13mm, fill=lan!10, draw=lan] (mid) at (0, 6) {};
+\node[anchor=west, font=\bfseries\small, text=lan] at (-31mm, 9.5) {电机控制中间件（MC SDK 核心）};
+\node[anchor=west, font=\footnotesize] at (-31mm, 6.5) {mc\_api 公共接口 · FOC 内核（Clarke/Park/PI/SVPWM）};
+\node[anchor=west, font=\footnotesize] at (-31mm, 3) {观测器（STO / 霍尔 / 编码器） · 速度环 · 保护状态机};
+
+\node[block, minimum width=64mm, minimum height=10mm, fill=qing!10, draw=qing] (drv) at (0, -9) {};
+\node[anchor=west, font=\bfseries\small, text=qing] at (-31mm, -6.5) {MC 驱动层（硬件抽象）};
+\node[anchor=west, font=\footnotesize] at (-31mm, -10.5) {PWM 生成 · ADC 采样时序 · 电流读数定标 · 温度/母线检测};
+
+\node[block, minimum width=64mm, minimum height=10mm, fill=qianhui] (hal) at (0, -24) {};
+\node[anchor=west, font=\bfseries\small] at (-31mm, -21.5) {STM32 HAL / LL 驱动};
+\node[anchor=west, font=\footnotesize] at (-31mm, -25.5) {寄存器封装 · CubeMX 生成的外设初始化};
+
+% 层间调用箭头
+\foreach \y in {15.5, 0.5, -15.5} {
+  \draw[sig] (0, \y+1.2) -- (0, \y-1.2);
+  \draw[fbsig] (8, \y-1.2) -- (8, \y+1.2);
+}
+\node[note, anchor=south] at (0, 16.8) {调用};
+\node[note, anchor=south] at (8, 16.8) {回调/状态};
+
+% 右侧注
+\node[note, anchor=west, align=left] at (36mm, 21) {生成的工程里\\MCWB 只重生成中间件};
+\node[note, anchor=west, align=left] at (36mm, -24) {换板卡只改这层};
+
+\end{tikzpicture}
+\end{document}

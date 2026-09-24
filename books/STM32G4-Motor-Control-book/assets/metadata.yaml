@@ -1,0 +1,9 @@
+title: {{BOOK_TITLE}}
+subtitle: {{BOOK_SUBTITLE}}
+author: {{BOOK_AUTHOR}}　编著
+date: {{BOOK_DATE}}
+lang: zh-CN
+documentclass: ctexbook
+classoption:
+  - UTF8
+  - scheme=plain

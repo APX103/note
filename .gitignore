@@ -35,3 +35,12 @@ embedded/magic-wand/wakenet/data/
 # 编辑器/Agent 插件根目录标记
 .v2c/
 .video_agent/
+
+# luxo_mujoco: 虚拟环境与 PPO 检查点(可再生)
+luxo_mujoco/.venv/
+luxo_mujoco/models/
+luxo_mujoco/__pycache__/
+
+# pixar-lamp: 渲染中间帧(可由 mujoco_render.py 重新生成)
+embedded/pixar-lamp/mujoco/results/frames/
+**/__pycache__/

@@ -1,0 +1,70 @@
+\documentclass[border=3pt]{standalone}
+\input{common.tex}
+\begin{document}
+\begin{tikzpicture}[x=1mm, y=1mm, font=\small]
+
+% ===== 左：G431 =====
+\node[core, minimum width=24mm, minimum height=34mm] (g4) at (0,0) {NUCLEO-G431RB\\STM32G431};
+\node[block, minimum width=20mm, fill=lan!12, draw=lan] (tim) at (0, 10) {TIM1\\6 路 PWM};
+\node[block, minimum width=20mm, fill=qing!10, draw=qing] (adc) at (0, -4) {ADC×2\\同步采样};
+\node[block, minimum width=20mm] (io) at (0, -14) {GPIO / EXTI};
+\node[draw=lan, thick, rounded corners=2pt, fit=(g4)(tim)(adc)(io), inner sep=2mm] {};
+
+% ===== 中：STSPIN830 功率级 =====
+\node[block, minimum width=34mm, minimum height=30mm, fill=zhusha!8, draw=zhusha, rounded corners=3pt] (u1) at (44, 0) {};
+\node[font=\bfseries, text=zhusha, anchor=north] at (u1.north) {STSPIN830（三相功率级）};
+\node[block, minimum width=13mm] (ha) at (34, 2) {半桥 A};
+\node[block, minimum width=13mm] (hb) at (44, 2) {半桥 B};
+\node[block, minimum width=13mm] (hc) at (54, 2) {半桥 C};
+\node[block, minimum width=28mm, fill=qianhui] (prot) at (44, -7) {过流限流（可调阈值） · 过温关断 · 欠压锁定};
+\node[block, minimum width=28mm, fill=qianhui] (stby) at (44, -12) {3/6 PWM 输入模式 · 待机控制};
+
+% PWM 控制线
+\draw[sig, thick] (tim.east) -- ++(4mm,0) coordinate (px) |- (ha.west);
+\draw[sig, thick] (px) |- (hb.west);
+\draw[sig, thick] (px) |- (hc.west);
+\node[note, anchor=south] at (14mm, 10) {6×PWM + EN};
+
+% ===== 右：电机 =====
+\begin{scope}[shift={(84mm, 2mm)}]
+  \draw[very thick, lan, fill=lan!8] (0,0) circle (7mm);
+  \node[lab] at (0,-10.5) {GBM2804H};
+  \node[lab] at (0,-14) {-100T};
+\end{scope}
+\coordinate (mot) at (84mm, 2mm);
+\draw[sig, very thick, color=lan] (ha.east) -- ++(2mm,0) |- (mot);
+\node[note, anchor=south] at (72mm, 9.5) {U};
+\draw[sig, very thick, color=lan] (hb.east) -- ++(1mm,0) |- ($(mot)+(0,-1mm)$);
+\node[note, anchor=west] at (76mm, 3) {V};
+\draw[sig, very thick, color=lan] (hc.east) -- ($(mot)+(0,-1mm)$);
+\node[note, anchor=north] at (76mm, -3) {W};
+
+% ===== 电流采样链（下）=====
+\node[draw, fill=white, thick, circle, inner sep=1.2pt] (rs1) at (34, -13) {};
+\node[draw, fill=white, thick, circle, inner sep=1.2pt] (rs2) at (44, -13) {};
+\node[draw, fill=white, thick, circle, inner sep=1.2pt] (rs3) at (54, -13) {};
+\node[note] at (44, -16.5) {三电阻采样（或单电阻）→ 板上运放调理};
+\draw[sig] (ha.south) -- (rs1.north);
+\draw[sig] (hb.south) -- (rs2.north);
+\draw[sig] (hc.south) -- (rs3.north);
+\draw[fbsig] (rs1.south) -- ++(0,-4mm) -| node[pos=0.25, below, note] {相电流 → ADC} (adc.east);
+\draw[fbsig] (rs2.south) -- ++(0,-2.5mm) -| (adc.east);
+\draw[fbsig] (rs3.south) -- ++(0,-4mm) -| (adc.east);
+
+% ===== 附属测量 =====
+\node[block, minimum width=16mm] (bemf) at (68, -13) {BEMF 感知\\（方波无感）};
+\node[block, minimum width=16mm] (vbus) at (68, -21) {母线电压检测};
+\node[block, minimum width=16mm] (ntc) at (44, -22) {板温 NTC};
+\node[block, minimum width=16mm] (hall) at (20, -22) {霍尔/编码器\\输入连接器};
+\draw[fbsig] (bemf.west) -- ++(-2mm,0) |- (adc.south east);
+\draw[fbsig] (vbus.west) -- ++(-2mm,0) |- (adc.east);
+\draw[fbsig] (ntc.north) -- ++(0,3mm) -| (adc.south);
+\draw[sig] (hall.west) -- (io.east);
+\node[note, anchor=east] at (hall.east) {};
+
+% 电源
+\node[power, minimum width=17mm] (psu) at (44, 13) {VIN 7--45 V};
+\draw[sig, very thick, zhusha] (psu.south) -- (u1.north);
+
+\end{tikzpicture}
+\end{document}

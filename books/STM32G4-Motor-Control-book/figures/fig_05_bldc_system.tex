@@ -1,0 +1,35 @@
+\documentclass[border=3pt]{standalone}
+\input{common.tex}
+\begin{document}
+\begin{tikzpicture}[x=1mm, y=1mm, font=\small]
+
+% ===== 上排：控制器 → 驱动 → 电机（框间距加大，标签留足余量）=====
+\node[block, minimum width=16mm] (ref) at (-74, 20) {转速 / 位置\\指令};
+\node[block, minimum width=22mm, minimum height=13mm, fill=lan!12, draw=lan] (ctl) at (-32, 20) {控制驱动电路\\（MCU：换相逻辑 / FOC）};
+\node[block, minimum width=22mm, minimum height=13mm, fill=zhusha!8, draw=zhusha] (drv) at (22, 20) {三相逆变桥\\（6 开管 + 电流采样）};
+\node[block, minimum width=17mm, minimum height=13mm, fill=qing!10, draw=qing] (mot) at (64, 20) {电机本体\\（绕组 + 永磁转子）};
+\node[block, minimum width=17mm] (out) at (64, 40) {机械输出\\$T$、$\omega$};
+
+\draw[sig] (ref.east) -- node[above=1mm, note] {$\omega^{*}$} (ctl.west);
+\draw[sig, very thick] (ctl.east) -- node[above=1mm, note] {6 路 PWM} (drv.west);
+\draw[sig, very thick, lan] (drv.east) -- node[above=1mm, note] {三相电流} (mot.west);
+\draw[sig, very thick] (mot.north) -- (out.south);
+
+% ===== 相电流反馈（走上方通道，正交折线，不穿任何框）=====
+\coordinate (fb1a) at ($(drv.north)+(-7mm,0)$);
+\coordinate (fb1b) at ($(ctl.north)+(7mm,0)$);
+\draw[fbsig] (fb1a) -- ($(fb1a)+(0,9mm)$) -- ($(fb1b)+(0,9mm)$) -- (fb1b);
+\node[note, anchor=south] at ($(fb1a)!0.5!(fb1b)+(0,9.5mm)$) {相电流反馈};
+
+% ===== 位置传感器反馈（走下方通道）=====
+\node[block, minimum width=22mm, minimum height=10mm] (sen) at (64, -8) {位置传感器\\（霍尔 / 编码器 / 无感观测）};
+\node[draw=qing, thick, rounded corners=3pt, fit=(sen), inner sep=2.5mm, dashed] {};
+\draw[fbsig] (sen.west) -- (-32, -8) -- (ctl.south);
+\node[note, anchor=north] at (20, -9.5) {转子位置 / 电角度 $\theta_e$};
+
+% ===== 系统三构成注记（最底部独立行，远离一切线）=====
+\node[note, anchor=north, align=center, text=qing] at (-5, -22)
+  {系统三构成：电机本体 / 位置传感器 / 控制驱动电路};
+
+\end{tikzpicture}
+\end{document}

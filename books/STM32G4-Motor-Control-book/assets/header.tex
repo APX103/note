@@ -1,0 +1,200 @@
+% header.tex —— research-to-book 导言区
+% 由 template.tex 在 \begin{document} 之前 \input
+
+% =========================================================
+% 字体（XeLaTeX + ctexbook 已经处理 CJK 主字体，这里做精细分工）
+% =========================================================
+\usepackage{fontspec}
+% 西文主字体：Times New Roman（macOS 自带）
+\IfFontExistsTF{Times New Roman}{%
+  \setmainfont{Times New Roman}%
+}{%
+  \setmainfont{Latin Modern Roman}%
+}
+\IfFontExistsTF{Helvetica Neue}{%
+  \setsansfont{Helvetica Neue}%
+}{%
+  \setsansfont{Latin Modern Sans}%
+}
+\IfFontExistsTF{Menlo}{%
+  \setmonofont{Menlo}[Scale=0.88]%
+}{%
+  \setmonofont{Latin Modern Mono}%
+}
+
+% CJK 字体分工
+% 关键：macOS 的 STHeiti.ttc 在 XeTeX 下 glyph 映射会错位（已知 bug），
+% 必须彻底替换掉 ctex 默认的 \heiti 绑定。
+\usepackage{xeCJK}
+% 主字体：宋体（正文）。不指定 BoldFont，让 xeCJK 自动用"加粗"（合成粗）
+% —— 指定 BoldFont 找不到时会回退到 STHeiti，那是 bug 源头。
+\setCJKmainfont{Songti SC}[AutoFakeBold=2.5]
+\setCJKsansfont{PingFang SC}[AutoFakeBold=2.0]   % 无衬线
+\setCJKmonofont{Songti SC}[AutoFakeBold=2.5]     % 等宽 CJK（代码块内中文）
+% 关键：把 ctex 的 \heiti / \songti / \fangsong / \kaishu 全部重绑
+\setCJKfamilyfont{heiti}{PingFang SC}[AutoFakeBold=2.0]   % 黑体 → PingFang（避开 STHeiti bug）
+\setCJKfamilyfont{song}{Songti SC}[AutoFakeBold=2.5]      % 宋体
+\setCJKfamilyfont{kaiti}{STKaiti}                         % 楷体（引文框）
+\setCJKfamilyfont{fs}{STFangsong}                         % 仿宋
+% 显式覆盖 ctex 的 \heiti 定义，确保万无一失
+\renewcommand{\heiti}{\CJKfamily{heiti}}
+\newcommand{\kai}{\CJKfamily{kaiti}}
+
+% =========================================================
+% 版式
+% =========================================================
+\usepackage[
+  papersize={176mm,250mm},
+  margin=22mm,
+  top=25mm, bottom=25mm,
+  headheight=14pt, headsep=8mm, footskip=10mm
+]{geometry}
+
+\usepackage{setspace}
+\setstretch{1.45}
+
+% =========================================================
+% 颜色（朱砂 + 墨色 + 灰）
+% =========================================================
+\usepackage{xcolor}
+\definecolor{zhusha}{HTML}{9B2D20}     % 朱砂红
+\definecolor{mohei}{HTML}{1A1A1A}      % 墨黑
+\definecolor{qianhui}{HTML}{F5F0EC}    % 浅米灰（引文框背景）
+\definecolor{shenhui}{HTML}{555555}    % 深灰
+
+% =========================================================
+% 工具宏包
+% =========================================================
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{tabularx}
+% 数学公式（第 5、6 章公式密集；build.py 数学直通配合 Pandoc 输出 $...$/$$...$$）
+\usepackage{amsmath}
+\usepackage{amssymb}
+% 图表标题：图/表名 + 按章编号 + 小号字
+% 注意：不能用 caption 宏包——它与 pandoc longtable 输出的 \LTcaptype{none} 冲突
+% （caption 包把 none 当计数器名，报 "No counter 'none' defined"）
+\renewcommand{\figurename}{图}
+\renewcommand{\tablename}{表}
+\counterwithin{figure}{chapter}
+\counterwithin{table}{chapter}
+\makeatletter
+\long\def\@makecaption#1#2{%
+  {\small \heiti #1}\hspace{1em}{\small #2\par}}
+\makeatother
+\usepackage{calc}      % Pandoc 3.x 表格列宽计算需要
+\usepackage{xfp}       % \real 命令
+\usepackage[most]{tcolorbox}
+% 注意：不加载 titlesec / titletoc，它们与 ctexset 冲突，会让目录折行。
+% 全部章节/目录样式用 ctexset 统一控制。
+\usepackage{fancyhdr}
+\usepackage{enumitem}
+\setlist{nosep, leftmargin=2em}
+\providecommand{\tightlist}{\setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\usepackage{graphicx}
+% pandoc 3.x 输出图片用的包装宏：图片宽于版心时等比缩到版心宽
+\makeatletter
+\newcommand{\pandocbounded}[1]{%
+  \sbox\@tempboxa{#1}%
+  \ifdim\wd\@tempboxa>\linewidth
+    \resizebox{\linewidth}{!}{\usebox\@tempboxa}%
+  \else
+    \usebox\@tempboxa%
+  \fi
+}
+\makeatother
+\usepackage{microtype}
+\usepackage[
+  colorlinks=true,
+  linkcolor=zhusha,
+  urlcolor=zhusha,
+  citecolor=zhusha,
+  bookmarksnumbered=true,
+  pdfstartview=Fit,
+  pdftitle={{{BOOK_TITLE}}},
+  pdfauthor={李佳伦}
+]{hyperref}
+\usepackage{bookmark}
+
+% =========================================================
+% 章扉页样式（重定义 \chapter）
+% =========================================================
+% chapter 显示为「第 N 章　标题」（同一行，章号朱砂色 + 标题黑体大字）
+\ctexset{
+  chapter = {
+    beforeskip = 0pt,
+    afterskip  = 40pt,
+    pagestyle  = empty,
+    lofskip    = 0pt,
+    lotskip    = 0pt,
+    name       = {第,章},
+    number     = \arabic{chapter},
+    nameformat = {\color{zhusha}\bfseries},
+    titleformat= {\Huge\heiti},
+    format     = {\centering},
+    aftername  = \hspace{1em},
+    aftertitle = {\par\vspace{18pt}\noindent\textcolor{zhusha}{\rule{\textwidth}{0.6pt}}\par},
+  },
+  section = {
+    format     = {\large\bfseries\heiti\raggedright\color{mohei}},
+    aftername  = \hspace{0.5em},
+    beforeskip = 18pt,
+    afterskip  = 8pt,
+  },
+  subsection = {
+    format     = {\normalsize\bfseries\heiti\raggedright\color{mohei}},
+    aftername  = \hspace{0.5em},
+    beforeskip = 12pt,
+    afterskip  = 6pt,
+  },
+}
+
+% 目录：只显示到 section（N.M），不显示 subsection（N.M.K），避免目录过密
+\setcounter{tocdepth}{1}
+
+% 让目录里的章节编号（如 3.1、10.4.1）盒子宽一点，避免编号和标题分行
+\makeatletter
+% numberline 在编号后留一点空格，让「第N章　标题」编号和标题不挤在一起
+\renewcommand{\numberline}[1]{%
+  \hb@xt@\@tempdima{#1\hfil}%
+  \hspace{0.5em}%
+}
+% 调整 section 在目录里的整体缩进和编号盒子宽度
+\renewcommand*\l@section{\@dottedtocline{1}{1.5em}{2.8em}}
+% chapter 在目录里给「第1章」编号盒子更宽（默认不够，会换行）
+\renewcommand*\l@chapter{\@dottedtocline{0}{0em}{4.5em}}
+\makeatother
+
+% 黑体：ctex 已内建 \heiti，绑定到 sans CJK 族（上面 \setCJKsansfont）
+% 无需重复定义
+
+% =========================================================
+% 引文框环境（epigraph）：朱砂左竖线 + 楷体小字 + 浅米灰底
+% 用 tcolorbox（比 mdframed 更稳定）
+% =========================================================
+\newtcolorbox{epigraph}{
+  enhanced,
+  colback=qianhui,
+  colframe=zhusha,
+  boxrule=0pt,
+  leftrule=2.5pt,
+  arc=0pt,
+  outer arc=0pt,
+  left=14pt, right=14pt, top=10pt, bottom=10pt,
+  before skip=14pt, after skip=14pt,
+  fontupper={\kai\small\color{mohei}},
+}
+% =========================================================
+% 页眉页脚
+% =========================================================
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0pt}
+\fancyhead[LE]{\small\color{shenhui}{{BOOK_TITLE}}}
+\fancyhead[RO]{\small\color{shenhui}\leftmark}
+\fancyfoot[C]{\small\color{shenhui}\thepage}
+
+% 章扉页用 empty
+\fancypagestyle{plain}{\fancyhf{}\fancyfoot[C]{\small\color{shenhui}\thepage}\renewcommand{\headrulewidth}{0pt}}

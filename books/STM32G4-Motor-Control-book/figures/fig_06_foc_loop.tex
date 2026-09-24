@@ -1,0 +1,72 @@
+\documentclass[border=3pt]{standalone}
+\input{common.tex}
+\begin{document}
+\begin{tikzpicture}[x=1mm, y=1mm, font=\footnotesize]
+% ================= 外环：速度环（顶部一行）=================
+\node[lab] (wref) at (-92, 72) {$\omega^{*}$};
+\node[circle, draw=mohei, thick, inner sep=1.3pt] (sumw) at (-80, 72) {};
+\node[font=\scriptsize] at (-80, 74.6) {$+$};
+\node[font=\scriptsize, text=zhusha] at (-82.4, 69.6) {$-$};
+\node[block, minimum width=22mm, fill=lan!12, draw=lan] (piw) at (-62, 72) {速度环 PI};
+\draw[sig] (wref.east) -- (sumw.west);
+\draw[sig] (sumw.east) -- (piw.west);
+
+% ================= d 轴电流环（第二行）=================
+\node[lab] (idref) at (-92, 60) {$i_d^{*}=0$};
+\node[circle, draw=mohei, thick, inner sep=1.3pt] (sumd) at (-80, 60) {};
+\node[font=\scriptsize] at (-80, 62.6) {$+$};
+\node[font=\scriptsize, text=zhusha] at (-82.4, 57.6) {$-$};
+\node[block, minimum width=16mm] (pid) at (-62, 60) {d 轴 PI};
+\draw[sig] (idref.east) -- (sumd.west);
+\draw[sig] (sumd.east) -- (pid.west);
+
+% ================= q 轴电流环（第三行，求和点在 iq* 下降线下方）=================
+\node[circle, draw=mohei, thick, inner sep=1.3pt] (sumq) at (-38, 46) {};
+\node[font=\scriptsize] at (-38, 48.6) {$+$};
+\node[font=\scriptsize, text=zhusha] at (-40.4, 43.6) {$-$};
+\node[block, minimum width=16mm] (piq) at (-24, 46) {q 轴 PI};
+\draw[sig] (sumq.east) -- (piq.west);
+% iq* ：速度环输出 → 右行 → 下降 → 进入 sumq 顶（与 vd 斜线一次普通交叉）
+\draw[sig] (piw.east) -- node[above=0.5mm, lab] {$i_q^{*}$} (-38, 72) -- (sumq.north);
+
+% ================= 中间执行链（间距充分）=================
+\node[block, minimum width=21mm, fill=qing!10, draw=qing] (ipark) at (0, 53) {反 Park\\（$\theta_e$）};
+\node[block, minimum width=19mm, fill=qing!10, draw=qing] (svpwm) at (28, 53) {SVPWM\\+ 限幅};
+\node[block, minimum width=21mm, fill=zhusha!8, draw=zhusha] (inv) at (62, 53) {三相逆变桥};
+\node[block, minimum width=13mm, minimum height=11mm, fill=lan!12, draw=lan] (pmsm) at (84, 53) {PMSM};
+% vd / vq：从 PI 直接斜线进入反 Park 西侧（不同高度，无走廊冲突）
+\draw[sig] (pid.east) -- node[above=0.3mm, lab, pos=0.85] {$v_d$} ([yshift=6mm]ipark.west);
+\draw[sig] (piq.east) -- ++(4mm,0) |- ([yshift=3mm]ipark.west);
+\node[lab] at (-13, 44.8) {$v_q$};
+\draw[sig] (ipark.east) -- node[above, lab] {$v_{\alpha\beta}$} (svpwm.west);
+\draw[sig] (svpwm.east) -- node[above, lab] {占空比} (inv.west);
+\draw[sig, very thick] (inv.east) -- (pmsm.west);
+\node[block, minimum width=22mm] (out) at (84, 72) {机械输出\\$T = \frac{3}{2}p\,\lambda_f\,i_q$};
+\draw[sig] (pmsm.north) -- (out.south);
+
+% ================= 反馈链（底部一行，与主行拉开 35mm）=================
+\node[block, minimum width=15mm] (iadc) at (84, 18) {电流采样\\（双 ADC 同步）};
+\node[block, minimum width=13mm, fill=qing!10, draw=qing] (clarke) at (14, 18) {Clarke};
+\node[block, minimum width=13mm, fill=qing!10, draw=qing] (park) at (-8, 18) {Park\\（$\theta_e$）};
+\node[block, minimum width=36mm] (obs) at (-40, 18) {编码器 / 无感观测器\\（$\theta_e$、$\omega$）};
+\draw[sig, color=zhusha] (pmsm.south) -- node[right, lab] {$i_a,i_b$} (iadc.north);
+\draw[sig, color=zhusha] (iadc.west) -- node[above, lab] {$i_a,i_b$} (clarke.east);
+\draw[sig, color=zhusha] (clarke.west) -- node[above, lab] {$i_{\alpha\beta}$} (park.east);
+
+% i_q 反馈：Park 上行 → y=31 西行 → 竖线进 sumq 底
+\draw[sig, color=zhusha] ($(park.north)+(4mm,0)$) -- (-4, 31) -- (-38, 31) -- (sumq.south);
+\node[lab, text=zhusha, anchor=west] at (-34, 37) {$i_q$};
+% i_d 反馈：更低一层 y=27 西行 → x=-80 竖线进 sumd 底（与 i_q 通道错层）
+\draw[sig, color=zhusha] (park.north) -- (-8, 27) -- (-80, 27) -- (sumd.south);
+\node[lab, text=zhusha, anchor=east] at (-78, 50) {$i_d$};
+
+% θe：观测器 → Park（东行短接线）；→ 反 Park（沿 y=42 走廊至其正下方上行）
+\draw[sig, dashed, color=lan] (obs.east) -- ++(3mm,0) |- (park.south);
+\draw[sig, dashed, color=lan] (obs.north) -- (-40, 25) -- (-44, 25) -- (-44, 42) -- (0, 42) -- (0, 46.5);
+\node[lab, text=lan, anchor=south] at (-30, 42.5) {$\theta_e$};
+% ω：观测器左上出发 → x=-72 竖长线（PID 框左侧）→ y=66 高走廊 → sumw 底
+\draw[sig, dashed, color=lan] (obs.north west) -- (-58, 23) -- (-72, 23) -- (-72, 66) -- (-80, 66) -- (sumw.south);
+\node[lab, text=lan, anchor=east] at (-73.5, 38) {$\omega$};
+
+\end{tikzpicture}
+\end{document}

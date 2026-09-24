@@ -1,0 +1,44 @@
+\documentclass[border=3pt]{standalone}
+\input{common.tex}
+\begin{document}
+\begin{tikzpicture}[x=1mm, y=1mm, font=\small]
+
+% ===== NUCLEO 底板（俯视简化 + 侧视堆叠混合）=====
+\node[block, minimum width=62mm, minimum height=17mm, fill=lan!8, draw=lan, rounded corners=2pt] (nucleo) at (0,0) {};
+\node[anchor=north west, font=\small\bfseries, text=lan] at (-31mm, 7.5mm) {NUCLEO-G431RB（下）};
+\node[anchor=north west, font=\footnotesize\color{mohei}] at (-29.5mm, 2.5mm) {STM32G431RBT6 · ST-LINK 调试器 · USB 供电/虚拟串口};
+\node[anchor=north west, font=\footnotesize\color{shenhui}] at (-29.5mm, -2.5mm) {Arduino UNO R3 排针（CN4--CN9）};
+
+% ===== IHM16M1 扩展板（叠在上）=====
+\node[block, minimum width=62mm, minimum height=17mm, fill=zhusha!8, draw=zhusha, rounded corners=2pt] (ihm) at (0, 22) {};
+\node[anchor=north west, font=\small\bfseries, text=zhusha] at (-31mm, 29.5mm) {X-NUCLEO-IHM16M1（上）};
+\node[anchor=north west, font=\footnotesize\color{mohei}] at (-29.5mm, 24.5mm) {STSPIN830 三相功率级 · 7--45 V · 1.5 A\textsubscript{RMS}};
+\node[anchor=north west, font=\footnotesize\color{mohei}] at (-29.5mm, 19.5mm) {1/3 电阻电流采样 · BEMF 感知 · 霍尔接口};
+
+% 堆叠关系
+\draw[sig, thick, color=shenhui] (0, 8.5) -- (0, 13.5);
+\node[note] at (14mm, 11) {Arduino 排针堆叠\\6 路 PWM / ADC / 故障线};
+
+% ===== 电源 =====
+\node[power, minimum width=22mm] (psu) at (-52, 22) {直流电源\\12 V / 2 A};
+\draw[sig, very thick, color=zhusha] (psu.east) -- (ihm.west);
+\node[note, anchor=south] at ($(psu.east)+(11mm,1.5mm)$) {J2 电源输入};
+
+% ===== 电机 =====
+\begin{scope}[shift={(55mm, 22mm)}]
+  \draw[very thick, lan, fill=lan!8] (0,0) circle (9mm);
+  \draw[thick, mohei] (-4.5,0) -- (4.5,0);
+  \draw[thick, mohei] (0,-4.5) -- (0,4.5);
+  \node[lab] at (0,-12.5) {GBM2804H-100T};
+  \node[note] at (0,-17) {云台电机 · 7 对极\\三相星接};
+\end{scope}
+\draw[sig, very thick, color=lan] (ihm.east) -- ++(5mm,0) -- ($(ihm.east)+(5mm,0)+(0,0)$) -- (46mm, 22);
+\node[note, anchor=south] at (38mm, 23.5) {U / V / W 三相};
+
+% ===== PC =====
+\node[block, minimum width=24mm] (pc) at (0, -16) {PC（开发 / 调试 / 监控）};
+\draw[sig, color=shenhui] (pc.north) -- (nucleo.south);
+\node[note, anchor=east] at (3mm, -11) {USB：烧录 + 虚拟串口};
+
+\end{tikzpicture}
+\end{document}

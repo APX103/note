@@ -1,0 +1,47 @@
+\documentclass[border=3pt]{standalone}
+\input{common.tex}
+\begin{document}
+\begin{tikzpicture}[x=1mm, y=1mm, font=\small, >=Stealth]
+
+% ===== 三相轴 A/B/C（互差 120°）=====
+\foreach \ang/\n in {0/A, 120/B, 240/C} {
+  \draw[->, thick, shenhui] (0,0) -- (\ang:34mm);
+  \node[lab, text=shenhui] at (\ang:37mm) {$\n$ 相轴};
+}
+% ===== αβ 轴 =====
+\draw[->, very thick, mohei] (0,0) -- (0:44mm) node[right, lab] {$\alpha$};
+\draw[->, very thick, mohei] (0,0) -- (90:44mm) node[above, lab] {$\beta$};
+% ===== dq 轴（随转子旋转 θe）=====
+\draw[->, very thick, zhusha] (0,0) -- (38:46mm) node[right, lab, text=zhusha] {$d$（转子磁场方向）};
+\draw[->, very thick, zhusha] (0,0) -- (128:46mm) node[above, lab, text=zhusha] {$q$（垂直，出力方向）};
+
+% ===== 电流矢量 =====
+\draw[vec] (0,0) -- (75:40mm) node[above right, lab, text=zhusha] {$\vec{i}_s$（定子电流矢量）};
+
+% ===== 角度标注 =====
+\draw[thin, mohei] (14mm, 0) arc (0:38:14mm);
+\node[lab] at (19:17mm) {$\theta_e$};
+\draw[thin, zhusha] (10mm, 0) arc (0:75:10mm);
+\node[lab, text=zhusha] at (40:12.5mm) {$\gamma$};
+\node[note, text=zhusha] at (52:15mm) {FOC 目标：$\gamma = 90°$};
+
+% ===== 旋转方向 =====
+\draw[->, thick, qing] (38mm, -6mm) arc (0:-210:7mm);
+\node[note, text=qing] at (24mm, -14mm) {$\omega$（电角速度）};
+
+% ===== 相电流投影小弧 =====
+\node[note, anchor=north west, align=left, text=shenhui] at (-46mm, -34mm) {
+  abc：三相静止系（物理绕组轴）\\
+  $\alpha\beta$：两相静止系（Clarke 变换）\\
+  dq：两相旋转系（Park 变换，随转子以 $\omega$ 旋转）\\
+  同一个 $\vec{i}_s$，在 dq 系里是两个直流量 $i_d$、$i_q$};
+
+% 电流矢量在 dq 轴上的投影虚线
+\coordinate (tip) at (75:40mm);
+\coordinate (dend) at (38:46mm);
+\coordinate (qend) at (128:46mm);
+\draw[dashed, thin, zhusha] (tip) -- ($(0,0)!(tip)!(dend)$) node[midway, above left=-0.5mm, note, text=zhusha] {$i_q$};
+\draw[dashed, thin, zhusha] (tip) -- ($(0,0)!(tip)!(qend)$);
+
+\end{tikzpicture}
+\end{document}

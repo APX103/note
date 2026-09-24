@@ -1,0 +1,63 @@
+\documentclass[border=3pt]{standalone}
+\input{common.tex}
+\begin{document}
+\begin{tikzpicture}[x=1mm, y=1mm, font=\small]
+
+% ===== 母线 =====
+\draw[very thick] (-19, 34) -- (19, 34);
+\node[lab, anchor=south] at (0, 35.5) {$V_{dc}$ 母线（+）};
+\draw[very thick] (-19, 2) -- (19, 2);
+\node[lab, anchor=north] at (0, 0.5) {母线（$-$）};
+
+% ===== 三相桥腿（Q+ / 中点 / Q- / 采样电阻）=====
+\foreach \x/\s in {-18/1, 0/2, 18/3} {
+  \draw[thick, fill=white] (\x-3.2, 25) rectangle (\x+3.2, 31);
+  \node[note] at (\x, 28) {$Q_{\s}^{+}$};
+  \draw[thick] (\x, 34) -- (\x, 31);
+  \draw[thick] (\x, 25) -- (\x, 13);          % 中点段
+  \draw[thick, fill=white] (\x-3.2, 7) rectangle (\x+3.2, 13);
+  \node[note] at (\x, 10) {$Q_{\s}^{-}$};
+  \draw[thick] (\x, 7) -- (\x, 4.5);
+  \draw[thick, fill=zhusha!20, draw=zhusha] (\x-2.5, 2.9) rectangle (\x+2.5, 4.5);
+}
+
+% ===== 相线：从桥臂中点侧向引出，绕开负母线两端后下行 =====
+% U 相：左引出，x=-24（母线左端 -19 之外）
+\draw[thick, lan] (-18, 19) -- (-24, 19) -- (-24, -5);
+\node[fill=mohei, circle, inner sep=0.9pt] at (-18, 19) {};
+% V 相：同样左引，更低一层走 x=-32
+\draw[thick, lan] (0, 16) -- (-32, 16) -- (-32, -9);
+\node[fill=mohei, circle, inner sep=0.9pt] at (0, 16) {};
+% W 相：右引出，x=24（母线右端 19 之外）
+\draw[thick, lan] (18, 19) -- (24, 19) -- (24, -5);
+\node[fill=mohei, circle, inner sep=0.9pt] at (18, 19) {};
+\node[note, anchor=south east, text=lan] at (-24.8, 20) {$U$};
+\node[note, anchor=south east, text=lan] at (-32.8, 17) {$V$};
+\node[note, anchor=south west, text=lan] at (24.8, 20) {$W$};
+
+% ===== 三相绕组（星接，圆圈内标相名）=====
+\foreach \x/\y/\n in {-24/-5/U, -32/-9/V, 24/-5/W} {
+  \draw[very thick, lan, fill=lan!8] (\x, \y) circle (3.2);
+  \node[lab, text=lan, font=\small\bfseries] at (\x, \y) {\n};
+}
+% 中性点
+\coordinate (star) at (-8, -14);
+\draw[thick] (-24, -8.2) -- (star);
+\draw[thick] (-32, -12.2) -- (star);
+\draw[thick] (24, -8.2) -- (star);
+\node[circle, fill=mohei, inner sep=1.1pt] at (star) {};
+\node[lab, anchor=north] at (-8, -15.5) {中性点 $O$};
+
+% ===== 注记 =====
+\node[note, anchor=east, align=right] at (-30, 3.7) {低侧采样电阻\\（三电阻检测）};
+% 母线电容（右侧，普通导线）
+\draw[thick] (19, 34) -- (38, 34);
+\draw[thick] (38, 34) -- (38, 21);
+\draw[thick] (34, 21) -- (42, 21);
+\draw[thick] (34, 17) -- (42, 17);
+\draw[thick] (38, 17) -- (38, 2);
+\draw[thick] (19, 2) -- (38, 2);
+\node[note, anchor=west] at (43, 19) {母线电容};
+
+\end{tikzpicture}
+\end{document}

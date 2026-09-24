@@ -1,0 +1,39 @@
+\documentclass[border=3pt]{standalone}
+\input{common.tex}
+\begin{document}
+\begin{tikzpicture}[x=1mm, y=1mm, font=\small, >=Stealth]
+
+% ===== 定子外圈 =====
+\draw[very thick, shenhui] (0,0) circle (30mm);
+\node[note, text=shenhui] at (0, 34mm) {定子（内嵌三霍尔，机械互差 120°）};
+
+% ===== 转子磁极（N/S 半圆）=====
+\begin{scope}
+  \clip (0,0) circle (20mm);
+  \fill[zhusha!35] (-20mm,-20mm) rectangle (20mm,0);
+  \fill[lan!35] (-20mm,0) rectangle (20mm,20mm);
+\end{scope}
+\draw[thick, mohei] (0,0) circle (20mm);
+\node[lab, text=zhusha] at (0, -10mm) {N};
+\node[lab, text=lan] at (0, 10mm) {S};
+
+% ===== 三个霍尔 =====
+\foreach \ang/\n in {0/H_1, 120/H_2, 240/H_3} {
+  \node[draw=mohei, fill=white, thick, minimum size=4.5mm, font=\scriptsize, label={[note] \ang: $\n$}] (h\n) at (\ang:25mm) {H};
+}
+
+% ===== 旋转箭头 =====
+\draw[->, very thick, qing] (26mm, -4mm) arc (0:-140:8mm);
+\node[note, text=qing] at (14mm, -20mm) {转子旋转};
+
+% ===== 右侧：霍尔输出相位 =====
+\begin{scope}[shift={(52mm, 4mm)}, x=1mm, y=1mm]
+  \foreach \i/\dy in {1/0, 2/-7, 3/-14} {
+    \draw[thick, lan] (0,\dy) -- (4,\dy) -- (4,\dy+3) -- (10,\dy+3) -- (10,\dy) -- (18,\dy) -- (18,\dy+3) -- (24,\dy+3) -- (24,\dy) -- (32,\dy);
+    \node[lab, anchor=east] at (-1, \dy+1.5) {$h_\i$};
+  }
+  \node[lab, anchor=west, text=shenhui] at (0, -19) {互差 120° 电角 → 6 个 60° 状态};
+\end{scope}
+
+\end{tikzpicture}
+\end{document}
