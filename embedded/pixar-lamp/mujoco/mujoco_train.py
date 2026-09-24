@@ -44,8 +44,9 @@ class Env:
         self.stand_com = None
 
     def q_like(self):
-        """[x, y, phi, th1, th2, th3] + 关节角速度, 供控制器使用。"""
-        q = np.array([self.d.qpos[0], self.d.qpos[2], base_pitch(self.d),
+        """[x, y, phi, th1, th2, th3] + 关节角速度, 供控制器使用。
+        x 恒 0: COM 反馈全部在"臂体坐标系"(按 yaw 反旋转), 保证转向后策略方向不变。"""
+        q = np.array([0.0, self.d.qpos[2], base_pitch(self.d),
                       self.d.qpos[8], self.d.qpos[9], self.d.qpos[10]])
         return q
 
@@ -58,16 +59,22 @@ class Env:
 
     def com_pos(self, q):
         com = self.d.subtree_com[1]
-        return np.array([com[0], com[2]])   # 绝对坐标(控制器内部再减底盘位置)
+        yaw = self.d.qpos[7]
+        dx, dy = com[0] - self.d.qpos[0], com[1] - self.d.qpos[1]
+        bx = np.cos(-yaw) * dx - np.sin(-yaw) * dy   # 臂体系 x 偏移
+        return np.array([bx, com[2]])
 
     def com_vel(self, q, qd):
         v = self.d.subtree_linvel[1]
         return np.array([v[0], v[2]])
 
-    def reset(self, crouch_noise=0.03):
+    def reset(self, crouch_noise=0.03, hover=0.030):
+        """台灯初始化: 关节由位置PD力锁在站姿, 整体半悬浮 ~3cm 出生后落下弹性落定。"""
         mujoco.mj_resetDataKeyframe(self.m, self.d, 0)
+        self.x0, self.y0 = self.d.qpos[0], self.d.qpos[1]
         self.d.qpos[8] += self.rng.normal(0, crouch_noise)
         self.d.qpos[9] += self.rng.normal(0, crouch_noise * 1.5)
+        self.d.qpos[2] += hover + self.rng.normal(0, 0.006)
         mujoco.mj_forward(self.m, self.d)
 
     def run(self, p, T=4.6, record=False):
@@ -114,10 +121,14 @@ class Env:
                 rec["phase"].append(ctrl_.phase)
         apex_at = max(0.0, com_apex - 0.150) if registered else 0.0   # 相对站立COM抬升
         qe = self.q_like()
+        sp1, sp2, _ = JumpControllerV2.STAND_POSE
         upright = bool(abs(base_pitch(self.d)) < 0.30 and not in_air
-                       and abs(qe[3] - 0.12) < 0.45 and abs(qe[4] + 0.22) < 0.45)
+                       and abs(qe[3] - sp1) < 0.45 and abs(qe[4] - sp2) < 0.60)
         fell = bool(abs(base_pitch(self.d)) > 1.2)
-        info = dict(x_end=float(self.d.qpos[0]), apex_at=apex_at, air_t=air_t,
+        yaw0 = 0.0
+        disp = np.array([self.d.qpos[0] - self.x0, self.d.qpos[1] - self.y0])
+        heading = np.array([np.cos(self.d.qpos[7]), np.sin(self.d.qpos[7])])
+        info = dict(x_end=float(disp @ heading), apex_at=apex_at, air_t=air_t,
                     upright=upright, fell=fell, phase_end=ctrl_.phase,
                     pitch_end=float(base_pitch(self.d)))
         if record:
@@ -126,11 +137,11 @@ class Env:
 
 
 def reward_leap(info):
-    # 目标: 单跳 10-15cm 的轻跳 + 直立落地; 超过 25cm 判过跳(罚), 蹲滑无奖励
+    # 目标: 稳稳向前跳 10cm(前方=肘弯开口方向): 10cm 处峰值、两侧衰减; 直立落地为硬要求
     x = max(0.0, info["x_end"])
-    r = 400.0 * min(x, 0.15) - 300.0 * max(0.0, x - 0.25) \
-        + (100.0 if info["upright"] else 0.0) - (80.0 if info["fell"] else 0.0) \
-        - 25.0 * abs(info["pitch_end"]) + 15.0 * min(info["apex_at"], 0.08)
+    r = 600.0 * max(0.0, 1.0 - abs(x - 0.10) / 0.08) \
+        + (120.0 if info["upright"] else 0.0) - (80.0 if info["fell"] else 0.0) \
+        - 30.0 * abs(info["pitch_end"]) + 8.0 * min(info["apex_at"], 0.05)
     if info["apex_at"] > 1.0 or abs(info["x_end"]) > 3.0:
         return -500.0
     return r

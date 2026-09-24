@@ -31,7 +31,7 @@
   <worldbody>
     <light directional="true" diffuse="0.55 0.55 0.6" specular="0.25 0.25 0.28" pos="1.5 2 3" dir="-0.25 -0.35 -1"/>
     <light directional="true" diffuse="0.25 0.25 0.3" specular="0.1 0.1 0.12" pos="-2 -1 2.5" dir="0.3 0.2 -1"/>
-    <geom name="floor" type="plane" size="4 4 0.05" material="mat_floor"/>
+    <geom name="floor" type="plane" size="12 12 0.05" material="mat_floor"/>
     <camera name="side" pos="0 -1.55 0.42" xyaxes="1 0 0 0 0 1" fovy="41"/>
     <camera name="corner" pos="-1.0 -1.3 0.75" xyaxes="0.75 0.55 0 0.06 -0.08 1" fovy="40"/>
     <camera name="top" pos="0.15 -0.25 1.35" xyaxes="1 0 0 0 1 0.25" fovy="40"/>
@@ -77,7 +77,7 @@
             <!-- 颈关节 pitch: 上连杆顶端接圆台侧面 -->
             <body name="head" pos="0 0 0.160">
               <joint name="th3" type="hinge" axis="0 1 0" pos="0 0 0" range="-1.8 1.2"
-                     springref="-0.30" stiffness="0.05" frictionloss="0.05" damping="0.02"/>
+                     springref="0.50" stiffness="0.05" frictionloss="0.05" damping="0.02"/>
               <!-- 圆台灯罩: 背面接颈, 罩口朝 +x; 摄像头藏在罩口内 -->
               <geom name="shade" type="mesh" mesh="frustum" pos="-0.012 0 0.010" euler="0 0.15 0"
                     material="mat_body" density="0" mass="0.082"/>
@@ -112,7 +112,7 @@
 
   <keyframe>
     <!-- 站立: 下臂/上臂微前倾, 灯罩朝前下 -->
-    <key name="stand" qpos="0 0 0.011 1 0 0 0  0  0.12 -0.22 -0.30"/>
+    <key name="stand" qpos="0 0 0.011 1 0 0 0  0  0.35 -0.75 0.60"/>
     <key name="crouch" qpos="0 0 0.011 1 0 0 0  0  0.55 -2.60 -0.30"/>
   </keyframe>
 </mujoco>

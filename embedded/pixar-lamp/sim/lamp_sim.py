@@ -378,8 +378,9 @@ class JumpController:
     def __call__(self, t, q, qd, contact, sim):
         (th1c, th2c, tau1, tau2, th1s, th2s, th1l, th2l, t_wait, fire_tmax) = self.p
         dt_p = t - self.t0
+        s3 = self.STAND_POSE[2]
         if self.phase == self.PHASE_SETTLE:
-            tau, kd = self._pd(sim, q, (th1c, th2c, 0.0))
+            tau, kd = self._pd(sim, q, (th1c, th2c, s3))
             if dt_p > t_wait:
                 self.phase = self.PHASE_FIRE; self.t0 = t
             return tau, kd
@@ -388,7 +389,7 @@ class JumpController:
                 self.phase = self.PHASE_FLIGHT; self.t0 = t
             return np.array([tau1, tau2, 0.0]), np.zeros(3)
         if self.phase == self.PHASE_FLIGHT:
-            tau, kd = self._pd(sim, q, (th1l, th2l, 0.0), 0.6)
+            tau, kd = self._pd(sim, q, (th1l, th2l, self.STAND_POSE[2]), 0.6)
             if contact:
                 self.phase = self.PHASE_LAND; self.t0 = t
             return tau, kd
@@ -455,6 +456,7 @@ if __name__ == "__main__":
 
 class JumpControllerV2:
     """V2 跳跃控制器：点火时序(肩/肘延迟) + 肩部姿态反馈 + 参数化备降。
+    站姿常量: 台灯形态(连杆弯折、灯罩斜朝地面), 也是落地后起身的目标。
     p = [th1c, th2c, tau1, tau2, d1, d2, kphi, kdphi,
          th1l, th2l, kp_land, t_wait, stop2, t_fire_max, kx, kdx]
     FIRE: tau_j(t) = tau_j·H(t-t0-d_j)（10ms 斜坡），肩部叠加姿态反馈
@@ -462,6 +464,7 @@ class JumpControllerV2:
     repeat=True: 落地稳定后自动进入下一跳(移动任务)。"""
 
     PHASE_SETTLE, PHASE_FIRE, PHASE_FLIGHT, PHASE_LAND, PHASE_STAND = 0, 1, 2, 3, 4
+    STAND_POSE = (0.35, -0.75, 0.60)    # 台灯站姿: 肘弯朝前(+x), 罩口斜朝地面(th3>0 向下)
 
     def __init__(self, p, repeat=False, stand_after=True):
         self.p0 = np.array(p, dtype=float)
@@ -485,8 +488,9 @@ class JumpControllerV2:
          th1l, th2l, kp_land, t_wait, stop2, t_fire_max, kx, kdx, com_ref) = \
             np.pad(self.p, (0, 17 - len(self.p)), constant_values=0.0)
         dt_p = t - self.t0
+        s3 = self.STAND_POSE[2]
         if self.phase == self.PHASE_SETTLE:
-            tau, kd = self._pd(sim, q, (th1c, th2c, 0.0))
+            tau, kd = self._pd(sim, q, (th1c, th2c, s3))
             com = sim.com_pos(q); comv = sim.com_vel(q, qd)
             # 下蹲保持阶段的平衡反馈: 把 COM 控制到 com_ref(方向指令: 前倾=向前跳)
             com_rx = com[0] - q[0]        # COM 相对底盘足心(实机由编码器+IMU 得到)
@@ -506,7 +510,7 @@ class JumpControllerV2:
                 self.phase = self.PHASE_FLIGHT; self.t0 = t
             return tau, np.array([0.0, 0.0, 0.0])
         if self.phase == self.PHASE_FLIGHT:
-            tau, kd = self._pd(sim, q, (th1l, th2l, 0.0), 0.6)
+            tau, kd = self._pd(sim, q, (th1l, th2l, self.STAND_POSE[2]), 0.6)
             if contact:
                 self.phase = self.PHASE_LAND; self.t0 = t
             return tau, kd
@@ -518,7 +522,7 @@ class JumpControllerV2:
         if self.stand_after and dt_p > 0.9 and contact and abs(q[2]) < 0.30 and calm:
             self.phase = self.PHASE_STAND; self.t0 = t; self.t_stand = 0.0
             return self._stand(sim, q, qd, dt_stand=0.0)
-        tau, kd = self._pd(sim, q, (th1c, th2c, 0.0), kp_land)
+        tau, kd = self._pd(sim, q, (th1c, th2c, self.STAND_POSE[2]), kp_land)
         settled = dt_p > 0.18 and abs(qd[2]) < 0.5 and contact
         if self.repeat and (settled or dt_p > 0.8):
             self.phase = self.PHASE_SETTLE; self.t0 = t; self.cycles += 1
@@ -530,9 +534,10 @@ class JumpControllerV2:
         (th1c, th2c, tau1, tau2, d1, d2, kphi, kdphi,
          th1l, th2l, kp_land, t_wait, stop2, t_fire_max, kx, kdx, com_ref) = \
             np.pad(self.p, (0, 17 - len(self.p)), constant_values=0.0)
-        # 准静态起身: 目标从蹲姿 0.8s 线性插值到站姿, 反应扭矩足够小
+        # 准静态起身: 目标从蹲姿 1s 线性插值到台灯站姿, 反应扭矩足够小
         mix = float(np.clip(dt_stand / 1.0, 0.0, 1.0))
-        tgt = np.array([th1c + (0.12 - th1c) * mix, th2c + (-0.22 - th2c) * mix, 0.0])
+        s1, s2, s3 = self.STAND_POSE
+        tgt = np.array([th1c + (s1 - th1c) * mix, th2c + (s2 - th2c) * mix, s3 * mix])
         tau, kd = self._pd(sim, q, tgt, 0.8)
         com = sim.com_pos(q); comv = sim.com_vel(q, qd)
         fb = kx * (0.0 - (com[0] - q[0])) - kdx * comv[0] - kdphi * qd[2]
@@ -574,8 +579,9 @@ class FlipController:
             self.rot_unwrap += dphi
         self.phi_prev = q[2]
         dt_p = t - self.t0
+        s3 = self.STAND_POSE[2]
         if self.phase == self.PHASE_SETTLE:
-            tau, kd = self._pd(sim, q, (th1c, th2c, 0.0))
+            tau, kd = self._pd(sim, q, (th1c, th2c, s3))
             com = sim.com_pos(q); comv = sim.com_vel(q, qd)
             tau[0] += self.kx * (0.0 - com[0]) - self.kdx * comv[0]
             if dt_p > t_wait and abs(com[0]) < 0.03 and abs(qd[2]) < 0.6:
@@ -608,7 +614,7 @@ class FlipController:
             if contact:
                 self.phase = self.PHASE_LAND; self.t0 = t
             return tau, kd
-        tau, kd = self._pd(sim, q, (th1c, th2c, 0.0), kp_land)
+        tau, kd = self._pd(sim, q, (th1c, th2c, self.STAND_POSE[2]), kp_land)
         com = sim.com_pos(q); comv = sim.com_vel(q, qd)
         if dt_p > 0.1:
             tau[0] += self.kx * (0.0 - com[0]) - self.kdx * comv[0]

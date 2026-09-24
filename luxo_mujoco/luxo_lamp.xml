@@ -36,7 +36,7 @@
          Mass is reduced from 4 kg to 1.5 kg so the whole lamp can actually jump. -->
     <body name="base" pos="0 0 0.06">
       <freejoint name="base_free"/>
-      <geom name="base_geom" type="cylinder" size="0.15 0.025" material="mat_base" mass="1.5"/>
+      <geom name="base_geom" type="cylinder" size="0.15 0.025" material="mat_base" mass="2.0"/>
 
       <!-- Base yaw link: lets the arm rotate left/right while the base stays on the ground -->
       <body name="base_yaw_link" pos="0 0 0.05">
