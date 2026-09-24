@@ -42,3 +42,7 @@ luxo_mujoco/
 # pixar-lamp: 渲染中间帧(可由 mujoco_render.py 重新生成)
 embedded/pixar-lamp/mujoco/results/frames/
 **/__pycache__/
+
+# SDR-for-Engineers-book: 原书 PDF 下载件（ADI 官网可再下载，体积大不入库）与 LaTeX 构建产物
+books/SDR-for-Engineers-book/pdf/
+books/SDR-for-Engineers-book/build/
