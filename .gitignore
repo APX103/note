@@ -39,6 +39,6 @@ embedded/magic-wand/wakenet/data/
 # luxo_mujoco: 本地训练产物与可再生资源
 luxo_mujoco/
 
-# pixar-lamp/mujoco: demo 训练产物与可再生资源
-embedded/pixar-lamp/mujoco/
+# pixar-lamp: 渲染中间帧(可由 mujoco_render.py 重新生成)
+embedded/pixar-lamp/mujoco/results/frames/
 **/__pycache__/
