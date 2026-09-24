@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>10 · 构建实录 · 回声 Echo</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif; }
+    table.dm th { background: #f8fafc; }
+    table.dm th, table.dm td { border: 1px solid #e5e7eb; padding: 9px 13px; font-size: 0.875rem; vertical-align: top; }
+    table.dm { border-collapse: collapse; width: 100%; }
+    .code-block { background: #1e293b; color: #e2e8f0; border-radius: 0.5rem; padding: 1.1rem; overflow-x: auto; font-family: 'Fira Code', Menlo, monospace; font-size: 0.78rem; line-height: 1.65; }
+    .day-badge { display:inline-flex; align-items:center; justify-content:center; min-width: 74px; padding: 2px 10px; border-radius: 999px; font-size: .72rem; font-weight: 700; }
+</style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+<nav class="fixed top-0 inset-x-0 z-50 bg-white/90 backdrop-blur border-b border-gray-200">
+  <div class="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between gap-4 overflow-x-auto">
+    <a href="index.html" class="flex items-center gap-2 shrink-0">
+      <span class="w-7 h-7 rounded-lg bg-gradient-to-br from-orange-400 to-pink-500 flex items-center justify-center text-white text-xs"><i class="fas fa-volume-up"></i></span>
+      <span class="font-bold text-gray-900 whitespace-nowrap">回声 Echo <span class="text-gray-400 font-normal text-sm hidden md:inline">· AI 儿童声音玩具全栈方案</span></span>
+    </a>
+    <div class="flex items-center gap-1 text-sm whitespace-nowrap">
+      <a href="index.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">总览</a>
+      <a href="01-prd.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">PRD</a>
+      <a href="02-hardware.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">硬件</a>
+      <a href="03-firmware.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">固件</a>
+      <a href="04-backend-agent.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">后端 Agent</a>
+      <a href="05-parent-web.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">家长端</a>
+      <a href="06-demo-mvp.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">Demo 路径</a>
+      <a href="07-cost-business.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">成本商业</a>
+      <a href="08-douyin-gtm.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">抖音打法</a>
+      <a href="09-team-roadmap.html" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">团队路线</a>
+      <a href="10-build-log.html" class="px-3 py-1.5 rounded-lg bg-orange-50 text-orange-600 font-semibold">构建实录</a>
+    </div>
+  </div>
+</nav>
+
+<div class="max-w-5xl mx-auto px-4 pt-24 pb-16 space-y-8">
+
+  <!-- 标题 -->
+  <header>
+    <div class="flex items-center gap-3 text-sm text-gray-400 mb-2">
+      <span class="day-badge bg-emerald-100 text-emerald-700">DOC 10 / 10</span>
+      <span>2026-09-21 · 一天 · 从设计文档到可运行三端</span>
+    </div>
+    <h1 class="text-3xl font-bold text-gray-900 mb-3">构建实录：设计落地与工程踩坑全记录</h1>
+    <p class="text-gray-600 leading-relaxed">本篇记录 <code class="text-sm bg-gray-100 px-1.5 py-0.5 rounded">~/work/kids-voice-toy/</code> 工程的完整构建过程：怎么从 01–09 设计文档出发把<b>设备固件 + 服务端 Agent + 家长端 H5</b> 三端做出来，多设备多用户与故事推荐引擎怎么设计实现，测试客户端体系怎么做到"硬件之外全部可测"，以及——最有价值的——<b>把每一个踩过的坑和排查思路原样记下来</b>，下次不再踩。</p>
+  </header>
+
+  <!-- 交付总览 -->
+  <section class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+    <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2"><i class="fas fa-box-open text-orange-500"></i>交付总览</h2>
+    <table class="dm mb-4">
+      <tr><th>模块</th><th>位置</th><th>规模</th><th>状态</th></tr>
+      <tr><td>设备固件（ESP32-S3-Touch-AMOLED-1.8）</td><td><code>device/echo_toy/</code></td><td>1,606 行 C / 5 模块</td><td>✅ ESP-IDF v5.5.5 编译零告警（1.0MB bin），待上板</td></tr>
+      <tr><td>服务端（网关+Agent+记忆+安全+推荐）</td><td><code>server/app/</code></td><td>3,159 行 Python / 17 模块</td><td>✅ Docker 运行中，44 项契约测试全绿</td></tr>
+      <tr><td>家长端 H5</td><td><code>web/index.html</code></td><td>411 行单页</td><td>✅ 绑定/时间线/精选/成员/设备/故事库</td></tr>
+      <tr><td>协议与设计文档</td><td><code>docs/</code></td><td>423 行</td><td>✅ protocol.md v0.2 + 两篇工程设计</td></tr>
+      <tr><td>故事库</td><td>SQLite <code>stories</code> 表</td><td>5,406 篇</td><td>✅ 20 内置 + 5,386 STORAL 语料实测导入</td></tr>
+    </table>
+    <div class="code-block">~/work/kids-voice-toy/
+├── device/echo_toy/      # 固件：触摸屏 3 按钮 UI + 多段录音状态机 + WiFi/WS + ES8311
+├── server/
+│   ├── app/              # FastAPI：ws_device 网关 / agent 管线 / rec 推荐 / accounts 成员 …
+│   └── tools/            # echo_client 设备模拟器 / record.py 录音 / run_tests 契约测试 / import_stories / generate_stories
+├── web/index.html        # 家长端 H5（服务端直接托管）
+├── docs/protocol.md      # 设备⇄服务端协议 + REST（多端唯一事实来源）
+├── docs/design/01-multi-device-multi-user.md
+├── docs/design/02-story-recommendation.md
+└── docker-compose.yml    # 本地测试与上云同一份</div>
+  </section>
+
+  <!-- 与设计的映射与取舍 -->
+  <section class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+    <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2"><i class="fas fa-code-branch text-orange-500"></i>与设计文档的映射与取舍</h2>
+    <p class="text-sm text-gray-600 mb-4">原则：交互规格、产品红线、数据模型严格照设计落地；技术路线在不违背设计意图处从简（Demo 阶段能跑通验证优先）。</p>
+    <table class="dm">
+      <tr><th>设计文档说</th><th>实现</th><th>理由</th></tr>
+      <tr><td>无屏幕、实体三键（02/03 篇）</td><td>触摸屏三键（本次指定硬件）</td><td>多段录音/长按组合/状态色等交互规格完整保留</td></tr>
+      <tr><td>Opus 16kbps 上行（03 篇）</td><td>PCM 16k/16bit</td><td>LAN Demo 带宽无压力；Opus 列为 L2 优化项</td></tr>
+      <tr><td>基于小智协议改造（03/04 篇）</td><td>自研轻量 WS 协议</td><td>本硬件不在小智生态板型；自研更短，协议见 docs/protocol.md</td></tr>
+      <tr><td>xiaozhi-esp32-server 骨架（04 篇）</td><td>自写 FastAPI</td><td>差异化（记忆/安全/家长 API/推荐）本来就要全改</td></tr>
+      <tr><td>断网本地故事包（03 篇 L1）</td><td>未做</td><td>需 flash 资产分区与打包脚本，固件下一迭代</td></tr>
+      <tr><td>云函数/无服务器扩容（04 篇 §9）</td><td>单容器 + 演进路径写入设计文档</td><td>表结构按 family_id 分片预设计，切换只动 db.py</td></tr>
+    </table>
+  </section>
+
+  <!-- 分阶段实录 -->
+  <section class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+    <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2"><i class="fas fa-list-ol text-orange-500"></i>构建过程（按时间线）</h2>
+    <div class="space-y-4 text-sm leading-relaxed">
+
+      <div class="flex gap-3">
+        <span class="day-badge bg-blue-100 text-blue-700 shrink-0 h-6">阶段一</span>
+        <div><b>骨架与服务端主链路（约 1 小时）</b><br>读 9 篇设计 → 提炼 <code>docs/protocol.md</code>（JSON 控制帧 + PCM 二进制帧，文本/二进制靠 WS opcode 区分）→ FastAPI 落地 <code>ws_device</code> 网关、agent 管线（ASR→输入安全→LLM 人设→输出安全→TTS）、SQLite 七张表、家长端 REST。关键工程决策：<b>存档做旁路管道不阻塞对话</b>；AI 供应商三插口全部允许"没配也能跑"（LLM 降级为本地童趣话术、ASR 留空、TTS 降级合成提示音）——零密钥也能全流程验证。</div>
+      </div>
+
+      <div class="flex gap-3">
+        <span class="day-badge bg-violet-100 text-violet-700 shrink-0 h-6">阶段二</span>
+        <div><b>家长端 H5 + 固件（约 1.5 小时）</b><br>H5 单页四屏（绑定/时间线/精选/我的），"原声优先"：大圆播放键是页面最大元素。固件以同仓库 intercom/tuner 实测代码为模板，6 个模块：板级 bring-up（PMU 供电恢复/SH8601/FT3168 复位释放——这三个不带上就是黑屏+触摸失灵的祖传坑）、手绘 UI（三个大圆按钮 + 状态色条 + 5x7 字库）、音频层（ES8311 双向常开 + HPF/门限 DSP + PSRAM 双缓冲）、<b>多段录音状态机（L2 规格：按住录/松开暂停/3s 续录/静默 5s 自动封口/长按组合/童锁）</b>、WiFi+WS、主循环。一次编译通过后修三处（环形缓冲 2 的幂、头文件名、WS 组件 API 改名）。</div>
+      </div>
+
+      <div class="flex gap-3">
+        <span class="day-badge bg-pink-100 text-pink-700 shrink-0 h-6">阶段三</span>
+        <div><b>Docker 化 + 测试客户端体系</b><br>server/Dockerfile（含 ffmpeg 供 TTS 转码）+ compose（数据卷/密钥文件/健康检查）。工具三件套：<code>echo_client.py</code> 交互式设备模拟器（WAV 上传/Mac 麦克风/童声 afplay 试听）、<code>run_tests.py</code> 契约测试（自带临时服务端，不碰真实数据）、<code>record.py</code> 录音脚本。方针：<b>硬件之外全部可测</b>。</div>
+      </div>
+
+      <div class="flex gap-3">
+        <span class="day-badge bg-orange-100 text-orange-700 shrink-0 h-6">阶段四</span>
+        <div><b>v0.2：多设备多用户（设计→实现→测试）</b><br>按"卖硬件、对接百万设备"设计：devices/members/invites/story_plays 四张新表；设备首连注册并签发 device_token（量产强制校验）；<b>6 位绑定码</b>（10 分钟/单次/防爆破锁定）对标小智配对；一家庭多设备（按 device_id 路由推送）+ 一家庭多成员（admin/listener/lite 三级角色）；解绑留数据（二手转卖场景）；影子家庭机制保证"设备先说话后绑定，时间线无洞"。实现中抓出并修掉一个设计漏洞：hello 时不该建影子家庭，否则第二台设备加入会被 409 拦截。契约测试 21 → 41 项。</div>
+      </div>
+
+      <div class="flex gap-3">
+        <span class="day-badge bg-emerald-100 text-emerald-700 shrink-0 h-6">阶段五</span>
+        <div><b>故事库万级化 + 推荐引擎</b><br>故事从代码内置迁到 SQLite（20 篇是种子，库容量无上限）；推荐引擎只扫元数据列（5,406 篇实测：全库扫描 3.7ms、推荐+取正文 35ms）；硬不重复（集合差集，非概率）+ 每日主题轮换（家庭×日期确定性哈希）+ 喜好加权 + 安可机制（全库讲完挑最久未讲）；"今晚已讲 N 个"真实计数注入人设。扩库双管线：<code>import_stories.py</code>（清洗/安全拒收/去重/主题归类）+ <code>generate_stories.py</code>（LLM 批量原创，万篇一夜）。实测灌入清华 STORAL 中文寓言语料：8,379 篇去重 → 5,386 篇入库（过短 656/过长 2,132/安全拒收 193/重复 12）。注意：STORAL 无商用许可，正式售卖前换授权语料或全量原创生成。</div>
+      </div>
+
+      <div class="flex gap-3">
+        <span class="day-badge bg-red-100 text-red-600 shrink-0 h-6">阶段六</span>
+        <div><b>录音攻坚（本篇最有含金量的部分，见下节）</b><br>从"按回车结束不了"到真实 7.9 秒语音过全链路，连踩九坑全记录。</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 录音攻坚实录 -->
+  <section class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+    <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2"><i class="fas fa-bug text-red-500"></i>录音工具攻坚实录：九连坑</h2>
+    <p class="text-sm text-gray-600 mb-4">需求很简单：命令行录一段孩子的声音当测试语料。在 macOS 上从零踩到通，每一坑都是可复用的结论。</p>
+    <table class="dm">
+      <tr><th>#</th><th>现象</th><th>根因</th><th>修法（已固化在 tools/record.py）</th></tr>
+      <tr><td>1</td><td>永远提示"没找到麦克风"</td><td>ffmpeg 设备列表每行带 <code>[AVFoundation indev @ 0x…]</code> 前缀，解析把前缀当设备号</td><td>正则 <code>\[AVFoundation indev @[^\]]*\]\s*\[(\d+)\]\s*(.+)$</code> 匹配</td></tr>
+      <tr><td>2</td><td>按回车停止无效</td><td><code>input()</code> 行缓冲 + 无任何过程反馈，用户不知是否在录</td><td>termios cbreak + select，任意键即停；每秒刷新倒计时</td></tr>
+      <tr><td>3</td><td>开始后 0 秒即停</td><td>"开始"的回车带尾巴按键，被立即当成停止键</td><td>cbreak 前清缓冲（tcflush）+ 开录 1s 内按键一律视为误触吞掉</td></tr>
+      <tr><td>4</td><td>0 字节文件、ffmpeg 零报错</td><td>设备编号漂移：Xiaomi Buds Wi-Fi 连断会重排编号，开到不在通话态的 Wi-Fi 耳机=零帧零错</td><td>开录瞬间按<b>名字</b>重新解析编号（resolve_index_now），不再用几秒前的旧编号</td></tr>
+      <tr><td>5</td><td>倒计时"已收 0KB"但实际在录</td><td>ffmpeg 默认攒 ~32KB 才落盘</td><td><code>-flush_packets 1</code> 实时落盘，字节数才是真话</td></tr>
+      <tr><td>6</td><td>停止后脚本崩溃（TimeoutExpired 堆栈）</td><td>avfoundation 卡住时 ffmpeg 对 SIGINT/SIGTERM 都不响应</td><td>三级停止：SIGINT(3s)→SIGTERM(3s)→SIGKILL，全部 try 住</td></tr>
+      <tr><td>7</td><td>强杀后 WAV 显示 37 小时时长</td><td>WAV 头长度字段是垃圾值，且 wave 能"成功"打开</td><td>录完无条件按实际 data 块重写规范 44 字节头（normalize）</td></tr>
+      <tr><td>8</td><td>录到全是零</td><td>终端 App 没有 macOS 麦克风权限（TCC），系统给静音流；语音输入法能用不算数（那是输入法的权限）</td><td>静音检测 + 明确指引；<code>tccutil reset Microphone &lt;bundle-id&gt;</code> 重置让弹框重现</td></tr>
+      <tr><td>9</td><td>权限弹框始终不出现</td><td>命令行工具不弹框，权限挂宿主 App；被拒过一次的 App 永远静默拒绝</td><td>保底路径 <code>--from-file</code>：QuickTime/语音备忘录录完转换，完全不碰权限</td></tr>
+    </table>
+    <div class="bg-emerald-50 border border-emerald-100 rounded-xl p-4 mt-4 text-sm">
+      <b class="text-emerald-700"><i class="fas fa-check-circle mr-1"></i>终态验证（2026-09-21 16:05–16:20）</b><br>
+      真人 7.9 秒语音（峰值 6918）→ record.py 采集入库 <code>testdata/latest.wav</code> → 设备通道上传 → 服务端存档 <code>rec_c07c980faf</code> → 童声 TTS 回复 3.8s → 家长端绑定（6 位绑定码/设备码均验证）→ 时间线回听 → <b>音频回取与本地字节级一致（存档无损）</b> → 44 项契约测试全绿。转写为空属预期（未配 ASR key，降级模式）。
+    </div>
+  </section>
+
+  <!-- 固件侧实测知识 -->
+  <section class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+    <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2"><i class="fas fa-microchip text-violet-500"></i>固件侧：站在仓库实测知识上</h2>
+    <p class="text-sm text-gray-600 mb-4 leading-relaxed">板级代码全部继承同仓库（ESP32-S3-Touch-AMOLED-1.8）已验证结论，不凭 datasheet 重写——这是本次固件一次编译通过、无需上板调试的底气。固件任务布局：<code>mic</code>(core0,p10) <code>spk</code>(core0,p9) <code>app</code>(core1,p6 状态机) <code>ui</code>(core1,p5 渲染) + WS 内部任务。三处首编译错误的教训：环形缓冲大小必须 2 的幂（取模掩码）、<code>esp_heap_caps.h</code> 别写成 <code>heap_caps.h</code>、esp_websocket_client 新版把 <code>register_events</code> 改名为 <code>esp_websocket_register_events</code>。</p>
+    <div class="grid md:grid-cols-2 gap-3 text-sm">
+      <div class="bg-gray-50 rounded-xl p-4"><b class="block mb-2">冷启动黑屏（必带）</b>AMOLED 电源走 AXP2101 ALDO1，PMU 上电默认关——每次开机先恢复 DC1/ALDO1 再碰屏，否则"日志全正常但屏幕全黑"。</div>
+      <div class="bg-gray-50 rounded-xl p-4"><b class="block mb-2">触摸失灵（必带）</b>FT3168 复位脚在 I2C GPIO 扩展器 0x20 bit2，USB 重插后 Hi-Z——须先走释放序列，否则触摸死了还以为代码有 bug。</div>
+      <div class="bg-gray-50 rounded-xl p-4"><b class="block mb-2">ES8311 麦克风读全零</b>esp_codec_dev 封装不选模拟麦输入，要手写 0x14/0x17 两个寄存器；codec 双向必须常开（I2S 从机，关一侧另一侧没时钟）。</div>
+      <div class="bg-gray-50 rounded-xl p-4"><b class="block mb-2">播放节拍纯硬件</b>I2S 阻塞写驱动做节拍，欠载短等不插静音；空闲必 vTaskDelay——spk 空转曾饿死 IDLE 看门狗。</div>
+    </div>
+  </section>
+
+  <!-- 测试体系 -->
+  <section class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+    <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2"><i class="fas fa-vial text-blue-500"></i>测试体系：硬件之外全部可测</h2>
+    <table class="dm">
+      <tr><th>工具</th><th>一条命令</th><th>覆盖</th></tr>
+      <tr><td><code>run_tests.py</code></td><td><code>python3 tools/run_tests.py</code></td><td>44 项契约：对话链路/幂等重传/故事不重复/时光机/绑定码签发·校验·单次/多设备路由/防抢绑/三级角色/邀请/解绑留数据/语料导入/搜索点播/导出/鉴权</td></tr>
+      <tr><td><code>echo_client.py</code></td><td><code>python3 tools/echo_client.py</code></td><td>交互式扮演玩具：talk（WAV/麦克风）、story、recall、bindcode、auto 冒烟；童声自动试听</td></tr>
+      <tr><td><code>record.py</code></td><td><code>python3 tools/record.py</code></td><td>真人语料采集（本文九坑的产物）；<code>--from-file</code> 免权限转换</td></tr>
+      <tr><td>真机</td><td><code>./scripts/idf.sh -C … flash monitor</code></td><td>待做：屏显人眼确认 + 触摸 + 说话→童声（编译已验证）</td></tr>
+    </table>
+    <p class="text-sm text-gray-600 mt-3 leading-relaxed">契约测试自带临时服务端（8901 端口 + 临时数据目录 + TTS 提示音模式），跑完即删、不碰 Docker 真实数据——回归可以放心随时跑。</p>
+  </section>
+
+  <!-- 下一步 -->
+  <section class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+    <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2"><i class="fas fa-road text-indigo-500"></i>下一步</h2>
+    <ol class="list-decimal pl-5 space-y-2 text-sm text-gray-700">
+      <li><b>固件上板终验</b>：屏显/触摸/说话→童声；随后固件 v0.2（NVS 存 device_token、屏显 6 位绑定码，协议已就绪）</li>
+      <li><b>配齐 AI 供应商</b>：DeepSeek key + OpenAI 兼容 ASR（.env 一填），转写/人设回复/童声全真体验</li>
+      <li><b>断网本地故事包</b>（L1）：flash 资产分区 + 打包脚本 + 音量限幅，红线兜底提前落地</li>
+      <li><b>云部署</b>：同一份 compose（x86 重建 + nginx TLS + wss）；上云后用真机走一遍完整 14 天 Demo 路径（06 篇）</li>
+      <li><b>内容合规</b>：商用前故事库换授权语料或全量原创生成 + 内容安全 API 批量过检；保留期物理清除任务</li>
+    </ol>
+  </section>
+
+  <footer class="text-center text-sm text-gray-400 pt-4 pb-8">
+    系列总览 · <span class="font-mono">10 / 10</span> · 构建实录 · 代码在 <code>~/work/kids-voice-toy/</code> · 始于 2026-09-21
+  </footer>
+</div>
+</body>
+</html>
