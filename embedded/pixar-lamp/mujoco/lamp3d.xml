@@ -53,7 +53,7 @@
 
         <!-- 肩关节 pitch: 下连杆接底盘中心立柱顶端 -->
         <body name="lower_arm" pos="0 0 0">
-          <joint name="th1" type="hinge" axis="0 1 0" pos="0 0 0" range="-1.35 1.75"
+          <joint name="th1" type="hinge" axis="0 1 0" pos="0 0 0" range="-0.90 1.75"
                  springref="0" stiffness="1.5" frictionloss="0.15"/>
           <geom name="lower_cap" type="capsule" fromto="0 0 0 0 0 0.170" size="0.0115" material="mat_body"
                 mass="0.060" density="0"/>
@@ -112,7 +112,7 @@
 
   <keyframe>
     <!-- 站立: 下臂/上臂微前倾, 灯罩朝前下 -->
-    <key name="stand" qpos="0 0 0.011 1 0 0 0  0  0.10 2.20 -0.35"/>
+    <key name="stand" qpos="0 0 0.011 1 0 0 0  0  -0.50 2.20 -0.35"/>
     <key name="crouch" qpos="0 0 0.011 1 0 0 0  0  0.85 2.30 0.40"/>
   </keyframe>
 </mujoco>
