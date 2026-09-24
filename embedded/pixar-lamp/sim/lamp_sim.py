@@ -463,7 +463,7 @@ class JumpControllerV2:
           kphi·(0-phi) - kdphi·phid —— 把内旋转动量导回竖直推程。
     repeat=True: 落地稳定后自动进入下一跳(移动任务)。"""
 
-    PHASE_SETTLE, PHASE_FIRE, PHASE_FLIGHT, PHASE_LAND, PHASE_STAND = 0, 1, 2, 3, 4
+    PHASE_SETTLE, PHASE_FIRE, PHASE_FLIGHT, PHASE_LAND, PHASE_STAND, PHASE_HOLD = 0, 1, 2, 3, 4, 5
     STAND_POSE = (1.00, 1.20, 0.40)   # 天鹅颈站姿: 下臂前伸57°, 肘折正向(开口朝前下), 头探出底盘前缘、罩口照地
 
     def __init__(self, p, repeat=False, stand_after=True, stop_t=None):
@@ -480,6 +480,22 @@ class JumpControllerV2:
         self.t_fire = 0.0
         self.cycles = 0
         self.p = self.p0.copy()
+        self._cmd = 1
+        self._hold_tgt = None
+
+    def set_cmd(self, c, q, t):
+        """指令位: 1=向前挪(状态机), 0=软着陆并归位到台灯站姿(定住)。"""
+        if int(c) == 0 and self._cmd != 0:
+            self._hold_tgt = np.array(JumpControllerV2.STAND_POSE)
+            if self.phase in (self.PHASE_FIRE, self.PHASE_FLIGHT):
+                self.phase = self.PHASE_LAND   # 运动中收到0: 软着陆后归位台灯站姿
+            else:
+                self.phase = self.PHASE_HOLD    # 静止中收到0: 平衡反馈直接锁台灯站姿
+            self.t0 = t
+        elif int(c) == 1 and self._cmd != 1 and self.phase in (self.PHASE_HOLD, self.PHASE_STAND, self.PHASE_LAND):
+            self.phase = self.PHASE_SETTLE
+            self.t0 = t
+        self._cmd = int(c)
 
     def _pd(self, sim, q, tgt, scale=1.0):
         return sim.kp * scale * (np.array(tgt) - q[3:6]), sim.kd * scale
@@ -518,6 +534,12 @@ class JumpControllerV2:
         if self.phase == self.PHASE_STAND:
             self.t_stand = getattr(self, "t_stand", 0.0) + sim.dt
             return self._stand(sim, q, qd, dt_stand=self.t_stand)
+        if self.phase == self.PHASE_HOLD:
+            tau, kd = self._pd(sim, q, self._hold_tgt, 1.0)
+            com = sim.com_pos(q); comv = sim.com_vel(q, qd)
+            fb = kx * (0.0 - (com[0] - q[0])) - kdx * comv[0] - 2.0 * qd[2]
+            tau[0] += float(np.clip(fb, -10.0, 10.0))
+            return tau, kd
         com_now = sim.com_pos(q)
         calm = abs(com_now[0] - q[0] - com_ref) < 0.07 and np.abs(qd).max() < 1.5
         if self.stand_after and dt_p > 0.9 and contact and abs(q[2]) < 0.30 and calm:

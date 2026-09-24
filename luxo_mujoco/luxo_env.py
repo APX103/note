@@ -15,8 +15,9 @@ class LuxoJumpEnv(gym.Env):
         self,
         xml_path: str = "luxo_lamp.xml",
         frame_skip: int = 5,
-        max_episode_steps: int = 800,
+        max_episode_steps: int = 400,
         target_distance: float = 0.05,
+        jump_deadline_steps: int = 120,
         render_mode: str | None = None,
     ):
         super().__init__()
@@ -24,6 +25,7 @@ class LuxoJumpEnv(gym.Env):
         self.frame_skip = frame_skip
         self.max_episode_steps = max_episode_steps
         self.target_distance = target_distance
+        self.jump_deadline_steps = jump_deadline_steps
         self.render_mode = render_mode
 
         self.model = mujoco.MjModel.from_xml_path(self.xml_path)
@@ -155,6 +157,7 @@ class LuxoJumpEnv(gym.Env):
         self.landed_once = False
         self.ground_z = self.last_z
         self.low_upright_steps = 0
+        self.jumped_this_episode = False
 
         return self._get_obs(), {}
 
@@ -187,21 +190,43 @@ class LuxoJumpEnv(gym.Env):
             self.max_air_z = max(self.max_air_z, base_z)
 
         # ------------------------------------------------------------------
-        # Reward design (v5): landing accuracy is everything.
-        # The agent already knows how to jump; now it must land on target.
+        # Reward design (v6): fixes two bugs from v5 that made "never jump"
+        # the optimal policy:
+        #   (a) r_peak used to penalize every single step for the rest of the
+        #       episode based on the *historical* max_air_z, so one jump over
+        #       8cm poisoned hundreds of subsequent steps.
+        #   (b) landing_stable used to truncate the episode early, which cut
+        #       off future per-step alive/upright reward -- so standing still
+        #       for the full 800-step episode out-earned jumping once.
+        # v6: height penalty is only applied once, at landing, based on the
+        # flight's own peak; episodes are no longer truncated early on a
+        # successful landing (the agent keeps earning standing reward
+        # afterwards, on top of the landing bonus).
         # ------------------------------------------------------------------
 
         # 1) Time pressure: do not dither forever.
-        r_alive = -0.02
-        r_upright = upright * 0.2
+        r_alive = -0.01
+        r_upright = upright * 0.15
+
+        # 1b) Escalating "please jump" pressure: standing still forever must
+        # not out-earn attempting a jump. This grows the longer the agent
+        # has gone without ever leaving the ground, which breaks the
+        # "safe zero-variance standing" local optimum PPO tends to collapse
+        # into once its action std shrinks.
+        r_urgency = 0.0
+        if not self.jumped_this_episode:
+            r_urgency = -0.01 * (self.steps / 50.0)
 
         # 2) Tiny upward-velocity reward only while airborne (no ground bounce-hack).
         r_upward = 0.0
         if contact == 0.0:
             r_upward += max(0.0, base_lin[2]) * 0.2
 
-        # 3) Strong penalty for excessive jump height.
-        r_peak = -max(0.0, self.max_air_z - self.ground_z - 0.08) * 10.0
+        # 3) Height regulation while airborne only (based on current z, not a
+        #    permanently-elevated running max) -- soft, not punitive.
+        r_peak = 0.0
+        if contact == 0.0:
+            r_peak -= max(0.0, base_z - 0.28) * 5.0
 
         # 4) Forward guidance while airborne: reward velocity toward target,
         #    penalize overshooting past it.
@@ -217,27 +242,30 @@ class LuxoJumpEnv(gym.Env):
                     # Overshot: penalize any additional forward velocity.
                     r_forward -= max(0.0, forward_vel) * 5.0
         else:
-            # Jump-in-place phase: reward peak height and penalize drift.
+            # Jump-in-place phase: mild drift penalty only (do not dominate
+            # the jump incentive).
             drift = float(np.linalg.norm(base_pos - self.start_pos))
-            r_forward -= drift * 1.0
+            r_forward -= drift * 0.3
 
         # 5) Small airtime bonus, but flight should be short.
         r_air = 0.0
         if contact == 0.0:
             r_air += 0.1
-            r_air -= max(0.0, (base_z - 0.20)) * 10.0
             r_air -= max(0.0, (1.0 - upright)) * 1.0
             r_air -= float(np.linalg.norm(base_ang)) * 0.1
 
-        # 6) Takeoff event: modest bonus for leaving ground, mainly forward aim.
+        # 6) Takeoff event: reward leaving the ground with real upward push,
+        #    so the agent has an immediate incentive to attempt a jump.
         r_takeoff = 0.0
         if just_took_off:
+            self.jumped_this_episode = True
             self.takeoff_vel = base_lin.copy()
             forward_vel = float(np.dot(base_lin[:2], self.command))
             upward_vel = float(base_lin[2])
-            r_takeoff = max(0.0, upward_vel) * 0.2 + max(0.0, forward_vel) * 3.0
+            r_takeoff = max(0.0, upward_vel) * 3.0 + max(0.0, forward_vel) * 3.0
 
-        # 7) Landing event: the dominant reward.
+        # 7) Landing event: the dominant reward. One-time height penalty for
+        #    excessive jumps is charged here too (not every subsequent step).
         r_landing = 0.0
         landed_stable = False
         real_jump = self.air_steps >= 3 and self.max_air_z >= self.ground_z + 0.03
@@ -254,11 +282,14 @@ class LuxoJumpEnv(gym.Env):
                 r_landing += upright * 8.0
                 r_landing -= float(np.linalg.norm(base_ang)) * 1.0
                 r_landing -= float(abs(base_lin[2])) * 5.0
+                # One-time penalty for jumping much higher than needed
+                # (>10cm above ground); charged once, not per-step.
+                r_landing -= max(0.0, self.max_air_z - self.ground_z - 0.10) * 30.0
                 # Success: landed close, upright, and nearly still.
                 if landing_error < 0.06 and upright > 0.75 and np.linalg.norm(base_lin) < 2.0:
                     landed_stable = True
             else:
-                r_landing = -5.0
+                r_landing = -2.0
 
         # 8) Post-landing stability.
         r_stable = 0.0
@@ -287,8 +318,8 @@ class LuxoJumpEnv(gym.Env):
             self.low_upright_steps = 0
 
         reward = float(
-            r_alive + r_upright + r_upward + r_peak + r_forward + r_air + r_takeoff + r_landing
-            + r_stable + r_yaw + r_energy + r_smooth
+            r_alive + r_upright + r_urgency + r_upward + r_peak + r_forward + r_air + r_takeoff
+            + r_landing + r_stable + r_yaw + r_energy + r_smooth
         )
 
         # ---- Termination conditions ------------------------------------------
@@ -300,9 +331,20 @@ class LuxoJumpEnv(gym.Env):
         # Only terminate if the lamp has been clearly fallen for a while.
         if self.low_upright_steps >= 15:
             terminated = True
-        # Successful landing ends the episode early as a clear win.
+        # v7 fix: standing still forever must not be a viable strategy at
+        # all. If the agent has never even left the ground by the deadline,
+        # end the episode with a penalty -- this closes off the "never jump"
+        # optimum instead of just discouraging it.
+        if not self.jumped_this_episode and self.steps >= self.jump_deadline_steps:
+            terminated = True
+            reward -= 20.0
+        # NOTE (v6 fix): do NOT truncate early on a successful landing.
+        # Ending the episode here used to forfeit hundreds of steps of
+        # future alive/upright reward, which made "never jump" earn more
+        # expected return than "jump once and land well". Let the agent
+        # keep collecting standing reward after a good landing instead.
         if landed_stable:
-            truncated = True
+            pass
 
         if self.steps >= self.max_episode_steps:
             truncated = True
@@ -310,6 +352,7 @@ class LuxoJumpEnv(gym.Env):
         info = {
             "r_alive": r_alive,
             "r_upright": r_upright,
+            "r_urgency": r_urgency,
             "r_upward": r_upward,
             "r_peak": r_peak,
             "r_forward": r_forward,
