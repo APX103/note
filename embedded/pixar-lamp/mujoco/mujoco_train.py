@@ -23,9 +23,9 @@ RESULTS = os.path.join(HERE, "results")
 os.makedirs(RESULTS, exist_ok=True)
 
 BOUNDS = np.array([
-    [-0.85, 1.00], [0.80, 2.90], [-12.5, 12.5], [-12.5, 12.5],
+    [-0.85, 0.10], [0.90, 2.00], [-12.5, 12.5], [-12.5, 12.5],
     [0.0, 0.25], [0.0, 0.25], [0.0, 300.0], [0.0, 3.0],
-    [0.8, 2.40], [0.80, 2.40], [0.4, 1.6], [0.45, 0.90],
+    [-0.7, 0.3], [0.90, 2.00], [0.4, 1.6], [0.45, 0.90],
     [0.05, 0.80], [0.20, 0.60], [0.0, 500.0], [0.0, 80.0], [-0.045, 0.045]])
 
 
@@ -110,6 +110,7 @@ class Env:
         hold_err_sum, hold_n, x_cmd = 0.0, 0, 0.0
         flip_rot = 0.0            # 单次滞空内的最大俯仰摆动(翻转度量)
         pitch_at_lift = 0.0
+        pose_dev_sum, pose_dev_n = 0.0, 0   # 全程偏离冻结姿态(时间平均)
         for i in range(n):
             t_now = i * dt
             q, qd = self.q_like(), self.qd_like()
@@ -137,6 +138,10 @@ class Env:
                 self.d.xfrc_applied[:] = 0
             comz = self.d.subtree_com[1][2]
             in_air = self.d.qpos[2] > 0.0135
+            if task in ("travel", "gated") and t_now > 0.5:
+                sp = JumpControllerV2.STAND_POSE
+                pose_dev_sum += abs(q[3]-sp[0]) + abs(q[4]-sp[1]) + abs(q[5]-sp[2])
+                pose_dev_n += 1
             if in_air and t_now > 0.5:
                 if air_streak == 0:
                     pitch_at_lift = base_pitch(self.d)
@@ -155,6 +160,7 @@ class Env:
                 rec["contact"].append(not in_air)
                 rec["phase"].append(ctrl_.phase)
         apex_at = max(0.0, com_apex - 0.150) if registered else 0.0
+        pose_dev = (pose_dev_sum / max(1, pose_dev_n)) if pose_dev_n else 0.0
         disp = np.array([self.d.qpos[0] - self.x0, self.d.qpos[1] - self.y0])
         yaw = self.d.qpos[7]
         heading = np.array([np.cos(yaw), np.sin(yaw)])
@@ -166,6 +172,7 @@ class Env:
                          and np.abs(self.d.qvel).max() < 0.8)
         deform = (abs(qe[3] - sp1) + abs(qe[4] - sp2) + abs(qe[5] - JumpControllerV2.STAND_POSE[2]))
         info = dict(x_end=float(disp @ heading), apex_at=apex_at, air_t=air_t, flip_rot=flip_rot,
+                    pose_dev=pose_dev,
                     deform=deform, lamp_pose=lamp_pose, x_cmd=x_cmd,
                     hold_err=(hold_err_sum / max(1, hold_n)) if hold_n else 0.0,
                     n_push=len(self._pushes),
@@ -211,6 +218,7 @@ def reward_travel(info, ctrl=None):
     if _STAGE == "2":
         r -= 400.0 * max(0.0, info["flip_rot"] - 0.35)
         r -= 120.0 * min(info["deform"], 1.0)
+        r -= 500.0 * max(0.0, info.get("pose_dev", 0.0) - 0.15)   # 跳跃全程姿态贴近冻结姿态
     if info["apex_at"] > 1.0 or x > 3.0:
         return -500.0
     return r
