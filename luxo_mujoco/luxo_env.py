@@ -16,7 +16,7 @@ class LuxoJumpEnv(gym.Env):
         xml_path: str = "luxo_lamp.xml",
         frame_skip: int = 5,
         max_episode_steps: int = 800,
-        target_distance: float = 0.10,
+        target_distance: float = 0.05,
         render_mode: str | None = None,
     ):
         super().__init__()
@@ -152,6 +152,7 @@ class LuxoJumpEnv(gym.Env):
         self.max_air_z = self.last_z
         self.air_steps = 0
         self.landed_once = False
+        self.ground_z = self.last_z
 
         return self._get_obs(), {}
 
@@ -184,9 +185,10 @@ class LuxoJumpEnv(gym.Env):
         curr_dist = float(np.linalg.norm(base_pos - self.target_pos))
         r_approach = (prev_dist - curr_dist) * 8.0
 
-        # ---- Small forward-progress reward (do not let it dominate) -----------
+        # ---- Forward-progress reward: strongly encourage forward, penalize back --
         delta = base_pos - self.last_pos
-        r_forward = float(np.dot(delta, self.command)) * 3.0
+        dx = float(np.dot(delta, self.command))
+        r_forward = dx * 20.0 if dx > 0.0 else dx * 50.0
 
         # ---- Lift reward only while on the ground and capped ------------------
         dz = base_z - self.last_z
@@ -201,7 +203,7 @@ class LuxoJumpEnv(gym.Env):
             forward_vel = float(np.dot(base_lin[:2], self.command))
             r_takeoff = (
                 max(0.0, base_lin[2]) * 0.5          # upward velocity
-                + max(0.0, forward_vel) * 1.5        # forward velocity
+                + forward_vel * 5.0                  # forward (+) or backward (-)
             )
 
         # ---- Flight reward: stay low-ish, upright, and keep approaching target
@@ -224,12 +226,12 @@ class LuxoJumpEnv(gym.Env):
         # (>= 4 env steps and peak z >= 8 cm above settled base).
         r_landing = 0.0
         landed_stable = False
-        real_jump = self.air_steps >= 4 and (self.max_air_z - self.last_z) >= 0.06
+        real_jump = self.air_steps >= 4 and self.max_air_z >= self.ground_z + 0.06
         if just_landed:
             self.landed_once = True
             landing_error = float(np.linalg.norm(base_pos - self.target_pos))
             if real_jump:
-                r_landing = 15.0 - landing_error * 120.0        # +15 at target, 0 at 12.5 cm
+                r_landing = 10.0 - landing_error * 400.0        # +10 at target, 0 at 2.5 cm
                 if landing_error < 0.03:
                     r_landing += 8.0                            # bullseye bonus
                 elif landing_error < 0.05:
@@ -239,7 +241,7 @@ class LuxoJumpEnv(gym.Env):
                 r_landing -= float(np.linalg.norm(base_ang)) * 0.5
                 r_landing -= float(abs(base_lin[2])) * 3.0      # soft touchdown
                 # End the episode successfully if it lands close and stable.
-                if landing_error < 0.05 and upright > 0.92 and np.linalg.norm(base_lin) < 1.0:
+                if landing_error < 0.06 and upright > 0.85 and np.linalg.norm(base_lin) < 1.0:
                     landed_stable = True
             else:
                 # Tiny shuffle-jump: small penalty to force a real leap.

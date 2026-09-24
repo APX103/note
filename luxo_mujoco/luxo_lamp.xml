@@ -31,14 +31,14 @@
     <light directional="true" diffuse="0.6 0.6 0.6" specular="0.2 0.2 0.2" pos="2 2 4" dir="-0.3 -0.3 -1"/>
     <geom name="floor" type="plane" size="10 10 0.1" material="mat_floor"/>
 
-    <!-- Base: flat cylindrical foot that contacts the ground.
-         Radius ~16 cm, low profile (4 cm tall), heavy (2.5 kg) for stability. -->
-    <body name="base" pos="0 0 0.05">
+    <!-- Base: flat cylindrical foot. Wide (r=18 cm) and heavy (3.5 kg)
+         to give the lamp a stable landing platform. -->
+    <body name="base" pos="0 0 0.06">
       <freejoint name="base_free"/>
-      <geom name="base_geom" type="cylinder" size="0.16 0.02" material="mat_base" mass="2.5"/>
+      <geom name="base_geom" type="cylinder" size="0.18 0.025" material="mat_base" mass="3.5"/>
 
       <!-- Base yaw link: lets the arm rotate left/right while the base stays on the ground -->
-      <body name="base_yaw_link" pos="0 0 0.04">
+      <body name="base_yaw_link" pos="0 0 0.05">
         <inertial pos="0 0 0" mass="0.001" diaginertia="1e-6 1e-6 1e-6"/>
         <joint name="base_yaw" type="hinge" axis="0 0 1" pos="0 0 0" range="-3.1416 3.1416"/>
 
@@ -71,9 +71,9 @@
                 <!-- Frustum lampshade, attached at its side midpoint.
                      Mesh local: wide opening at z=0, narrow back at z=0.12.
                      Offset so the joint sits on the back-side surface at mid-height. -->
-                <geom name="shade_geom" type="mesh" mesh="shade_mesh" pos="0.06 0 -0.06" material="mat_head" density="800"/>
+                <geom name="shade_geom" type="mesh" mesh="shade_mesh" pos="0.06 0 -0.06" material="mat_head" density="300"/>
                 <!-- Bulb sits inside the shade, around mid-depth -->
-                <geom name="bulb_geom" type="sphere" size="0.035" pos="0.06 0 0.0" material="mat_bulb" density="800"/>
+                <geom name="bulb_geom" type="sphere" size="0.035" pos="0.06 0 0.0" material="mat_bulb" density="300"/>
 
                 <!-- Camera in the head, looking out of the wide opening (along local -z) -->
                 <camera name="head_camera" mode="fixed" pos="0.06 0 -0.04" euler="0 0 0" fovy="70"/>

@@ -20,10 +20,10 @@ XML = os.path.join(HERE, "lamp3d.xml")
 HOP2D = os.path.join(HERE, "..", "sim", "results", "cem_hop.json")
 
 BOUNDS = np.array([
-    [0.15, 1.00], [-3.00, -1.40], [-12.5, -2.0], [2.0, 12.5],
+    [0.15, 1.60], [0.80, 2.60], [-12.5, -2.0], [-12.5, -2.0],
     [0.0, 0.25], [0.0, 0.25], [0.0, 80.0], [0.0, 1.0],
-    [0.2, 1.2], [-2.6, -1.2], [0.4, 1.6], [0.45, 0.90],
-    [-0.60, -0.05], [0.20, 0.50], [0.0, 400.0], [0.0, 60.0], [-0.045, 0.045]])
+    [0.8, 2.40], [0.80, 2.40], [0.4, 1.6], [0.45, 0.90],
+    [0.10, 0.80], [0.20, 0.50], [0.0, 400.0], [0.0, 60.0], [-0.045, 0.045]])
 
 
 def base_pitch(d):
@@ -141,7 +141,8 @@ def reward_leap(info):
     x = max(0.0, info["x_end"])
     r = 600.0 * max(0.0, 1.0 - abs(x - 0.10) / 0.08) \
         + (120.0 if info["upright"] else 0.0) - (80.0 if info["fell"] else 0.0) \
-        - 30.0 * abs(info["pitch_end"]) + 8.0 * min(info["apex_at"], 0.05)
+        - 30.0 * abs(info["pitch_end"]) + 8.0 * min(info["apex_at"], 0.05) \
+        + (80.0 if info["air_t"] > 0.06 else 0.0) - (40.0 if info["air_t"] < 0.03 and x > 0.02 else 0.0)
     if info["apex_at"] > 1.0 or abs(info["x_end"]) > 3.0:
         return -500.0
     return r
@@ -168,13 +169,11 @@ def _worker_eval(args):
 def cem_leap(iters=60, pop=64, elites=12, seeds=3, workers=6, out=None, init=None, sig_scale=0.12):
     from multiprocessing import get_context
     lo, hi = BOUNDS[:, 0], BOUNDS[:, 1]
-    # 热启动: 2D hop 解
-    with open(HOP2D) as f:
-        p2d = np.array(list(json.load(f)["params"].values()))
-    if len(p2d) < 17:
-        p2d = np.r_[p2d, -0.005]
-    mu = np.array(init) if init is not None else p2d.copy()
-    sig = sig_scale * (hi - lo)
+    # 天鹅颈几何从头学(与旧折叠方向不兼容)
+    p0 = np.array([1.0, 1.8, -8.0, -8.0, 0.02, 0.08, 30.0, 0.3,
+                   1.2, 1.8, 0.8, 0.70, 0.30, 0.35, 200.0, 20.0, -0.005])
+    mu = np.array(init) if init is not None else p0
+    sig = 0.15 * (hi - lo)
     rng = np.random.default_rng(11)
     hist = []
     best = (-1e9, mu.copy())
