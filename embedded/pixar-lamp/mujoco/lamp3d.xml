@@ -112,7 +112,7 @@
 
   <keyframe>
     <!-- 站立: 下臂/上臂微前倾, 灯罩朝前下 -->
-    <key name="stand" qpos="0 0 0.011 1 0 0 0  0  -0.65 1.85 -0.35"/>
+    <key name="stand" qpos="0 0 0.011 1 0 0 0  0  -0.65 1.466 0.034"/>
     <key name="crouch" qpos="0 0 0.011 1 0 0 0  0  0.85 2.30 0.40"/>
   </keyframe>
 </mujoco>
