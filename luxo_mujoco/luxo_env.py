@@ -15,7 +15,7 @@ class LuxoJumpEnv(gym.Env):
         self,
         xml_path: str = "luxo_lamp.xml",
         frame_skip: int = 5,
-        max_episode_steps: int = 500,
+        max_episode_steps: int = 800,
         target_distance: float = 0.10,
         render_mode: str | None = None,
     ):

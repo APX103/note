@@ -31,15 +31,14 @@
     <light directional="true" diffuse="0.6 0.6 0.6" specular="0.2 0.2 0.2" pos="2 2 4" dir="-0.3 -0.3 -1"/>
     <geom name="floor" type="plane" size="10 10 0.1" material="mat_floor"/>
 
-    <!-- Base: the "foot" that contacts the ground.
-         Cylinder radius 0.15 m (~15 cm) matches the requested lamp-foot scale.
-         Mass is reduced from 4 kg to 1.5 kg so the whole lamp can actually jump. -->
-    <body name="base" pos="0 0 0.06">
+    <!-- Base: flat cylindrical foot that contacts the ground.
+         Radius ~16 cm, low profile (4 cm tall), heavy (2.5 kg) for stability. -->
+    <body name="base" pos="0 0 0.05">
       <freejoint name="base_free"/>
-      <geom name="base_geom" type="cylinder" size="0.15 0.025" material="mat_base" mass="2.0"/>
+      <geom name="base_geom" type="cylinder" size="0.16 0.02" material="mat_base" mass="2.5"/>
 
       <!-- Base yaw link: lets the arm rotate left/right while the base stays on the ground -->
-      <body name="base_yaw_link" pos="0 0 0.05">
+      <body name="base_yaw_link" pos="0 0 0.04">
         <inertial pos="0 0 0" mass="0.001" diaginertia="1e-6 1e-6 1e-6"/>
         <joint name="base_yaw" type="hinge" axis="0 0 1" pos="0 0 0" range="-3.1416 3.1416"/>
 
