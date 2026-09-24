@@ -1,0 +1,14 @@
+[leap] it00 best= -30.10 mu= -35.11 apex_at=  0.0cm v_to=+0.05 x=+0.30 upright=False
+[leap] it01 best= -28.53 mu= -34.94 apex_at=  0.1cm v_to=+0.12 x=+0.32 upright=False
+[leap] it02 best= -29.80 mu= -33.11 apex_at=  0.1cm v_to=+0.14 x=+0.31 upright=False
+[leap] it03 best= -28.17 mu= -30.35 apex_at=  0.1cm v_to=+0.13 x=+0.31 upright=False
+[leap] it04 best= -28.04 mu= -28.87 apex_at=  0.0cm v_to=+0.05 x=+0.33 upright=False
+[leap] it05 best= -28.28 mu= -28.85 apex_at=  0.0cm v_to=+0.03 x=+0.32 upright=False
+[leap] it06 best= -27.56 mu= -28.76 apex_at=  0.0cm v_to=+0.02 x=+0.33 upright=False
+[leap] it07 best= -27.71 mu= -28.38 apex_at=  0.0cm v_to=+0.03 x=+0.33 upright=False
+[leap] it08 best= -28.40 mu= -28.40 apex_at=  0.1cm v_to=+0.11 x=+0.31 upright=False
+[leap] it09 best= -28.51 mu= -29.21 apex_at=  0.0cm v_to=+0.06 x=+0.32 upright=False
+[leap] it10 best= -26.97 mu= -29.03 apex_at=  0.0cm v_to=+0.06 x=+0.33 upright=False
+[leap] it11 best= -27.53 mu= -28.51 apex_at=  0.0cm v_to=+0.01 x=+0.33 upright=False
+/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/multiprocessing/resource_tracker.py:216: UserWarning: resource_tracker: There appear to be 6 leaked semaphore objects to clean up at shutdown
+  warnings.warn('resource_tracker: There appear to be %d '

@@ -1,0 +1,118 @@
+<mujoco model="pixar_lamp3d">
+  <!-- 圆片底盘 + 双连杆 + 圆台灯罩；质量预算与 2D 方案一致(总 1.291 kg) -->
+  <compiler angle="radian" coordinate="local" meshdir="."/>
+
+  <option timestep="0.001" gravity="0 0 -9.81" solver="Newton" iterations="50"/>
+
+  <visual>
+    <global offwidth="960" offheight="720"/>
+    <headlight ambient="0.25 0.25 0.28" diffuse="0.7 0.7 0.72"/>
+  </visual>
+
+  <asset>
+    <texture type="skybox" builtin="gradient" rgb1="0.16 0.16 0.22" rgb2="0.26 0.27 0.35" width="256" height="256"/>
+    <texture name="tex_floor" type="2d" builtin="checker" rgb1="0.13 0.13 0.16" rgb2="0.17 0.17 0.21"
+             width="512" height="512"/>
+    <material name="mat_floor" texture="tex_floor" texrepeat="6 6" specular="0.05" shininess="0.1"/>
+    <material name="mat_body" rgba="0.13 0.13 0.16 1" specular="0.25" shininess="0.35"/>
+    <material name="mat_chrome" rgba="0.72 0.76 0.84 1" specular="0.85" shininess="0.75"/>
+    <material name="mat_spring" rgba="0.06 0.72 0.51 1" specular="0.3" shininess="0.3"/>
+    <mesh name="frustum" file="frustum.obj"/>
+    <material name="mat_bulb" rgba="1.0 0.86 0.62 1" emission="0.9" specular="0.1"/>
+  </asset>
+
+  <default>
+    <joint damping="0.05" armature="0.001" limited="true"/>
+    <geom contype="1" conaffinity="1" friction="0.65 0.01 0.01" condim="3"
+          solref="0.004 1" solimp="0.92 0.99 0.001"/>
+    <motor ctrllimited="true" ctrlrange="-12.5 12.5"/>
+  </default>
+
+  <worldbody>
+    <light directional="true" diffuse="0.55 0.55 0.6" specular="0.25 0.25 0.28" pos="1.5 2 3" dir="-0.25 -0.35 -1"/>
+    <light directional="true" diffuse="0.25 0.25 0.3" specular="0.1 0.1 0.12" pos="-2 -1 2.5" dir="0.3 0.2 -1"/>
+    <geom name="floor" type="plane" size="4 4 0.05" material="mat_floor"/>
+    <camera name="side" pos="0 -1.55 0.42" xyaxes="1 0 0 0 0 1" fovy="41"/>
+    <camera name="corner" pos="-1.0 -1.3 0.75" xyaxes="0.75 0.55 0 0.06 -0.08 1" fovy="40"/>
+    <camera name="top" pos="0.15 -0.25 1.35" xyaxes="1 0 0 0 1 0.25" fovy="40"/>
+
+    <!-- ============ 底盘: 圆片(超扁圆柱) + 中央立柱(肩电机舱) ============ -->
+    <body name="base" pos="0 0 0.011">
+      <freejoint name="root"/>
+      <geom name="disc" type="cylinder" size="0.15 0.011" pos="0 0 0" material="mat_body"/>
+      <geom name="rim" type="cylinder" size="0.1515 0.007" pos="0 0 0" material="mat_chrome"/>
+      <geom name="stem" type="cylinder" size="0.024 0.026" pos="0 0 0.037" material="mat_chrome"/>
+      <inertial pos="0 0 0.026" mass="0.702" diaginertia="0.0041 0.0041 0.0079"/>
+      <site name="imu_site" pos="0 0 0.05" type="sphere" size="0.003" rgba="0 0 0 0"/>
+
+      <!-- 偏航(yaw): 底盘中心 Z 轴旋转 —— 全向移动的航向自由度 -->
+      <body name="yaw_link" pos="0 0 0.063">
+        <inertial pos="0 0 0" mass="0.02" diaginertia="5e-6 5e-6 8e-6"/>
+        <joint name="yaw" type="hinge" axis="0 0 1" pos="0 0 0" range="-3.1416 3.1416"
+               damping="0.3" armature="0.004"/>
+
+        <!-- 肩关节 pitch: 下连杆接底盘中心立柱顶端 -->
+        <body name="lower_arm" pos="0 0 0">
+          <joint name="th1" type="hinge" axis="0 1 0" pos="0 0 0" range="-1.35 1.75"
+                 springref="0" stiffness="1.5" frictionloss="0.15"/>
+          <geom name="lower_cap" type="capsule" fromto="0 0 0 0 0 0.170" size="0.0115" material="mat_body"
+                mass="0.060" density="0"/>
+          <geom name="elbow_motor" type="cylinder" size="0.017 0.020" euler="1.5708 0 0"
+                pos="0 0 0.170" material="mat_body" density="0" mass="0.317"/>
+          <!-- 平衡弹簧(视觉): 沿下连杆的绿色拉簧 -->
+          <geom name="spring_vis" type="capsule" fromto="0.012 0.020 0.030 0.012 0.020 0.140"
+                size="0.0028" material="mat_spring" contype="0" conaffinity="0" density="0"/>
+          <inertial pos="0 0 0.157" mass="0.377" diaginertia="7.5e-4 7.5e-4 2.5e-4"/>
+
+          <!-- 肘关节 pitch -->
+          <body name="upper_arm" pos="0 0 0.170">
+            <joint name="th2" type="hinge" axis="0 1 0" pos="0 0 0" range="-3.0 0.05"
+                   springref="0" stiffness="1.5" frictionloss="0.15"/>
+            <geom name="upper_cap" type="capsule" fromto="0 0 0.008 0 0 0.160" size="0.0095"
+                  material="mat_body" mass="0.060" density="0"/>
+            <geom name="neck_servo" type="cylinder" size="0.012 0.012" euler="0 1.5708 0"
+                  pos="0 0 0.160" material="mat_body" density="0" mass="0.040"/>
+            <inertial pos="0 0 0.112" mass="0.100" diaginertia="3.4e-4 3.4e-4 6e-5"/>
+
+            <!-- 颈关节 pitch: 上连杆顶端接圆台侧面 -->
+            <body name="head" pos="0 0 0.160">
+              <joint name="th3" type="hinge" axis="0 1 0" pos="0 0 0" range="-1.8 1.2"
+                     springref="-0.30" stiffness="0.05" frictionloss="0.05" damping="0.02"/>
+              <!-- 圆台灯罩: 背面接颈, 罩口朝 +x; 摄像头藏在罩口内 -->
+              <geom name="shade" type="mesh" mesh="frustum" pos="-0.012 0 0.010" euler="0 0.15 0"
+                    material="mat_body" density="0" mass="0.082"/>
+              <geom name="lens_ring" type="cylinder" size="0.046 0.004" euler="0 1.5708 0"
+                    pos="0.089 0 0.0095" material="mat_bulb" contype="0" conaffinity="0" density="0"/>
+              <geom name="camera_lens" type="cylinder" size="0.009 0.008" euler="0 1.5708 0"
+                    pos="0.052 0 0.009" rgba="0.95 0.42 0.10 1" contype="0" conaffinity="0" density="0"/>
+              <camera name="head_cam" mode="fixed" pos="0.060 0 0.009" euler="0 1.5708 0" fovy="72"/>
+              <inertial pos="0.030 0 0.012" mass="0.112" diaginertia="1.6e-4 1.5e-4 2.0e-4"/>
+            </body>
+          </body>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+
+  <contact>
+    <exclude body1="base" body2="lower_arm"/>
+    <exclude body1="lower_arm" body2="upper_arm"/>
+    <exclude body1="upper_arm" body2="head"/>
+    <exclude body1="base" body2="upper_arm"/>
+    <exclude body1="lower_arm" body2="head"/>
+  </contact>
+
+  <actuator>
+    <motor joint="th1" name="m1" gear="1" ctrlrange="-12.5 12.5"/>
+    <motor joint="th2" name="m2" gear="1" ctrlrange="-12.5 12.5"/>
+    <motor joint="th3" name="m3" gear="1" ctrlrange="-1.2 1.2"/>
+    <position joint="yaw" name="myaw" kp="30" kv="6" ctrlrange="-3.1416 3.1416"/>
+  </actuator>
+
+
+  <keyframe>
+    <!-- 站立: 下臂/上臂微前倾, 灯罩朝前下 -->
+    <key name="stand" qpos="0 0 0.011 1 0 0 0  0  0.12 -0.22 -0.30"/>
+    <key name="crouch" qpos="0 0 0.011 1 0 0 0  0  0.55 -2.60 -0.30"/>
+  </keyframe>
+</mujoco>

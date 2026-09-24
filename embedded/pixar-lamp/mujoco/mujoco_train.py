@@ -1,0 +1,218 @@
+# -*- coding: utf-8 -*-
+"""
+MuJoCo 3D 训练：圆片底盘 + 双连杆 + 圆台灯罩 的向前跳。
+复用 2D 阶段的 JumpControllerV2(结构化策略)与参数空间，物理引擎换成 MuJoCo，
+以 2D 训练结果热启动。 运行: 用 luxo_mujoco/.venv 的 python。
+"""
+import json
+import os
+import sys
+import time
+import numpy as np
+
+import mujoco
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(HERE, "..", "sim"))
+from lamp_sim import JumpControllerV2  # noqa: E402
+
+XML = os.path.join(HERE, "lamp3d.xml")
+HOP2D = os.path.join(HERE, "..", "sim", "results", "cem_hop.json")
+
+BOUNDS = np.array([
+    [0.15, 1.00], [-3.00, -1.40], [-12.5, -2.0], [2.0, 12.5],
+    [0.0, 0.25], [0.0, 0.25], [0.0, 80.0], [0.0, 1.0],
+    [0.2, 1.2], [-2.6, -1.2], [0.4, 1.6], [0.45, 0.90],
+    [-0.60, -0.05], [0.20, 0.50], [0.0, 400.0], [0.0, 60.0], [-0.045, 0.045]])
+
+
+def base_pitch(d):
+    w, x, y, z = d.qpos[3:7]
+    return np.arctan2(2 * (w * y + z * x), 1 - 2 * (y * y + x * x))
+
+
+class Env:
+    """MuJoCo 环境适配器: 暴露 JumpControllerV2 需要的最小接口。"""
+
+    def __init__(self, seed=0):
+        self.m = mujoco.MjModel.from_xml_path(XML)
+        self.d = mujoco.MjData(self.m)
+        self.rng = np.random.default_rng(seed)
+        self.kp = np.array([60.0, 60.0, 2.0])
+        self.kd = np.array([3.0, 3.0, 0.1])
+        self.dt = self.m.opt.timestep
+        self.stand_com = None
+
+    def q_like(self):
+        """[x, y, phi, th1, th2, th3] + 关节角速度, 供控制器使用。"""
+        q = np.array([self.d.qpos[0], self.d.qpos[2], base_pitch(self.d),
+                      self.d.qpos[8], self.d.qpos[9], self.d.qpos[10]])
+        return q
+
+    def qd_like(self):
+        qd = np.zeros(6)
+        qd[0], qd[1] = self.d.qvel[0], self.d.qvel[2]
+        qd[2] = self.d.qvel[4]
+        qd[3:] = self.d.qvel[7:10]
+        return qd
+
+    def com_pos(self, q):
+        com = self.d.subtree_com[1]
+        return np.array([com[0], com[2]])   # 绝对坐标(控制器内部再减底盘位置)
+
+    def com_vel(self, q, qd):
+        v = self.d.subtree_linvel[1]
+        return np.array([v[0], v[2]])
+
+    def reset(self, crouch_noise=0.03):
+        mujoco.mj_resetDataKeyframe(self.m, self.d, 0)
+        self.d.qpos[8] += self.rng.normal(0, crouch_noise)
+        self.d.qpos[9] += self.rng.normal(0, crouch_noise * 1.5)
+        mujoco.mj_forward(self.m, self.d)
+
+    def run(self, p, T=4.6, record=False):
+        ctrl_ = JumpControllerV2(np.asarray(p, float))
+        self.reset()
+        dt = self.m.opt.timestep
+        n = int(T / dt)
+        rec = dict(t=[], q=[], com=[], contact=[], phase=[]) if record else None
+        # 指标
+        mujoco.mj_forward(self.m, self.d)
+        com0z = None
+        apex_air = 0.0
+        air_streak = 0
+        registered = False
+        in_air_prev = False
+        air_t = 0.0
+        com_apex = -9.9
+        for i in range(n):
+            q = self.q_like(); qd = self.qd_like()
+            contact = self.d.ncon > 0 and any(
+                self.d.contact[k].geom1 == 0 or self.d.contact[k].geom2 == 0 for k in range(self.d.ncon))
+            tau, kd = ctrl_(i * dt, q, qd, contact, self)
+            self.d.ctrl[0] = np.clip(tau[0] - kd[0] * qd[3], -12.5, 12.5)
+            self.d.ctrl[1] = np.clip(tau[1] - kd[1] * qd[4], -12.5, 12.5)
+            self.d.ctrl[2] = np.clip(tau[2] - kd[2] * qd[5], -1.2, 1.2)
+            self.d.ctrl[3] = 0.0
+            mujoco.mj_step(self.m, self.d)
+            comz = self.d.subtree_com[1][2]
+            in_air = self.d.qpos[2] > 0.0135
+            if in_air:
+                air_streak += 1
+                if air_streak * dt > 0.02:
+                    if not registered:
+                        registered = True
+                    air_t += dt
+                    com_apex = max(com_apex, comz)
+            else:
+                air_streak = 0
+            if record and i % 8 == 0:
+                rec["t"].append(i * dt)
+                rec["q"].append(self.q_like().tolist())
+                rec["com"].append([self.d.subtree_com[1][0], comz])
+                rec["contact"].append(not in_air)
+                rec["phase"].append(ctrl_.phase)
+        apex_at = max(0.0, com_apex - 0.150) if registered else 0.0   # 相对站立COM抬升
+        qe = self.q_like()
+        upright = bool(abs(base_pitch(self.d)) < 0.30 and not in_air
+                       and abs(qe[3] - 0.12) < 0.45 and abs(qe[4] + 0.22) < 0.45)
+        fell = bool(abs(base_pitch(self.d)) > 1.2)
+        info = dict(x_end=float(self.d.qpos[0]), apex_at=apex_at, air_t=air_t,
+                    upright=upright, fell=fell, phase_end=ctrl_.phase,
+                    pitch_end=float(base_pitch(self.d)))
+        if record:
+            info["rec"] = rec
+        return info
+
+
+def reward_leap(info):
+    # 目标: 单跳 10-15cm 的轻跳 + 直立落地; 超过 25cm 判过跳(罚), 蹲滑无奖励
+    x = max(0.0, info["x_end"])
+    r = 400.0 * min(x, 0.15) - 300.0 * max(0.0, x - 0.25) \
+        + (100.0 if info["upright"] else 0.0) - (80.0 if info["fell"] else 0.0) \
+        - 25.0 * abs(info["pitch_end"]) + 15.0 * min(info["apex_at"], 0.08)
+    if info["apex_at"] > 1.0 or abs(info["x_end"]) > 3.0:
+        return -500.0
+    return r
+
+
+_G = {}
+
+
+def _worker_init():
+    np.seterr(all="ignore")
+    _G["env"] = Env()
+
+
+def _worker_eval(args):
+    p, seed = args
+    try:
+        env = _G["env"]
+        info = env.run(p)
+        return reward_leap(info), info
+    except Exception:
+        return -500.0, None
+
+
+def cem_leap(iters=60, pop=64, elites=12, seeds=3, workers=6, out=None, init=None, sig_scale=0.12):
+    from multiprocessing import get_context
+    lo, hi = BOUNDS[:, 0], BOUNDS[:, 1]
+    # 热启动: 2D hop 解
+    with open(HOP2D) as f:
+        p2d = np.array(list(json.load(f)["params"].values()))
+    if len(p2d) < 17:
+        p2d = np.r_[p2d, -0.005]
+    mu = np.array(init) if init is not None else p2d.copy()
+    sig = sig_scale * (hi - lo)
+    rng = np.random.default_rng(11)
+    hist = []
+    best = (-1e9, mu.copy())
+    t0 = time.time()
+    ctx = get_context("spawn")
+    with ctx.Pool(workers, initializer=_worker_init) as pool:
+        for it in range(iters):
+            cand = np.clip(mu + sig * rng.standard_normal((pop - 1, len(mu))), lo, hi)
+            batch = [(p, s) for p in cand for s in range(seeds)] + [(mu, s) for s in range(seeds)]
+            rs = pool.map(_worker_eval, batch)
+            scores = np.array([r for r, _ in rs])
+            cand_sc = scores[:-seeds].reshape(pop - 1, seeds).mean(1)
+            mu_sc = scores[-seeds:].mean()
+            order = np.argsort(-cand_sc)[:elites]
+            ep = cand[order]
+            mu = np.clip(ep.mean(0), lo, hi)
+            sig = np.clip(ep.std(0) + 0.02 * (hi - lo), 0.02 * (hi - lo), 0.5 * (hi - lo))
+            bi = int(order[0]) if cand_sc.max() >= mu_sc else -1
+            bp = cand[bi] if bi >= 0 else mu.copy()
+            _, binfo = _G_bench(bp)
+            if cand_sc.max() >= mu_sc and cand_sc[bi] > best[0]:
+                best = (cand_sc[bi], bp.copy())
+            hist.append(dict(iter=it, best=float(max(cand_sc.max(), mu_sc)), mu=float(mu_sc),
+                             info={k: binfo[k] for k in ("x_end", "apex_at", "upright", "air_t")}))
+            print(f"[mj-leap] it{it:02d} best={max(cand_sc.max(), mu_sc):7.2f} mu={mu_sc:7.2f} "
+                  f"x={binfo['x_end']:+.3f} apex={binfo['apex_at']*100:5.1f}cm upright={binfo['upright']}",
+                  flush=True)
+    # 最终: 均值 vs 历史最优
+    env = Env()
+    r_mu = reward_leap(env.run(mu))
+    r_best = reward_leap(env.run(best[1]))
+    use_best = r_best > r_mu
+    final_p = best[1] if use_best else mu
+    info = env.run(final_p, record=True)
+    data = dict(params=final_p.tolist(), reward=max(r_mu, r_best), info={k: v for k, v in info.items() if k != "rec"},
+                rec=info["rec"], history=hist, wall_s=time.time() - t0,
+                note=f"MuJoCo 3D leap; 2D热启动; final={'best' if use_best else 'mu'}")
+    out = out or os.path.join(HERE, "results", "mj_leap.json")
+    os.makedirs(os.path.dirname(out), exist_ok=True)
+    with open(out, "w") as f:
+        json.dump(data, f)
+    print(f"saved -> {out} | x_end={info['x_end']:+.3f} apex={info['apex_at']*100:.1f}cm upright={info['upright']}")
+
+
+def _G_bench(p):
+    env = _G.get("env") or Env()
+    return 0.0, env.run(p, T=2.6)
+
+
+if __name__ == "__main__":
+    iters = int(sys.argv[1]) if len(sys.argv) > 1 else 45
+    cem_leap(iters=iters)
