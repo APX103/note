@@ -36,10 +36,8 @@ embedded/magic-wand/wakenet/data/
 .v2c/
 .video_agent/
 
-# luxo_mujoco: 虚拟环境与 PPO 检查点(可再生)
-luxo_mujoco/.venv/
-luxo_mujoco/models/
-luxo_mujoco/__pycache__/
+# luxo_mujoco: 本地训练产物与可再生资源
+luxo_mujoco/
 
 # pixar-lamp: 渲染中间帧(可由 mujoco_render.py 重新生成)
 embedded/pixar-lamp/mujoco/results/frames/

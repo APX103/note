@@ -76,15 +76,12 @@ class LuxoJumpEnv(gym.Env):
             self.renderer = None
 
     def _base_contact(self) -> float:
-        """Return 1.0 if the base geom is touching the floor, else 0.0."""
-        floor_id = self.model.geom("floor").id
-        base_id = self.model.geom("base_geom").id
-        for i in range(self.data.ncon):
-            c = self.data.contact[i]
-            if (c.geom1 == floor_id and c.geom2 == base_id) or \
-               (c.geom2 == floor_id and c.geom1 == base_id):
-                return 1.0
-        return 0.0
+        """
+        Return 1.0 if the base is near the ground.
+        The base is now a flat cylinder of half-height 0.025; when settled
+        the base body z is about 0.075.  Use a threshold a few cm above that.
+        """
+        return 1.0 if self.data.qpos[2] < 0.12 else 0.0
 
     def _get_obs(self) -> np.ndarray:
         q = self.data.qpos
@@ -131,11 +128,15 @@ class LuxoJumpEnv(gym.Env):
         # Fixed forward-jump command for this training phase.
         self.command = np.array([1.0, 0.0], dtype=np.float32)
 
-        # Hold the home pose with the actuators so the lamp drops and settles
-        # elastically, like a position-controlled joint "locking" into place.
-        home_ctrl = self.data.qpos[self.base_qpos_offset : self.base_qpos_offset + self.n_actuated].copy()
-        self.data.ctrl[:] = home_ctrl
-        for _ in range(40):
+        # With torque motors, use a PD controller to hold the home pose while
+        # the lamp drops and settles elastically on the floor.
+        home_q = self.data.qpos[self.base_qpos_offset : self.base_qpos_offset + self.n_actuated].copy()
+        kp_hold = 120.0
+        kv_hold = 12.0
+        for _ in range(80):
+            current_q = self.data.qpos[self.base_qpos_offset : self.base_qpos_offset + self.n_actuated]
+            current_v = self.data.qvel[self.base_qvel_offset : self.base_qvel_offset + self.n_actuated]
+            self.data.ctrl[:] = kp_hold * (home_q - current_q) - kv_hold * current_v
             mujoco.mj_step(self.model, self.data)
 
         # Record the actual starting position after settling.
@@ -153,6 +154,7 @@ class LuxoJumpEnv(gym.Env):
         self.air_steps = 0
         self.landed_once = False
         self.ground_z = self.last_z
+        self.low_upright_steps = 0
 
         return self._get_obs(), {}
 
@@ -179,90 +181,97 @@ class LuxoJumpEnv(gym.Env):
         just_took_off = (self.prev_contact == 1.0 and contact == 0.0)
         just_landed = (self.prev_contact == 0.0 and contact == 1.0)
 
-        # ---- Potential-based target-approach reward -------------------------
-        # Dense signal that pulls the base toward the 10 cm landing target.
-        prev_dist = float(np.linalg.norm(self.last_pos - self.target_pos))
-        curr_dist = float(np.linalg.norm(base_pos - self.target_pos))
-        r_approach = (prev_dist - curr_dist) * 8.0
-
-        # ---- Forward-progress reward: strongly encourage forward, penalize back --
-        delta = base_pos - self.last_pos
-        dx = float(np.dot(delta, self.command))
-        r_forward = dx * 20.0 if dx > 0.0 else dx * 50.0
-
-        # ---- Lift reward only while on the ground and capped ------------------
-        dz = base_z - self.last_z
-        r_lift = max(0.0, dz) * 5.0 if contact == 1.0 else 0.0
-
-        # ---- Takeoff event: modest bonus; too much makes it overshoot ---------
-        r_takeoff = 0.0
-        if just_took_off:
-            self.takeoff_vel = base_lin.copy()
-            self.air_steps = 0
-            self.max_air_z = base_z
-            forward_vel = float(np.dot(base_lin[:2], self.command))
-            r_takeoff = (
-                max(0.0, base_lin[2]) * 0.5          # upward velocity
-                + forward_vel * 5.0                  # forward (+) or backward (-)
-            )
-
-        # ---- Flight reward: stay low-ish, upright, and keep approaching target
-        r_flight = 0.0
+        # Update flight bookkeeping.
         if contact == 0.0:
             self.air_steps += 1
             self.max_air_z = max(self.max_air_z, base_z)
-            r_flight += 0.05                                    # tiny airborne bonus
-            r_flight += max(0.0, np.dot(base_lin[:2], self.command)) * 0.5
-            # Strongly discourage wasting energy on excessive height.
-            r_flight -= max(0.0, (base_z - 0.12)) * 8.0
-            # Penalize overshooting the target while still in the air.
-            along_target = float(np.dot(base_pos - self.target_pos, self.command))
-            r_flight -= max(0.0, along_target - 0.03) * 5.0
-            r_flight -= max(0.0, (1.0 - upright)) * 2.0         # tilt penalty
-            r_flight -= float(np.linalg.norm(base_ang)) * 0.2   # spin penalty
 
-        # ---- Landing event: the dominant reward. -----------------------------
-        # Only count a landing if the lamp has genuinely been airborne
-        # (>= 4 env steps and peak z >= 8 cm above settled base).
+        # ------------------------------------------------------------------
+        # Reward design (v5): landing accuracy is everything.
+        # The agent already knows how to jump; now it must land on target.
+        # ------------------------------------------------------------------
+
+        # 1) Time pressure: do not dither forever.
+        r_alive = -0.02
+        r_upright = upright * 0.2
+
+        # 2) Tiny upward-velocity reward only while airborne (no ground bounce-hack).
+        r_upward = 0.0
+        if contact == 0.0:
+            r_upward += max(0.0, base_lin[2]) * 0.2
+
+        # 3) Strong penalty for excessive jump height.
+        r_peak = -max(0.0, self.max_air_z - self.ground_z - 0.08) * 10.0
+
+        # 4) Forward guidance while airborne: reward velocity toward target,
+        #    penalize overshooting past it.
+        r_forward = 0.0
+        if self.target_distance > 0.01:
+            if contact == 0.0:
+                forward_vel = float(np.dot(base_lin[:2], self.command))
+                along = float(np.dot(base_pos - self.target_pos, self.command))
+                if along > 0.0:
+                    # Still approaching target.
+                    r_forward += max(0.0, forward_vel) * 2.0
+                else:
+                    # Overshot: penalize any additional forward velocity.
+                    r_forward -= max(0.0, forward_vel) * 5.0
+        else:
+            # Jump-in-place phase: reward peak height and penalize drift.
+            drift = float(np.linalg.norm(base_pos - self.start_pos))
+            r_forward -= drift * 1.0
+
+        # 5) Small airtime bonus, but flight should be short.
+        r_air = 0.0
+        if contact == 0.0:
+            r_air += 0.1
+            r_air -= max(0.0, (base_z - 0.20)) * 10.0
+            r_air -= max(0.0, (1.0 - upright)) * 1.0
+            r_air -= float(np.linalg.norm(base_ang)) * 0.1
+
+        # 6) Takeoff event: modest bonus for leaving ground, mainly forward aim.
+        r_takeoff = 0.0
+        if just_took_off:
+            self.takeoff_vel = base_lin.copy()
+            forward_vel = float(np.dot(base_lin[:2], self.command))
+            upward_vel = float(base_lin[2])
+            r_takeoff = max(0.0, upward_vel) * 0.2 + max(0.0, forward_vel) * 3.0
+
+        # 7) Landing event: the dominant reward.
         r_landing = 0.0
         landed_stable = False
-        real_jump = self.air_steps >= 4 and self.max_air_z >= self.ground_z + 0.06
+        real_jump = self.air_steps >= 3 and self.max_air_z >= self.ground_z + 0.03
         if just_landed:
             self.landed_once = True
             landing_error = float(np.linalg.norm(base_pos - self.target_pos))
             if real_jump:
-                r_landing = 10.0 - landing_error * 400.0        # +10 at target, 0 at 2.5 cm
+                # +80 at target, zero at ~5.3 cm error.
+                r_landing = 80.0 - landing_error * 1500.0
                 if landing_error < 0.03:
-                    r_landing += 8.0                            # bullseye bonus
+                    r_landing += 40.0
                 elif landing_error < 0.05:
-                    r_landing += 3.0
-                r_landing += max(0.0, self.max_air_z - 0.10) * 2.0  # reward a genuine leap
-                r_landing += upright * 3.0                      # upright bonus
-                r_landing -= float(np.linalg.norm(base_ang)) * 0.5
-                r_landing -= float(abs(base_lin[2])) * 3.0      # soft touchdown
-                # End the episode successfully if it lands close and stable.
-                if landing_error < 0.06 and upright > 0.85 and np.linalg.norm(base_lin) < 1.0:
+                    r_landing += 15.0
+                r_landing += upright * 8.0
+                r_landing -= float(np.linalg.norm(base_ang)) * 1.0
+                r_landing -= float(abs(base_lin[2])) * 5.0
+                # Success: landed close, upright, and nearly still.
+                if landing_error < 0.06 and upright > 0.75 and np.linalg.norm(base_lin) < 2.0:
                     landed_stable = True
             else:
-                # Tiny shuffle-jump: small penalty to force a real leap.
-                r_landing = -2.0
+                r_landing = -5.0
 
-        # ---- Post-landing stability reward -----------------------------------
-        # After a real jump, reward staying upright and close to the target.
+        # 8) Post-landing stability.
         r_stable = 0.0
         if self.landed_once and real_jump and contact == 1.0:
-            r_stable += upright * 1.0
             landing_error = float(np.linalg.norm(base_pos - self.target_pos))
-            r_stable -= landing_error * 2.0
-            r_stable -= float(np.linalg.norm(base_ang)) * 0.2
+            r_stable += upright * 0.5
+            r_stable -= landing_error * 1.0
+            r_stable -= float(np.linalg.norm(base_ang)) * 0.1
 
-        # ---- Upright bonus/penalty throughout the episode ---------------------
-        r_upright = (upright - 1.0) * 1.5
+        # 9) Keep head joints near neutral.
+        r_yaw = -abs(jnt_pos[0]) * 0.1 - abs(jnt_pos[4]) * 0.1
 
-        # ---- Keep unused yaw joints quiet ------------------------------------
-        r_yaw = -abs(jnt_pos[0]) * 0.4 - abs(jnt_pos[4]) * 0.4
-
-        # ---- Regularization --------------------------------------------------
+        # 10) Regularization.
         r_energy = -np.sum(np.square(action)) * 0.005
         r_smooth = -np.sum(np.square(action - self.last_action)) * 0.03
 
@@ -271,20 +280,27 @@ class LuxoJumpEnv(gym.Env):
         self.last_z = base_z
         self.prev_contact = contact
 
+        # Track consecutive low-upright steps for termination.
+        if upright < 0.15:
+            self.low_upright_steps += 1
+        else:
+            self.low_upright_steps = 0
+
         reward = float(
-            r_approach + r_forward + r_lift + r_takeoff + r_flight + r_landing
-            + r_stable + r_upright + r_yaw + r_energy + r_smooth
+            r_alive + r_upright + r_upward + r_peak + r_forward + r_air + r_takeoff + r_landing
+            + r_stable + r_yaw + r_energy + r_smooth
         )
 
         # ---- Termination conditions ------------------------------------------
         terminated = False
         truncated = False
-        if base_z < 0.01 or base_z > 1.2 or not np.isfinite(base_z):
+        # Flat base settles around z=0.024; allow a little penetration.
+        if base_z < 0.015 or base_z > 1.5 or not np.isfinite(base_z):
             terminated = True
-        # Fallen over: base z-axis nearly horizontal or pointing down.
-        if upright < 0.25:
+        # Only terminate if the lamp has been clearly fallen for a while.
+        if self.low_upright_steps >= 15:
             terminated = True
-        # Successful landing: within 5 cm, upright, and staying still.
+        # Successful landing ends the episode early as a clear win.
         if landed_stable:
             truncated = True
 
@@ -292,14 +308,15 @@ class LuxoJumpEnv(gym.Env):
             truncated = True
 
         info = {
-            "r_approach": r_approach,
+            "r_alive": r_alive,
+            "r_upright": r_upright,
+            "r_upward": r_upward,
+            "r_peak": r_peak,
             "r_forward": r_forward,
-            "r_lift": r_lift,
+            "r_air": r_air,
             "r_takeoff": r_takeoff,
-            "r_flight": r_flight,
             "r_landing": r_landing,
             "r_stable": r_stable,
-            "r_upright": r_upright,
             "r_yaw": r_yaw,
             "r_energy": r_energy,
             "r_smooth": r_smooth,

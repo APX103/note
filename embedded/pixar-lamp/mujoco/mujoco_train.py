@@ -17,6 +17,8 @@ sys.path.insert(0, os.path.join(HERE, "..", "sim"))
 from lamp_sim import JumpControllerV2  # noqa: E402
 
 XML = os.path.join(HERE, "lamp3d.xml")
+RESULTS = os.path.join(HERE, "results")
+os.makedirs(RESULTS, exist_ok=True)
 HOP2D = os.path.join(HERE, "..", "sim", "results", "cem_hop.json")
 
 BOUNDS = np.array([
@@ -77,8 +79,14 @@ class Env:
         self.d.qpos[2] += hover + self.rng.normal(0, 0.006)
         mujoco.mj_forward(self.m, self.d)
 
-    def run(self, p, T=4.6, record=False):
-        ctrl_ = JumpControllerV2(np.asarray(p, float))
+    def run(self, p, T=None, record=False, task="leap"):
+        if task == "travel":
+            ctrl_ = JumpControllerV2(np.asarray(p, float), repeat=True, stop_t=4.2)
+            T = T or 6.5
+        else:
+            ctrl_ = JumpControllerV2(np.asarray(p, float))
+            T = T or 4.6
+        self._last_ctrl = ctrl_
         self.reset()
         dt = self.m.opt.timestep
         n = int(T / dt)
@@ -104,7 +112,7 @@ class Env:
             mujoco.mj_step(self.m, self.d)
             comz = self.d.subtree_com[1][2]
             in_air = self.d.qpos[2] > 0.0135
-            if in_air:
+            if in_air and i * dt > 0.5:
                 air_streak += 1
                 if air_streak * dt > 0.02:
                     if not registered:
@@ -124,11 +132,14 @@ class Env:
         sp1, sp2, _ = JumpControllerV2.STAND_POSE
         upright = bool(abs(base_pitch(self.d)) < 0.30 and not in_air
                        and abs(qe[3] - sp1) < 0.45 and abs(qe[4] - sp2) < 0.60)
+        lamp_pose = bool(abs(base_pitch(self.d)) < 0.25 and not in_air
+                         and abs(qe[3] - sp1) < 0.30 and abs(qe[4] - sp2) < 0.45
+                         and np.abs(self.d.qvel).max() < 0.8)
         fell = bool(abs(base_pitch(self.d)) > 1.2)
         yaw0 = 0.0
         disp = np.array([self.d.qpos[0] - self.x0, self.d.qpos[1] - self.y0])
         heading = np.array([np.cos(self.d.qpos[7]), np.sin(self.d.qpos[7])])
-        info = dict(x_end=float(disp @ heading), apex_at=apex_at, air_t=air_t,
+        info = dict(x_end=float(disp @ heading), apex_at=apex_at, air_t=air_t, lamp_pose=lamp_pose,
                     upright=upright, fell=fell, phase_end=ctrl_.phase,
                     pitch_end=float(base_pitch(self.d)))
         if record:
@@ -148,6 +159,21 @@ def reward_leap(info):
     return r
 
 
+def reward_travel(info, ctrl=None):
+    # 指令窗口(4.2s)连续挪动: 总位移 + 终态必须是台灯站姿(瘫蹲重罚) + 腾空
+    x = max(0.0, info["x_end"])
+    n_hops = max(1, getattr(ctrl, "cycles", 1) if ctrl is not None else 1)
+    per_hop = min(x / n_hops / 0.10, 1.0)
+    r = (400.0 * min(x, 0.60) + (150.0 if info.get("lamp_pose") else -120.0)
+         - (100.0 if info["fell"] else 0.0) - 30.0 * abs(info["pitch_end"])
+         + 60.0 * min(info["air_t"], 0.30) / 0.30 + 20.0 * per_hop
+         - (250.0 if info["air_t"] < 0.12 and x > 0.05 else 0.0)      # 蹭地挪动=作弊
+         - 600.0 * max(0.0, info["apex_at"] - 0.10))                  # 温和跳: 单跳腾空<10cm
+    if info["apex_at"] > 1.0 or x > 3.0:
+        return -500.0
+    return r
+
+
 _G = {}
 
 
@@ -156,23 +182,37 @@ def _worker_init():
     _G["env"] = Env()
 
 
+_TASK = "leap"
+
+
 def _worker_eval(args):
     p, seed = args
     try:
         env = _G["env"]
-        info = env.run(p)
-        return reward_leap(info), info
+        info = env.run(p, task=_TASK)
+        r = reward_travel(info, getattr(env, "_last_ctrl", None)) if _TASK == "travel" else reward_leap(info)
+        return r, info
     except Exception:
         return -500.0, None
 
 
-def cem_leap(iters=60, pop=64, elites=12, seeds=3, workers=6, out=None, init=None, sig_scale=0.12):
+def cem_leap(iters=60, pop=64, elites=12, seeds=3, workers=6, out=None, init=None, sig_scale=0.12,
+             task="leap"):
+    global _TASK
+    _TASK = task
     from multiprocessing import get_context
     lo, hi = BOUNDS[:, 0], BOUNDS[:, 1]
     # 天鹅颈几何从头学(与旧折叠方向不兼容)
     p0 = np.array([1.0, 1.8, -8.0, -8.0, 0.02, 0.08, 30.0, 0.3,
                    1.2, 1.8, 0.8, 0.70, 0.30, 0.35, 200.0, 20.0, -0.005])
     mu = np.array(init) if init is not None else p0
+    if task == "travel":
+        for fn in ("mj_travel.json", "mj_leap.json"):
+            lf = os.path.join(RESULTS, fn)
+            if os.path.exists(lf):
+                with open(lf) as f:
+                    mu = np.array(json.load(f)["params"])
+                break
     sig = 0.15 * (hi - lo)
     rng = np.random.default_rng(11)
     hist = []
@@ -193,24 +233,24 @@ def cem_leap(iters=60, pop=64, elites=12, seeds=3, workers=6, out=None, init=Non
             sig = np.clip(ep.std(0) + 0.02 * (hi - lo), 0.02 * (hi - lo), 0.5 * (hi - lo))
             bi = int(order[0]) if cand_sc.max() >= mu_sc else -1
             bp = cand[bi] if bi >= 0 else mu.copy()
-            _, binfo = _G_bench(bp)
+            _, binfo = _G_bench(bp, task)
             if cand_sc.max() >= mu_sc and cand_sc[bi] > best[0]:
                 best = (cand_sc[bi], bp.copy())
             hist.append(dict(iter=it, best=float(max(cand_sc.max(), mu_sc)), mu=float(mu_sc),
                              info={k: binfo[k] for k in ("x_end", "apex_at", "upright", "air_t")}))
-            print(f"[mj-leap] it{it:02d} best={max(cand_sc.max(), mu_sc):7.2f} mu={mu_sc:7.2f} "
+            print(f"[mj-{_TASK}] it{it:02d} best={max(cand_sc.max(), mu_sc):7.2f} mu={mu_sc:7.2f} "
                   f"x={binfo['x_end']:+.3f} apex={binfo['apex_at']*100:5.1f}cm upright={binfo['upright']}",
                   flush=True)
     # 最终: 均值 vs 历史最优
     env = Env()
-    r_mu = reward_leap(env.run(mu))
-    r_best = reward_leap(env.run(best[1]))
+    r_mu = reward_travel(env.run(mu, task=task), env._last_ctrl) if task == "travel" else reward_leap(env.run(mu, task=task))
+    r_best = reward_travel(env.run(best[1], task=task), env._last_ctrl) if task == "travel" else reward_leap(env.run(best[1], task=task))
     use_best = r_best > r_mu
     final_p = best[1] if use_best else mu
-    info = env.run(final_p, record=True)
+    info = env.run(final_p, record=True, task=task)
     data = dict(params=final_p.tolist(), reward=max(r_mu, r_best), info={k: v for k, v in info.items() if k != "rec"},
                 rec=info["rec"], history=hist, wall_s=time.time() - t0,
-                note=f"MuJoCo 3D leap; 2D热启动; final={'best' if use_best else 'mu'}")
+                note=f"MuJoCo 3D {task}; final={'best' if use_best else 'mu'}")
     out = out or os.path.join(HERE, "results", "mj_leap.json")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     with open(out, "w") as f:
@@ -218,11 +258,15 @@ def cem_leap(iters=60, pop=64, elites=12, seeds=3, workers=6, out=None, init=Non
     print(f"saved -> {out} | x_end={info['x_end']:+.3f} apex={info['apex_at']*100:.1f}cm upright={info['upright']}")
 
 
-def _G_bench(p):
+def _G_bench(p, task="leap"):
     env = _G.get("env") or Env()
-    return 0.0, env.run(p, T=2.6)
+    return 0.0, env.run(p, task=task)
 
 
 if __name__ == "__main__":
     iters = int(sys.argv[1]) if len(sys.argv) > 1 else 45
-    cem_leap(iters=iters)
+    task = sys.argv[2] if len(sys.argv) > 2 else "leap"
+    if task == "travel":
+        cem_leap(iters=iters, out=os.path.join(RESULTS, "mj_travel.json"), task="travel")
+    else:
+        cem_leap(iters=iters)

@@ -13,7 +13,7 @@
     <texture type="skybox" builtin="gradient" rgb1="0.16 0.16 0.22" rgb2="0.26 0.27 0.35" width="256" height="256"/>
     <texture name="tex_floor" type="2d" builtin="checker" rgb1="0.13 0.13 0.16" rgb2="0.17 0.17 0.21"
              width="512" height="512"/>
-    <material name="mat_floor" texture="tex_floor" texrepeat="6 6" specular="0.05" shininess="0.1"/>
+    <material name="mat_floor" texture="tex_floor" texrepeat="60 60" specular="0.05" shininess="0.1"/>
     <material name="mat_body" rgba="0.13 0.13 0.16 1" specular="0.25" shininess="0.35"/>
     <material name="mat_chrome" rgba="0.72 0.76 0.84 1" specular="0.85" shininess="0.75"/>
     <material name="mat_spring" rgba="0.06 0.72 0.51 1" specular="0.3" shininess="0.3"/>
@@ -39,10 +39,10 @@
     <!-- ============ 底盘: 圆片(超扁圆柱) + 中央立柱(肩电机舱) ============ -->
     <body name="base" pos="0 0 0.011">
       <freejoint name="root"/>
-      <geom name="disc" type="cylinder" size="0.15 0.011" pos="0 0 0" material="mat_body"/>
-      <geom name="rim" type="cylinder" size="0.1515 0.007" pos="0 0 0" material="mat_chrome"/>
+      <geom name="disc" type="cylinder" size="0.10 0.011" pos="0 0 0" material="mat_body"/>
+      <geom name="rim" type="cylinder" size="0.1015 0.007" pos="0 0 0" material="mat_chrome"/>
       <geom name="stem" type="cylinder" size="0.024 0.026" pos="0 0 0.037" material="mat_chrome"/>
-      <inertial pos="0 0 0.026" mass="0.702" diaginertia="0.0041 0.0041 0.0079"/>
+      <inertial pos="0 0 0.026" mass="0.702" diaginertia="0.0021 0.0021 0.0038"/>
       <site name="imu_site" pos="0 0 0.05" type="sphere" size="0.003" rgba="0 0 0 0"/>
 
       <!-- 偏航(yaw): 底盘中心 Z 轴旋转 —— 全向移动的航向自由度 -->

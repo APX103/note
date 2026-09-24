@@ -466,11 +466,12 @@ class JumpControllerV2:
     PHASE_SETTLE, PHASE_FIRE, PHASE_FLIGHT, PHASE_LAND, PHASE_STAND = 0, 1, 2, 3, 4
     STAND_POSE = (1.00, 1.20, 0.40)   # 天鹅颈站姿: 下臂前伸57°, 肘折正向(开口朝前下), 头探出底盘前缘、罩口照地
 
-    def __init__(self, p, repeat=False, stand_after=True):
+    def __init__(self, p, repeat=False, stand_after=True, stop_t=None):
         self.p0 = np.array(p, dtype=float)
         self.p = self.p0.copy()
         self.repeat = repeat
-        self.stand_after = stand_after and not repeat
+        self.stop_t = stop_t          # 指令窗口: t<stop_t 连续跳, 之后定住保持台灯站姿
+        self.stand_after = stand_after
         self.reset()
 
     def reset(self):
@@ -495,7 +496,7 @@ class JumpControllerV2:
             # 下蹲保持阶段的平衡反馈: 把 COM 控制到 com_ref(方向指令: 前倾=向前跳)
             com_rx = com[0] - q[0]        # COM 相对底盘足心(实机由编码器+IMU 得到)
             tau[0] += kx * (com_ref - com_rx) - kdx * comv[0] - kdphi * qd[2]
-            if dt_p > t_wait and abs(com_rx - com_ref) < 0.035 and abs(qd[2]) < 0.6:
+            if dt_p > t_wait and t > 0.35 and abs(com_rx - com_ref) < 0.035 and abs(qd[2]) < 0.6:
                 self.phase = self.PHASE_FIRE; self.t_fire = t
             return tau, kd
         if self.phase == self.PHASE_FIRE:
@@ -506,7 +507,7 @@ class JumpControllerV2:
             com_rx = com[0] - q[0]
             fb = kphi * (0.0 - q[2]) - kdphi * qd[2] + kx * (com_ref - com_rx) - kdx * comv[0]
             tau = np.array([tau1 * r1 + fb, tau2 * r2, 0.0])
-            if (q[4] > stop2) or (e > t_fire_max):
+            if (q[4] < stop2) or (e > t_fire_max):   # 正向折叠: 伸展=θ2 降到 stop2
                 self.phase = self.PHASE_FLIGHT; self.t0 = t
             return tau, np.array([0.0, 0.0, 0.0])
         if self.phase == self.PHASE_FLIGHT:
@@ -523,10 +524,11 @@ class JumpControllerV2:
             self.phase = self.PHASE_STAND; self.t0 = t; self.t_stand = 0.0
             return self._stand(sim, q, qd, dt_stand=0.0)
         tau, kd = self._pd(sim, q, (th1c, th2c, self.STAND_POSE[2]), kp_land)
-        settled = dt_p > 0.18 and abs(qd[2]) < 0.5 and contact
-        if self.repeat and (settled or dt_p > 0.8):
-            self.phase = self.PHASE_SETTLE; self.t0 = t; self.cycles += 1
-            self.p[11] = np.clip(self.p[11], 0.10, 0.30)  # 后续循环快蹲快发
+        settled = dt_p > 0.25 and abs(qd[2]) < 0.5 and contact
+        if self.repeat and (settled or dt_p > 1.0):
+            if self.stop_t is None or t < self.stop_t:
+                self.phase = self.PHASE_SETTLE; self.t0 = t; self.cycles += 1
+                self.p[11] = np.clip(self.p[11], 0.35, 0.65)  # 后续循环: 蹲深蓄满再跳
         return tau, kd
 
     def _stand(self, sim, q, qd, dt_stand=0.0):

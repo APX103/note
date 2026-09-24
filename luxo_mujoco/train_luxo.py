@@ -27,21 +27,22 @@ def main():
 
     env = DummyVecEnv([make_env()])
 
-    # Slightly larger network and longer rollouts for this event-rich jump task.
+    # Tuned for the event-rich jump task.
+    # log_std_init=-2 keeps action variance reasonable for the bounded [-1,1] space.
     model = PPO(
         "MlpPolicy",
         env,
         verbose=1,
         learning_rate=3e-4,
-        n_steps=2048,
-        batch_size=128,
+        n_steps=1024,
+        batch_size=64,
         n_epochs=5,
-        gamma=0.99,
+        gamma=0.995,
         gae_lambda=0.95,
-        ent_coef=0.02,
+        ent_coef=0.005,
         vf_coef=0.5,
         max_grad_norm=0.5,
-        policy_kwargs=dict(net_arch=[256, 256]),
+        policy_kwargs=dict(log_std_init=-2.0, net_arch=[256, 256]),
         device="cpu",
     )
 
