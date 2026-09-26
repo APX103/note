@@ -128,10 +128,16 @@ def main():
                         grown = True
 
             # 题注下方留白裁掉（横排）；竖排题注在右侧，自然不含在内
-            rect = fitz.Rect(max(0, rect.x0 - 4), max(0, rect.y0 - 4),
-                             min(page.rect.x1, rect.x1 + 4), min(page.rect.y1, rect.y1 + 4))
-            if not vertical_cap and cap.y0 > rect.y1:
-                pass  # 已在上方，无需处理
+            # 裁剪边界钳制：横排题注时底边不得切入题注行；竖排题注时右边
+            # 不得切入题注列（否则留下半截英文残影）
+            if vertical_cap:
+                right = min(page.rect.x1, min(cap.x0 - 3, rect.x1 + 4))
+                bottom = min(page.rect.y1, rect.y1 - 2)
+                rect = fitz.Rect(max(0, rect.x0 - 4), max(0, rect.y0 - 4), right, bottom)
+            else:
+                right = min(page.rect.x1, rect.x1 + 4)
+                bottom = min(page.rect.y1, min(cap.y0 - 3, rect.y1 + 4))
+                rect = fitz.Rect(max(0, rect.x0 - 4), max(0, rect.y0 - 4), right, bottom)
             pix = page.get_pixmap(matrix=fitz.Matrix(3, 3), clip=rect, alpha=False)
             pix.save(out / name)
             captions.append((name, pno + 1, text))

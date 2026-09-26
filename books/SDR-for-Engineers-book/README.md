@@ -12,18 +12,18 @@
 
 ## 全书结构（按原书目录）
 
-- [第 1 章　软件定义无线电导论](./Chapter_01_软件定义无线电导论.md) ✅ 已译
-- 第 2 章　信号与系统（Signals and Systems）⏳ 待译
-- 第 3 章　通信中的概率（Probability in Communications）⏳ 待译
-- 第 4 章　数字通信基础（Digital Communications Fundamentals）⏳ 待译
-- 第 5 章　理解 SDR 硬件（Understanding SDR Hardware）⏳ 待译
-- 第 6 章　定时同步（Timing Synchronization）⏳ 待译
-- 第 7 章　载波同步（Carrier Synchronization）⏳ 待译
-- 第 8 章　帧同步与信道编码（Frame Synchronization and Channel Coding）⏳ 待译
-- 第 9 章　信道估计与均衡（Channel Estimation and Equalization）⏳ 待译
-- 第 10 章　正交频分复用（Orthogonal Frequency Division Multiplexing）⏳ 待译
-- 第 11 章　SDR 的应用（Applications for Software-Defined Radio）⏳ 待译
-- 附录 A　更长的通信史 / 附录 B　MATLAB 与 Simulink 入门 / 附录 C　均衡器推导 / 附录 D　三角恒等式 ⏳ 待译
+- [第 1 章　软件定义无线电导论](./Chapter_01_软件定义无线电导论.md)【已译】
+- 第 2 章　信号与系统（Signals and Systems）【待译】
+- 第 3 章　通信中的概率（Probability in Communications）【待译】
+- 第 4 章　数字通信基础（Digital Communications Fundamentals）【待译】
+- 第 5 章　理解 SDR 硬件（Understanding SDR Hardware）【待译】
+- 第 6 章　定时同步（Timing Synchronization）【待译】
+- 第 7 章　载波同步（Carrier Synchronization）【待译】
+- 第 8 章　帧同步与信道编码（Frame Synchronization and Channel Coding）【待译】
+- 第 9 章　信道估计与均衡（Channel Estimation and Equalization）【待译】
+- 第 10 章　正交频分复用（Orthogonal Frequency Division Multiplexing）【待译】
+- 第 11 章　SDR 的应用（Applications for Software-Defined Radio）【待译】
+- 附录 A　更长的通信史 / 附录 B　MATLAB 与 Simulink 入门 / 附录 C　均衡器推导 / 附录 D　三角恒等式【待译】
 
 ## 译本工作流（每章通用）
 

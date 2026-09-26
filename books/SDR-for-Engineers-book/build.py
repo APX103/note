@@ -271,7 +271,8 @@ def main():
     pandoc_cmd = [
         "pandoc",
         *[str(f) for f in md_files],
-        "build/metadata.yaml",
+        "--metadata-file=build/metadata.yaml",
+        "-f", "markdown+autolink_bare_uris",
         "--template=build/template.tex",
         "--lua-filter=build/filter.lua",
         "--top-level-division=chapter",

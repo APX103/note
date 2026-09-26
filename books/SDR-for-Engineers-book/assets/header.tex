@@ -116,6 +116,10 @@
   pdfauthor={李佳伦}
 ]{hyperref}
 \usepackage{bookmark}
+% xurl：允许 URL 在任意字符处断行（中文书里长英文链接溢出边距的根治方案）
+\usepackage{xurl}
+% scheme=plain 下 ctexbook 不本地化目录名，显式改中文
+\renewcommand{\contentsname}{目录}
 
 % =========================================================
 % 章扉页样式（重定义 \chapter）

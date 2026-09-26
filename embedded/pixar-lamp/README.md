@@ -5,6 +5,7 @@ QDD 关节电机驱动，多 IMU 感知，强化学习控制。
 
 ## 目录
 
+- `motor-sourcing.html` — **电机选型调研**（关节负载实测×市售执行器对比×采购清单）
 - `pixar-lamp-feasibility.html` — **主方案文档**（单文件自包含：动力学、仿真、训练结果、硬件拍板、RL 方案）
 - `mujoco/` — **三维 MuJoCo 验证**（几何 v2：Ø30cm 圆片底盘 + 双连杆 + 圆台灯罩 + 偏航自由度；
   `mujoco_train.py` CEM 训练向前跳 17.4cm 直立落地；`mujoco_render.py` 出 GIF/帧序列）

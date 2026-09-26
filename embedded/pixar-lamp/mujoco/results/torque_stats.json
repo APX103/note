@@ -1,0 +1,214 @@
+{
+ "per_task": {
+  "yaw转向": [
+   {
+    "peak_tau": 0.0,
+    "rms_tau": 0.0,
+    "t_over_50pct": 0.0,
+    "t_over_6Nm": 0.0,
+    "t_over_9Nm": 0.0,
+    "peak_vel": 0.0,
+    "peak_power": 0.0,
+    "mean_power": 0.0,
+    "total_work_J": 0.0
+   },
+   {
+    "peak_tau": 0.0,
+    "rms_tau": 0.0,
+    "t_over_50pct": 0.0,
+    "t_over_6Nm": 0.0,
+    "t_over_9Nm": 0.0,
+    "peak_vel": 0.0,
+    "peak_power": 0.0,
+    "mean_power": 0.0,
+    "total_work_J": 0.0
+   },
+   {
+    "peak_tau": 0.0,
+    "rms_tau": 0.0,
+    "t_over_50pct": 0.0,
+    "t_over_6Nm": 0.0,
+    "t_over_9Nm": 0.0,
+    "peak_vel": 0.0,
+    "peak_power": 0.0,
+    "mean_power": 0.0,
+    "total_work_J": 0.0
+   },
+   {
+    "peak_tau": 12.5,
+    "rms_tau": 12.492509907978443,
+    "t_over_50pct": 2.497,
+    "t_over_6Nm": 2.497,
+    "t_over_9Nm": 2.497,
+    "peak_vel": 0.0,
+    "peak_power": 0.0,
+    "mean_power": 0.0,
+    "total_work_J": 0.0
+   }
+  ],
+  "travel": [
+   {
+    "peak_tau": 12.5,
+    "rms_tau": 1.2714081685866883,
+    "t_over_50pct": 0.069,
+    "t_over_6Nm": 0.07,
+    "t_over_9Nm": 0.04,
+    "peak_vel": 11.447061089195252,
+    "peak_power": 142.60168673571692,
+    "total_work_J": 6.791387842491936
+   },
+   {
+    "peak_tau": 12.5,
+    "rms_tau": 2.570678063495158,
+    "t_over_50pct": 0.073,
+    "t_over_6Nm": 0.074,
+    "t_over_9Nm": 0.073,
+    "peak_vel": 38.526460214451774,
+    "peak_power": 481.58075268064715,
+    "total_work_J": 37.72569242918077
+   },
+   {
+    "peak_tau": 0.4208382863223721,
+    "rms_tau": 0.06316673717895856,
+    "t_over_50pct": 0.08,
+    "t_over_6Nm": 0.0,
+    "t_over_9Nm": 0.0,
+    "peak_vel": 8.45064010159725,
+    "peak_power": 2.752628339118023,
+    "total_work_J": 0.21347531181706136
+   },
+   {
+    "peak_tau": 0.0,
+    "rms_tau": 0.0,
+    "t_over_50pct": 0.0,
+    "t_over_6Nm": 0.0,
+    "t_over_9Nm": 0.0,
+    "peak_vel": 1.658151579522581e-15,
+    "peak_power": 0.0,
+    "total_work_J": 0.0
+   }
+  ],
+  "leap": [
+   {
+    "peak_tau": 12.5,
+    "rms_tau": 0.9878492901740777,
+    "t_over_50pct": 0.028,
+    "t_over_6Nm": 0.03,
+    "t_over_9Nm": 0.021,
+    "peak_vel": 30.088064523389118,
+    "peak_power": 320.1743931044409,
+    "total_work_J": 5.055601829487436
+   },
+   {
+    "peak_tau": 12.5,
+    "rms_tau": 2.392730103117224,
+    "t_over_50pct": 0.057,
+    "t_over_6Nm": 0.057,
+    "t_over_9Nm": 0.054,
+    "peak_vel": 96.49662254134228,
+    "peak_power": 1206.2077817667785,
+    "total_work_J": 31.48635940182576
+   },
+   {
+    "peak_tau": 0.6594612273365382,
+    "rms_tau": 0.07031131346593923,
+    "t_over_50pct": 0.037,
+    "t_over_6Nm": 0.0,
+    "t_over_9Nm": 0.0,
+    "peak_vel": 13.14183779720951,
+    "peak_power": 7.886296071421465,
+    "total_work_J": 0.2176357726067873
+   },
+   {
+    "peak_tau": 0.0,
+    "rms_tau": 0.0,
+    "t_over_50pct": 0.0,
+    "t_over_6Nm": 0.0,
+    "t_over_9Nm": 0.0,
+    "peak_vel": 2.2610741672241005e-15,
+    "peak_power": 0.0,
+    "total_work_J": 0.0
+   }
+  ],
+  "gated/0态抗推": [
+   {
+    "peak_tau": 12.5,
+    "rms_tau": 0.45864176317785044,
+    "t_over_50pct": 0.01,
+    "t_over_6Nm": 0.004,
+    "t_over_9Nm": 0.003,
+    "peak_vel": 5.4853210855257375,
+    "peak_power": 68.56651356907172,
+    "total_work_J": 0.23097681385926272
+   },
+   {
+    "peak_tau": 10.49122352726499,
+    "rms_tau": 1.9447310427979594,
+    "t_over_50pct": 6.965,
+    "t_over_6Nm": 0.001,
+    "t_over_9Nm": 0.001,
+    "peak_vel": 2.468325376192154,
+    "peak_power": 25.895753259652334,
+    "total_work_J": 0.08879577569201014
+   },
+   {
+    "peak_tau": 0.2888529451266343,
+    "rms_tau": 0.05155814603853247,
+    "t_over_50pct": 0.017,
+    "t_over_6Nm": 0.0,
+    "t_over_9Nm": 0.0,
+    "peak_vel": 1.6912002550241496,
+    "peak_power": 0.48452363941167353,
+    "total_work_J": 0.00456446604049438
+   },
+   {
+    "peak_tau": 0.0,
+    "rms_tau": 0.0,
+    "t_over_50pct": 0.0,
+    "t_over_6Nm": 0.0,
+    "t_over_9Nm": 0.0,
+    "peak_vel": 5.735724255279807e-16,
+    "peak_power": 0.0,
+    "total_work_J": 0.0
+   }
+  ]
+ },
+ "worst_case": {
+  "th1_肩(竖臂)": {
+   "peak_tau": 12.5,
+   "rms_tau": 1.2714081685866883,
+   "t_over_50pct": 0.069,
+   "t_over_6Nm": 0.07,
+   "t_over_9Nm": 0.04,
+   "peak_vel": 30.088064523389118,
+   "peak_power": 320.1743931044409
+  },
+  "th2_肘(弯钩)": {
+   "peak_tau": 12.5,
+   "rms_tau": 2.570678063495158,
+   "t_over_50pct": 6.965,
+   "t_over_6Nm": 0.074,
+   "t_over_9Nm": 0.073,
+   "peak_vel": 96.49662254134228,
+   "peak_power": 1206.2077817667785
+  },
+  "th3_颈(灯罩)": {
+   "peak_tau": 0.6594612273365382,
+   "rms_tau": 0.07031131346593923,
+   "t_over_50pct": 0.08,
+   "t_over_6Nm": 0.0,
+   "t_over_9Nm": 0.0,
+   "peak_vel": 13.14183779720951,
+   "peak_power": 7.886296071421465
+  },
+  "yaw_偏航": {
+   "peak_tau": 12.5,
+   "rms_tau": 12.492509907978443,
+   "t_over_50pct": 2.497,
+   "t_over_6Nm": 2.497,
+   "t_over_9Nm": 2.497,
+   "peak_vel": 2.2610741672241005e-15,
+   "peak_power": 0.0
+  }
+ }
+}

@@ -160,6 +160,12 @@ class LuxoJumpEnv(gym.Env):
         # Record the actual starting position after settling.
         self.start_pos = self.data.qpos[:2].copy()
         self.target_pos = self.start_pos + self.command * self.target_distance
+        # Remember the settled joint pose so the agent can be penalized for
+        # drifting away from it -- this is the actual "looks like a lamp"
+        # constraint, not just base upright.
+        self.home_jnt_pos = self.data.qpos[
+            self.base_qpos_offset : self.base_qpos_offset + self.n_actuated
+        ].copy()
 
         self.last_action = np.zeros(self.nu, dtype=np.float32)
         self.last_pos = self.data.qpos[:2].copy()
@@ -174,6 +180,7 @@ class LuxoJumpEnv(gym.Env):
         self.ground_z = self.last_z
         self.low_upright_steps = 0
         self.jumped_this_episode = False
+        self.steps_since_landing = 0
 
         return self._get_obs(), {}
 
@@ -204,6 +211,11 @@ class LuxoJumpEnv(gym.Env):
         if contact == 0.0:
             self.air_steps += 1
             self.max_air_z = max(self.max_air_z, base_z)
+
+        if just_landed:
+            self.steps_since_landing = 0
+        elif self.landed_once and contact == 1.0:
+            self.steps_since_landing += 1
 
         # ------------------------------------------------------------------
         # Reward design (v6): fixes two bugs from v5 that made "never jump"
@@ -254,7 +266,6 @@ class LuxoJumpEnv(gym.Env):
             if (contact == 0.0 and upright > 0.9)
             else 0.0
         )
-        r_height = max(0.0, base_z - self.ground_z) * 6.0 if upright > 0.9 else 0.0
 
         # 3) Height regulation while airborne only (based on current z, not a
         #    permanently-elevated running max) -- soft, not punitive.
@@ -292,7 +303,6 @@ class LuxoJumpEnv(gym.Env):
         #    so the agent has an immediate incentive to attempt a jump.
         r_takeoff = 0.0
         if just_took_off:
-            self.jumped_this_episode = True
             self.takeoff_vel = base_lin.copy()
             forward_vel = float(np.dot(base_lin[:2], self.command))
             upward_vel = float(base_lin[2])
@@ -305,6 +315,16 @@ class LuxoJumpEnv(gym.Env):
         real_jump = self.air_steps >= 3 and self.max_air_z >= self.ground_z + 0.03
         if just_landed:
             self.landed_once = True
+            # v10 fix: jumped_this_episode used to flip True on ANY takeoff,
+            # including a single-frame contact blip with no real height gain.
+            # That let the policy dodge the "never jumped" deadline penalty
+            # for ~0 cost, without ever doing the actual crouch-and-push
+            # motion -- which is exactly what a 150k-step fine-tune from a
+            # good BC init converged to (see phase1_train_bc_v2 checkpoints:
+            # "jumped=True" but max_air_z stayed at the resting height).
+            # Only count it once a real_jump has actually landed.
+            if real_jump:
+                self.jumped_this_episode = True
             landing_error = float(np.linalg.norm(base_pos - self.target_pos))
             if real_jump:
                 # +80 at target, zero at ~5.3 cm error.
@@ -336,6 +356,44 @@ class LuxoJumpEnv(gym.Env):
         # 9) Keep head joints near neutral.
         r_yaw = -abs(jnt_pos[0]) * 0.1 - abs(jnt_pos[4]) * 0.1
 
+        # 9c) "Looks like a lamp" pose constraint. This was missing entirely
+        # before: nothing stopped hip/elbow/head_pitch from swinging far
+        # away from the standing pose mid-flight, or from slamming into
+        # their mechanical limits to generate torque. That produced jumps
+        # that scored well (base upright, landing on target) while the arm
+        # visibly flailed and looked broken, not like a lamp hopping.
+        #   (a) a continuous, modest penalty for drifting from the settled
+        #       home joint pose -- present at all times, not just at landing.
+        #   (b) a much stronger penalty for approaching a joint's own range
+        #       limit, specifically targeting the "yank the elbow to its
+        #       hard stop" failure mode.
+        #   (c) once landed, this deviation is penalized hard and growing,
+        #       so standing still afterwards actually means returning to
+        #       the lamp's standing pose, not just keeping the base upright.
+        pose_dev = jnt_pos - self.home_jnt_pos
+        r_pose = -float(np.sum(np.square(pose_dev) * np.array([0.05, 0.4, 0.4, 0.15, 0.05])))
+
+        jnt_range = self.model.jnt_range[1 : 1 + self.n_actuated]  # skip freejoint
+        span = jnt_range[:, 1] - jnt_range[:, 0]
+        margin = 0.12  # rad
+        dist_to_lo = jnt_pos - jnt_range[:, 0]
+        dist_to_hi = jnt_range[:, 1] - jnt_pos
+        near_limit = np.maximum(0.0, margin - np.minimum(dist_to_lo, dist_to_hi))
+        r_limit = -float(np.sum(near_limit)) * 8.0
+
+        r_pose_settle = 0.0
+        if self.landed_once and contact == 1.0:
+            # Grace period: don't punish full pose-recovery strength right at
+            # touchdown -- physically recovering from a crouched jump takes
+            # a couple dozen steps even for a controller that never
+            # saturates its actuators (verified: ~0.17 rad hip residual
+            # after 150 steps of PD recovery at safe gains). Ramp the
+            # penalty in over ~40 steps instead of applying it at full
+            # strength immediately, so a genuinely-recovering policy isn't
+            # swamped by a huge cumulative penalty for the recovery itself.
+            ramp = min(1.0, self.steps_since_landing / 40.0)
+            r_pose_settle = -float(np.sum(np.square(pose_dev))) * 0.5 * ramp
+
         # 9b) Persistent anti-flailing penalty: large base angular velocity
         # is what turns a vertical hop into a tipping/somersaulting fall.
         # Penalize it on every step (not just post-landing) so the policy
@@ -359,7 +417,8 @@ class LuxoJumpEnv(gym.Env):
 
         reward = float(
             r_alive + r_upright + r_urgency + r_upward + r_height + r_peak + r_forward + r_air
-            + r_takeoff + r_landing + r_stable + r_yaw + r_spin + r_energy + r_smooth
+            + r_takeoff + r_landing + r_stable + r_yaw + r_pose + r_limit + r_pose_settle
+            + r_spin + r_energy + r_smooth
         )
 
         # ---- Termination conditions ------------------------------------------
@@ -402,6 +461,9 @@ class LuxoJumpEnv(gym.Env):
             "r_landing": r_landing,
             "r_stable": r_stable,
             "r_yaw": r_yaw,
+            "r_pose": r_pose,
+            "r_limit": r_limit,
+            "r_pose_settle": r_pose_settle,
             "r_spin": r_spin,
             "r_energy": r_energy,
             "r_smooth": r_smooth,
