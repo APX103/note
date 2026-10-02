@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IMU 阵列调研 — 32 颗 MEMS 叠加的 √N 降噪与它真正的难点</title>
+<style>
+    :root { --bg:#0f0f12; --surface:#1a1a1f; --text:#e8e8ec; --dim:#9ca3af;
+            --accent:#6366f1; --accent2:#8b5cf6; --green:#10b981; --orange:#f97316;
+            --border:rgba(255,255,255,0.06); }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+           background:var(--bg); color:var(--text); line-height:1.75; -webkit-font-smoothing:antialiased; }
+    .container { max-width:820px; margin:0 auto; padding:60px 24px 80px; }
+    h1 { font-size:1.8em; margin:16px 0 8px;
+         background:linear-gradient(135deg,var(--text) 0%,var(--accent) 60%,var(--accent2) 100%);
+         -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    .sub { color:var(--dim); margin-bottom:8px; }
+    .back { display:inline-block; margin-bottom:8px; color:var(--dim); text-decoration:none; font-size:0.9em; }
+    .back:hover { color:var(--accent); }
+    h2 { font-size:1.25em; margin:44px 0 14px; padding-bottom:10px; border-bottom:1px solid var(--border); }
+    h3 { font-size:1.05em; margin:26px 0 10px; }
+    p { margin:10px 0; }
+    ul { margin:10px 0 10px 22px; } li { margin:6px 0; }
+    code { background:rgba(99,102,241,0.12); color:#a5b4fc; padding:1px 6px; border-radius:5px; font-size:0.88em; }
+    pre { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:14px 18px;
+          overflow-x:auto; font-size:0.84em; line-height:1.7; margin:14px 0; }
+    pre code { background:none; padding:0; color:#c9d1e3; }
+    table { width:100%; border-collapse:collapse; margin:14px 0; font-size:0.9em; }
+    th { text-align:left; color:var(--dim); font-weight:600; padding:8px 10px; border-bottom:1px solid var(--border); white-space:nowrap; }
+    td { padding:9px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+    .card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:18px 22px; margin:14px 0; }
+    .verdict { border-left:3px solid var(--green); }
+    .verdict::before { content:'✦ 拍板'; display:block; color:var(--green); font-weight:600; font-size:0.85em; margin-bottom:6px; }
+    .warn { border-left:3px solid var(--orange); }
+    .warn::before { content:'⚠ 现实检验'; display:block; color:var(--orange); font-weight:600; font-size:0.85em; margin-bottom:6px; }
+    .dim { color:var(--dim); }
+    figure { margin:22px 0; }
+    figure svg { width:100%; height:auto; display:block; background:var(--surface); border:1px solid var(--border); border-radius:12px; }
+    figcaption { color:var(--dim); font-size:0.82em; margin-top:8px; text-align:center; }
+    svg text { font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif; }
+    .footer { margin-top:60px; padding-top:20px; border-top:1px solid var(--border); color:var(--dim); font-size:0.82em; }
+    .footer a { color:var(--accent); text-decoration:none; }
+</style>
+</head>
+<body>
+<div class="container">
+    <a class="back" href="index.html">← 返回嵌入式分类</a>
+    <h1>IMU 阵列调研：32 颗 MEMS 叠加的 √N 降噪，与它真正的难点</h1>
+    <p class="sub">will127534/IMU_Array 深度拆解 · 2026-10-02 · 深度评级：值得精读 —— 协议巧思 + 全链路时间设计 + 一个诚实的负结果</p>
+
+    <h2>§1 项目速览</h2>
+    <p>这是 Will Whang 的开源硬件项目（MIT，~350 star）：一块传感板载 <b>32 颗 TDK ICM-42688-P</b>，由一颗 <b>iCE40UP5K FPGA</b> 聚合读出，主机是 RP2040（Pico / 自制处理板）。作者的目标很实际：<b>用它替代地震勘探里的动圈式 geophone 检波器</b>——他此前做 geophone 地震仪时被模拟链路（负阻抗变换器抵消线圈内阻、运放、数字电位器、易自激的校准电路）折磨够了，想用"多颗便宜的数字传感器取平均"把模拟复杂度和贵价 ADI 芯片一起干掉。灵感来自 Sony 给 SPRESENSE 做的 16 颗 IMU 阵列板——<b>那块板因为性能太好被列入出口管制</b>，作者买不到，于是自己造了 32 颗的。</p>
+    <table>
+        <tr><th>部件</th><th>选型</th><th>角色</th></tr>
+        <tr><td>传感器</td><td>32 × ICM-42688-P（零售约二三十元/颗）</td><td>消费级顶级 MEMS IMU，每颗独立 MISO</td></tr>
+        <tr><td>聚合</td><td>iCE40UP5K（~5k LUT，一二十元）</td><td>4096-bit 并转串移位寄存器 + 总线嗅探</td></tr>
+        <tr><td>主机</td><td>RP2040 超频 250 MHz（Pico → 自制 Pico W 平替）</td><td>配置、采数、标定、融合、传输</td></tr>
+        <tr><td>总线</td><td>SPI：SCK/MOSI/CS 广播，32 根独立 MISO</td><td>一次事务并行读 32 颗</td></tr>
+        <tr><td>同步</td><td>共用 32.768 kHz CLKIN（RTC 模式）+ 片内时间戳</td><td>全阵列同源采样时刻</td></tr>
+    </table>
+    <p>仓库含三块板的 KiCad 工程（传感板 6 层 via-in-pad、bring-up 转接板、处理板）、Verilog、MicroPython 与 C SDK 固件，还有一篇内容比 README 丰富得多的<a href="https://www.willwhang.dev/Project-IMU-Array/">博客长文</a>。本文所有代码结论都直接读自仓库源码。</p>
+
+    <h2>§2 基础：MEMS IMU 的噪声三件套</h2>
+    <p>看懂这个项目先要分清 MEMS IMU 的三类误差，因为<b>阵列平均只对其中一类有效</b>：</p>
+    <ul>
+        <li><b>白噪声（宽带噪声）</b>：采样间独立，表现为陀螺输出的角度随机游走（ARW）。ICM-42688-P 陀螺噪密度约 2.8 mdps/√Hz（数据手册 LN 模式），折合 ARW ≈ 0.17°/√h。<b>N 颗独立取平均，这项按 1/√N 缩小</b>——32 颗理论到 0.5 mdps/√Hz、ARW ≈ 0.03°/√h，摸到战术级门槛。</li>
+        <li><b>偏置不稳定性（bias instability）</b>：1/f 噪声，Allan 方差曲线的锅底。它是慢变过程，<b>平均几乎压不掉</b>，且各颗之间若有共同来源（温度、供电纹波、振动），平均更压不掉。</li>
+        <li><b>确定性误差</b>：刻度因子、轴间交叉耦合、安装失准角、常置偏置。这些不是噪声，是参数——<b>靠标定消除，不靠平均</b>（§8）。</li>
+    </ul>
+    <p>Allan 方差是把一段静态数据在不同平均时间 τ 上重算方差，白噪声段斜率 −½、锅底即偏置不稳定性——它是评价"平均有没有用"的标准工具，作者的全部实测都用 ADEV 曲线呈现。</p>
+
+    <h2>§3 核心思想：√N 平均与"虚拟 IMU"</h2>
+    <p>把 N 颗装在刚性基板上的 IMU 输出对齐到同一坐标系后取平均，得到一颗"虚拟 IMU"：真实角速度/比力对所有颗是<b>共模信号</b>（刚性假设下完全相同），而各颗的白噪声互相独立，方差相加后除以 N² → 噪声标准差除以 √N。这是通信/测量领域最古老的空间分集思想：用面积和信息量换精度，而不是用钱换精度。</p>
+    <figure>
+    <svg viewBox="0 0 720 330" role="img" aria-label="√N 降噪曲线与共模噪声地板">
+        <line x1="70" y1="87.5" x2="660" y2="87.5" stroke="rgba(255,255,255,0.05)"/>
+        <line x1="70" y1="145" x2="660" y2="145" stroke="rgba(255,255,255,0.05)"/>
+        <line x1="70" y1="202.5" x2="660" y2="202.5" stroke="rgba(255,255,255,0.05)"/>
+        <line x1="168" y1="30" x2="168" y2="260" stroke="rgba(255,255,255,0.05)"/>
+        <line x1="266" y1="30" x2="266" y2="260" stroke="rgba(255,255,255,0.05)"/>
+        <line x1="365" y1="30" x2="365" y2="260" stroke="rgba(255,255,255,0.05)"/>
+        <line x1="463" y1="30" x2="463" y2="260" stroke="rgba(255,255,255,0.05)"/>
+        <line x1="562" y1="30" x2="562" y2="260" stroke="rgba(255,255,255,0.05)"/>
+        <line x1="70" y1="260" x2="660" y2="260" stroke="#9ca3af" stroke-width="1.2"/>
+        <line x1="70" y1="30" x2="70" y2="260" stroke="#9ca3af" stroke-width="1.2"/>
+        <text x="62" y="34" text-anchor="end" font-size="10" fill="#9ca3af">1.0</text>
+        <text x="62" y="91" text-anchor="end" font-size="10" fill="#9ca3af">0.75</text>
+        <text x="62" y="148" text-anchor="end" font-size="10" fill="#9ca3af">0.5</text>
+        <text x="62" y="206" text-anchor="end" font-size="10" fill="#9ca3af">0.25</text>
+        <text x="62" y="263" text-anchor="end" font-size="10" fill="#9ca3af">0</text>
+        <text x="70" y="278" text-anchor="middle" font-size="10" fill="#9ca3af">1</text>
+        <text x="168" y="278" text-anchor="middle" font-size="10" fill="#9ca3af">2</text>
+        <text x="266" y="278" text-anchor="middle" font-size="10" fill="#9ca3af">4</text>
+        <text x="365" y="278" text-anchor="middle" font-size="10" fill="#9ca3af">8</text>
+        <text x="463" y="278" text-anchor="middle" font-size="10" fill="#9ca3af">16</text>
+        <text x="562" y="278" text-anchor="middle" font-size="10" fill="#e8e8ec" font-weight="600">32</text>
+        <text x="660" y="278" text-anchor="middle" font-size="10" fill="#9ca3af">64</text>
+        <text x="200" y="298" text-anchor="middle" font-size="11" fill="#9ca3af">IMU 颗数 N（对数轴）</text>
+        <text x="562" y="298" text-anchor="middle" font-size="10.5" fill="#f97316">← 本项目 N=32</text>
+        <text transform="rotate(-90 30 145)" x="30" y="145" text-anchor="middle" font-size="11" fill="#9ca3af">相对噪声 σ/σ₁</text>
+        <line x1="70" y1="55" x2="660" y2="55" stroke="#9ca3af" stroke-width="1" stroke-dasharray="5 4" opacity="0"/>
+        <line x1="70" y1="168" x2="660" y2="168" stroke="#9ca3af" stroke-width="1.2" stroke-dasharray="6 5"/>
+        <rect x="82" y="159" width="186" height="17" rx="4" fill="#16161c" stroke="rgba(255,255,255,0.1)"/>
+        <text x="175" y="171.5" text-anchor="middle" font-size="10.5" fill="#9ca3af">共模噪声地板（平均不掉）</text>
+        <line x1="562" y1="30" x2="562" y2="260" stroke="#9ca3af" stroke-width="1" stroke-dasharray="2 5" opacity="0.55"/>
+        <polyline points="70,30 127,72 168,97 226,127 267,145 324,166 365,179 422,194 463,203 521,213 562,223 619,227 660,239"
+                  fill="none" stroke="#6366f1" stroke-width="2.2"/>
+        <polyline points="96,30 127,51 168,73 226,98 267,113 324,128 365,137 422,147 463,151 521,157 562,159 619,162 660,164"
+                  fill="none" stroke="#f97316" stroke-width="2.2"/>
+        <circle cx="562" cy="223" r="4" fill="#6366f1"/>
+        <circle cx="562" cy="159" r="4" fill="#f97316"/>
+        <rect x="574" y="215" width="92" height="17" rx="4" fill="#16161c" stroke="rgba(255,255,255,0.1)"/>
+        <text x="620" y="227.5" text-anchor="middle" font-size="10.5" fill="#a5b4fc">理论 1/√32≈0.18</text>
+        <rect x="424" y="128" width="128" height="17" rx="4" fill="#16161c" stroke="rgba(255,255,255,0.1)"/>
+        <text x="488" y="140.5" text-anchor="middle" font-size="10.5" fill="#fdba74">实际≈0.44，被地板托住</text>
+        <line x1="440" y1="34" x2="466" y2="34" stroke="#6366f1" stroke-width="2.2"/>
+        <text x="472" y="38" font-size="10.5" fill="#e8e8ec">理论：独立白噪声 1/√N</text>
+        <line x1="440" y1="52" x2="466" y2="52" stroke="#f97316" stroke-width="2.2"/>
+        <text x="472" y="56" font-size="10.5" fill="#e8e8ec">实际：独立 + 共模合成</text>
+        <line x1="440" y1="70" x2="466" y2="70" stroke="#9ca3af" stroke-width="1.2" stroke-dasharray="6 5"/>
+        <text x="472" y="74" font-size="10.5" fill="#e8e8ec">共模地板 σ_c 示意（取 0.4）</text>
+    </svg>
+    <figcaption>图 1 · 阵列降噪的数学与它的天花板：独立白噪声按 1/√N 下降，共模项（温度漂移、基板振动、供电噪声、真实信号本身）不参与相消，总噪声被地板托住。N 越大边际收益越低——这是理解 §9 实测结果的钥匙。</figcaption>
+    </figure>
+    <p>Sony 那块 16 颗 SPRESENSE 阵列被出口管制，就是 √N 的威力证明：<b>消费级单颗 × √16 = 4 倍，直接把消费级 MEMS 推进战术级应用区</b>，管制机构认为这改变了游戏的性质。JAXA 的论文（Kamata 2020）是这个方向的学术源头之一。</p>
+
+    <h2>§4 真正的难点：不是算法，是同步和带宽</h2>
+    <p>想清楚 §3 只需要十分钟，难的是工程：32 颗 IMU，200 Hz，每颗每帧 16 字节 FIFO 包——<b>100 KB/s、819 kbps</b>的持续流。传统做法是 MCU 挂 32 个 CS 轮询 SPI：先不说 RP2040 只有 2 个 SPI 口，轮询意味着 32 颗的采样时刻彼此错开几毫秒——对单颗而言只是延迟，<b>对"取平均合成一颗虚拟 IMU"而言是致命的：不同时刻的样本平均，等于给系统多加了一阶滤波还混入相位误差</b>。阵列的价值前提是"同一时刻"，所以问题变成：<b>如何让 32 颗在同一个时钟沿采样、并且在下一帧到来前把 512 字节搬走</b>。</p>
+    <p>作者的答案分三层，每层都很便宜：</p>
+    <ul>
+        <li><b>采样同源</b>：ICM-42688-P 支持 CLKIN 外部时钟输入 + RTC 模式，片内采样逻辑和 32 kHz 时钟锁定。给 32 颗分同一根 32.768 kHz 时钟线，它们的采样与片内时间戳计数器全部同源——这是"同一时刻"的物理保证。</li>
+        <li><b>读出并行</b>：SCK/MOSI/CS 三根线对全体广播（所有芯片并联在同一总线上），但 MISO 每颗单独一根拉进 FPGA。于是"读一颗"的 SPI 事务天然变成"读全部"——32 颗在<b>同一组时钟沿</b>各自吐出自己的 FIFO 包。</li>
+        <li><b>带宽汇聚</b>：FPGA 用一个 4096-bit 移位寄存器（32 × 128 bit）把 32 路并行位流锁存，再串行吐给 MCU。README 里作者自嘲"懒得省这 4096 个 LUT，反正 iCE40 便宜"——一片 UP5K 也就一二十块钱，比任何"聪明"方案都便宜。</li>
+    </ul>
+
+    <h2>§5 解剖：总线拓扑与两次事务</h2>
+    <figure>
+    <svg viewBox="0 0 720 360" role="img" aria-label="系统总线拓扑">
+        <defs>
+            <marker id="arrDim" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#9ca3af"/></marker>
+            <marker id="arrInd" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#6366f1"/></marker>
+            <marker id="arrGrn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#10b981"/></marker>
+            <marker id="arrOrg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#f97316"/></marker>
+        </defs>
+        <polyline points="100,140 100,55 355,55 355,104" fill="none" stroke="#f97316" stroke-width="1.5" marker-end="url(#arrOrg)"/>
+        <rect x="147" y="46" width="166" height="18" rx="4" fill="#16161c" stroke="rgba(255,255,255,0.1)"/>
+        <text x="230" y="59" text-anchor="middle" font-size="10.5" fill="#fdba74">32.768 kHz CLKIN 全体共用</text>
+        <line x1="170" y1="160" x2="245" y2="160" stroke="#9ca3af" stroke-width="1.5" marker-end="url(#arrDim)"/>
+        <rect x="174" y="140" width="58" height="14" rx="4" fill="#16161c" stroke="rgba(255,255,255,0.1)"/>
+        <text x="203" y="150.5" text-anchor="middle" font-size="10" fill="#e8e8ec">SCK·MOSI</text>
+        <rect x="174" y="166" width="74" height="14" rx="4" fill="#16161c" stroke="rgba(255,255,255,0.1)"/>
+        <text x="211" y="176.5" text-anchor="middle" font-size="10" fill="#e8e8ec">CS(IMU)广播</text>
+        <polyline points="240,160 240,95 625,95 625,134" fill="none" stroke="#9ca3af" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arrDim)"/>
+        <rect x="337" y="86" width="180" height="18" rx="4" fill="#16161c" stroke="rgba(255,255,255,0.1)"/>
+        <text x="427" y="98.5" text-anchor="middle" font-size="10.5" fill="#9ca3af">FPGA 嗅探同一组 SCK/MOSI</text>
+        <rect x="30" y="140" width="140" height="70" rx="10" fill="#1a1a1f" stroke="#6366f1" stroke-width="1.5"/>
+        <text x="100" y="168" text-anchor="middle" font-size="13" font-weight="700" fill="#e8e8ec">RP2040</text>
+        <text x="100" y="188" text-anchor="middle" font-size="10.5" fill="#9ca3af">超频 250 MHz</text>
+        <rect x="250" y="110" width="210" height="180" rx="10" fill="#1a1a1f" stroke="#8b5cf6" stroke-width="1.5"/>
+        <text x="355" y="132" text-anchor="middle" font-size="13" font-weight="700" fill="#e8e8ec">32 × ICM-42688-P</text>
+        <g opacity="0.6">
+            <rect x="273" y="145" width="17" height="17" fill="#6366f1"/><rect x="294" y="145" width="17" height="17" fill="#6366f1"/><rect x="315" y="145" width="17" height="17" fill="#6366f1"/><rect x="336" y="145" width="17" height="17" fill="#6366f1"/><rect x="357" y="145" width="17" height="17" fill="#6366f1"/><rect x="378" y="145" width="17" height="17" fill="#6366f1"/><rect x="399" y="145" width="17" height="17" fill="#6366f1"/><rect x="420" y="145" width="17" height="17" fill="#6366f1"/>
+            <rect x="273" y="170" width="17" height="17" fill="#f59e0b"/><rect x="294" y="170" width="17" height="17" fill="#f59e0b"/><rect x="315" y="170" width="17" height="17" fill="#f59e0b"/><rect x="336" y="170" width="17" height="17" fill="#f59e0b"/><rect x="357" y="170" width="17" height="17" fill="#f59e0b"/><rect x="378" y="170" width="17" height="17" fill="#f59e0b"/><rect x="399" y="170" width="17" height="17" fill="#f59e0b"/><rect x="420" y="170" width="17" height="17" fill="#f59e0b"/>
+            <rect x="273" y="195" width="17" height="17" fill="#10b981"/><rect x="294" y="195" width="17" height="17" fill="#10b981"/><rect x="315" y="195" width="17" height="17" fill="#10b981"/><rect x="336" y="195" width="17" height="17" fill="#10b981"/><rect x="357" y="195" width="17" height="17" fill="#10b981"/><rect x="378" y="195" width="17" height="17" fill="#10b981"/><rect x="399" y="195" width="17" height="17" fill="#10b981"/><rect x="420" y="195" width="17" height="17" fill="#10b981"/>
+            <rect x="273" y="220" width="17" height="17" fill="#ef4444"/><rect x="294" y="220" width="17" height="17" fill="#ef4444"/><rect x="315" y="220" width="17" height="17" fill="#ef4444"/><rect x="336" y="220" width="17" height="17" fill="#ef4444"/><rect x="357" y="220" width="17" height="17" fill="#ef4444"/><rect x="378" y="220" width="17" height="17" fill="#ef4444"/><rect x="399" y="220" width="17" height="17" fill="#ef4444"/><rect x="420" y="220" width="17" height="17" fill="#ef4444"/>
+        </g>
+        <g font-size="10" fill="#9ca3af">
+            <rect x="262" y="262" width="10" height="10" fill="#6366f1" opacity="0.6"/><text x="277" y="271">0°</text>
+            <rect x="312" y="262" width="10" height="10" fill="#f59e0b" opacity="0.6"/><text x="327" y="271">90°</text>
+            <rect x="362" y="262" width="10" height="10" fill="#10b981" opacity="0.6"/><text x="377" y="271">180°</text>
+            <rect x="412" y="262" width="10" height="10" fill="#ef4444" opacity="0.6"/><text x="427" y="271">270°</text>
+        </g>
+        <line x1="460" y1="160" x2="555" y2="160" stroke="#6366f1" stroke-width="3" marker-end="url(#arrInd)"/>
+        <rect x="478" y="140" width="60" height="14" rx="4" fill="#16161c" stroke="rgba(255,255,255,0.1)"/>
+        <text x="508" y="150.5" text-anchor="middle" font-size="10" fill="#a5b4fc">MISO × 32</text>
+        <rect x="560" y="140" width="130" height="70" rx="10" fill="#1a1a1f" stroke="#10b981" stroke-width="1.5"/>
+        <text x="625" y="164" text-anchor="middle" font-size="13" font-weight="700" fill="#e8e8ec">iCE40UP5K</text>
+        <text x="625" y="182" text-anchor="middle" font-size="10.5" fill="#9ca3af">4096-bit 移位寄存器</text>
+        <text x="625" y="198" text-anchor="middle" font-size="10.5" fill="#9ca3af">≈5k LUT 全喂给它</text>
+        <polyline points="625,210 625,320 106,320" fill="none" stroke="#10b981" stroke-width="1.5" marker-end="url(#arrGrn)"/>
+        <rect x="220" y="310" width="280" height="17" rx="4" fill="#16161c" stroke="rgba(255,255,255,0.1)"/>
+        <text x="360" y="322" text-anchor="middle" font-size="10.5" fill="#6ee7b7">MISO 串行回读 · 512 B 快照 @20 MHz</text>
+    </svg>
+    <figcaption>图 2 · 总线拓扑：SCK/MOSI/CS（低有效）对 32 颗广播，MISO 每颗独立进 FPGA 并转串。DRDY 中断线与 FPGA 片选图中省略。四行颜色代表四组安装旋转角（§7）。</figcaption>
+    </figure>
+    <p>主机每帧只做两次 SPI 事务。第一次"顺便"完成 32 颗同步采集：</p>
+    <figure>
+    <svg viewBox="0 0 720 300" role="img" aria-label="两次 SPI 事务时序">
+        <defs>
+            <marker id="arrDim2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#9ca3af"/></marker>
+        </defs>
+        <rect x="30" y="15" width="430" height="22" rx="6" fill="rgba(139,92,246,0.15)" stroke="rgba(139,92,246,0.4)"/>
+        <text x="245" y="30" text-anchor="middle" font-size="10.5" font-weight="600" fill="#c4b5fd">事务 ① 采集：一次 FIFO 读 = 32 颗并行吐包（10 MHz · CPHA=0）</text>
+        <text x="96" y="72" text-anchor="end" font-size="11" fill="#9ca3af">主机 MOSI</text>
+        <rect x="110" y="58" width="56" height="24" rx="6" fill="rgba(99,102,241,0.15)" stroke="#6366f1"/>
+        <text x="138" y="74" text-anchor="middle" font-size="11" font-weight="600" fill="#a5b4fc">0xB0</text>
+        <rect x="174" y="58" width="110" height="24" rx="6" fill="#1a1a1f" stroke="rgba(255,255,255,0.15)"/>
+        <text x="229" y="74" text-anchor="middle" font-size="11" fill="#e8e8ec">0x00 ×16</text>
+        <text x="296" y="72" font-size="10.5" fill="#9ca3af">← FPGA 认出 0xB0，进入 LOAD</text>
+        <text x="96" y="112" text-anchor="end" font-size="11" fill="#9ca3af">32×MISO</text>
+        <rect x="110" y="98" width="300" height="24" rx="6" fill="rgba(99,102,241,0.15)" stroke="#6366f1"/>
+        <text x="260" y="114" text-anchor="middle" font-size="10.5" fill="#a5b4fc">每颗 IMU 同一时钟沿各移出 16 B FIFO 包，FPGA 逐位锁存</text>
+        <rect x="470" y="66" width="222" height="56" rx="8" fill="#1a1a1f" stroke="rgba(255,255,255,0.1)"/>
+        <text x="581" y="88" text-anchor="middle" font-size="11" font-weight="600" fill="#6ee7b7">13.6 µs 拿到 32 颗同刻样本</text>
+        <text x="581" y="106" text-anchor="middle" font-size="10.5" fill="#9ca3af">（512 B 落进 4096-bit 移位寄存器）</text>
+        <line x1="30" y1="148" x2="692" y2="148" stroke="rgba(255,255,255,0.08)"/>
+        <rect x="30" y="158" width="430" height="22" rx="6" fill="rgba(16,185,129,0.12)" stroke="rgba(16,185,129,0.4)"/>
+        <text x="245" y="173" text-anchor="middle" font-size="10.5" font-weight="600" fill="#6ee7b7">事务 ② 回读：向 FPGA 要快照（20 MHz · CPHA=1）</text>
+        <text x="96" y="212" text-anchor="end" font-size="11" fill="#9ca3af">主机 MOSI</text>
+        <rect x="110" y="198" width="56" height="24" rx="6" fill="rgba(99,102,241,0.15)" stroke="#6366f1"/>
+        <text x="138" y="214" text-anchor="middle" font-size="11" font-weight="600" fill="#a5b4fc">0x55</text>
+        <text x="178" y="212" font-size="10.5" fill="#9ca3af">← FPGA_READ，进入 SEND</text>
+        <text x="96" y="246" text-anchor="end" font-size="11" fill="#9ca3af">MISO</text>
+        <rect x="110" y="232" width="300" height="24" rx="6" fill="rgba(16,185,129,0.12)" stroke="#10b981"/>
+        <text x="260" y="248" text-anchor="middle" font-size="10.5" fill="#6ee7b7">512 B 快照串行移出（32 颗 × 16 B，含各片内时间戳）</text>
+        <rect x="470" y="198" width="222" height="56" rx="8" fill="#1a1a1f" stroke="rgba(255,255,255,0.1)"/>
+        <text x="581" y="220" text-anchor="middle" font-size="11" font-weight="600" fill="#6ee7b7">205 µs @20 MHz</text>
+        <text x="581" y="238" text-anchor="middle" font-size="10.5" fill="#9ca3af">200 Hz 全数据 / 500 Hz 融合值都够用</text>
+        <line x1="110" y1="276" x2="420" y2="276" stroke="#9ca3af" stroke-width="1" marker-end="url(#arrDim2)"/>
+        <text x="430" y="280" font-size="10" fill="#9ca3af">t（CS 拉低界定帧边界）</text>
+    </svg>
+    <figcaption>图 3 · 每帧两事务：① 17 字节（0xB0 + 16 dummy）完成 32 颗同步弹 FIFO；② 1 字节命令 + 512 字节回读。帧长由主机 CS 拉低时段精确划定（Verilog 中 byte_counter 分支实际是死代码，靠 CS 收帧）。</figcaption>
+    </figure>
+
+    <h3>最妙的一笔：0xB0 的双重身份</h3>
+    <p>整个设计里最优雅的细节是这个巧合的利用：读 ICM-42688 FIFO 数据寄存器的 SPI 首字节是 <code>0x30 | 0x80 = 0xB0</code>（寄存器地址 + 读位）。FPGA 嗅探 MOSI 上的这个字节，把它<b>同时</b>当作自己的 LOAD 命令：</p>
+<pre><code>// spi_slave.v —— 命令字节 0xB0 正是 ICM42688 的 FIFO 读地址
+CMD: if (cmd_get) begin
+    if (cmd_byte == 8'hB0) next_state = LOAD;   // 与 32 颗 IMU 同步锁存
+    else                   next_state = SEND;    // 其他（如 0x55）→ 回读快照
+end
+
+LOAD: begin  // 每个 SCK 上升沿，32 路并行移位进 4096-bit 寄存器
+    miso_shift_register[127:0]   &lt;= {miso_shift_register[126:0], IMU_MISO1};
+    ...
+    miso_shift_register[4095:3968] &lt;= {miso_shift_register[4094:3968], IMU_MISO32};
+end</code></pre>
+    <p>于是<b>不需要任何独立的命令协议、不需要先配置 FPGA 再配 IMU</b>：主机按最普通的方式读 32 颗共享总线的 FIFO，采集就顺带完成了。FPGA 对 IMU 是"旁听者"，对主机是"快照缓冲"。</p>
+    <p>两个值得注意的实现细节：其一，读出阶段主机把 SPI 从 CPHA=0 切到 CPHA=1——因为 FPGA 在 SCK 上升沿移位输出，主机改在下降沿采样，半个周期的余量就出来了（代码注释原话："Because of the verilog code the data always shift at the postive edge"）。其二，FPGA 的 bitstream 没有外挂配置 Flash，<b>每次上电由 RP2040 通过 SPI 直接灌进 iCE40</b>（`initFPGA()`：复位 → 8 字节唤醒 → 灌 bitstream → 49 字节收尾），省一颗料还让固件和门逻辑版本永远绑定。</p>
+
+    <h2>§6 全链路时间设计</h2>
+    <p>这个项目对"时间"的处理贯穿到每一个环节，是它最像精密仪器的一部分：</p>
+    <ul>
+        <li><b>采样层</b>：32.768 kHz CLKIN → 各片 RTC 模式锁定，采样与 DRDY 同源；每个 FIFO 包还带 16-bit 片内时间戳（32 kHz 计数，分辨率 30.5 µs）。</li>
+        <li><b>主时钟层</b>：处理板把 RP2040 的 12 MHz 晶振换成 <b>VCTCXO</b>，用 PIO 输入捕获测 GPS PPS 周期，P 控制器（Kp=0.1 + 滑动平均）输出 PWM 当 DAC 驯服压控端——一个自制 <b>GPSDO</b>。给 IMU 阵列的 32 kHz 就从这颗驯服后的晶振分出来，<b>采样时钟可溯源到 GPS/UTC</b>。</li>
+        <li><b>数据层</b>：每帧样本同时携带片内时间戳 + 主机 64-bit µs 时钟 + 校准到 UNIX 时间的偏移；对地震学这种靠相位相干叠加的领域，采样时刻的准确性是硬指标。</li>
+        <li><b>分配层</b>：双核分工——core1 跑 DRDY 中断驱动的采集 + 标定 + 融合，core0 跑 Wi-Fi/TCP 栈；作者甚至用"测 CS 引脚电平宽度"的办法在示波器上直接读出软件处理耗时。</li>
+    </ul>
+
+    <h2>§7 硬件细节里的深意</h2>
+    <ul>
+        <li><b>四组旋转安装（0°/90°/180°/270°，每组 8 颗）</b>：博客明确说这不是为了布线好看，而是照抄 Sony——<b>抵消轴向灵敏度差异</b>。MEMS 的 X/Y 轴是同一敏感结构的两个方向、Z 轴是另一种结构（作者的 ADEV 实测也看到 Z 轴曲线形状不同）；四向对称摆放让每颗的"个体轴差"在阵列层面互相抵消。代价是融合前要做旋转对齐：</li>
+    </ul>
+    <table>
+        <tr><th>组</th><th>x′</th><th>y′</th><th>z′</th></tr>
+        <tr><td>组1（0°）</td><td>x</td><td>y</td><td rowspan="4" style="vertical-align:middle">z（不变）</td></tr>
+        <tr><td>组2（90°）</td><td>−y</td><td>x</td></tr>
+        <tr><td>组3（180°）</td><td>−x</td><td>−y</td></tr>
+        <tr><td>组4（270°）</td><td>y</td><td>−x</td></tr>
+    </table>
+    <ul>
+        <li><b>机械应力设计</b>：TDK 的 IMU 布局指南（远离螺钉、远离板边）在 32 颗的密度下根本无法全部满足，作者改用三条原则——方形板、<b>对角线上不放 IMU</b>（对角是应力最集中的地方）、<b>三个螺钉孔三角安装</b>（三点定义一个平面，装夹不产生弯矩）。LGA 封装的 MEMS 对基板应力极敏感，应力→偏置漂移是共模杀手。</li>
+        <li><b>量程选择暴露用途</b>：陀螺满量程设到最细的 <b>±15.625 dps</b>、加速度 ±2 g——地震信号极小，要的是分辨率不是动态范围。16-bit 下陀螺 LSB ≈ 0.00048 dps。</li>
+        <li><b>电源与热</b>：FPGA 的 1.2 V 内核电和 3.3 V 都从连接板送来，传感板上不做 DC-DC——<b>板上不发热</b>，温度梯度是共模漂移的另一个来源。SPI 引脚间插地脚控制回流路径；FPC 选 22 pin 是为了直接复用树莓派摄像头排线。</li>
+        <li><b>6 层板 + via-in-pad</b>：32 颗 QFN 挤在一小块方形板上，退耦 0402 放背面手焊；顶层交给 JLC/PCBWay 贴。</li>
+    </ul>
+
+    <h2>§8 标定：二十面体与 32 套矩阵</h2>
+    <p>确定性误差（刻度、失准、偏置）靠标定。作者按 Nilsson/OpenShoe 的经典方法，3D 打印一个<b>二十面体夹具</b>，20 个面各静置 90 s，对 32 颗各解出一个 3×3 刻度/失准矩阵和偏置向量，MATLAB 生成 <code>imu_cal.h</code> 编进固件。实测矩阵很有说服力：对角项普遍落在 0.997–1.005（<b>±0.3% 的刻度误差</b>），交叉项 ~0.001–0.004，其中第 11 颗的 Z 轴刻度 0.969——<b>差了 3%，明显个体异常</b>，正好演示了为什么"颗颗标定"而不是"一颗标全家"。</p>
+    <p>融合流水线（C 代码，RP2040 无硬件 FPU 全靠软浮点，500 Hz 仍绰绰有余）：旋转对齐 → 减偏置 → 乘刻度矩阵 → 32 颗平均 → 输出"虚拟 IMU"的 6 轴 + 平均温度。</p>
+
+    <h2>§9 现实检验：作者自己的 ADEV 实验（本文最重要的一节）</h2>
+    <div class="card warn">
+        <b>负结果也是结果</b>：博客里最诚实的部分是作者把实测 ADEV 与 Sony 论文（INERTIAL 2020, Fig.9）对比后的坦白——<b>静态数据下，陀螺取平均的改善远小于理论 √N</b>；他复现 Sony 的离群抑制/干扰抑制滤波，只在短 τ 段有点用，τ &gt; 0.2 s 收益消失，τ ≈ 300 s 时离群抑制甚至<b>比朴素平均更差</b>；标定后的 ADEV 相比标定前也没有明显变化。他自评这次复现"失败"。
+    </div>
+    <p>但这个"失败"恰好验证了图 1 的物理：静态 ADEV 的中长 τ 段由<b>共模项主导</b>——温度漂移、基板微应变、供电纹波，这些 32 颗一起漂，平均不掉；√N 只作用于白噪声段（短 τ）。他的另一个观察也指向同一处：<b>静止时的陀螺数据反而比缓慢转动时更噪</b>——典型的 1/f/慢漂移特征，不是白噪声。所以正确的期望是：</p>
+    <ul>
+        <li>短 τ（高频白噪声段）：阵列给满 √N ≈ 5.7 倍，ARW 0.17 → 0.03°/√h；</li>
+        <li>中长 τ（锅底与漂移段）：收益取决于噪声里<b>独立成分的占比</b>，可能接近零；</li>
+        <li>改善中长 τ 的正道不是加颗数，而是<b>控温、控应力、控电源纹波</b>——共模源头治理；</li>
+        <li>Sony 论文的收益场景包含动态激励与个体筛选，静态复现本来就是最苛刻的考卷。</li>
+    </ul>
+    <p>对想做阵列的人，这是全文最值钱的一段：先测单颗的 Allan 曲线，把独立/共模成分分清楚，再决定颗数——<b>如果共模占主导，加颗只是加钱</b>。</p>
+
+    <h2>§10 更深的视角：阵列是信号处理结构，不只是"多买几颗"</h2>
+    <p>刚性基板上的 N 颗 IMU，把测量空间正交分成了两半：</p>
+    <ul>
+        <li><b>共模子空间</b>（1 维）：刚体上所有点角速度相同——这就是真实信号（+共模噪声）。</li>
+        <li><b>差分子空间</b>（N−1 维）：任何"各颗不一致"的成分——按定义<b>不可能是角速度</b>，只能是单颗噪声、电气干扰或故障。</li>
+    </ul>
+    <p>朴素平均只是对这个结构最粗的利用（把差模功率均匀压掉 1/N）。JAXA 的 Kamata 2020 把它做成显式的阵列信号处理：<b>干扰抑制</b>（电气串扰在颗间有特定空间指纹，可投影剔除）与<b>离群抑制</b>（某颗偏离共识即判为故障，降权或剔除）。再往前一步：加速度计阵列还天然感知<b>角加速度</b>——间距 r 的两颗加速度计之差包含 α×r 项，这就是"无陀螺惯导"的原理；而旋转-平动分离对地震学正好是刚需（旋转地震学：旋转分量能区分 P/S 波与瑞利波的水平分量）。作者替换 geophone 的项目，方向上正踩在这条线上。</p>
+
+    <h2>§11 演进时间线与工程八卦</h2>
+    <table>
+        <tr><th>阶段</th><th>硬件</th><th>固件</th><th>踩坑记录</th></tr>
+        <tr><td>bring-up</td><td>Pico 转接板</td><td>CircuitPython 上传 bitstream</td><td>CircuitPython 没有真中断、无 native 优化 → 换 MicroPython；Wi-Fi MAC 不在 OTP，断电后 MicroPython 初始化失败（先用 CircuitPython"开光"才行）</td></tr>
+        <tr><td>数据采集</td><td>同上</td><td>MicroPython 超频 250 MHz</td><td>SPI 对 FPGA 不稳 &gt;5 MHz → 门逻辑改成时钟直通异步核，20 MHz 通；USB-CDC 吞吐不够 → 100 Hz×32 全数据勉强</td></tr>
+        <tr><td>野外处理板</td><td>自制"加强版 Pico W"：RP2040 + CYW43439 + GPS + VCTCXO GPSDO + 铝壳</td><td>C SDK，双核，TCP/USB 双通道</td><td>lwIP 的 tcp_write 缓冲在忙 Wi-Fi 下延迟到秒级 → 自建 FIFO；为 24VAC 门铃供电加的整流桥+高压降压是"最后悔的决定"，v2.0 删掉</td></tr>
+    </table>
+    <p>已知遗憾：RP2040 GPIO 不够直连 32 颗（所以必须 FPGA）——bring-up 刚做完 RP2350 就发布了，作者自荐重设计用 <b>RP2350 + SPE</b>。未来方向是用 IEEE 1588 PTP 以太网替代 GPS 授时。</p>
+
+    <h2>§12 拍板：这个项目教给我们什么</h2>
+    <div class="card verdict">
+        <b>值得直接抄的五个设计</b>：<br>
+        ① <b>SPI"广播写、并行读"拓扑</b>——共享 SCK/MOSI/CS + 每颗独立 MISO，一颗的价格把 N 颗变成同刻采样，任何多传感器同读场景（ADC 阵列、麦克风阵列）都适用；<br>
+        ② <b>0xB0 双重身份</b>——用协议里现成的字节当 FPGA 命令，零额外协议成本；<br>
+        ③ <b>CLKIN 同源 + 片内时间戳</b>——同步不靠软件对齐，靠物理时钟；<br>
+        ④ <b>MCU 软加载 bitstream</b>——iCE40 不挂配置 Flash，固件/门逻辑版本强绑定；<br>
+        ⑤ <b>诚实的方法论</b>——先测单颗 Allan 曲线、分清独立/共模成分再定颗数。<br>
+        <b>什么时候考虑阵列</b>：单颗 MEMS 已到顶、还差一个数量级的白噪声指标、且预算/共模环境允许时。反之若误差由偏置漂移或振动主导，先治源头，别买 32 颗。
+    </div>
+
+    <div class="footer">仓库：<a href="https://github.com/will127534/IMU_Array">will127534/IMU_Array</a>（MIT）· 博客长文：<a href="https://www.willwhang.dev/Project-IMU-Array/">Project IMU Array</a> · 论文：Kamata 2020 (<a href="https://ieeexplore.ieee.org/document/9090089">IEEE INERTIAL</a> · <a href="https://www.kenkai.jaxa.jp/research/innovation/multi_imu.html">JAXA 多 IMU 页</a>)、Blocher 2021 (<a href="https://ieeexplore.ieee.org/document/9430468">纯惯性导航</a>)、Wang 2021 (<a href="https://ieeexplore.ieee.org/document/9512101">阵列精密标定</a>)、Nilsson 2014 (<a href="https://ieeexplore.ieee.org/document/6879287">阵列失准消除</a>) · Sony 16-IMU 板：<a href="https://monoist.itmedia.co.jp/mn/articles/2404/26/news134.html">monoist 报道</a> · 本文代码均引自仓库源码（FPGACode/spi_slave.v、MicroPythonCode/ICM42688P.py、IMUArray_ProcessingBoard/Code/imu_main/）</div>
+</div>
+</body>
+</html>
