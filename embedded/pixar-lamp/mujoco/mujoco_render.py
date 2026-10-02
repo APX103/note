@@ -31,6 +31,7 @@ def render_episode(p, mode="side", turn_first=False, every=40, T=None,
     cam = mujoco.MjvCamera()
     frames = []
     phases = []
+    zs = []
     n = int(T / m.opt.timestep)
     for i in range(n):
         q, qd = env.q_like(), env.qd_like()
@@ -50,11 +51,12 @@ def render_episode(p, mode="side", turn_first=False, every=40, T=None,
             if mode == "side":
                 cam.distance, cam.azimuth, cam.elevation = 1.30, -90, 8
             else:  # 3/4 视角
-                cam.distance, cam.azimuth, cam.elevation = 1.35, -52, 18
+                cam.distance, cam.azimuth, cam.elevation = 1.45, -100, 22
             renderer.update_scene(d, camera=cam)
             img = renderer.render()
             frames.append(Image.fromarray(img).copy())
             phases.append(int(ctrl_.phase))
+            zs.append(float(d.qpos[2]))
     renderer.close()
     # 信息条
     info = dict(x=float(d.qpos[0]), y=float(d.qpos[1]), yaw=float(d.qpos[7]),
@@ -66,7 +68,7 @@ def render_episode(p, mode="side", turn_first=False, every=40, T=None,
         for k, f in enumerate(frames):
             f.save(os.path.join(FRAMES, f"{frame_prefix}_{k:03d}.png"))
     with open(os.path.join(FRAMES, f"{frame_prefix or 'x'}_meta.json"), "w") as f:
-        json.dump(dict(phases=phases, info=info, n=len(frames)), f)
+        json.dump(dict(phases=phases, zs=zs, info=info, n=len(frames)), f)
     print(f"saved {out_gif} ({len(frames)} 帧) x={info['x']:+.3f} yaw={info['yaw']:+.2f}")
     return frames, phases
 

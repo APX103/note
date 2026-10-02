@@ -1,7 +1,7 @@
 import os
 import sys
 
-# Keep CPU usage reasonable on this machine
+# Keep CPU usage reasonable on this machine (user cap ~50 %)
 os.environ["OMP_NUM_THREADS"] = "4"
 os.environ["MKL_NUM_THREADS"] = "4"
 
@@ -27,6 +27,8 @@ def main():
 
     env = DummyVecEnv([make_env()])
 
+    # Tuned for the event-rich jump task.
+    # log_std_init=-2 keeps action variance reasonable for the bounded [-1,1] space.
     model = PPO(
         "MlpPolicy",
         env,
@@ -35,10 +37,12 @@ def main():
         n_steps=1024,
         batch_size=64,
         n_epochs=5,
-        gamma=0.99,
+        gamma=0.995,
         gae_lambda=0.95,
-        ent_coef=0.01,
-        policy_kwargs=dict(net_arch=[128, 128]),
+        ent_coef=0.005,
+        vf_coef=0.5,
+        max_grad_norm=0.5,
+        policy_kwargs=dict(log_std_init=-2.0, net_arch=[256, 256]),
         device="cpu",
     )
 

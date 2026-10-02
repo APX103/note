@@ -1,0 +1,68 @@
+% cover.tex —— 设计封面（古典学术风）
+% 米白底 + 朱砂 + 墨黑三色
+% 占位符说明（build.py 会替换）：
+%   {{COVER_BADGE}}       顶部装饰带中的短标识（如 "SMR"、"RL"）
+%   {{COVER_TOPTAG}}      顶部小字（如 "Small Modular Reactors · 核能技术专著"）
+%   {{COVER_SYMBOL}}      中部大号朱砂色印章字（如 "SMR"）
+%   {{COVER_TITLE_MAIN}}  主标题主体（如 "小型模块化反应堆"）
+%   {{COVER_TITLE_SUFFIX}} 主标题后缀（如 "（SMR）技术"，可为空）
+%   {{COVER_SUBTITLE}}    英文副标题
+%   {{COVER_AUTHOR}}      作者
+%   {{COVER_SOURCE_NOTE}} 底部小字来源说明（如 "基于 IAEA 等公开资料整理"）
+%   {{COVER_YEAR_CN}}     中文数字年份（如 "二〇二六年"）
+
+\begin{titlepage}
+\thispagestyle{empty}
+\pagecolor{qianhui!30}
+
+% 顶部留白 + 装饰线
+\vspace*{28mm}
+\noindent
+\hfill\textcolor{zhusha}{\rule{40mm}{1pt}}\hspace{4mm}\textsf{{{COVER_BADGE}}}\hspace{4mm}\textcolor{zhusha}{\rule{40mm}{1pt}}
+
+\vspace{4mm}
+\begin{center}
+{\small\color{shenhui}{{COVER_TOPTAG}}}
+\end{center}
+
+\vspace{48mm}
+
+% 主标题
+\begin{center}
+{\color{zhusha}\Huge\heiti {{COVER_SYMBOL}}}
+
+\vspace{10mm}
+
+{\Huge\bfseries {{COVER_TITLE_MAIN}}}
+
+\vspace{6mm}
+
+{\LARGE\bfseries {{COVER_TITLE_SUFFIX}}}
+
+\vspace{10mm}
+
+{\large\itshape\color{shenhui} {{COVER_SUBTITLE}}}
+\end{center}
+
+\vfill
+
+% 底部：作者 + 来源 + 年份
+\vspace{30mm}
+\begin{center}
+\textcolor{zhusha}{\rule{60mm}{0.4pt}}
+
+\vspace{6mm}
+{\Large {{COVER_AUTHOR}}\,\, 编著}
+
+\vspace{4mm}
+{\small\color{shenhui} {{COVER_SOURCE_NOTE}}}
+
+\vspace{14mm}
+{\large {{COVER_YEAR_CN}}}
+\end{center}
+
+\vspace{14mm}
+
+\clearpage
+\nopagecolor
+\end{titlepage}

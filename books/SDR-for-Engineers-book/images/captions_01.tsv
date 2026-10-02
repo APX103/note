@@ -1,0 +1,9 @@
+fig_0101.png	15	Figure 1.1 Timeline of several key milestones in communications.
+fig_0102.png	17	Figure 1.2 ADF7030 block diagram [3].
+fig_0103.png	18	Figure 1.3 An illustration describing some of the important components that constitute a modern digital communications system. Note that for a SDR-based implementation, those components indicated as programmable can be realized in either programmable logic or software.
+fig_0104.png	21	Figure 1.4 Seven-layer OSI model compared to ﬁve-layer TCP/IP model.
+fig_0105.png	22	Figure 1.5 Packet structure effects SDR, PLCP = Physical Layer Convergence Protocol.
+fig_0106.png	24	Figure 1.6 Multistage superheterodyne receive and transmit signal chains [4].
+fig_0107.png	25	Figure 1.7 Zero IF architecture [4].
+fig_0108.png	26	Figure 1.8 Integrated ZIF architecture used in the Pluto SDR.
+fig_0109.png	27	Figure 1.9 Basic DSP48E1 slice functionality [5].

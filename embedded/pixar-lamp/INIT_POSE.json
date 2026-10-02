@@ -1,0 +1,12 @@
+{
+  "_doc": "★ 冻结的初始状态定义(用户拍板, 勿改) — 2026-09-24 FREEZE ★",
+  "frozen": true,
+  "joints_rad": {"th1_stem": -0.65, "th2_upper_arm": 1.466, "th3_shade": 0.034},
+  "joints_deg": {"th1_stem": -37.2, "th2_upper_arm": 84.0, "th3_shade": 2.0},
+  "geometry": {"base_disc_radius_m": 0.10, "lower_link_m": 0.17, "upper_link_m": 0.16},
+  "derived": {"head_height_m": 0.32, "head_forward_m": 0.01, "com_behind_center_m": 0.025,
+               "shade_world_angle": "罩口朝下前方(与v4一致, θ3含+0.384补偿)"},
+  "semantics": "竖臂后仰37°(C定稿) + 上臂张开θ2=1.466把灯头挑到32cm + 罩口世界角度锁定朝下前",
+  "enforced_in": ["mujoco/lamp3d.xml keyframe[stand]", "sim/lamp_sim.py JumpControllerV2.STAND_POSE"],
+  "note": "改任何一处必须同步本文件并经用户确认; 训练任务的初始状态/落地归位/门控保持全部以此为基准"
+}
