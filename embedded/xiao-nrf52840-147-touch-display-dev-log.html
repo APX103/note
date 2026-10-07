@@ -156,6 +156,16 @@ s.reset_input_buffer()
 <li><strong>电池 &check;(带已知毛刺)</strong>:USB 插电时读数在 3.7x / 4.1x V 双峰跳动 &mdash; 充电时 BAT 节点电压被拉高,官方 Dashboard 例程注释里明确提示&ldquo;VBAT ADC 会毛刺几个刷新周期,USB 供电下不要静态信任单次读数&rdquo;。纯电池供电时应为稳定单值。</li>
 </ul>
 <p>三块验证(触控画板 &rarr; 自检 &rarr; 电子流沙)全部通过后,最终留在板子上的是<strong>电子流沙</strong>:24&times;45 网格、180 颗粒子、8 ms 帧间隔读 LSM6DS3 重力流场,倾斜板子沙粒会向低处堆积。</p>
+<h3>6.1 追加实录:官方 demo 报 &ldquo;IMU Error&rdquo; 的真凶(2026-10-07 深夜排查)</h3>
+<p>烧官方流沙后屏幕出现 <code>IMU Error / Check LSM6DS3</code>。排查链条与结论:</p>
+<ol>
+<li><strong>I2C 扫描</strong>:0x63(触摸)与 0x6A(IMU)都正常 ACK &rarr; 总线与器件无误。</li>
+<li><strong>裸读身份寄存器</strong>:<code>WHO_AM_I(0x0F)@0x6A = 0x6A</code> &mdash; 板载芯片是 <strong>LSM6DS3TR-C</strong>,ST 标准 WHO_AM_I 就是 0x6A。</li>
+<li><strong>库源码对质</strong>:SparkFun LSM6DS3 Breakout 库的 <code>begin()</code> 写死 <code>if (readCheck != 0x69) return IMU_HW_ERROR;</code> &mdash; 0x69 是 SparkFun 早期 breakout 的值。Seeed 移植例程时声称与自家库 &ldquo;API 一致&rdquo;,漏了这处身份码差异。</li>
+</ol>
+<p><strong>修复</strong>:库源码 <code>src/SparkFunLSM6DS3.cpp</code> 第 107 行改为 <code>!= 0x69 &amp;&amp; != 0x6A</code>,重新编译&mdash;&mdash;<code>imu.begin()=0</code>,流沙 125 fps 满帧运行。</p>
+<div class="note"><strong>为什么之前&ldquo;有时好有时坏&rdquo;是个假象</strong>:这个库失败后仍会继续写配置寄存器,所以 <code>readFloatAccelX()</code> 照样出真数据&mdash;&mdash;串口看数据一切正常,而任何<strong>检查 begin() 返回值的程序</strong>(官方流沙、我的监视器 v1)就会报错死循环。同一块板、同一份代码,&ldquo;坏了&rdquo;与&ldquo;好了&rdquo;取决于谁在看返回值。教训:移植库要 diff 身份码校验;demo 报外设错误时先扫总线再裸读 WHO_AM_I,两分钟定位。</div>
+
 </section>
 
 <section id="demos"><h2>07 / Demo 清单与选型</h2>
@@ -181,6 +191,7 @@ s.reset_input_buffer()
 <li><strong>触摸构造器 RST 传 -1</strong>:RST 与 LCD 共线,传真实引脚号会在 LCD 初始化后把屏复位拉黑。</li>
 <li><strong>电池读数</strong>:&times;3.004 分压;USB 供电下双峰跳动为已知特性,勿以单次读数判断。</li>
 <li><strong>IMU 库选型</strong>:官方例程用 <code>SparkFunLSM6DS3.h</code>(与 Seeed 版 API 同构),不是 Adafruit_LSM6DS。</li>
+<li><strong>IMU &ldquo;IMU Error&rdquo; 真凶</strong>:SparkFun 库 WHO_AM_I 校验写死 0x69,板载 LSM6DS3TR-C 回 0x6A,rarr; begin() 永远返回 1。改库接受双值即愈(详见 6.1)。</li>
 </ul>
 <h3>归档</h3>
 <ul>
