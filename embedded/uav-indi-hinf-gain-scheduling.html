@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>无人机滤波控制三篇之三：INDI 四旋翼的 H∞ 鲁棒外环与增益调度</title>
+<script>
+window.MathJax = {
+    tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] },
+    svg: { fontCache: 'global' },
+    options: { renderActions: { addMenu: [] } }
+};
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+<style>
+    :root { --bg:#0f0f12; --surface:#1a1a1f; --text:#e8e8ec; --dim:#9ca3af;
+            --accent:#6366f1; --accent2:#8b5cf6; --green:#10b981; --orange:#f97316;
+            --border:rgba(255,255,255,0.06); }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+           background:var(--bg); color:var(--text); line-height:1.75; -webkit-font-smoothing:antialiased; }
+    .container { max-width:800px; margin:0 auto; padding:60px 24px 80px; }
+    h1 { font-size:1.8em; margin:16px 0 8px;
+         background:linear-gradient(135deg,var(--text) 0%,var(--accent) 60%,var(--accent2) 100%);
+         -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    .sub { color:var(--dim); margin-bottom:8px; }
+    .back { display:inline-block; margin-bottom:8px; color:var(--dim); text-decoration:none; font-size:0.9em; }
+    .back:hover { color:var(--accent); }
+    h2 { font-size:1.25em; margin:44px 0 14px; padding-bottom:10px; border-bottom:1px solid var(--border); }
+    h3 { font-size:1.05em; margin:26px 0 10px; }
+    p { margin:10px 0; }
+    ul { margin:10px 0 10px 22px; } li { margin:6px 0; }
+    code { background:rgba(99,102,241,0.12); color:#a5b4fc; padding:1px 6px; border-radius:5px; font-size:0.88em; }
+    table { width:100%; border-collapse:collapse; margin:14px 0; font-size:0.9em; }
+    th { text-align:left; color:var(--dim); font-weight:600; padding:8px 10px; border-bottom:1px solid var(--border); white-space:nowrap; }
+    td { padding:9px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+    .card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:18px 22px; margin:14px 0; }
+    .verdict { border-left:3px solid var(--green); }
+    .verdict::before { content:'✦ 拍板'; display:block; color:var(--green); font-weight:600; font-size:0.85em; margin-bottom:6px; }
+    .warn { border-left:3px solid var(--orange); }
+    .warn::before { content:'⚠ 注意'; display:block; color:var(--orange); font-weight:600; font-size:0.85em; margin-bottom:6px; }
+    .dim { color:var(--dim); }
+    .fig { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px 10px 8px; margin:18px 0; }
+    .fig svg { display:block; margin:0 auto; max-width:100%; height:auto; }
+    .figcap { text-align:center; color:var(--dim); font-size:0.82em; padding:8px 12px 6px; }
+    .footer { margin-top:60px; padding-top:20px; border-top:1px solid var(--border); color:var(--dim); font-size:0.82em; }
+    .footer a { color:var(--accent); text-decoration:none; }
+    svg .lbl { paint-order:stroke; stroke:#0f0f12; stroke-width:5px; stroke-linejoin:round; }
+    mjx-container { overflow-x:auto; overflow-y:hidden; padding:2px 0; }
+</style>
+</head>
+<body>
+<div class="container">
+    <a class="back" href="../index.html">← 返回总览</a>
+    <h1>当飞机认错自己时：INDI 四旋翼的 H∞ 鲁棒外环与增益调度</h1>
+    <p class="sub">无人机滤波控制三篇 · 之三 · arXiv:2605.05483（TU Delft，2026）· 2026-10-07</p>
+
+    <h2>§0 这篇论文在讲什么</h2>
+    <p><a href="uav-throw-recovery-rls-indi.html">系列之二</a>证明了四旋翼能在 450ms 的抛飞里在线辨识出全部控制参数并稳住自己。但它留下一个悬而未决的问题：<b>辨识值有误差（论文自己承认 \(\omega_{max}\)、\(\kappa\) 甚至会系统性偏离 20% 以上），靠这些"半对"参数配出来的增益，凭什么保证稳？</b>之二的极点配置是"信辨识值一切"的做法——参数准则性能好，参数错则裕度悄悄流失，没有任何保证。</p>
+    <p>这篇 2026 年的论文（同属 TU Delft，之二作者 Blaha、Smeur 挂名）把这个洞补上了：<b>把"辨识误差会有多大"显式建成数学对象（不确定度模型），然后在 30 个执行器时间常数设计点上，用信号式 H∞ 闭环整形一次综合出带鲁棒性保证的外环增益族，做成增益调度表</b>。飞机抛飞辨识出 \(\tau\) 后，查表插值即得对应增益——H∞ 优化太慢不能实时跑，但查表是瞬时的。三阶参考模型规定约 5% 超调，设计点上的增益随 \(\tau\) 平滑变化。</p>
+    <p>验证链条完整：线性闭环分析（裕度表）→ 非线性蒙特卡洛仿真（1000 个不确定实现）→ <b>实机 25 次抛飞</b>。实机出了个"美丽的意外"：在线辨识算法出了回归 bug，参数高估到台架值的 2.3 倍——<b>远超设计时假设的不确定度范围</b>——而控制器在执行器时间常数 ≤40ms 时仍然维持了可接受的飞行品质。鲁棒设计被动地扛住了一次真实世界的"超出剧本"。</p>
+    <table>
+        <tr><th>项目</th><th>内容</th></tr>
+        <tr><td>作者 / 机构</td><td>Tom Aantjes, Till Blaha, Spilios Theodoulis, Ewoud Smeur — 代尔夫特理工大学</td></tr>
+        <tr><td>发表</td><td>arXiv:2605.05483（2026-05，©2026 IEEE）</td></tr>
+        <tr><td>前置依赖</td><td><a href="uav-throw-recovery-rls-indi.html">之二</a>的 INDI 内环 + 在线辨识（作为被控对象的一部分）</td></tr>
+        <tr><td>不确定度模型</td><td>控制效能 ±20%（参数型，LFT）；执行器 \(\tau\) ±40% + 乘性非结构（覆盖至高频）</td></tr>
+        <tr><td>综合方法</td><td>信号式 H∞ 闭环整形 + 权重滤波器/参考模型/增益协同设计（co-design）</td></tr>
+        <tr><td>产物</td><td>\(\tau\in[10,80]\)ms 的 30 点增益调度：\(K_\eta,K_\Omega\) 与前馈零极点 \(a_{ff},b_{ff}\)</td></tr>
+        <tr><td>结果</td><td>标称/最坏裕度全部达标；超调全程 4.7–5.0%；实机参数偏差 2.3× 下 τ≤40ms 仍可控</td></tr>
+    </table>
+    <div class="card verdict">
+        一句话：<b>之二解决"参数从哪来"，本文解决"参数不可全信时增益怎么给"</b>——辨识器负责把飞机认个大概，鲁棒综合负责保证"认错两三成也摔不了"。这是自适应控制与鲁棒控制两条传统的标准合流。
+    </div>
+
+    <h2>§1 前置知识</h2>
+
+    <h3>§1.1 鲁棒控制：为"最坏情况"设计，而非为"标称情况"设计</h3>
+    <p>经典整定看标称系统的裕度（增益裕度 GM、相位裕度 PM）：在标称模型上，增益还能放大几倍、相位还能滞后多少才失稳。但真实的飞机不是标称模型——电池电压起伏改变电机效能，在线辨识本身有误差，一阶滞后只是执行器的近似。<b>鲁棒控制把所有这些"可能的真实"打包成一个不确定度集合 \(\Delta\)，然后要求：集合里<b>每一个</b>成员闭环都稳定（鲁棒稳定性），且性能都达标（鲁棒性能）</b>。设计从"给这一点调参"变成"给这一团划界"。</p>
+
+    <h3>§1.2 H∞ 与频域整形：把指标写成"峰值不超过 1"</h3>
+    <p>传递函数的 \(\infty\)-范数就是它在<b>所有频率上增益的峰值</b>：\(\|G\|_\infty = \sup_\omega \bar\sigma(G(j\omega))\)（多变量时取最大奇异值）。于是"这个闭环通道在全频段都要足够小"这种指标可以写成：</p>
+    \[ \|W(s)\,G(s)\|_\infty \le 1 \]
+    <p>\(W(s)\) 是<b>加权滤波器</b>：\(W^{-1}\) 就是给 \(G\) 画的"包络线"。想让灵敏度函数 \(S=\frac{1}{1+L}\)（扰动到输出的通道）在低频压到 −50dB、峰值不超过 6dB？把这两条线写进 \(W^{-1}\) 的形状即可。H∞ 综合就是解优化：<b>找控制器 \(K\) 使所有加权通道的 ∞-范数同时 ≤1</b>。所谓"整形"，整的就是这些包络。</p>
+    <p>为什么不无限拉带宽？水床效应：\(S\) 在某频段被压下去，必然在另一频段鼓起来（\(S+T=1\) 的恒等式锁死了总账）。于是设计变成<b>分配</b>：低频给抗扰，中频给裕度，高频给噪声——与<a href="uav-tailsitter-notch-filter-control.html">之一</a>的回路整形是同一套直觉的两种严格化。</p>
+
+    <h3>§1.3 不确定度的两种记账法</h3>
+    <p><b>参数不确定</b>（结构化）：知道哪个物理系数会变、变多少。如控制效能 \(C_p\) 可能 ±20%：\(C_{p,i}^{\,p} = C_p(1 + r_C\,\delta_i)\)，\(|\delta_i|&lt;1\)。用<b>线性分式变换 LFT</b> 把这些 δ 从系统里"抽"出来，接到一个虚拟的对角块 \(\Delta_E = \mathrm{diag}(\delta_1..\delta_4)\) 上——名义系统 \(M_E(s)\) 保持确定，全部不确定性集中在 \(\Delta\) 块里，数学上可做最坏情况分析（µ 分析）。</p>
+    <p><b>非结构不确定</b>（乘性）：懒得（或无法）逐一建模式的高频失配，统一记作真实对象 = 名义对象 × \((1 + w_m(s)\Delta(s))\)，\(\|\Delta\|_\infty&lt;1\)，权重 \(w_m(s)\) 画出"相对误差随频率增长到 100%"的包络。论文的执行器模型就用了两者叠加：时间常数的 ±40% 是参数型，一阶假设在高频失效是非结构型。</p>
+    <div class="fig">
+    <svg viewBox="0 0 700 210" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+            <marker id="arrF" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#9ca3af"/>
+            </marker>
+        </defs>
+        <!-- Delta box -->
+        <rect x="285" y="22" width="130" height="40" rx="8" fill="rgba(249,115,22,0.10)" stroke="#f97316" stroke-width="1.6" stroke-dasharray="5 3"/>
+        <text x="350" y="40" fill="#fdba74" font-size="13" text-anchor="middle">Δ（不确定块）</text>
+        <text x="350" y="55" fill="#fdba74" font-size="10.5" text-anchor="middle">|δ|&lt;1 或 ‖Δ‖∞&lt;1</text>
+        <!-- M box -->
+        <rect x="230" y="110" width="240" height="70" rx="10" fill="rgba(99,102,241,0.12)" stroke="#6366f1" stroke-width="1.6"/>
+        <text x="350" y="138" fill="#a5b4fc" font-size="14" text-anchor="middle">M(s) — 名义系统（确定）</text>
+        <text x="350" y="158" fill="#a5b4fc" font-size="11" text-anchor="middle">物理模型 + INDI 内环 + 名义参数</text>
+        <!-- connections: y_delta up from M left-port, u_delta down into M right-port -->
+        <line x1="300" y1="110" x2="300" y2="62" stroke="#f97316" stroke-width="1.6" marker-end="url(#arrF)"/>
+        <text x="268" y="92" fill="#fdba74" font-size="11.5" class="lbl">y<tspan font-size="8" dy="2">Δ</tspan></text>
+        <line x1="400" y1="62" x2="400" y2="110" stroke="#f97316" stroke-width="1.6" marker-end="url(#arrF)"/>
+        <text x="412" y="92" fill="#fdba74" font-size="11.5" class="lbl">u<tspan font-size="8" dy="2">Δ</tspan></text>
+        <!-- external in/out -->
+        <line x1="40" y1="145" x2="226" y2="145" stroke="#9ca3af" stroke-width="1.6" marker-end="url(#arrF)"/>
+        <text x="52" y="134" fill="#9ca3af" font-size="12" class="lbl">外部输入（控制/扰动/噪声）</text>
+        <line x1="474" y1="145" x2="660" y2="145" stroke="#9ca3af" stroke-width="1.6" marker-end="url(#arrF)"/>
+        <text x="500" y="134" fill="#9ca3af" font-size="12" class="lbl">外部输出（性能通道）</text>
+        <!-- annotation -->
+        <text x="580" y="60" fill="#e8e8ec" font-size="12" class="lbl">闭环 = F<tspan font-size="9" dy="2">u</tspan><tspan dy="-2">(M, Δ)</tspan></text>
+        <text x="580" y="80" fill="#9ca3af" font-size="10.5" class="lbl">对 Δ 的一切取值都要稳定</text>
+    </svg>
+    <div class="figcap">图 1 · 不确定性的 LFT 记账法（论文图 1 的概念化）：把"会变的部分"全部抽到顶部的 Δ 块，下面的名义系统保持确定——于是"最坏情况分析"变成对这个标准互联结构的数学问题。</div>
+    </div>
+
+    <h3>§1.4 增益调度：离线算一片，在线查一行</h3>
+    <p>H∞ 综合是迭代优化，分钟级耗时，绝无可能塞进飞控的 2kHz 循环；而飞机的 \(\tau\) 要抛飞后才知道。解法是<b>增益调度</b>：离线在 \(\tau\in[10,80]\)ms 上均匀取 30 个设计点，每点解一次 H∞；在线拿到辨识的 \(\tau\) 后，在调度表里插值取增益。代价是"点间"行为只能靠曲线平滑性背书——论文图 6 显示增益随 \(\tau\) 平滑单调，30 点足够密。</p>
+
+    <h2>§2 系统与不确定度建模</h2>
+
+    <h3>§2.1 从 INDI 内环说起</h3>
+    <p>被控对象含<b>内环</b>：之二的 INDI 角加速度控制 + 四电机控制分配，作为整体进入本论文的"飞机"定义。悬停附近线性化后 \(\ddot\eta = I_v^{-1}(\tau_B + \tau_d)\)，执行器力矩 \(\tau_B = BF\)，归一化后 \(\tau_B = E\,m_c\)（\(E \triangleq B \circ T_{max}\)，\(m_c\in[0,1]^4\)）。INDI 的关键性质（之二 §1.2）：<b>逆得完美时，内环闭环恰为执行器动态 \(A(s)=\frac{1}{\tau s+1}\)</b>。于是外环设计面对的"飞机"≈ 一个时间常数为 \(\tau\) 的一阶环节乘上效能矩阵 \(E\)——全部物理个性浓缩进两个量 \(E\) 和 \(\tau\)，而这两个量恰恰都由在线辨识提供、都不可全信。</p>
+
+    <h3>§2.2 控制效能：±20% 从哪来</h3>
+    <p>\(E\) 的两个误差源：电池电压等环境因素让真实效能波动；在线辨识自身有误差——之二的仿真显示效能估计 RMS 误差约 10%。论文取 \(r_C=0.2\)（每系数 \(C_{p,i}^{\,p} = C_p(1+r_C\delta_i)\)），比观测 RMS 翻倍留余量，随后全部系数经 LFT 接入 \(\Delta_E = \mathrm{diag}(\delta_{C1}..\delta_{C4})\)。</p>
+
+    <h3>§2.3 执行器：参数 ±40% + 高频乘性包络</h3>
+    <p>执行器建为一阶滞后，但 \(\tau\) 同样来自在线辨识。论文做了校准实验：两种电机（3 寸机与 75mm TinyWhoop）分别用正弦激励测转速响应、离线拟合，再对比在线估计值——</p>
+    <table>
+        <tr><th></th><th>在线估计 τ<tspan font-size="9">id</tspan></th><th>台架实验 τ<tspan font-size="9">exp</tspan></th><th>偏差</th></tr>
+        <tr><td>3 寸机电机</td><td>26.3 ms</td><td>17.0 ms</td><td>高估 55%</td></tr>
+        <tr><td>TinyWhoop 电机</td><td>25.0 ms</td><td>32.7 ms</td><td>低估 24%</td></tr>
+    </table>
+    <p>既可能高估也可能低估，最大偏差 35%——参数不确定度取 \(r_\tau = 0.4\)（\(\tau_{p,i} = \tau(1+r_\tau\delta_{\tau i})\)）再留余量。同时一阶模型在高频会失效（TinyWhoop 电机在 150 rad/s 以上拟合变差），补一层乘性非结构权重：</p>
+    \[ w_m(s) = \frac{\tau_w s + r_0}{\tau_w\,(r_\infty s + 1)},\qquad r_0=0.04,\ r_\infty=1.0,\ \tau_w = \tau/5 \]
+    <p>读法：低频相对误差 4%，随频率上升，到 \(5/\tau\) rad/s 处达到 100%——之外一阶模型"仅供参考"。论文画图确认该包络罩住了全部台架数据。每个电机的不确定块 \(\Delta_A = \mathrm{diag}(\delta_{\tau1..4}, \Delta_{\tau1..4}(s))\)：前四个实数（参数），后四个稳定传递函数（非结构）。加上 \(\Delta_E\) 的 4 个，<b>系统共 16~20 个不确定通道</b>——这个数字稍后会让 µ 分析"消化不良"。</p>
+
+    <h3>§2.4 噪声也要建模</h3>
+    <p>INDI 微分陀螺、外环吃噪声，H∞ 综合需要噪声的谱模型 \(N(s)\)（滤波成形滤波器：白噪声过 \(N(s)\) 得到真实噪声谱）。论文实测两架飞机悬停时的陀螺幅谱密度（ASD）：谱形随频率下降、在电机转速处冒峰。取更吵的 TinyWhoop 谱做包络，\(N(s)\) 用低通+滞后+带通拼出——带通对准电机转速峰，因为高频段峰值主导噪声功率。噪声模型决定"带宽不能任性"：拉高带宽 = 放大电机转速处的噪声到桨距指令上。</p>
+
+    <h2>§3 外环结构与综合布局</h2>
+    <div class="fig">
+    <svg viewBox="0 0 780 372" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+            <marker id="arrG" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#9ca3af"/>
+            </marker>
+        </defs>
+        <!-- ============ main forward row y=140 ============ -->
+        <text x="14" y="126" fill="#9ca3af" font-size="11.5" class="lbl">姿态参考 r<tspan font-size="8" dy="2">η</tspan></text>
+        <line x1="16" y1="140" x2="30" y2="140" stroke="#9ca3af" stroke-width="1.5"/>
+        <rect x="30" y="124" width="86" height="32" rx="7" fill="rgba(139,92,246,0.12)" stroke="#8b5cf6" stroke-width="1.5"/>
+        <text x="73" y="144" fill="#c4b5fd" font-size="11.5" text-anchor="middle">F(s) 前馈</text>
+        <line x1="116" y1="140" x2="132" y2="140" stroke="#9ca3af" stroke-width="1.5" marker-end="url(#arrG)"/>
+        <circle cx="146" cy="140" r="12" fill="#1a1a1f" stroke="#9ca3af" stroke-width="1.5"/>
+        <text x="146" y="145" fill="#e8e8ec" font-size="12" text-anchor="middle">Σ</text>
+        <line x1="158" y1="140" x2="182" y2="140" stroke="#9ca3af" stroke-width="1.5" marker-end="url(#arrG)"/>
+        <text x="163" y="130" fill="#9ca3af" font-size="10.5" class="lbl">e<tspan font-size="8" dy="2">η</tspan></text>
+        <rect x="186" y="124" width="148" height="32" rx="7" fill="rgba(99,102,241,0.12)" stroke="#6366f1" stroke-width="1.5"/>
+        <text x="260" y="144" fill="#a5b4fc" font-size="11.5" text-anchor="middle">K(s)：Kη·eη + KΩ·eΩ</text>
+        <line x1="334" y1="140" x2="356" y2="140" stroke="#9ca3af" stroke-width="1.5" marker-end="url(#arrG)"/>
+        <text x="336" y="130" fill="#9ca3af" font-size="10.5" class="lbl">u</text>
+        <rect x="360" y="124" width="160" height="32" rx="7" fill="rgba(16,185,129,0.10)" stroke="#10b981" stroke-width="1.5"/>
+        <text x="440" y="137" fill="#6ee7b7" font-size="11" text-anchor="middle">INDI 内环 + 控制分配</text>
+        <text x="440" y="150" fill="#6ee7b7" font-size="9.5" text-anchor="middle">（用辨识参数，之二的方法）</text>
+        <line x1="520" y1="140" x2="546" y2="140" stroke="#9ca3af" stroke-width="1.5" marker-end="url(#arrG)"/>
+        <text x="520" y="130" fill="#9ca3af" font-size="10.5" class="lbl">m<tspan font-size="8" dy="2">c</tspan></text>
+        <rect x="550" y="124" width="106" height="32" rx="7" fill="rgba(249,115,22,0.10)" stroke="#f97316" stroke-width="1.5"/>
+        <text x="603" y="137" fill="#fdba74" font-size="11" text-anchor="middle">执行器 A(s)</text>
+        <text x="603" y="150" fill="#fdba74" font-size="9.5" text-anchor="middle">1/(τs+1)</text>
+        <line x1="656" y1="140" x2="676" y2="140" stroke="#9ca3af" stroke-width="1.5" marker-end="url(#arrG)"/>
+        <rect x="680" y="124" width="88" height="32" rx="7" fill="rgba(249,115,22,0.10)" stroke="#f97316" stroke-width="1.5"/>
+        <text x="724" y="137" fill="#fdba74" font-size="11" text-anchor="middle">机体</text>
+        <text x="724" y="150" fill="#fdba74" font-size="9.5" text-anchor="middle">I⁻¹·E</text>
+        <line x1="768" y1="140" x2="778" y2="140" stroke="#9ca3af" stroke-width="1.5"/>
+        <!-- ============ uncertainty bubbles ============ -->
+        <circle cx="576" cy="76" r="14" fill="none" stroke="#f97316" stroke-width="1.4" stroke-dasharray="4 3"/>
+        <text x="576" y="81" fill="#fdba74" font-size="10.5" text-anchor="middle">Δ<tspan font-size="8" dy="2">τ</tspan></text>
+        <line x1="576" y1="90" x2="586" y2="122" stroke="#f97316" stroke-width="1.2" stroke-dasharray="3 3"/>
+        <text x="600" y="72" fill="#fdba74" font-size="10" class="lbl">±40% + 高频乘性</text>
+        <circle cx="710" cy="76" r="14" fill="none" stroke="#f97316" stroke-width="1.4" stroke-dasharray="4 3"/>
+        <text x="710" y="81" fill="#fdba74" font-size="10.5" text-anchor="middle">Δ<tspan font-size="8" dy="2">E</tspan></text>
+        <line x1="710" y1="90" x2="722" y2="122" stroke="#f97316" stroke-width="1.2" stroke-dasharray="3 3"/>
+        <text x="640" y="72" fill="#fdba74" font-size="10" class="lbl"></text>
+        <text x="742" y="72" fill="#fdba74" font-size="10" class="lbl">±20%</text>
+        <!-- ============ disturbances ============ -->
+        <line x1="534" y1="196" x2="534" y2="158" stroke="#9ca3af" stroke-width="1.3" marker-end="url(#arrG)"/>
+        <text x="470" y="206" fill="#9ca3af" font-size="10.5" class="lbl">d<tspan font-size="8" dy="2">i</tspan><tspan dy="-2"> 电机指令扰动</tspan></text>
+        <line x1="724" y1="196" x2="724" y2="158" stroke="#9ca3af" stroke-width="1.3" marker-end="url(#arrG)"/>
+        <text x="652" y="206" fill="#9ca3af" font-size="10.5" class="lbl">d<tspan font-size="8" dy="2">Ω̇</tspan><tspan dy="-2"> 风等外力矩</tspan></text>
+        <line x1="778" y1="100" x2="778" y2="136" stroke="#9ca3af" stroke-width="1.3" marker-end="url(#arrG)"/>
+        <text x="700" y="112" fill="#9ca3af" font-size="10.5" class="lbl">d<tspan font-size="8" dy="2">η</tspan><tspan dy="-2"> 输出扰动</tspan></text>
+        <!-- ============ rate sum row ============ -->
+        <circle cx="60" cy="252" r="12" fill="#1a1a1f" stroke="#9ca3af" stroke-width="1.5"/>
+        <text x="60" y="257" fill="#e8e8ec" font-size="12" text-anchor="middle">Σ</text>
+        <line x1="14" y1="252" x2="47" y2="252" stroke="#9ca3af" stroke-width="1.3" marker-end="url(#arrG)"/>
+        <text x="16" y="242" fill="#9ca3af" font-size="10" class="lbl">0</text>
+        <line x1="72" y1="252" x2="260" y2="252" stroke="#9ca3af" stroke-width="1.3"/>
+        <line x1="260" y1="252" x2="260" y2="158" stroke="#9ca3af" stroke-width="1.3" marker-end="url(#arrG)"/>
+        <text x="120" y="246" fill="#9ca3af" font-size="10.5" class="lbl">e<tspan font-size="8" dy="2">Ω</tspan><tspan dy="-2"> = −Ω（速率误差）</tspan></text>
+        <!-- ============ feedback trunk y=310 ============ -->
+        <circle cx="773" cy="140" r="3.5" fill="#e8e8ec"/>
+        <line x1="773" y1="140" x2="773" y2="310" stroke="#9ca3af" stroke-width="1.4"/>
+        <line x1="773" y1="310" x2="470" y2="310" stroke="#9ca3af" stroke-width="1.4"/>
+        <rect x="350" y="294" width="120" height="30" rx="7" fill="rgba(249,115,22,0.10)" stroke="#f97316" stroke-width="1.4"/>
+        <text x="410" y="313" fill="#fdba74" font-size="11" text-anchor="middle">N(s) 噪声成形</text>
+        <line x1="410" y1="330" x2="410" y2="326" stroke="#9ca3af" stroke-width="0"/>
+        <line x1="410" y1="352" x2="410" y2="326" stroke="#9ca3af" stroke-width="1.3" marker-end="url(#arrG)"/>
+        <text x="424" y="348" fill="#9ca3af" font-size="10.5" class="lbl">n<tspan font-size="8" dy="2">Ω</tspan><tspan dy="-2"> 陀螺噪声</tspan></text>
+        <line x1="350" y1="310" x2="60" y2="310" stroke="#9ca3af" stroke-width="1.4"/>
+        <line x1="60" y1="310" x2="60" y2="266" stroke="#9ca3af" stroke-width="1.4" marker-end="url(#arrG)"/>
+        <text x="110" y="302" fill="#9ca3af" font-size="10.5" class="lbl">Ω（陀螺）→ e<tspan font-size="8" dy="2">Ω</tspan></text>
+        <!-- hop arc where Σ1 riser crosses e_Ω line -->
+        <line x1="146" y1="310" x2="146" y2="154" stroke="#9ca3af" stroke-width="1.4" marker-end="url(#arrG)"/>
+        <path d="M 260 252 A 8 8 0 0 0 260 252" fill="none"/>
+        <path d="M 252 246 A 8 8 0 0 1 268 246" fill="none" stroke="#0f0f12" stroke-width="3"/>
+        <path d="M 252 244 A 9 9 0 0 1 268 244" fill="none" stroke="#9ca3af" stroke-width="1.4"/>
+        <text x="146" y="290" fill="#9ca3af" font-size="10.5" class="lbl" text-anchor="middle">η 反馈</text>
+        <!-- performance note -->
+        <text x="390" y="234" fill="#8b5cf6" font-size="11" class="lbl" text-anchor="middle">性能输出 m<tspan font-size="8" dy="2">c</tspan><tspan dy="-2">, Ω̇, Ω, η, 模型跟随误差 e</tspan><tspan font-size="8" dy="2">ref</tspan><tspan dy="-2"> —— 加权后全部压进 ‖·‖∞≤1</tspan></text>
+    </svg>
+    <div class="figcap">图 2 · H∞ 综合布局（依论文图 4 简化重绘）。主链：参考 → 前馈 → 误差 → 增益 → INDI 内环 → 执行器 → 机体；虚线橙圈是两类不确定度的注入点；四个扰动/噪声入口各司其职。综合就是对这一整张图"一次成型"。</div>
+    </div>
+    <p>控制器本体极其简单：<b>两个静态增益 \(K_\eta, K_\Omega\)（对角阵，三轴同增益）加一个超前前馈 \(F(s)\)</b>：</p>
+    \[ F(s) = \frac{s/a_{ff}+1}{s/b_{ff}+1} \]
+    <p>为什么没有积分器？INDI 内环的增量结构天然吃掉常值扰动（之二已证），无需外环重复设置——这是"内环管不确定性、外环管形状"的分工。<b>参考模型</b>规定理想闭环动态（三阶，与内环闭环阶次匹配）：</p>
+    \[ T_{ref}(s) = \frac{\omega_{ref}^2}{s^2 + 2\zeta_{ref}\omega_{ref}s + \omega_{ref}^2}\cdot\frac{b_{ref}}{s+b_{ref}} \]
+    <p>综合完成后从实际闭环主导极点反推 \(T_{ref}\) 参数、调 \(\zeta_{ref}\) 使超调约 5%——前馈 \(F\) 则负责把实际系统"掰"向参考模型。</p>
+
+    <h3>§3.1 设计需求（R1–R7）与权重翻译</h3>
+    <table>
+        <tr><th>编号</th><th>需求</th><th>实现方式</th></tr>
+        <tr><td>R1</td><td>标称：GM ≥ 4dB、PM ≥ 35°（执行器输入与 η/Ω/Ω̇ 输出）</td><td>闭环分析验证</td></tr>
+        <tr><td>R2</td><td>带不确定度：GM ≥ 2dB、PM ≥ 17.5°</td><td>µ 最坏情况分析</td></tr>
+        <tr><td>R3</td><td>多回路 disk margin：GM ≥ 3dB、PM ≥ 19.5°</td><td>直接 H∞ 约束（式 16–18）</td></tr>
+        <tr><td>R4</td><td>执行器输入与角加速度两处扰动的抑制</td><td>灵敏度加权 \(\|W_{S_{o,\eta}}S_{o,\eta}\|_\infty \le 1\)</td></tr>
+        <tr><td>R5</td><td>传感器噪声在输入与输出端的衰减</td><td>噪声通道 \(N(s)\) 进综合</td></tr>
+        <tr><td>R6</td><td>±45° 滚转/俯仰机动中电机转速保持 10–100% \(\omega_{max}\)</td><td>控制信号加权约束</td></tr>
+        <tr><td>R7</td><td>标称跟踪超调 4.5–5.0%</td><td>模型跟随加权 \(\|W_M M\|_\infty\le1\) + 参考模型</td></tr>
+    </table>
+    <p>关键的两处"严格化"：<b>① 灵敏度整形</b>——低频 −50dB（抗扰包络）、高频 +6dB（间接钳制灵敏度峰），过渡带带宽 \(\omega_{S_{o,\eta}}\) 不写死，而是作为<b>协同设计变量</b>与增益一起优化（以软约束最大化它）；<b>② disk margin 直接进约束</b>——不再满足于经典 GM/PM，把目标 GM 7dB / PM 42° 换算为 \(\alpha_{max}=0.764\)，对灵敏度函数施加 H∞ 约束。disk margin 比 GM/PM 强在<b>同时</b>容许增益与相位摄动，且覆盖多回路（MIMO）情形——对"四个电机各自不确定"的系统这才是对症的量度：</p>
+    \[ [\gamma_{min},\gamma_{max}] = \left[\frac{2-\alpha_{max}}{2+\alpha_{max}},\ \frac{2+\alpha_{max}}{2-\alpha_{max}}\right]_{\sigma=0} \]
+    <p>所谓 <b>co-design（协同设计）</b>：传统流程先手工定权重、再解 H∞、不满意改权重重来；本文把权重滤波器带宽、参考模型参数、控制器增益<b>全部作为优化变量</b>，多模型多目标（Apkarian 系 nonsmooth/HIFOO 一脉）一次解出——这也是 30 个设计点的参数曲线能平滑自洽的原因。</p>
+
+    <h2>§4 分析结果：一张调度表，一张裕度表</h2>
+    <div class="fig">
+    <svg viewBox="0 0 720 340" xmlns="http://www.w3.org/2000/svg">
+        <text x="70" y="20" fill="#e8e8ec" font-size="13" font-weight="600">① 反馈增益调度 K<tspan font-size="9" dy="2">η</tspan><tspan dy="-2">, K</tspan><tspan font-size="9" dy="2">Ω</tspan><tspan dy="-2"> [1/s]（τ 小 → 执行器快 → 增益大）</tspan></text>
+<rect x="70" y="34" width="620" height="126" fill="none" stroke="rgba(255,255,255,0.15)"/>
+<line x1="158.6" y1="34" x2="158.6" y2="160" stroke="rgba(255,255,255,0.06)"/>
+<text x="158.6" y="174" fill="#9ca3af" font-size="10.5" text-anchor="middle">20</text>
+<line x1="335.7" y1="34" x2="335.7" y2="160" stroke="rgba(255,255,255,0.06)"/>
+<text x="335.7" y="174" fill="#9ca3af" font-size="10.5" text-anchor="middle">40</text>
+<line x1="512.9" y1="34" x2="512.9" y2="160" stroke="rgba(255,255,255,0.06)"/>
+<text x="512.9" y="174" fill="#9ca3af" font-size="10.5" text-anchor="middle">60</text>
+<text x="70.0" y="174" fill="#9ca3af" font-size="10.5" text-anchor="middle">10</text>
+<text x="690.0" y="174" fill="#9ca3af" font-size="10.5" text-anchor="middle">80</text>
+<line x1="70" y1="160.0" x2="690" y2="160.0" stroke="rgba(255,255,255,0.06)" stroke-dasharray="3 4"/>
+<text x="62" y="163.5" fill="#9ca3af" font-size="10.5" text-anchor="end">0</text>
+<line x1="70" y1="115.0" x2="690" y2="115.0" stroke="rgba(255,255,255,0.06)" stroke-dasharray="3 4"/>
+<text x="62" y="118.5" fill="#9ca3af" font-size="10.5" text-anchor="end">10</text>
+<line x1="70" y1="70.0" x2="690" y2="70.0" stroke="rgba(255,255,255,0.06)" stroke-dasharray="3 4"/>
+<text x="62" y="73.5" fill="#9ca3af" font-size="10.5" text-anchor="end">20</text>
+<circle cx="70.0" cy="146.5" r="1.6" fill="#10b981"/>
+<circle cx="70.0" cy="148.7" r="1.6" fill="#6366f1"/>
+<circle cx="91.4" cy="146.5" r="1.6" fill="#10b981"/>
+<circle cx="91.4" cy="148.7" r="1.6" fill="#6366f1"/>
+<circle cx="112.8" cy="146.5" r="1.6" fill="#10b981"/>
+<circle cx="112.8" cy="148.7" r="1.6" fill="#6366f1"/>
+<circle cx="134.1" cy="146.5" r="1.6" fill="#10b981"/>
+<circle cx="134.1" cy="148.7" r="1.6" fill="#6366f1"/>
+<circle cx="155.5" cy="146.5" r="1.6" fill="#10b981"/>
+<circle cx="155.5" cy="148.7" r="1.6" fill="#6366f1"/>
+<circle cx="176.9" cy="146.5" r="1.6" fill="#10b981"/>
+<circle cx="176.9" cy="148.7" r="1.6" fill="#6366f1"/>
+<circle cx="198.3" cy="146.5" r="1.6" fill="#10b981"/>
+<circle cx="198.3" cy="148.7" r="1.6" fill="#6366f1"/>
+<circle cx="219.7" cy="146.5" r="1.6" fill="#10b981"/>
+<circle cx="219.7" cy="148.7" r="1.6" fill="#6366f1"/>
+<circle cx="241.0" cy="146.5" r="1.6" fill="#10b981"/>
+<circle cx="241.0" cy="148.7" r="1.6" fill="#6366f1"/>
+<circle cx="262.4" cy="146.5" r="1.6" fill="#10b981"/>
+<circle cx="262.4" cy="148.7" r="1.6" fill="#6366f1"/>
+<circle cx="283.8" cy="146.5" r="1.6" fill="#10b981"/>
+<circle cx="283.8" cy="148.7" r="1.6" fill="#6366f1"/>
+<circle cx="305.2" cy="146.5" r="1.6" fill="#10b981"/>
+<circle cx="305.2" cy="148.7" r="1.6" fill="#6366f1"/>
+<circle cx="326.6" cy="146.5" r="1.6" fill="#10b981"/>
+<circle cx="326.6" cy="148.7" r="1.6" fill="#6366f1"/>
+<circle cx="347.9" cy="146.5" r="1.6" fill="#10b981"/>
+<circle cx="347.9" cy="148.7" r="1.6" fill="#6366f1"/>
+<circle cx="369.3" cy="146.5" r="1.6" fill="#10b981"/>
+<circle cx="369.3" cy="148.7" r="1.6" fill="#6366f1"/>
+<circle cx="390.7" cy="146.5" r="1.6" fill="#10b981"/>
+<circle cx="390.7" cy="148.7" r="1.6" fill="#6366f1"/>
+<circle cx="412.1" cy="146.5" r="1.6" fill="#10b981"/>
+<circle cx="412.1" cy="148.7" r="1.6" fill="#6366f1"/>
+<circle cx="433.4" cy="146.5" r="1.6" fill="#10b981"/>
+<circle cx="433.4" cy="148.7" r="1.6" fill="#6366f1"/>
+<circle cx="454.8" cy="146.5" r="1.6" fill="#10b981"/>
+<circle cx="454.8" cy="148.7" r="1.6" fill="#6366f1"/>
+<circle cx="476.2" cy="146.5" r="1.6" fill="#10b981"/>
+<circle cx="476.2" cy="148.7" r="1.6" fill="#6366f1"/>
+<circle cx="497.6" cy="146.5" r="1.6" fill="#10b981"/>
+<circle cx="497.6" cy="148.7" r="1.6" fill="#6366f1"/>
+<circle cx="519.0" cy="146.5" r="1.6" fill="#10b981"/>
+<circle cx="519.0" cy="148.7" r="1.6" fill="#6366f1"/>
+<circle cx="540.3" cy="146.5" r="1.6" fill="#10b981"/>
+<circle cx="540.3" cy="148.7" r="1.6" fill="#6366f1"/>
+<circle cx="561.7" cy="146.5" r="1.6" fill="#10b981"/>
+<circle cx="561.7" cy="148.7" r="1.6" fill="#6366f1"/>
+<circle cx="583.1" cy="146.5" r="1.6" fill="#10b981"/>
+<circle cx="583.1" cy="148.7" r="1.6" fill="#6366f1"/>
+<circle cx="604.5" cy="146.5" r="1.6" fill="#10b981"/>
+<circle cx="604.5" cy="148.7" r="1.6" fill="#6366f1"/>
+<circle cx="625.9" cy="146.5" r="1.6" fill="#10b981"/>
+<circle cx="625.9" cy="148.7" r="1.6" fill="#6366f1"/>
+<circle cx="647.2" cy="146.5" r="1.6" fill="#10b981"/>
+<circle cx="647.2" cy="148.7" r="1.6" fill="#6366f1"/>
+<circle cx="668.6" cy="146.5" r="1.6" fill="#10b981"/>
+<circle cx="668.6" cy="148.7" r="1.6" fill="#6366f1"/>
+<circle cx="690.0" cy="146.5" r="1.6" fill="#10b981"/>
+<circle cx="690.0" cy="148.7" r="1.6" fill="#6366f1"/>
+<polyline points="70.0,146.5 72.2,146.5 74.4,146.5 76.6,146.5 78.9,146.5 81.1,146.5 83.3,146.5 85.5,146.5 87.7,146.5 89.9,146.5 92.1,146.5 94.4,146.5 96.6,146.5 98.8,146.5 101.0,146.5 103.2,146.5 105.4,146.5 107.6,146.5 109.9,146.5 112.1,146.5 114.3,146.5 116.5,146.5 118.7,146.5 120.9,146.5 123.1,146.5 125.4,146.5 127.6,146.5 129.8,146.5 132.0,146.5 134.2,146.5 136.4,146.5 138.6,146.5 140.9,146.5 143.1,146.5 145.3,146.5 147.5,146.5 149.7,146.5 151.9,146.5 154.1,146.5 156.4,146.5 158.6,146.5 160.8,146.5 163.0,146.5 165.2,146.5 167.4,146.5 169.6,146.5 171.9,146.5 174.1,146.5 176.3,146.5 178.5,146.5 180.7,146.5 182.9,146.5 185.1,146.5 187.4,146.5 189.6,146.5 191.8,146.5 194.0,146.5 196.2,146.5 198.4,146.5 200.6,146.5 202.9,146.5 205.1,146.5 207.3,146.5 209.5,146.5 211.7,146.5 213.9,146.5 216.1,146.5 218.4,146.5 220.6,146.5 222.8,146.5 225.0,146.5 227.2,146.5 229.4,146.5 231.6,146.5 233.9,146.5 236.1,146.5 238.3,146.5 240.5,146.5 242.7,146.5 244.9,146.5 247.1,146.5 249.4,146.5 251.6,146.5 253.8,146.5 256.0,146.5 258.2,146.5 260.4,146.5 262.6,146.5 264.9,146.5 267.1,146.5 269.3,146.5 271.5,146.5 273.7,146.5 275.9,146.5 278.1,146.5 280.4,146.5 282.6,146.5 284.8,146.5 287.0,146.5 289.2,146.5 291.4,146.5 293.6,146.5 295.9,146.5 298.1,146.5 300.3,146.5 302.5,146.5 304.7,146.5 306.9,146.5 309.1,146.5 311.4,146.5 313.6,146.5 315.8,146.5 318.0,146.5 320.2,146.5 322.4,146.5 324.6,146.5 326.9,146.5 329.1,146.5 331.3,146.5 333.5,146.5 335.7,146.5 337.9,146.5 340.1,146.5 342.4,146.5 344.6,146.5 346.8,146.5 349.0,146.5 351.2,146.5 353.4,146.5 355.6,146.5 357.9,146.5 360.1,146.5 362.3,146.5 364.5,146.5 366.7,146.5 368.9,146.5 371.1,146.5 373.4,146.5 375.6,146.5 377.8,146.5 380.0,146.5 382.2,146.5 384.4,146.5 386.6,146.5 388.9,146.5 391.1,146.5 393.3,146.5 395.5,146.5 397.7,146.5 399.9,146.5 402.1,146.5 404.4,146.5 406.6,146.5 408.8,146.5 411.0,146.5 413.2,146.5 415.4,146.5 417.6,146.5 419.9,146.5 422.1,146.5 424.3,146.5 426.5,146.5 428.7,146.5 430.9,146.5 433.1,146.5 435.4,146.5 437.6,146.5 439.8,146.5 442.0,146.5 444.2,146.5 446.4,146.5 448.6,146.5 450.9,146.5 453.1,146.5 455.3,146.5 457.5,146.5 459.7,146.5 461.9,146.5 464.1,146.5 466.4,146.5 468.6,146.5 470.8,146.5 473.0,146.5 475.2,146.5 477.4,146.5 479.6,146.5 481.9,146.5 484.1,146.5 486.3,146.5 488.5,146.5 490.7,146.5 492.9,146.5 495.1,146.5 497.4,146.5 499.6,146.5 501.8,146.5 504.0,146.5 506.2,146.5 508.4,146.5 510.6,146.5 512.9,146.5 515.1,146.5 517.3,146.5 519.5,146.5 521.7,146.5 523.9,146.5 526.1,146.5 528.4,146.5 530.6,146.5 532.8,146.5 535.0,146.5 537.2,146.5 539.4,146.5 541.6,146.5 543.9,146.5 546.1,146.5 548.3,146.5 550.5,146.5 552.7,146.5 554.9,146.5 557.1,146.5 559.4,146.5 561.6,146.5 563.8,146.5 566.0,146.5 568.2,146.5 570.4,146.5 572.6,146.5 574.9,146.5 577.1,146.5 579.3,146.5 581.5,146.5 583.7,146.5 585.9,146.5 588.1,146.5 590.4,146.5 592.6,146.5 594.8,146.5 597.0,146.5 599.2,146.5 601.4,146.5 603.6,146.5 605.9,146.5 608.1,146.5 610.3,146.5 612.5,146.5 614.7,146.5 616.9,146.5 619.1,146.5 621.4,146.5 623.6,146.5 625.8,146.5 628.0,146.5 630.2,146.5 632.4,146.5 634.6,146.5 636.9,146.5 639.1,146.5 641.3,146.5 643.5,146.5 645.7,146.5 647.9,146.5 650.1,146.5 652.4,146.5 654.6,146.5 656.8,146.5 659.0,146.5 661.2,146.5 663.4,146.5 665.6,146.5 667.9,146.5 670.1,146.5 672.3,146.5 674.5,146.5 676.7,146.5 678.9,146.5 681.1,146.5 683.4,146.5 685.6,146.5 687.8,146.5 690.0,146.5" fill="none" stroke="#10b981" stroke-width="2"/>
+<polyline points="70.0,148.7 72.2,148.7 74.4,148.7 76.6,148.7 78.9,148.7 81.1,148.7 83.3,148.7 85.5,148.7 87.7,148.7 89.9,148.7 92.1,148.7 94.4,148.7 96.6,148.7 98.8,148.7 101.0,148.7 103.2,148.7 105.4,148.7 107.6,148.7 109.9,148.7 112.1,148.7 114.3,148.7 116.5,148.7 118.7,148.7 120.9,148.7 123.1,148.7 125.4,148.7 127.6,148.7 129.8,148.7 132.0,148.7 134.2,148.7 136.4,148.7 138.6,148.7 140.9,148.7 143.1,148.7 145.3,148.7 147.5,148.7 149.7,148.7 151.9,148.7 154.1,148.7 156.4,148.7 158.6,148.7 160.8,148.7 163.0,148.7 165.2,148.7 167.4,148.7 169.6,148.7 171.9,148.7 174.1,148.7 176.3,148.7 178.5,148.7 180.7,148.7 182.9,148.7 185.1,148.7 187.4,148.7 189.6,148.7 191.8,148.7 194.0,148.7 196.2,148.7 198.4,148.7 200.6,148.7 202.9,148.7 205.1,148.7 207.3,148.7 209.5,148.7 211.7,148.7 213.9,148.7 216.1,148.7 218.4,148.7 220.6,148.7 222.8,148.7 225.0,148.7 227.2,148.7 229.4,148.7 231.6,148.7 233.9,148.7 236.1,148.7 238.3,148.7 240.5,148.7 242.7,148.7 244.9,148.7 247.1,148.7 249.4,148.7 251.6,148.7 253.8,148.7 256.0,148.7 258.2,148.7 260.4,148.7 262.6,148.7 264.9,148.7 267.1,148.7 269.3,148.7 271.5,148.7 273.7,148.7 275.9,148.7 278.1,148.7 280.4,148.7 282.6,148.7 284.8,148.7 287.0,148.7 289.2,148.7 291.4,148.7 293.6,148.7 295.9,148.7 298.1,148.7 300.3,148.7 302.5,148.7 304.7,148.7 306.9,148.7 309.1,148.7 311.4,148.7 313.6,148.7 315.8,148.7 318.0,148.7 320.2,148.7 322.4,148.7 324.6,148.7 326.9,148.7 329.1,148.7 331.3,148.7 333.5,148.7 335.7,148.7 337.9,148.7 340.1,148.7 342.4,148.7 344.6,148.7 346.8,148.7 349.0,148.7 351.2,148.7 353.4,148.7 355.6,148.7 357.9,148.7 360.1,148.7 362.3,148.7 364.5,148.7 366.7,148.7 368.9,148.7 371.1,148.7 373.4,148.7 375.6,148.7 377.8,148.7 380.0,148.7 382.2,148.7 384.4,148.7 386.6,148.7 388.9,148.7 391.1,148.7 393.3,148.7 395.5,148.7 397.7,148.7 399.9,148.7 402.1,148.7 404.4,148.7 406.6,148.7 408.8,148.7 411.0,148.7 413.2,148.7 415.4,148.7 417.6,148.7 419.9,148.7 422.1,148.7 424.3,148.7 426.5,148.7 428.7,148.7 430.9,148.7 433.1,148.7 435.4,148.7 437.6,148.7 439.8,148.7 442.0,148.7 444.2,148.7 446.4,148.7 448.6,148.7 450.9,148.7 453.1,148.7 455.3,148.7 457.5,148.7 459.7,148.7 461.9,148.7 464.1,148.7 466.4,148.7 468.6,148.7 470.8,148.7 473.0,148.7 475.2,148.7 477.4,148.7 479.6,148.7 481.9,148.7 484.1,148.7 486.3,148.7 488.5,148.7 490.7,148.7 492.9,148.7 495.1,148.7 497.4,148.7 499.6,148.7 501.8,148.7 504.0,148.7 506.2,148.7 508.4,148.7 510.6,148.7 512.9,148.7 515.1,148.7 517.3,148.7 519.5,148.7 521.7,148.7 523.9,148.7 526.1,148.7 528.4,148.7 530.6,148.7 532.8,148.7 535.0,148.7 537.2,148.7 539.4,148.7 541.6,148.7 543.9,148.7 546.1,148.7 548.3,148.7 550.5,148.7 552.7,148.7 554.9,148.7 557.1,148.7 559.4,148.7 561.6,148.7 563.8,148.7 566.0,148.7 568.2,148.7 570.4,148.7 572.6,148.7 574.9,148.7 577.1,148.7 579.3,148.7 581.5,148.7 583.7,148.7 585.9,148.7 588.1,148.7 590.4,148.7 592.6,148.7 594.8,148.7 597.0,148.7 599.2,148.7 601.4,148.7 603.6,148.7 605.9,148.7 608.1,148.7 610.3,148.7 612.5,148.7 614.7,148.7 616.9,148.7 619.1,148.7 621.4,148.7 623.6,148.7 625.8,148.7 628.0,148.7 630.2,148.7 632.4,148.7 634.6,148.7 636.9,148.7 639.1,148.7 641.3,148.7 643.5,148.7 645.7,148.7 647.9,148.7 650.1,148.7 652.4,148.7 654.6,148.7 656.8,148.7 659.0,148.7 661.2,148.7 663.4,148.7 665.6,148.7 667.9,148.7 670.1,148.7 672.3,148.7 674.5,148.7 676.7,148.7 678.9,148.7 681.1,148.7 683.4,148.7 685.6,148.7 687.8,148.7 690.0,148.7" fill="none" stroke="#6366f1" stroke-width="2"/>
+<text x="80" y="46" fill="#10b981" font-size="11" class="lbl">K<tspan font-size="8" dy="2">Ω</tspan><tspan dy="-2">（角速度增益）</tspan></text>
+<text x="80" y="62" fill="#a5b4fc" font-size="11" class="lbl">K<tspan font-size="8" dy="2">η</tspan><tspan dy="-2">（姿态增益）</tspan></text>
+        <text x="70" y="196" fill="#e8e8ec" font-size="13" font-weight="600">② 前馈 F(s) 的零点 a<tspan font-size="9" dy="2">ff</tspan><tspan dy="-2"> 与极点 b</tspan><tspan font-size="9" dy="2">ff</tspan><tspan dy="-2"> [rad/s]（全段超前：a</tspan><tspan font-size="9" dy="2">ff</tspan><tspan dy="-2">&lt;b</tspan><tspan font-size="9" dy="2">ff</tspan><tspan dy="-2">）</tspan></text>
+<rect x="70" y="210" width="620" height="106" fill="none" stroke="rgba(255,255,255,0.15)"/>
+<line x1="158.6" y1="210" x2="158.6" y2="316" stroke="rgba(255,255,255,0.06)"/>
+<text x="158.6" y="330" fill="#9ca3af" font-size="10.5" text-anchor="middle">20</text>
+<line x1="335.7" y1="210" x2="335.7" y2="316" stroke="rgba(255,255,255,0.06)"/>
+<text x="335.7" y="330" fill="#9ca3af" font-size="10.5" text-anchor="middle">40</text>
+<line x1="512.9" y1="210" x2="512.9" y2="316" stroke="rgba(255,255,255,0.06)"/>
+<text x="512.9" y="330" fill="#9ca3af" font-size="10.5" text-anchor="middle">60</text>
+<text x="70.0" y="330" fill="#9ca3af" font-size="10.5" text-anchor="middle">10</text>
+<text x="690.0" y="330" fill="#9ca3af" font-size="10.5" text-anchor="middle">80</text>
+<line x1="70" y1="302.8" x2="690" y2="302.8" stroke="rgba(255,255,255,0.06)" stroke-dasharray="3 4"/>
+<text x="62" y="306.2" fill="#9ca3af" font-size="10.5" text-anchor="end">4</text>
+<line x1="70" y1="276.2" x2="690" y2="276.2" stroke="rgba(255,255,255,0.06)" stroke-dasharray="3 4"/>
+<text x="62" y="279.8" fill="#9ca3af" font-size="10.5" text-anchor="end">6</text>
+<line x1="70" y1="249.8" x2="690" y2="249.8" stroke="rgba(255,255,255,0.06)" stroke-dasharray="3 4"/>
+<text x="62" y="253.2" fill="#9ca3af" font-size="10.5" text-anchor="end">8</text>
+<line x1="70" y1="223.2" x2="690" y2="223.2" stroke="rgba(255,255,255,0.06)" stroke-dasharray="3 4"/>
+<text x="62" y="226.8" fill="#9ca3af" font-size="10.5" text-anchor="end">10</text>
+<circle cx="70.0" cy="302.8" r="1.6" fill="#8b5cf6"/>
+<circle cx="70.0" cy="302.8" r="1.6" fill="#f97316"/>
+<circle cx="91.4" cy="300.0" r="1.6" fill="#8b5cf6"/>
+<circle cx="91.4" cy="300.3" r="1.6" fill="#f97316"/>
+<circle cx="112.8" cy="297.3" r="1.6" fill="#8b5cf6"/>
+<circle cx="112.8" cy="297.8" r="1.6" fill="#f97316"/>
+<circle cx="134.1" cy="294.5" r="1.6" fill="#8b5cf6"/>
+<circle cx="134.1" cy="295.3" r="1.6" fill="#f97316"/>
+<circle cx="155.5" cy="291.8" r="1.6" fill="#8b5cf6"/>
+<circle cx="155.5" cy="292.9" r="1.6" fill="#f97316"/>
+<circle cx="176.9" cy="289.0" r="1.6" fill="#8b5cf6"/>
+<circle cx="176.9" cy="290.4" r="1.6" fill="#f97316"/>
+<circle cx="198.3" cy="286.3" r="1.6" fill="#8b5cf6"/>
+<circle cx="198.3" cy="287.9" r="1.6" fill="#f97316"/>
+<circle cx="219.7" cy="283.6" r="1.6" fill="#8b5cf6"/>
+<circle cx="219.7" cy="285.5" r="1.6" fill="#f97316"/>
+<circle cx="241.0" cy="280.8" r="1.6" fill="#8b5cf6"/>
+<circle cx="241.0" cy="283.0" r="1.6" fill="#f97316"/>
+<circle cx="262.4" cy="278.1" r="1.6" fill="#8b5cf6"/>
+<circle cx="262.4" cy="280.5" r="1.6" fill="#f97316"/>
+<circle cx="283.8" cy="275.3" r="1.6" fill="#8b5cf6"/>
+<circle cx="283.8" cy="278.1" r="1.6" fill="#f97316"/>
+<circle cx="305.2" cy="272.6" r="1.6" fill="#8b5cf6"/>
+<circle cx="305.2" cy="275.6" r="1.6" fill="#f97316"/>
+<circle cx="326.6" cy="269.9" r="1.6" fill="#8b5cf6"/>
+<circle cx="326.6" cy="273.1" r="1.6" fill="#f97316"/>
+<circle cx="347.9" cy="267.1" r="1.6" fill="#8b5cf6"/>
+<circle cx="347.9" cy="270.7" r="1.6" fill="#f97316"/>
+<circle cx="369.3" cy="264.4" r="1.6" fill="#8b5cf6"/>
+<circle cx="369.3" cy="268.2" r="1.6" fill="#f97316"/>
+<circle cx="390.7" cy="261.6" r="1.6" fill="#8b5cf6"/>
+<circle cx="390.7" cy="265.7" r="1.6" fill="#f97316"/>
+<circle cx="412.1" cy="258.9" r="1.6" fill="#8b5cf6"/>
+<circle cx="412.1" cy="263.3" r="1.6" fill="#f97316"/>
+<circle cx="433.4" cy="256.1" r="1.6" fill="#8b5cf6"/>
+<circle cx="433.4" cy="260.8" r="1.6" fill="#f97316"/>
+<circle cx="454.8" cy="253.4" r="1.6" fill="#8b5cf6"/>
+<circle cx="454.8" cy="258.3" r="1.6" fill="#f97316"/>
+<circle cx="476.2" cy="250.7" r="1.6" fill="#8b5cf6"/>
+<circle cx="476.2" cy="255.9" r="1.6" fill="#f97316"/>
+<circle cx="497.6" cy="247.9" r="1.6" fill="#8b5cf6"/>
+<circle cx="497.6" cy="253.4" r="1.6" fill="#f97316"/>
+<circle cx="519.0" cy="245.2" r="1.6" fill="#8b5cf6"/>
+<circle cx="519.0" cy="250.9" r="1.6" fill="#f97316"/>
+<circle cx="540.3" cy="242.4" r="1.6" fill="#8b5cf6"/>
+<circle cx="540.3" cy="248.5" r="1.6" fill="#f97316"/>
+<circle cx="561.7" cy="239.7" r="1.6" fill="#8b5cf6"/>
+<circle cx="561.7" cy="246.0" r="1.6" fill="#f97316"/>
+<circle cx="583.1" cy="237.0" r="1.6" fill="#8b5cf6"/>
+<circle cx="583.1" cy="243.5" r="1.6" fill="#f97316"/>
+<circle cx="604.5" cy="234.2" r="1.6" fill="#8b5cf6"/>
+<circle cx="604.5" cy="241.1" r="1.6" fill="#f97316"/>
+<circle cx="625.9" cy="231.5" r="1.6" fill="#8b5cf6"/>
+<circle cx="625.9" cy="238.6" r="1.6" fill="#f97316"/>
+<circle cx="647.2" cy="228.7" r="1.6" fill="#8b5cf6"/>
+<circle cx="647.2" cy="236.1" r="1.6" fill="#f97316"/>
+<circle cx="668.6" cy="226.0" r="1.6" fill="#8b5cf6"/>
+<circle cx="668.6" cy="233.7" r="1.6" fill="#f97316"/>
+<circle cx="690.0" cy="223.2" r="1.6" fill="#8b5cf6"/>
+<circle cx="690.0" cy="231.2" r="1.6" fill="#f97316"/>
+<polyline points="70.0,302.8 82.4,301.2 94.8,299.6 107.2,298.0 119.6,296.4 132.0,294.8 144.4,293.2 156.8,291.6 169.2,290.0 181.6,288.4 194.0,286.9 206.4,285.3 218.8,283.7 231.2,282.1 243.6,280.5 256.0,278.9 268.4,277.3 280.8,275.7 293.2,274.1 305.6,272.5 318.0,270.9 330.4,269.4 342.8,267.8 355.2,266.2 367.6,264.6 380.0,263.0 392.4,261.4 404.8,259.8 417.2,258.2 429.6,256.6 442.0,255.0 454.4,253.5 466.8,251.9 479.2,250.3 491.6,248.7 504.0,247.1 516.4,245.5 528.8,243.9 541.2,242.3 553.6,240.7 566.0,239.1 578.4,237.6 590.8,236.0 603.2,234.4 615.6,232.8 628.0,231.2 640.4,229.6 652.8,228.0 665.2,226.4 677.6,224.8 690.0,223.2" fill="none" stroke="#8b5cf6" stroke-width="2"/>
+<polyline points="70.0,302.8 82.4,301.3 94.8,299.9 107.2,298.5 119.6,297.0 132.0,295.6 144.4,294.2 156.8,292.7 169.2,291.3 181.6,289.9 194.0,288.4 206.4,287.0 218.8,285.6 231.2,284.1 243.6,282.7 256.0,281.3 268.4,279.9 280.8,278.4 293.2,277.0 305.6,275.6 318.0,274.1 330.4,272.7 342.8,271.3 355.2,269.8 367.6,268.4 380.0,267.0 392.4,265.5 404.8,264.1 417.2,262.7 429.6,261.3 442.0,259.8 454.4,258.4 466.8,257.0 479.2,255.5 491.6,254.1 504.0,252.7 516.4,251.2 528.8,249.8 541.2,248.4 553.6,246.9 566.0,245.5 578.4,244.1 590.8,242.6 603.2,241.2 615.6,239.8 628.0,238.4 640.4,236.9 652.8,235.5 665.2,234.1 677.6,232.6 690.0,231.2" fill="none" stroke="#f97316" stroke-width="2"/>
+<text x="80" y="228" fill="#c4b5fd" font-size="11" class="lbl">b<tspan font-size="8" dy="2">ff</tspan><tspan dy="-2">（前馈极点）</tspan></text>
+<text x="80" y="244" fill="#fdba74" font-size="11" class="lbl">a<tspan font-size="8" dy="2">ff</tspan><tspan dy="-2">（前馈零点）</tspan></text>
+<text x="62" y="222" fill="#9ca3af" font-size="10.5" text-anchor="end">rad/s</text>
+        <text x="375" y="330" fill="#6b7280" font-size="10.5" text-anchor="middle">示意复现论文图 6（形态与量级一致，非逐点数据）· 横轴：辨识得到的执行器时间常数 τ [ms]，30 个设计点插值</text>
+    </svg>
+    <div class="figcap">图 3 · 增益调度表（示意复现）。执行器越慢（τ 大），可用的增益越小、前馈零极点频率越低——带宽被 H∞ 自动收缩到"这一档执行器扛得住"的水平。在线辨识出 τ 后插值即得整套参数。</div>
+    </div>
+    <p>灵敏度带宽随 \(\tau\) 自适应收缩（协同设计的直接效果）；全设计点超调锁定在 4.71–4.99%（R7 达标且几乎与 \(\tau\) 无关——这正是"参考模型 + 模型跟随"组合的意义）。裕度验证（论文表 I 摘录）：</p>
+    <table>
+        <tr><th>回路</th><th>标称 GM / PM</th><th>最坏情况 GM / PM</th></tr>
+        <tr><td>姿态输出 ϕ/θ/ψ</td><td>13.1 dB / 63.1°</td><td>8.5 dB / 62.6°</td></tr>
+        <tr><td>角速度输出 p/q/r</td><td>PM 41.8°</td><td>PM 18.8°</td></tr>
+        <tr><td>执行器输入 m<tspan font-size="9">c</tspan></td><td>PM 51.7°</td><td>4.9 dB / 26.7°</td></tr>
+        <tr><td>多回路 disk margin（m<tspan font-size="9">c</tspan>/Ω̇）</td><td colspan="2">3.01 dB / 19.52° —— 恰好压线满足 R3</td></tr>
+    </table>
+    <div class="card warn">
+        <b>诚实的注脚</b>：16~20 个不确定参数让 µ 分析的上下界<b>不收敛</b>，论文只能给出"理论下界—启发式上界"的区间（表中取保守端）；最坏情形相位裕度的下界（15.7°）略低于 R2 的 17.5°。作者的辩护：这些理论极端在 20 维不确定空间里实际命中的概率趋零，按其设计会过度保守——于是接受略低的下界，换取鲁棒稳定性仍然成立。这是鲁棒控制工程里罕见的"坦诚降标准"。
+    </div>
+    <p>非线性蒙特卡洛（1000 个不确定实现 + 结构化网格 + 找到的最坏实现）：超调在不确定性下增加，τ=80ms 时达 11.8%；单轴不确定性破坏推力对称性引起耦合，90° 滚转中俯仰/偏航最大偏差 4.5°（耦合占比 5%）。</p>
+
+    <h2>§5 实机验证：一次计划外的鲁棒性压力测试</h2>
+    <p>实机 = 之二那台 3 寸机（\(C_p\approx300\ \mathrm{Nm/(kg\,m^2)}\)，\(\tau\approx17\)ms），在线辨识跑同款算法。为覆盖调度域，在电机指令输出端串一阶滞后<b>人为放慢执行器</b>：\(\tau_{exp} = [17, 28, 40, 60, 80]\)ms 五档。每档 5 次抛飞（80ms 档因难控只飞了 1 次），共 25 次。流程：抛出 → 约 500ms 激励+辨识 → 内环用辨识参数、外环按辨识 \(\tau\) 插值增益 → 稳定后做滚转 doublet 评估跟踪。</p>
+    <p>意外来了：<b>在线辨识把 \(\omega_{max}\) 与控制效能高估到台架/离线值的 2.3 倍</b>——相比之二是一次算法回归，作者坦承没来得及排查。这直接把实验推到设计假设（±20%）之外，成了对鲁棒设计的"无证压力测试"：</p>
+    <ul>
+        <li><b>τ ≤ 40ms 各档</b>：超调行为与仿真预测一致（辨识参数被高估 → 超调偏大，方向与蒙特卡洛吻合），飞行品质可接受——<b>超出不确定度界的摄动下依然稳住</b>；</li>
+        <li><b>τ &gt; 40ms 各档</b>：仿真与实验明显脱节，飞机难操纵；</li>
+        <li><b>对照实验</b>：同一增益换台架标称参数 → 飞行显著变好——证明劣化主因是极端参数误差而非增益调度本身。</li>
+    </ul>
+    <p>作者的结论很克制：τ≤40ms 时"仿真结果可以转化为真实性能"这一点得到了证实；慢执行器档位的鲁棒性评估需要参数辨识正常工作后重做。</p>
+
+    <h2>§6 三篇一体：一个无人机的滤波谱系</h2>
+    <table>
+        <tr><th></th><th><a href="uav-tailsitter-notch-filter-control.html">之一 · HKU 2019</a></th><th><a href="uav-throw-recovery-rls-indi.html">之二 · TU Delft 2024</a></th><th>本文 · TU Delft 2026</th></tr>
+        <tr><td>认识飞机</td><td>地面 chirp 扫频，离线拟合传递函数</td><td>空中 450ms 激励，RLS 在线辨识 52 参数</td><td>沿用之二，且为误差定价（±20%/±40%）</td></tr>
+        <tr><td>"滤波"的面目</td><td>陷波器 + 巴特沃斯低通（信号滤波）</td><td>RLS（参数滤波/估计器）+ 全链路同一只 H(s)</td><td>H∞ 加权整形（频域滤波器综合）+ 噪声成形 N(s)</td></tr>
+        <tr><td>控制范式</td><td>经典频域：回路整形 PID</td><td>自适应：INDI + 极点配置</td><td>鲁棒：H∞ 协同设计 + 增益调度</td></tr>
+        <tr><td>对付的敌人</td><td>结构共振（柔性模态）</td><td>零先验（换机型零成本）</td><td>模型/辨识误差（参数不可全信）</td></tr>
+        <tr><td>失败模式</td><td>共振漂移 → 陷波失准</td><td>激励不足 → 参数不收敛</td><td>不确定度超出假设 → 裕度流失</td></tr>
+    </table>
+    <p>串起来看是一条漂亮的演进线：**认识系统的手段从地面实验室搬到机上实时（之一→之二），对"认识误差"的态度从无视到显式建模（之二→之三）**。三篇里的"滤波"从来不是孤立的花活：陷波器是回路里的整形元件，RLS 是参数空间的观测器，H∞ 是把整个闭环当作滤波器族来优化——同一门频率域手艺，三次出手。</p>
+
+    <h2>§7 评价</h2>
+    <div class="card verdict">
+        <b>工程上最值钱的两点</b>：① 不确定度模型完全由可测数据支撑（台架拟合残差 → \(w_m(s)\) 形状；在线vs离线 \(\tau\) 对比 → \(r_\tau\)），不是拍脑袋的"±30% 保平安"；② 协同设计让 30 个设计点自动长出平滑调度曲线，省掉逐点手调整形权重的经典苦役。对任何"辨识在前、控制灾后"的系统（不只是无人机）都是可搬运的框架。
+    </div>
+    <div class="card warn">
+        <b>遗憾与边界</b>：① 实验验证被辨识回归 bug 拖累，慢执行器档位的结论只能说"未证伪"；② 不确定度分析目前只覆盖对称四旋翼、三轴同增益，扩展到 N 旋翼/异形机是未来工作；③ INDI 里被忽略的项（电机角动量补偿、电调非线性映射补偿）在不确定下的影响未评估；④ 20% 效能界部分靠直觉，作者自己点名应系统化。另外 µ 分析不收敛这个细节提醒我们：<b>不确定参数一多，最坏情况分析本身也会"维度爆炸"</b>——鲁棒控制不是免费午餐。
+    </div>
+
+    <div class="footer">
+        论文：<a href="https://arxiv.org/abs/2605.05483">arXiv:2605.05483</a> · Robust H∞ Controller Design For INDI-Controlled Quadrotor Using Online Parameter Identification (Aantjes, Blaha, Theodoulis, Smeur; 2026) ·
+        前置：<a href="uav-throw-recovery-rls-indi.html">arXiv:2406.11723 系列</a>与 <a href="https://github.com/tudelft/indiflight">tudelft/indiflight</a> ·
+        公式由 MathJax（CDN）渲染，离线打开时显示原始 TeX 源码 ·
+        关联：<a href="uav-tailsitter-notch-filter-control.html">之一：尾座机陷波控制</a> / <a href="uav-throw-recovery-rls-indi.html">之二：抛飞自辨识</a>
+    </div>
+</div>
+</body>
+</html>
