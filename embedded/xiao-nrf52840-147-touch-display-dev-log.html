@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Seeed XIAO 1.47 寸触控屏(nRF52840 Plus) Windows 开发实录:arduino-cli 环境搭建、GitHub 被墙下的镜像分段下载工具链、Seeed_GFX2 编译烧录、触控画板/板载自检/电子流沙三连验证与踩坑记录。">
+<title>XIAO 1.47&quot; 触控屏(nRF52840)开发实录:从环境搭建到流沙上板</title>
+<style>
+:root{color-scheme:light;--bg:#f6f7fa;--paper:#fff;--ink:#202435;--muted:#626b80;--line:#dfe3ec;--accent:#4f46e5;--soft:#eef2ff}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:24px}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.85 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}main{max-width:1040px;margin:auto;padding:38px 28px 72px}a{color:var(--accent);text-underline-offset:3px}a:focus-visible{outline:3px solid var(--accent);outline-offset:4px}.back{font-size:14px}.eyebrow{color:var(--accent);font-weight:700;letter-spacing:.12em;font-size:12px;margin-top:30px}h1{font-size:clamp(29px,5vw,44px);line-height:1.28;letter-spacing:-.03em;margin:12px 0 18px}h2{font-size:25px;line-height:1.45;margin:0 0 22px}h3{font-size:18px;margin:25px 0 10px}p{margin:12px 0}.lead,.meta{color:var(--muted)}.meta{font-size:13px}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:30px 0}.metric{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:17px}.metric strong{display:block;font-size:26px;line-height:1.3}.metric span{font-size:12px;color:var(--muted)}nav{background:var(--soft);padding:22px 26px;border-radius:14px;margin-bottom:28px}nav ol{columns:2;column-gap:36px;margin:10px 0 0;padding-left:22px}nav li{break-inside:avoid;padding:2px 0}section{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:30px;margin:22px 0}.note{border-left:3px solid var(--accent);padding:12px 18px;background:var(--soft);margin:20px 0}.table-wrap{overflow:auto;margin:18px 0}table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;vertical-align:top;padding:12px 14px;border-bottom:1px solid var(--line)}th{background:#f4f5f9;font-weight:650}code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.88em;overflow-wrap:anywhere}p code,li code,td code{background:#f1f3f8;padding:2px 5px;border-radius:4px}pre{background:#171c2b;color:#e8ecf7;overflow:auto;border-radius:10px;padding:20px;line-height:1.65;font-size:13px;tab-size:4}pre code{font-size:inherit;overflow-wrap:normal}ul,ol{padding-left:24px}li{margin:5px 0}.footer{font-size:13px;color:var(--muted);margin-top:32px}section:target{border-color:var(--accent)}
+@media(max-width:700px){main{padding:24px 16px 45px}section{padding:23px 18px}.metrics{grid-template-columns:repeat(2,1fr)}nav ol{columns:1}pre{padding:14px}th,td{padding:10px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+@media print{body{background:white;font-size:11pt}main{max-width:none;padding:0}section{border:0;border-radius:0;padding:18px 0;break-inside:auto}nav,.back{display:none}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f3f4f7;color:#111}h2,h3{break-after:avoid}.metrics{break-inside:avoid}}
+</style>
+</head>
+<body>
+<main>
+<a class="back" href="index.html">&larr; 返回 Notes</a>
+<header>
+<div class="eyebrow">EMBEDDED / ARDUINO-CLI / NRF52840 / SEEED_GFX2</div>
+<h1>XIAO 1.47&Prime; 触控屏(nRF52840)<br>从环境搭建到流沙上板</h1>
+<p class="lead">Seeed XIAO 1.47&Prime; IPS Touch Display(nRF52840 Plus) &middot; Windows 10 + arduino-cli &middot; GitHub 被墙下的镜像工具链分发 &middot; 触控画板 / 板载自检 / 电子流沙三连验证。</p>
+<p class="meta">记录日期:2026-10-07 &nbsp;|&nbsp; 前序经验:<a href="m5sticks3-demo-flashing-setup.html">M5StickS3 Demo 刷机路线</a>(2026-09,同类 arduino-cli 流程) &middot; <a href="weact-esp32s3a-dev-setup.html">WeAct ESP32-S3A 开发实录</a> &middot; <a href="https://wiki.seeedstudio.com/cn/getting_started_1.47_inch_touch_display_nrf52840/">官方 Wiki 上手页</a>。</p>
+</header>
+<div class="metrics" aria-label="本次结果">
+<div class="metric"><strong>11%</strong><span>固件占用(91 KB / 811 KB,含 SoftDevice)</span></div>
+<div class="metric"><strong>153 MB</strong><span>ARM 工具链,镜像 16 线程 &asymp;5 min</span></div>
+<div class="metric"><strong>3</strong><span>烧录验证的固件(画板/自检/流沙)</span></div>
+<div class="metric"><strong>3.004</strong><span>电池分压比(1000k/499k)</span></div>
+</div>
+<nav aria-label="文章目录"><strong>阅读导航</strong><ol>
+<li><a href="#hardware">硬件与引脚速览</a></li>
+<li><a href="#environment">环境搭建与被墙的 GitHub</a></li>
+<li><a href="#library">Seeed_GFX2 库与关键 API</a></li>
+<li><a href="#build">编译:FQBN 与产物</a></li>
+<li><a href="#flash">烧录与串口验证(含两个坑)</a></li>
+<li><a href="#verify">板载自检实测数据</a></li>
+<li><a href="#demos">Demo 清单与选型</a></li>
+<li><a href="#archive">踩坑速查与归档</a></li>
+</ol></nav>
+
+<section id="hardware"><h2>01 / 硬件与引脚速览</h2>
+<p>这块板子是 <strong>XIAO nRF52840 Plus 核心板 + 1.47&Prime; IPS 扩展屏</strong>的一体形态(26.4&times;51.4 mm):JD9853A 驱动的 172&times;320 彩屏(SPI)、AXS5106L 电容触摸(I&sup2;C 0x63)、LSM6DS3 六轴 IMU(I&sup2;C 0x6A)、PDM 数字麦克风、MicroSD(与 LCD 共享 SPI)、双用户按键、JST 2.0 锂电池接口(带充电与电压监测)。无线是 <strong>BLE 5.4</strong>(无 Wi-Fi、无经典蓝牙),定位便携 HMI / 可穿戴原型。</p>
+<div class="table-wrap"><table><thead><tr><th>外设</th><th>引脚</th><th>备注</th></tr></thead><tbody>
+<tr><td>LCD SPI</td><td><code>CS=D2 DC=D3 SCK=D8 MOSI=D10</code></td><td>RST=38、背光=37(可 PWM)</td></tr>
+<tr><td>触摸 AXS5106L</td><td><code>SDA=D4 SCL=D5 INT=D7</code></td><td>与 IMU 共享 I&sup2;C 总线;RST 与 LCD 共线</td></tr>
+<tr><td>IMU LSM6DS3</td><td><code>I&sup2;C 0x6A</code>,INT1&rarr;D14</td><td>加速度+陀螺仪,支持硬件唤醒中断</td></tr>
+<tr><td>MicroSD</td><td><code>CS=D6</code>,共享 SPI</td><td>注意与 LCD 的总线仲裁</td></tr>
+<tr><td>PDM 麦克风</td><td><code>CLK=D0 DATA=D1</code></td><td>16 kHz 采集;I2S 输出 D11-D13</td></tr>
+<tr><td>用户按键</td><td><code>BTN_A=D19 BTN_B=D15</code></td><td>低电平有效,内部上拉</td></tr>
+<tr><td>电池</td><td><code>P0.14</code> 使能分压 &rarr; <code>P0.31</code>(AIN7)读数</td><td>分压比 (1000k+499k)/499k &asymp; 3.004</td></tr>
+</tbody></table></div>
+<div class="note">nRF52840 = Cortex-M4F @64 MHz / 256 KB RAM / 1 MB Flash(+2 MB 板载)。编译产物上限 811 KB 是扣掉 SoftDevice S140 7.3.0 后的应用区。</div>
+</section>
+
+<section id="environment"><h2>02 / 环境搭建与被墙的 GitHub</h2>
+<p>Windows 10 上没有装过 Arduino IDE,沿用 <a href="m5sticks3-demo-flashing-setup.html">M5StickS3 笔记</a>定型的 <strong>arduino-cli 路线</strong>。本机特有矛盾:Seeed 板卡索引里的三个依赖包有两个只发布在 GitHub Releases,而本机直连 github.com 443 超时。</p>
+<h3>2.1 常规部分(顺利)</h3>
+<pre><code># arduino-cli 单文件安装
+curl -sL -o arduino-cli.zip https://downloads.arduino.cc/arduino-cli/arduino-cli_latest_Windows_64bit.zip
+
+# Seeed 板卡源(Wiki 指定 Seeed nRF52 Boards 1.1.13)
+arduino-cli config add board_manager.additional_urls https://files.seeedstudio.com/arduino/package_seeeduino_boards_index.json
+arduino-cli core update-index
+arduino-cli core install Seeeduino:nrf52@1.1.13   # 在工具链下载处失败,见下</code></pre>
+<h3>2.2 工具链下载失败与镜像分段下载</h3>
+<p><code>core install</code> 卡死在 <code>arm-none-eabi-gcc@9-2019q4</code>(153 MB,托管于 adafruit 的 GitHub Release)。实测本机单线程各镜像只有 12-40 KB/s(直连超时、ghfast 死链、本机 47890 端口非可用代理),最终方案:<strong>cors.isteed.cc 镜像 + HTTP Range 16 线程并行</strong>,约 5 分钟拉完,聚合速度 &asymp;500 KB/s。</p>
+<pre><code>SIZE=153520070; CHUNK=$((SIZE/16+1)); P=/tmp/gccp; mkdir -p $P
+URL="https://cors.isteed.cc/https://github.com/adafruit/arduino-board-index/releases/download/build-tools/gcc-arm-none-eabi-9-2019-q4-major-win32.zip"
+seq 0 15 | xargs -P 16 -I{} bash -c \
+  'i={}; s=$((i*CHUNK)); e=$(((i+1)*CHUNK-1)); [ $e -ge $SIZE ] && e=$((SIZE-1));
+   for t in 1 2 3 4 5; do
+     curl -s --connect-timeout 8 -m 600 -r "$s-$e" -o "$P/p$(printf %02d $i)" "$URL"
+     g=$(stat -c%s "$P/p$(printf %02d $i)" 2>/dev/null||echo 0)
+     [ "$g" -eq "$((e-s+1))" ] &amp;&amp; exit 0; sleep 1
+   done; exit 1'
+cat $P/p* &gt; ~/AppData/Local/Arduino15/staging/packages/gcc-arm-none-eabi-9-2019-q4-major-win32.zip
+md5sum .../gcc-arm-none-eabi-9-2019-q4-major-win32.zip
+# 9d60cbb0e358ab6a9d3c9e5dc3624dd2  ← 与 Seeed 索引内 MD5 一致</code></pre>
+<p>要点:arduino-cli 会优先使用 <strong>staging 目录里校验和匹配的包</strong>,所以&ldquo;手动下载到 <code>Arduino15/staging/packages/</code> 再 core install&rdquo;即可离线续装。三个依赖的处理:</p>
+<div class="table-wrap"><table><thead><tr><th>包</th><th>大小</th><th>来源</th><th>处理</th></tr></thead><tbody>
+<tr><td>arm-none-eabi-gcc 9-2019q4</td><td>153 MB</td><td>GitHub(adafruit)</td><td>镜像 16 线程分段,MD5 校验后 staging</td></tr>
+<tr><td>nrfjprog 9.4.0</td><td>0.8 MB</td><td>GitHub(adafruit)</td><td>gh-proxy.com 单线程,MD5 校验后 staging</td></tr>
+<tr><td>CMSIS 5.7.0</td><td>104 MB</td><td><strong>files.seeedstudio.com</strong></td><td>国内 CDN 直连,无需干预</td></tr>
+<tr><td>平台包 1.1.13</td><td>24 MB</td><td><strong>files.seeedstudio.com</strong></td><td>同上,顺手 staging 后 install 秒装</td></tr>
+</tbody></table></div>
+<p>之后 <code>arduino-cli core install Seeeduino:nrf52@1.1.13</code> 全部命中本地缓存,安装完成。板卡识别:<code>arduino-cli board list</code> 直接给出 <code>COM4 &rarr; Seeeduino:nrf52:xiaonRF52840Plus</code>(FQBN 免查表)。</p>
+</section>
+
+<section id="library"><h2>03 / Seeed_GFX2 库与关键 API</h2>
+<p>图形库 <strong>Seeed_GFX2</strong> 不在库管理器里,官方要求 ZIP 手动安装;被墙环境下直接从镜像克隆到用户库目录:</p>
+<pre><code>git clone --depth 1 https://gh-proxy.com/https://github.com/Seeed-Studio/Seeed_GFX2.git ~/Documents/Arduino/libraries/Seeed_GFX2</code></pre>
+<p>IMU 例程用 SparkFun 版库(API 与 Seeed 原版一致):<code>arduino-cli lib install "SparkFun LSM6DS3 Breakout"</code>(库索引走 downloads.arduino.cc,不受影响)。</p>
+<h3>3.1 初始化模板(与 TFT_eSPI 时代的最大差异)</h3>
+<p>新库用 <strong>Board/Config 模板参数</strong>替代了手写 User_Setup / MADCTL / invert,屏幕与触摸各一句:</p>
+<pre><code>#include &lt;Seeed_GFX.h&gt;
+#include "board/boards/XIAO_LCD_Board.h"
+#include "driver/tft/Driver_JD9853A.h"
+#include "panel/Panel_TFT.h"
+#include "touch/Touch_AXS5106L.h"
+#include &lt;Adafruit_TinyUSB.h&gt;   // nRF52 核心必带(USB CDC)
+
+Seeed_GFX display;
+static constexpr int8_t LCD_RST_PIN = 38;   // nRF52840 Plus 专用,ESP32-S3 版是 13/12
+static constexpr int8_t LCD_BL_PIN  = 37;
+
+// 触摸 RST 与 LCD 共线,display.begin 已处理过复位 &rarr; 传 -1,否则会把屏拉黑
+Touch_AXS5106L touch(-1, D7, Wire, 172, 320);
+
+void setup() {
+  display.begin&lt;Board_XIAO_1inch47_Touch_Display&lt;LCD_RST_PIN, LCD_BL_PIN&gt;,
+                 Config_Seeed_1inch47_Touch_JD9853A&gt;();
+  display.attachTouch(touch, display.panel().driver().bus());
+}
+// 绘图 API 兼容 TFT_eSPI 习惯:fillScreen/drawString/setTextDatum/fillCircle&hellip;</code></pre>
+<div class="note">电量换算:扩展板分压电阻 1000k/499k,<code>V<sub>BAT</sub> = analogRead(PIN_VBAT) &times; 3.6 / 1023 &times; 3.004</code>;读前需 <code>digitalWrite(VBAT_ENABLE=14, LOW)</code> 使能分压。PIN_VBAT 在该 BSP 的 variant.h 里 = 35(即 P0.31/AIN7)。</div>
+</section>
+
+<section id="build"><h2>04 / 编译:FQBN 与产物</h2>
+<pre><code>FQBN=Seeeduino:nrf52:xiaonRF52840Plus        # Plus 版;Sense 版另有 ID
+arduino-cli compile --fqbn $FQBN &lt;sketch目录&gt;
+
+# 触控画板(自写):  91,204 B flash / 8,096 B RAM  (11% / 3%)
+# 板载自检(自写):  同级
+# 电子流沙(官方):  90,604 B flash / 13,872 B RAM (11% / 5%)</code></pre>
+<p>首次编译全量构建约 1-2 分钟;softdevice 默认 <code>s140v6</code>(菜单仅此一档),debug 级别默认 Release,无需显式传参。</p>
+</section>
+
+<section id="flash"><h2>05 / 烧录与串口验证(含两个坑)</h2>
+<h3>5.1 烧录</h3>
+<pre><code>arduino-cli upload -p COM4 --fqbn Seeeduino:nrf52:xiaonRF52840Plus &lt;sketch&gt;
+# Device programmed.  New upload port: COM4 (serial)</code></pre>
+<p>上传走 <strong>nRF52 DFU(双 bank)</strong>,过程中端口会短暂从 COM4 跳成 COM5 再回来,属正常现象,不要在中途拔线。若某次上传失败导致端口消失,<strong>快速双击复位键</strong>进入 bootloader(出现 XIAO_nRF52840 U 盘)后重试即可恢复。</p>
+<h3>5.2 坑一:arduino-cli monitor 收不到任何输出</h3>
+<p><code>arduino-cli monitor -p COM4</code> 连接成功但永远 0 字节。原因是它打开 COM 口的方式没有让这块板的 <strong>TinyUSB CDC</strong> 开始上报。可靠替代:pyserial 显式拉 DTR:</p>
+<pre><code>import serial, time
+s = serial.Serial('COM4', 115200, timeout=1)
+s.dtr = True          # 关键:不拉 DTR 就没有输出
+s.reset_input_buffer()
+# 循环 s.read(s.in_waiting) 即可</code></pre>
+<h3>5.3 坑二:开机日志只能看一次</h3>
+<p>打开 CDC 串口<strong>不会复位</strong> nRF52840(不像 ESP32 的 DTR/RTS 复位),<code>setup()</code> 里的初始化日志在监视器挂上前就打完了。两个对策:演示固件里加周期性心跳日志;或需要抓开机日志时,烧一个&ldquo;持续输出&rdquo;的自检固件替代(本次即采用后者,见下节)。</p>
+</section>
+
+<section id="verify"><h2>06 / 板载自检实测数据</h2>
+<p>自写自检固件(500 ms 周期打印 IMU 三轴 / 电池 / 触摸状态),烧录后串口实录:</p>
+<pre><code>[imu] -0.05 +0.20 -0.97 g | [vbat] 3.76V | [touch] -
+[imu] -0.00 -0.02 -0.93 g | [vbat] 4.13V | [touch] -
+[imu] +0.07 +0.13 -1.04 g | [vbat] 4.17V | [touch] -
+[imu] +0.06 +0.18 -0.98 g | [vbat] 4.17V | [touch] PRESSED
+[imu] +0.05 +0.13 -1.01 g | [vbat] 3.75V | [touch] PRESSED
+[imu] +0.08 +0.13 -1.00 g | [vbat] 3.75V | [touch] -</code></pre>
+<ul>
+<li><strong>IMU &check;</strong>:静置桌面 Z 轴 &asymp;-1 g,轻微挪动实时跟随;流沙 demo 直接可用。</li>
+<li><strong>触摸 &check;</strong>:手指按下即报 <code>PRESSED</code>,画板固件的换色事件(<code>brush -&gt; color #N</code>)同步在日志出现。</li>
+<li><strong>电池 &check;(带已知毛刺)</strong>:USB 插电时读数在 3.7x / 4.1x V 双峰跳动 &mdash; 充电时 BAT 节点电压被拉高,官方 Dashboard 例程注释里明确提示&ldquo;VBAT ADC 会毛刺几个刷新周期,USB 供电下不要静态信任单次读数&rdquo;。纯电池供电时应为稳定单值。</li>
+</ul>
+<p>三块验证(触控画板 &rarr; 自检 &rarr; 电子流沙)全部通过后,最终留在板子上的是<strong>电子流沙</strong>:24&times;45 网格、180 颗粒子、8 ms 帧间隔读 LSM6DS3 重力流场,倾斜板子沙粒会向低处堆积。</p>
+</section>
+
+<section id="demos"><h2>07 / Demo 清单与选型</h2>
+<p>官方 Wiki Function 页为每个外设提供独立演示(库内路径:<code>Seeed_GFX2/examples/LCD Displays/Display Series/1.47 inch Touch Display/nRF52840 Plus/</code>,共 12 个 nRF52840 工程):</p>
+<div class="table-wrap"><table><thead><tr><th>Demo</th><th>外设组合</th><th>一句话</th></tr></thead><tbody>
+<tr><td>GraphicTest</td><td>屏幕</td><td>图元基准 + <code>micros()</code> 测耗时</td></tr>
+<tr><td>Touch</td><td>触摸</td><td>画板,120 圈环形缓冲,底部 CLEAR 条</td></tr>
+<tr><td>电子流沙 &starf;</td><td>屏幕+IMU</td><td>倾斜流动的粒子沙,本日最终固件</td></tr>
+<tr><td>抬起唤醒</td><td>IMU+低功耗</td><td>INT1 硬件中断,8 s 无操作熄屏 System ON 睡眠</td></tr>
+<tr><td>SD 图片读取器</td><td>屏幕+SD</td><td>24-bit BMP 轮播,自动居中裁剪</td></tr>
+<tr><td>麦克风音量条</td><td>mic+屏幕</td><td>16 kHz PDM &rarr; 峰值/归一化/平滑 &rarr; 10 段电平条</td></tr>
+<tr><td>录音到 SD + 回放</td><td>mic+SD+I2S</td><td>USR1 录 5 s WAV,USR2 经 MAX98357A 回放</td></tr>
+<tr><td>DashBoard</td><td>全家桶</td><td>电池/按键/双击唤醒综合面板</td></tr>
+</tbody></table></div>
+<p>下一步方向:BLE(核心自带 Bluefruit 栈,可做 HID 空鼠/通知仪表盘)、录音上传、抬起唤醒的电池续航实测。</p>
+</section>
+
+<section id="archive"><h2>08 / 踩坑速查与归档</h2>
+<ul>
+<li><strong>GitHub 直连超时</strong>:Seeed 板包的工具链依赖托管在 GitHub Releases。解法 = 镜像(cors.isteed.cc 快于 gh-proxy.com)+ Range 分段并行 + 手放 staging + 校验和比对。</li>
+<li><strong>monitor 无输出</strong>:arduino-cli monitor 对该 TinyUSB CDC 无效,用 pyserial + <code>dtr=True</code>。</li>
+<li><strong>开机日志丢失</strong>:开串口不复位 nRF52,要么加心跳日志,要么烧自检固件。</li>
+<li><strong>触摸构造器 RST 传 -1</strong>:RST 与 LCD 共线,传真实引脚号会在 LCD 初始化后把屏复位拉黑。</li>
+<li><strong>电池读数</strong>:&times;3.004 分压;USB 供电下双峰跳动为已知特性,勿以单次读数判断。</li>
+<li><strong>IMU 库选型</strong>:官方例程用 <code>SparkFunLSM6DS3.h</code>(与 Seeed 版 API 同构),不是 Adafruit_LSM6DS。</li>
+</ul>
+<h3>归档</h3>
+<ul>
+<li>工程与工具:<code>C:\Users\apx103\ZCodeProject\</code> 下 <code>xiao147_demo</code>(触控画板)、<code>xiao147_selftest</code>(自检)、<code>xiao_nrf52840_147_electronic_quicksand</code>(流沙)、<code>tools\arduino-cli\</code>(含分段下载脚本 <code>pd_download.sh</code>)。</li>
+<li>来源:<a href="https://wiki.seeedstudio.com/cn/getting_started_1.47_inch_touch_display_nrf52840/">Wiki 上手页</a> &middot; <a href="https://wiki.seeedstudio.com/cn/function_1.47_inch_touch_display_nrf52840/">Wiki Function 页</a> &middot; <a href="https://github.com/Seeed-Studio/Seeed_GFX2">Seeed_GFX2</a> &middot; <a href="https://www.nordicsemi.com/Products/nRF52840">nRF52840</a>。</li>
+</ul>
+</section>
+
+<p class="footer">记录:ZCode &middot; 2026-10-07 &middot; 硬件:Seeed XIAO 1.47&Prime; Touch Display(nRF52840 Plus)&middot; 宿主:Windows 10 + arduino-cli 1.5.2</p>
+</main>
+</body>
+</html>
