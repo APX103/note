@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WeAct MiniSTM32H723 macOS 开发实录：GCC 工具链自救到 ST7735 五特效 Demo</title>
+<style>
+:root{color-scheme:light;--bg:#f6f7fa;--paper:#fff;--ink:#202435;--muted:#626b80;--line:#dfe3ec;--accent:#4f46e5;--soft:#eef2ff}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:24px}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.85 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}main{max-width:1040px;margin:auto;padding:38px 28px 72px}a{color:var(--accent);text-underline-offset:3px}a:focus-visible{outline:3px solid var(--accent);outline-offset:4px}.back{font-size:14px}.eyebrow{color:var(--accent);font-weight:700;letter-spacing:.12em;font-size:12px;margin-top:30px}h1{font-size:clamp(29px,5vw,44px);line-height:1.28;letter-spacing:-.03em;margin:12px 0 18px}h2{font-size:25px;line-height:1.45;margin:0 0 22px}h3{font-size:18px;margin:25px 0 10px}p{margin:12px 0}.lead,.meta{color:var(--muted)}.meta{font-size:13px}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:30px 0}.metric{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:17px}.metric strong{display:block;font-size:26px;line-height:1.3}.metric span{font-size:12px;color:var(--muted)}nav{background:var(--soft);padding:22px 26px;border-radius:14px;margin-bottom:28px}nav ol{columns:2;column-gap:36px;margin:10px 0 0;padding-left:22px}nav li{break-inside:avoid;padding:2px 0}section{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:30px;margin:22px 0}.note{border-left:3px solid var(--accent);padding:12px 18px;background:var(--soft);margin:20px 0}.table-wrap{overflow:auto;margin:18px 0}table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;vertical-align:top;padding:12px 14px;border-bottom:1px solid var(--line)}th{background:#f4f5f9;font-weight:650}code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.88em;overflow-wrap:anywhere}p code,li code,td code{background:#f1f3f8;padding:2px 5px;border-radius:4px}pre{background:#171c2b;color:#e8ecf7;overflow:auto;border-radius:10px;padding:20px;line-height:1.65;font-size:13px;tab-size:4}pre code{font-size:inherit;overflow-wrap:normal}ul,ol{padding-left:24px}li{margin:5px 0}.footer{font-size:13px;color:var(--muted);margin-top:32px}section:target{border-color:var(--accent)}
+@media(max-width:700px){main{padding:24px 16px 45px}section{padding:23px 18px}.metrics{grid-template-columns:repeat(2,1fr)}nav ol{columns:1}pre{padding:14px}th,td{padding:10px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+@media print{body{background:white;font-size:11pt}main{max-width:none;padding:0}section{border:0;border-radius:0;padding:18px 0;break-inside:auto}nav,.back{display:none}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f3f4f7;color:#111}h2,h3{break-after:avoid}.metrics{break-inside:avoid}}
+</style>
+</head>
+<body>
+<main>
+<a class="back" href="index.html">&larr; 返回 Notes</a>
+<header>
+<div class="eyebrow">EMBEDDED / STM32H723 / GCC / OPENOCD / ST7735</div>
+<h1>WeAct MiniSTM32H723 macOS 开发实录<br>从 GCC 工具链自救到 ST7735 五特效 Demo</h1>
+<p class="lead">WeActStudio.MiniSTM32H723 核心板(Cortex-M7 550MHz) &middot; macOS + Arm GNU Toolchain + OpenOCD &middot; brew 工具链缺 newlib 的自救 &middot; 原厂固件备份 &middot; Keil 工程转 Makefile &middot; 星空/火焰/弹球/生命游戏/等离子体五特效按键轮播。</p>
+<p class="meta">记录日期:2026-10-08 &nbsp;|&nbsp; 前序经验:<a href="stm32h743-openmv-camera/index.html">STM32H743 摄像头驱动完全教程</a>(2026-09,同系 WeAct 板 + 同套 macOS GCC+OpenOCD 路线) &middot; <a href="weact-esp32s3a-dev-setup.html">WeAct ESP32-S3A 开发实录</a> &middot; <a href="https://github.com/WeActStudio/WeActStudio.MiniSTM32H723">官方仓库</a>。</p>
+</header>
+<div class="metrics" aria-label="本次结果">
+<div class="metric"><strong>550 MHz</strong><span>SYSCLK(25M HSE &times; PLLN44 / 1)</span></div>
+<div class="metric"><strong>1 MB</strong><span>原厂固件完整转储备份(SHA-256 存档)</span></div>
+<div class="metric"><strong>54 KB</strong><span>五特效 Demo 固件体积(fb 25.6KB 在 DTCM)</span></div>
+<div class="metric"><strong>0</strong><span>对官方仓库的改动(源码只读引用)</span></div>
+</div>
+<nav aria-label="文章目录"><strong>阅读导航</strong><ol>
+<li><a href="#board">板子与仓库摸底</a></li>
+<li><a href="#toolchain">工具链:brew 的 arm-none-eabi-gcc 是残的</a></li>
+<li><a href="#backup">ST-Link 上线与原厂固件备份</a></li>
+<li><a href="#gpio">01-GPIO:Keil 工程转 Makefile</a></li>
+<li><a href="#lcd">LCD Demo:逆向 BSP 的关键事实</a></li>
+<li><a href="#fx">五个特效的实现要点</a></li>
+<li><a href="#pitfalls">踩坑清单</a></li>
+<li><a href="#repro">复现手册</a></li>
+</ol></nav>
+
+<section id="board">
+<h2>1. 板子与仓库摸底</h2>
+<p>WeAct MiniSTM32H723 核心板,主控 <strong>STM32H723VGT6</strong>(LQFP100,Cortex-M7,1MB Flash + 564KB RAM)。板载资源:</p>
+<ul>
+<li>0.96&Prime; ST7735 TFT(160&times;80,SPI4) — 本次主角</li>
+<li>8MB SPI Flash(W25Q64 / 新版 PY25Q64,SPI1)+ 8MB OSPI Flash(OSPI1)</li>
+<li>MicroSD 卡槽、8bit DCMI 摄像头口、USB-C</li>
+<li>用户按键 K1 = <code>PC13</code>,用户 LED = <code>PE3</code>,另有 NRST / BOOT0 键</li>
+<li>SWD 调试口(PA13/PA14,4pin 排针)</li>
+</ul>
+<p>仓库 <code>WeActStudio.MiniSTM32H723</code> 提供 9 个 STM32CubeMX 例程(GPIO/LCD/SD/SPIFlash/ADC/DCMI/PWR 等),每个例程自带完整 HAL 库源码,<strong>但只有 Keil MDK-ARM 工程文件</strong> — 没有 Makefile、没有 CMake、CMSIS Device 里连 GCC 启动文件都被裁掉了(<code>Source/Templates</code> 整个缺失,只剩 <code>Include</code> 头文件)。<code>Doc/</code> 有全套数据手册,<code>Hardware/</code> 有原理图 PDF。</p>
+<p>时钟树(从例程反推):25MHz HSE &rarr; PLLM=2 / PLLN=44 / PLLP=1 &rarr; SYSCLK=550MHz,HCLK=275MHz(AHB /2),APB 均 137.5MHz。</p>
+</section>
+
+<section id="toolchain">
+<h2>2. 工具链:brew 的 arm-none-eabi-gcc 是残的</h2>
+<p>机器上已有 <code>arm-none-eabi-gcc</code>(brew, 16.2.0)、<code>openocd</code>、<code>cmake</code>。但第一次编译直接炸:</p>
+<pre><code>arm-none-eabi-gcc/16.2.0/include/stdint.h:11:16: fatal error: stdint.h: No such file or directory
+   11 | # include_next &lt;stdint.h&gt;</code></pre>
+<p>Homebrew 的 <code>arm-none-eabi-gcc</code> formula <strong>不捆绑 newlib</strong>(GCC 自带的 stdint.h 是个 <code>include_next</code> 包装,需要 libc 的真身),而 brew 里也没有任何 newlib 包可补 — 这条路是死的。</p>
+<p>正解是 Arm 官方 <strong>GNU Toolchain for Arm Embedded</strong>(brew cask <code>gcc-arm-embedded</code>,15.3.rel1)。但 brew 下载 <code>gitlab.arm.com</code> 的包时被连接重置(网络环境问题)。绕法:</p>
+<ol>
+<li>手动 <code>curl -fL --retry 3 -C -</code> 断点续传 267MB 的 <code>.pkg</code>(走 gitlab.arm.com &rarr; S3 302 跳转,~500KB/s,约 9 分钟);</li>
+<li><strong>免 sudo 解包</strong>:<code>pkgutil --expand-full arm-gnu-toolchain.pkg out/</code>,payload 直接展开成可用目录(<code>Payload/bin/arm-none-eabi-gcc</code>),不污染系统、不需要管理员密码;</li>
+<li>Makefile 里 <code>PREFIX = ../toolchain/arm-gnu/Payload/bin/arm-none-eabi-</code> 指过去即可。验证 newlib 头文件在 <code>Payload/arm-none-eabi/include/</code> 下存在。</li>
+</ol>
+<p>顺手 <code>brew install dfu-util</code>(0.11),给以后 USB DFU 烧录留路(按住 BOOT0 上电,USB-C 直连即可,不需要 ST-Link)。</p>
+</section>
+
+<section id="backup">
+<h2>3. ST-Link 上线与原厂固件备份</h2>
+<p>ST-Link(V2 兼容,固件 V2J43M28)USB 直识别(VID:PID <code>0483:3752</code>),macOS 下可用 <code>ioreg -p IOUSB</code> 确认(<code>system_profiler SPUSBDataType</code> 这次什么都没吐出来,ioreg 更可靠)。</p>
+<p>烧新程序前先备份 — 一条 openocd 命令把 1MB 内部 Flash 全量转储:</p>
+<pre><code>openocd -f interface/stlink.cfg -f target/stm32h7x.cfg \
+  -c "init; halt; dump_image internal_flash_0x08000000_1MB.bin 0x08000000 0x100000; shutdown"</code></pre>
+<p>转储校验:向量表 SP=<code>0x240142C0</code>(AXI SRAM,说明原厂固件用 D1 域 RAM)、复位向量落在 Flash、实际固件约 118KB(尾部全 0xFF 裁剪估算)、SHA-256 存档。halt 时 pc=<code>0x08013c78</code>,说明出厂片子里确实有程序在跑(README 说好的"不提供出厂测试程序"呢 — 其实焊在板子里的那份是有的,只是不给源码和二进制文件)。</p>
+<div class="note">备份文件:<code>work/weactstudio_h723/backup/internal_flash_0x08000000_1MB.bin</code>。需要还原时 <code>program</code> 回去即可。</div>
+</section>
+
+<section id="gpio">
+<h2>4. 01-GPIO:Keil 工程转 Makefile</h2>
+<p>原则:<strong>不改官方仓库任何文件</strong>,工程建在 <code>work/weactstudio_h723/01-gpio/</code>,Makefile 用相对路径只读引用 <code>Examples/01-GPIO</code> 的 Core/Bsp/Drivers 源码。缺的三样东西从 ST 官方仓库补齐:</p>
+<ul>
+<li>GCC 启动文件 <code>startup_stm32h723xx.s</code> — 在 CMSIS Device 子模块仓库 <code>STMicroelectronics/cmsis_device_h7</code> 的 <code>Source/Templates/gcc/</code>(注意:STM32CubeH7 主仓里该目录是 submodule,raw 路径要换成子模块仓,直接打主仓路径会 404);</li>
+<li>链接脚本 <code>STM32H723ZGTX_FLASH.ld</code> — 从 STM32CubeH7 的 NUCLEO-H723ZG 模板拿(VG/ZG 都是 1MB Flash,内存映射一致;RAM 段用 DTCM 128K @ <code>0x20000000</code>);</li>
+<li><strong>配套的新版 <code>system_stm32h7xx.c</code></strong> — 例程自带的旧版缺 <code>ExitRun0Mode</code>(新启动文件一上电就 bl 过去配置电源域),必须和启动文件同版本配对使用,否则链接报 undefined reference。</li>
+</ul>
+<p>编译参数:<code>-mcpu=cortex-m7 -mthumb -mfpu=fpv5-d16 -mfloat-abi=hard</code>,定义 <code>USE_HAL_DRIVER STM32H723xx</code>。HAL 驱动直接整目录 <code>Src/*.c</code> 全编译(没用到的模块被 hal_conf.h 里的宏裁掉,链接器再 gc-sections 收尸)。烧录+校验:</p>
+<pre><code>openocd -f interface/stlink.cfg -f target/stm32h7x.cfg \
+  -c "program build/weactstudio_h723_gpio.elf verify reset exit"</code></pre>
+<p>现象:LED(PE3)按硬件 RNG 随机间隔(0~600ms)闪烁,按住 K1 变成 200ms 规律翻转 — 第一个程序跑通。</p>
+</section>
+
+<section id="lcd">
+<h2>5. LCD Demo:逆向 BSP 的关键事实</h2>
+<p>03-LCD_Test 例程的 BSP(<code>Bsp/ST7735/</code>)是"驱动 + 总线胶水"两层结构:<code>st7735.c</code> 是通用驱动(命令序列/光标/FillRect/FillRGBRect),<code>lcd.c</code> 负责把驱动挂到 SPI4 上。把例程读懂后,几个不写进代码就亮不起来的事实:</p>
+<div class="table-wrap"><table>
+<tr><th>项</th><th>值</th><th>出处</th></tr>
+<tr><td>SPI</td><td>SPI4,8bit,APB4 137.5MHz / 8 &asymp; 17.2MHz</td><td><code>Core/Src/spi.c</code></td></tr>
+<tr><td>CS / DC(RS)</td><td>PE11 / PE13</td><td><code>Core/Inc/main.h</code></td></tr>
+<tr><td>背光</td><td><strong>TIM1_CH2N(互补通道!)@ PE10</strong>,PWM 1kHz 占空比即亮度</td><td><code>Core/Src/tim.c</code> MspPostInit</td></tr>
+<tr><td>PWM 启动时机</td><td>藏在 <code>LCD_Light()</code> 里(<code>HAL_TIMEx_PWMN_Start</code>),不调背光永远不亮</td><td><code>Bsp/ST7735/lcd.c:277</code></td></tr>
+<tr><td>面板型号宏</td><td><code>TFT96</code>(0.96&Prime; HannStar,横屏 ROT180)— <strong>只存在于 Keil 工程的 Define 里</strong>,源码里搜不到定义处</td><td><code>MDK-ARM/*.uvprojx</code></td></tr>
+<tr><td>字体</td><td><code>asc2_1608[95][16]</code>:16 行 &times; 1 字节/行,MSB 优先</td><td><code>font.h</code> + <code>LCD_ShowChar</code> 索引方式</td></tr>
+</table></div>
+<p>渲染架构:整帧 <code>uint16_t fb[160*80]</code>(25.6KB,RGB565 主机序)放 DTCM,特效只管往 fb 里画,每帧末尾统一 <code>fb_blit()</code> — 逐行字节序转换(线上要大端)后调驱动的 <code>ST7735_FillRGBRect</code>。整屏 25.6KB 在 17MHz SPI 下约 12ms 理论下限,实际 30~50fps,对特效演示足够。SPI 是 HAL 轮询发送(CPU 写 DR),不走 DMA,所以 fb 放 DTCM 没有缓存一致性问题。</p>
+</section>
+
+<section id="fx">
+<h2>6. 五个特效的实现要点</h2>
+<p>K1 单击循环切换(按下-释放边沿 + 200ms 锁定防抖),切换后 2.5 秒内顶部压一条 <code>n/5 名称</code> 标题条,LED 300ms 心跳。</p>
+<h3>6.1 STARFIELD — 3D 星空穿梭</h3>
+<p>256 颗星,每颗 <code>(x,y,z) &isin; [-1,1]&times;[-1,1]&times;(0,1]</code>,每帧 <code>z -= 0.012</code>,透视投影 <code>sx = x/z&middot;36 + 80</code>。z 越小越亮(亮度映射 RGB565 灰阶)、越近画 2px。z 触底就在远处重生。</p>
+<h3>6.2 DOOM FIRE — 经典火焰</h3>
+<p>半分辨率 80&times;40 热量图 + 37 色黑&rarr;红&rarr;黄&rarr;白调色板,2&times;2 上采样。每帧从底行随机点火,向上传播时取下方邻域(带 &plusmn;1 横向漂移)减随机衰减。全部整数运算,xorshift32 伪随机。</p>
+<h3>6.3 BOUNCE — 重力弹球</h3>
+<p>18 个球,重力 0.18、落地反弹衰减 0.86、速度过低时随机"续命"一脚。拖尾实现:不清屏,每帧把全 fb 各通道右移 1 位(<code>(p&gt;&gt;1) &amp; 0x7BEF</code>,一行位运算压暗,比 memset 还便宜)。</p>
+<h3>6.4 LIFE — 康威生命游戏</h3>
+<p>80&times;40 网格(2px 细胞)、环面边界、双缓冲。存活数 &lt; 12 或超过 800 代自动重新撒种,避免死在静寂态。</p>
+<h3>6.5 PLASMA — 等离子体</h3>
+<p>每像素四个正弦叠加(两个行/列行波 + 一个对角行波 + 一个圆心漂移的径向波),值域归一后过彩虹调色。正弦用 256 项查表(启动时 <code>sinf</code> 预生成),12800 像素 &times; 4 查表在 550MHz M7 上毫无压力。</p>
+</section>
+
+<section id="pitfalls">
+<h2>7. 踩坑清单</h2>
+<ol>
+<li><strong>brew arm-none-eabi-gcc 无 newlib</strong> — <code>include_next &lt;stdint.h&gt;</code> 找不到真身。别再试 brew 补包,直接上 Arm 官方工具链。</li>
+<li><strong>gitlab.arm.com 下载被重置</strong> — brew 装 cask 失败;手动 curl 带 <code>-C -</code> 断点续传可过。</li>
+<li><strong>pkg 免安装</strong> — <code>pkgutil --expand-full</code> 直接展开成目录用,不用 sudo、不写系统路径。</li>
+<li><strong>STM32CubeH7 的 CMSIS Device 是 submodule</strong> — raw 文件要去 <code>cmsis_device_h7</code> 仓拿。</li>
+<li><strong>启动文件与 system 文件版本要配对</strong> — 新版 startup 依赖 <code>ExitRun0Mode</code>,旧 <code>system_stm32h7xx.c</code> 没有。</li>
+<li><strong>GCC 14+ 把 int-conversion 提升为错误</strong> — 厂商 BSP 里 <code>NULL</code> 初始化整型字段在 Keil 下无事,GCC15 下报错;<code>-Wno-int-conversion</code> 放行(不改编译不动的厂商文件)。</li>
+<li><strong>Makefile vpath 同名碰撞</strong> — 自己的 <code>src/main.c</code> 和例程 <code>Core/Src/main.c</code> 经 <code>notdir</code> 后同名,<code>sort</code> 后例程目录排在前面,vpath 抢走了 main.c,链接时报一堆 <code>MX_RTC_Init</code> undefined 才暴露。自己的入口改名 <code>app_main.c</code> 解决。</li>
+<li><strong>TFT96 宏的藏身之处</strong> — 面板选型宏不在任何源码里,在 Keil uvprojx 的 Define 字段。移植工程时记得去 .uvprojx 里翻编译定义。</li>
+</ol>
+</section>
+
+<section id="repro">
+<h2>8. 复现手册</h2>
+<pre><code># 目录约定:官方仓库只读;所有工程在 work/weactstudio_h723/ 下
+work/weactstudio_h723/
+├── toolchain/arm-gnu/Payload/     # Arm GNU Toolchain 15.3.rel1(pkgutil 解包)
+├── startup_stm32h723xx.s          # cmsis_device_h7 仓
+├── system_stm32h7xx.c             # 同上,与 startup 同版本
+├── STM32H723VGTX_FLASH.ld         # NUCLEO-H723ZG 模板
+├── backup/internal_flash_0x08000000_1MB.bin   # 原厂固件备份
+├── 01-gpio/   (Makefile)          # LED + K1 + RNG
+└── 02-lcd-demo/ (Makefile, src/)  # 五特效 Demo
+
+# 编译 & 烧录(ST-Link / SWD)
+make -C work/weactstudio_h723/02-lcd-demo -j8
+make -C work/weactstudio_h723/02-lcd-demo flash   # openocd program verify reset
+
+# 恢复原厂固件
+openocd -f interface/stlink.cfg -f target/stm32h7x.cfg \
+  -c "program work/weactstudio_h723/backup/internal_flash_0x08000000_1MB.bin 0x08000000 verify reset exit"</code></pre>
+<p>验证方式:上电先出 WeAct logo(背光 400ms 渐亮),随后进入 STARFIELD;K1 依次切五个特效,LED 心跳常亮闪烁即固件存活。</p>
+<p class="footer">本文记录 WeActStudio.MiniSTM32H723 在 macOS 下的首次点亮全流程。后续计划:外部 SPI/OSPI Flash、TF 卡(FatFS)、DCMI 摄像头(参考 <a href="stm32h743-openmv-camera/index.html">H743 教程</a> 的 DCMI 排障经验)。</p>
+</section>
+
+</main>
+</body>
+</html>
