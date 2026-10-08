@@ -29,12 +29,15 @@
 </div>
 <nav aria-label="文章目录"><strong>阅读导航</strong><ol>
 <li><a href="#board">板子与仓库摸底</a></li>
+<li><a href="#chip">STM32H723 芯片特性</a></li>
 <li><a href="#toolchain">工具链:brew 的 arm-none-eabi-gcc 是残的</a></li>
 <li><a href="#backup">ST-Link 上线与原厂固件备份</a></li>
 <li><a href="#gpio">01-GPIO:Keil 工程转 Makefile</a></li>
 <li><a href="#lcd">LCD Demo:逆向 BSP 的关键事实</a></li>
 <li><a href="#fx">五个特效的实现要点</a></li>
 <li><a href="#pitfalls">踩坑清单</a></li>
+<li><a href="#rtos">上 RTOS 之后的注意细节</a></li>
+<li><a href="#ideas">这颗芯片能做什么:项目方向调研</a></li>
 <li><a href="#repro">复现手册</a></li>
 </ol></nav>
 
@@ -52,8 +55,27 @@
 <p>时钟树(从例程反推):25MHz HSE &rarr; PLLM=2 / PLLN=44 / PLLP=1 &rarr; SYSCLK=550MHz,HCLK=275MHz(AHB /2),APB 均 137.5MHz。</p>
 </section>
 
+<section id="chip">
+<h2>2. STM32H723 芯片特性(摘自 <a href="https://www.st.com/resource/en/datasheet/stm32h723vg.pdf">DS13313</a>,仓库 <code>Doc/</code> 内有)</h2>
+<p>H723 是 STM32H7 产品线里的「高配性价比款」:与旗舰 H743 同频 550MHz,但封装更小、价格更低(H733 是同款的加密版,多 AES/HASH)。仓库这块板用的是 <strong>H723VGT6</strong>(LQFP100,1MB Flash)。</p>
+<div class="table-wrap"><table>
+<tr><th>类别</th><th>规格</th></tr>
+<tr><td>内核</td><td>Cortex-M7 @ 550MHz,双精度 FPU,32KB I-Cache + 32KB D-Cache(嵌入式 Flash 零等待执行),MPU,1177 DMIPS(2.14 DMIPS/MHz),DSP 指令集</td></tr>
+<tr><td>存储</td><td>1MB Flash(带 ECC,<strong>单 bank,编程粒度 256bit/32 字节</strong>);564KB SRAM 全带 ECC = 128KB DTCM + 432KB 系统 RAM(其中最多 256KB 可重映射为 ITCM)+ 4KB 备份 SRAM</td></tr>
+<tr><td>外部存储</td><td>FMC(SRAM/PSRAM/SDRAM/NOR/NAND,16bit 总线);<strong>2&times; OctoSPI 支持 XiP</strong>;2&times; SDMMC</td></tr>
+<tr><td>图形</td><td><strong>Chrom-ART(DMA2D)图形加速器 + LTDC 控制器(支持到 XGA)</strong> — 芯片能力很强,但本板板载的是 SPI 口的 ST7735,LTDC 要外接 RGB 屏</td></tr>
+<tr><td>模拟</td><td>2&times; 16bit ADC(3.6MSPS,双交错 7.2MSPS)+ 1&times; 12bit ADC(5MSPS);2&times; 比较器;<strong>2&times; 运放(GBW 8MHz)</strong>;2&times; 12bit DAC;DFSDM(8 通道/4 滤波器,接数字麦克风)</td></tr>
+<tr><td>DMA</td><td>MDMA(链表)+ 2&times; 双口 DMA(带 FIFO)+ BDMA,共 4 控制器</td></tr>
+<tr><td>定时器</td><td>24 个:17&times; 16bit(含 5 个低功耗,Stop 模式可用)+ 4&times; 32bit,支持编码器接口</td></tr>
+<tr><td>通信</td><td>5&times; I2C(FM+);5 USART + 5 UART + 1 LPUART;6&times; SPI(4 个带 I2S);2&times; SAI;<strong>3&times; CAN(1&times; FD/TT-CAN + 2&times; FD-CAN)</strong>;DCMI 8-14bit;SPDIF-IN;HDMI-CEC;<strong>Ethernet MAC(自带 DMA)</strong>;USB OTG(片上 FS PHY,HS 需外接 ULPI PHY);SWPMI</td></tr>
+<tr><td>数学加速</td><td><strong>CORDIC</strong>(三角/双曲/开方硬件加速)+ <strong>FMAC</strong>(FIR/IIR 硬件滤波器)— 电机控制、音频 DSP 的利器</td></tr>
+<tr><td>其他</td><td>TRNG、CRC、RTC(亚秒级+硬件日历)、96bit UID、ROP/PC-ROP/防篡改;供电 1.62~3.6V,内嵌 LDO(本板即 LDO 供电),<strong>VOS0 档位才能跑满 550MHz</strong></td></tr>
+</table></div>
+<div class="note">注意 RAM 是分域的:<strong>DTCM(0x20000000)CPU 零等待但 DMA 访问不到</strong>;AXI SRAM(0x24000000,320KB)是 DMA 可用的主力;D2 域 SRAM1/2/3、D3 域 SRAM4 各有总线归属。原厂固件栈顶在 0x2401xxxx(AXI SRAM),我们自己的 Makefile 链接脚本把 RAM 定在 DTCM — 两种都合法,但涉及 DMA 时必须想清楚 buffer 放哪。</div>
+</section>
+
 <section id="toolchain">
-<h2>2. 工具链:brew 的 arm-none-eabi-gcc 是残的</h2>
+<h2>3. 工具链:brew 的 arm-none-eabi-gcc 是残的</h2>
 <p>机器上已有 <code>arm-none-eabi-gcc</code>(brew, 16.2.0)、<code>openocd</code>、<code>cmake</code>。但第一次编译直接炸:</p>
 <pre><code>arm-none-eabi-gcc/16.2.0/include/stdint.h:11:16: fatal error: stdint.h: No such file or directory
    11 | # include_next &lt;stdint.h&gt;</code></pre>
@@ -68,7 +90,7 @@
 </section>
 
 <section id="backup">
-<h2>3. ST-Link 上线与原厂固件备份</h2>
+<h2>4. ST-Link 上线与原厂固件备份</h2>
 <p>ST-Link(V2 兼容,固件 V2J43M28)USB 直识别(VID:PID <code>0483:3752</code>),macOS 下可用 <code>ioreg -p IOUSB</code> 确认(<code>system_profiler SPUSBDataType</code> 这次什么都没吐出来,ioreg 更可靠)。</p>
 <p>烧新程序前先备份 — 一条 openocd 命令把 1MB 内部 Flash 全量转储:</p>
 <pre><code>openocd -f interface/stlink.cfg -f target/stm32h7x.cfg \
@@ -78,7 +100,7 @@
 </section>
 
 <section id="gpio">
-<h2>4. 01-GPIO:Keil 工程转 Makefile</h2>
+<h2>5. 01-GPIO:Keil 工程转 Makefile</h2>
 <p>原则:<strong>不改官方仓库任何文件</strong>,工程建在 <code>work/weactstudio_h723/01-gpio/</code>,Makefile 用相对路径只读引用 <code>Examples/01-GPIO</code> 的 Core/Bsp/Drivers 源码。缺的三样东西从 ST 官方仓库补齐:</p>
 <ul>
 <li>GCC 启动文件 <code>startup_stm32h723xx.s</code> — 在 CMSIS Device 子模块仓库 <code>STMicroelectronics/cmsis_device_h7</code> 的 <code>Source/Templates/gcc/</code>(注意:STM32CubeH7 主仓里该目录是 submodule,raw 路径要换成子模块仓,直接打主仓路径会 404);</li>
@@ -92,7 +114,7 @@
 </section>
 
 <section id="lcd">
-<h2>5. LCD Demo:逆向 BSP 的关键事实</h2>
+<h2>6. LCD Demo:逆向 BSP 的关键事实</h2>
 <p>03-LCD_Test 例程的 BSP(<code>Bsp/ST7735/</code>)是"驱动 + 总线胶水"两层结构:<code>st7735.c</code> 是通用驱动(命令序列/光标/FillRect/FillRGBRect),<code>lcd.c</code> 负责把驱动挂到 SPI4 上。把例程读懂后,几个不写进代码就亮不起来的事实:</p>
 <div class="table-wrap"><table>
 <tr><th>项</th><th>值</th><th>出处</th></tr>
@@ -107,22 +129,22 @@
 </section>
 
 <section id="fx">
-<h2>6. 五个特效的实现要点</h2>
+<h2>7. 五个特效的实现要点</h2>
 <p>K1 单击循环切换(按下-释放边沿 + 200ms 锁定防抖),切换后 2.5 秒内顶部压一条 <code>n/5 名称</code> 标题条,LED 300ms 心跳。</p>
-<h3>6.1 STARFIELD — 3D 星空穿梭</h3>
+<h3>7.1 STARFIELD — 3D 星空穿梭</h3>
 <p>256 颗星,每颗 <code>(x,y,z) &isin; [-1,1]&times;[-1,1]&times;(0,1]</code>,每帧 <code>z -= 0.012</code>,透视投影 <code>sx = x/z&middot;36 + 80</code>。z 越小越亮(亮度映射 RGB565 灰阶)、越近画 2px。z 触底就在远处重生。</p>
-<h3>6.2 DOOM FIRE — 经典火焰</h3>
+<h3>7.2 DOOM FIRE — 经典火焰</h3>
 <p>半分辨率 80&times;40 热量图 + 37 色黑&rarr;红&rarr;黄&rarr;白调色板,2&times;2 上采样。每帧从底行随机点火,向上传播时取下方邻域(带 &plusmn;1 横向漂移)减随机衰减。全部整数运算,xorshift32 伪随机。</p>
-<h3>6.3 BOUNCE — 重力弹球</h3>
+<h3>7.3 BOUNCE — 重力弹球</h3>
 <p>18 个球,重力 0.18、落地反弹衰减 0.86、速度过低时随机"续命"一脚。拖尾实现:不清屏,每帧把全 fb 各通道右移 1 位(<code>(p&gt;&gt;1) &amp; 0x7BEF</code>,一行位运算压暗,比 memset 还便宜)。</p>
-<h3>6.4 LIFE — 康威生命游戏</h3>
+<h3>7.4 LIFE — 康威生命游戏</h3>
 <p>80&times;40 网格(2px 细胞)、环面边界、双缓冲。存活数 &lt; 12 或超过 800 代自动重新撒种,避免死在静寂态。</p>
-<h3>6.5 PLASMA — 等离子体</h3>
+<h3>7.5 PLASMA — 等离子体</h3>
 <p>每像素四个正弦叠加(两个行/列行波 + 一个对角行波 + 一个圆心漂移的径向波),值域归一后过彩虹调色。正弦用 256 项查表(启动时 <code>sinf</code> 预生成),12800 像素 &times; 4 查表在 550MHz M7 上毫无压力。</p>
 </section>
 
 <section id="pitfalls">
-<h2>7. 踩坑清单</h2>
+<h2>8. 踩坑清单</h2>
 <ol>
 <li><strong>brew arm-none-eabi-gcc 无 newlib</strong> — <code>include_next &lt;stdint.h&gt;</code> 找不到真身。别再试 brew 补包,直接上 Arm 官方工具链。</li>
 <li><strong>gitlab.arm.com 下载被重置</strong> — brew 装 cask 失败;手动 curl 带 <code>-C -</code> 断点续传可过。</li>
@@ -135,8 +157,55 @@
 </ol>
 </section>
 
+<section id="rtos">
+<h2>9. 上 RTOS 之后的注意细节</h2>
+<p>这颗芯片的 RTOS 生态相当全:<strong>FreeRTOS</strong>(STM32CubeH7 官方自带 NUCLEO-H723ZG 例程)、<strong>ThreadX/Azure RTOS</strong>(ST 官方 X-CUBE-AZRTOS-H7 支持)、<strong>Zephyr</strong>(<a href="https://docs.zephyrproject.org/latest/boards/st/nucleo_h723zg/doc/index.html">官方 nucleo_h723zg 板级支持</a>)、<strong>RT-Thread</strong>(<a href="https://github.com/RT-Thread/rt-thread/blob/master/bsp/stm32/stm32h723-st-nucleo/README_zh.md">主线 BSP stm32h723-st-nucleo</a>,官方精简 BSP 清单里被评为「维护较好」)、<strong>MicroPython 1.20+</strong>(加了 STM32H723 与 NUCLEO_H723ZG 板)、<strong>rustBoot</strong>(安全启动/OTA 支持 stm32h723)。以 FreeRTOS 为例,H7 平台有几个和 F4 时代不一样的坑:</p>
+<h3>9.1 Cache × DMA 一致性(最大的坑)</h3>
+<p>开 D-Cache 后 CPU 看到的内存和 DMA 看到的会不一致。规则:<strong>DMA 缓冲区要么放进 MPU 配置的 non-cacheable 区域,要么显式维护</strong> — 发送前 <code>SCB_CleanDCache_by_Addr()</code>,接收后 <code>SCB_InvalidateDCache_by_Addr()</code>,且地址和长度都要 <strong>32 字节对齐</strong>。RTOS 下驱动代码分散在多个任务里,漏一处就是偶发灵异 bug(SD 卡偶发 CRC 错、以太网偶发丢包大多是这个)。</p>
+<h3>9.2 内存域摆放</h3>
+<ul>
+<li><strong>DTCM(0x20000000, 128KB)</strong>:CPU 零等待,但 <strong>DMA 完全访问不到</strong>。FreeRTOS heap 别放这;任务栈放这里最快,但栈上局部 buffer 绝不能直接交给 DMA。</li>
+<li><strong>AXI SRAM(0x24000000, 320KB)</strong>:DMA 可达,性能次之,放 heap 和 DMA buffer 的主力。</li>
+<li>D2 域 SRAM1/2/3、D3 域 SRAM4:部分外设 DMA(如 BDMA 只能碰 D3)有域限制,分配时留心。</li>
+<li>链接脚本里把段拆开管理,配合 MPU 给 DMA 区开 non-cacheable,是最省心的结构。</li>
+</ul>
+<h3>9.3 HAL 时基与中断优先级</h3>
+<ul>
+<li>HAL 默认用 SysTick 当时基,FreeRTOS 也用 SysTick — 冲突。CubeMX 标准做法:<code>SYS &rarr; Timebase Source</code> 改成 <strong>TIM6</strong> 给 HAL,SysTick 留给 RTOS。</li>
+<li>H7 中断优先级只有 4bit(16 级)。HAL 约定 <code>NVIC_PRIORITYGROUP_4</code>;FreeRTOS 的 <code>configMAX_SYSCALL_INTERRUPT_PRIORITY</code>(默认 5)以下的中断才能调 <code>FromISR</code> API,高于它的 ISR 连 RTOS 都不能碰(但也因此零延迟,适合放最硬的实时中断)。</li>
+</ul>
+<h3>9.4 其他</h3>
+<ul>
+<li><strong>Cache 默认没开</strong>:厂商模板的 <code>SystemInit</code> 不自动开 I/D-Cache,550MHz 不开 cache 等于白买(我们上面的 demo 就没开,还有大把性能余量)。RTOS 工程启动早期 <code>SCB_EnableICache()/SCB_EnableDCache()</code>,并先把 MPU 区域规划好。</li>
+<li><strong>FPU 上下文</strong>:编译 <code>-mfloat-abi=hard</code>,FreeRTOS 用 <code>GCC/ARM_CM7/r0p1</code> port(自动惰性保存 FPU 寄存器),别用 CM4F port 混。</li>
+<li><strong>Flash 编程粒度 256bit(32 字节)</strong> 且 H723VG 是单 bank:EEPROM 模拟、参数落盘、IAP/OTA 都不能像 F4 那样随手写字;OTA 没有双 bank 可换,但可以利用本板的 <strong>OSPI Flash XiP</strong>(代码跑在外部 Flash,内部 Flash 做升级缓冲,参考 <code>01-GPIO_ExternalFlash_Run</code> 例程),或者直接上 rustBoot。</li>
+<li><strong>看门狗</strong>:多任务下建议单独低优先级任务喂 IWDG + 各任务心跳登记,谁卡死不喂谁。</li>
+<li><strong>CORDIC/FMAC 不是线程安全的共享资源</strong>:多任务用时加互斥锁,或者约定归一个 DSP 任务专用。</li>
+</ul>
+</section>
+
+<section id="ideas">
+<h2>10. 这颗芯片能做什么:项目方向调研</h2>
+<p>结合这块板已有的资源(ST7735 屏、TF 卡槽、SPI + OSPI 双 8MB Flash、DCMI 摄像头口、USB-C、K1 按键、双排针引出),按投入从小到大排:</p>
+<div class="table-wrap"><table>
+<tr><th>方向</th><th>用到的能力</th><th>起点</th></tr>
+<tr><td><strong>口袋相机 / 扫码器</strong></td><td>DCMI + OV5640 + LCD 取景,TF 卡存图</td><td>例程 <code>08-DCMI2LCD</code> 已经跑通取景,加 <a href="https://github.com/dlbeer/quirc">quirc</a> 就是二维码扫描器;H743 那篇教程有整套 DCMI 排障经验可抄</td></tr>
+<tr><td><strong>音乐频谱仪 / 吉他调音器</strong></td><td>I2S 或 DFSDM 接数字麦,FFT 上屏;<strong>FMAC/CORDIC 硬件加速</strong>正好对口</td><td>参考本库 <code>m5sticks3-demo-flashing-setup</code> 里 Mic_FFT 的玩法,换 H723 性能直接起飞</td></tr>
+<tr><td><strong>CAN 总线分析仪</strong></td><td><strong>3&times; FD-CAN</strong> + USB</td><td>刷 candleLight 类固件变 CAN&harr;USB 网关,接电脑用 SavvyCAN 分析车/设备总线;需外接 TJA1051 收发器</td></tr>
+<tr><td><strong>低速示波器 / 逻辑分析仪</strong></td><td>16bit ADC @ 3.6MSPS(交错 7.2M)+ DMA + LCD 波形</td><td>ADC 例程 <code>07-ADC_Test</code> 起步;逻辑分析仪走 GPIO DMA 采集 + SUMP 协议接 PulseView</td></tr>
+<tr><td><strong>手持游戏机</strong></td><td>550MHz M7 + LCD + 外接按键 + TF 卡存 ROM</td><td>NES/GB 模拟器在这个主频下很轻松,社区有 H7 的 DOOM 移植先例</td></tr>
+<tr><td><strong>数据记录仪</strong></td><td>TF 卡 + FatFS(例程 <code>04-SD_Test</code>)+ RTC + ADC</td><td>传感器 &rarr; CSV 落卡,USB MSC 模式导出;加 RTC 时间戳</td></tr>
+<tr><td><strong>热成像显示器</strong></td><td>I2C 接 MLX90640(32&times;24),双线性插值上 160&times;80 屏</td><td>传感器约百元,效果惊艳,适合当第一个「有外设」的项目</td></tr>
+<tr><td><strong>以太网物联网网关</strong></td><td>片上有 <strong>Ethernet MAC</strong>,外接 LAN8720 模块 + LwIP</td><td>NUCLEO-H723ZG 官方就是这套组合,LwIP/FreeRTOS 例程现成;先查原理图确认排针是否引出 RMII 引脚</td></tr>
+<tr><td><strong>FOC 伺服/电机控制</strong></td><td>快 ADC + 片上运放/比较器 + CORDIC/FMAC,是这个价位少见的模拟全家桶</td><td>参考本库 <code>foc-stm32g431-joint-driver-guide</code> 的架构,换 H723 周期预算宽 5 倍</td></tr>
+<tr><td><strong>边缘 AI</strong></td><td>TFLite Micro:OV2640 图像分类 / 麦克风关键词识别(KWS)</td><td>564KB RAM 跑 person detection 级模型可行;STM32Cube.AI 可直接转换模型</td></tr>
+<tr><td><strong>grblHAL CNC 控制器</strong></td><td>grblHAL 官方支持 STM32H7</td><td>写字机/激光雕刻机的开源大脑</td></tr>
+</table></div>
+<p>本板的边界也要清楚:屏幕是 SPI 小屏不是 LTDC 大屏;USB 片上只有 FS PHY(12Mbps),HS 要外接 ULPI PHY;没有无线(要 Wi-Fi 得外挂 ESP32 当网卡,或者用 SPI 网卡)。纯练手的话,从「相机取景 + 热成像 + 频谱仪」这类一块板就能玩的开始;要做正经项目,CAN 分析仪和 FOC 是这颗芯片相对同价位 MCU 最有差异化优势的两个方向。</p>
+</section>
+
 <section id="repro">
-<h2>8. 复现手册</h2>
+<h2>11. 复现手册</h2>
 <pre><code># 目录约定:官方仓库只读;所有工程在 work/weactstudio_h723/ 下
 work/weactstudio_h723/
 ├── toolchain/arm-gnu/Payload/     # Arm GNU Toolchain 15.3.rel1(pkgutil 解包)
