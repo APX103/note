@@ -118,9 +118,21 @@
     </div>
     <div class="section-title"><span class="dot" style="background:#f97316"></span> 开发实录与调研 <span class="count">(12)</span></div>
     <div class="grid">
+        <a class="card" data-date="2026-10-08" href="uav-gyro-denoising-dilated-cnn.html">
+            <div class="card-title"><span class="arrow">&rarr;</span> 无人机神经网络三篇 · 一：学出来的陀螺滤波器（膨胀卷积去噪）</div>
+            <div class="card-desc"><span class="tag">2026-10-08 · 论文精读</span> arXiv:2002.10718（RA-L 2020）纯惯性航姿推算 — 5 层膨胀卷积 77k 参数回归陀螺修正量 · SO(3) 增量式 Huber 损失 · 感受野阶梯精确复算 · 8 分钟数据 5 分钟训练 · AOE 66°→2.1° 逼平 VIO</div>
+        </a>
+        <a class="card" data-date="2026-10-08" href="uav-tinygc-net-gyro-calibration.html">
+            <div class="card-title"><span class="arrow">&rarr;</span> 无人机神经网络三篇 · 二：TinyGC-Net，222 个参数的陀螺标定去噪网</div>
+            <div class="card-desc"><span class="tag">2026-10-08 · 论文精读</span> arXiv:2403.02618（上交 2024）标定子网=写成卷积的矩阵乘法（27 参数）+ 三轴独立去噪（195 参数）· 只需段端点参考姿态的手动转台采集协议 · STM32 实测 51.45°→0.15° 超 PSO</div>
+        </a>
+        <a class="card" data-date="2026-10-08" href="uav-neuroflight-nn-firmware.html">
+            <div class="card-title"><span class="arrow">&rarr;</span> 无人机神经网络三篇 · 三：Neuroflight，跑在飞控固件里的神经网络</div>
+            <div class="card-desc"><span class="tag">2026-10-08 · 论文精读</span> arXiv:1901.06553（BU 2019）首个开源神经飞控固件 — Betaflight 里删掉 PID+混控换 1344 权重 NN · GYMFC-V1.5 三刀（状态/任务/奖励工程）· tfcompile AOT 上 Cortex-M7 · 2kHz 控制环实测特技飞行</div>
         <a class="card" data-date="2026-10-07" href="xiao-nrf52840-147-touch-display-dev-log.html">
             <div class="card-title"><span class="arrow">&rarr;</span> XIAO 1.47" 触控屏（nRF52840）开发实录：从环境搭建到流沙上板</div>
             <div class="card-desc"><span class="tag">2026-10-07 · 开发实录</span> arduino-cli 全流程 — GitHub 被墙下镜像 16 线程分段拉 153MB 工具链入 staging（MD5 比对）· Seeed_GFX2 模板化 Board/Config 初始化 · DFU 烧录端口 COM4→COM5 跳变 · TinyUSB CDC 必须 pyserial dtr=True 才出数据 · 触控画板/板载自检/电子流沙三连验证 · 电池 ÷3.004 分压与双峰毛刺</div>
+</a>
         </a>
         <a class="card" data-date="2026-10-07" href="uav-tailsitter-notch-filter-control.html">
             <div class="card-title"><span class="arrow">&rarr;</span> 无人机滤波控制三篇 · 一：尾座机的 14Hz 共振与陷波滤波</div>

@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>无人机神经网络三篇之二：TinyGC-Net，222 个参数的陀螺标定去噪网</title>
+<script>
+window.MathJax = {
+    tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] },
+    svg: { fontCache: 'global' },
+    options: { renderActions: { addMenu: [] } }
+};
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+<style>
+    :root { --bg:#0f0f12; --surface:#1a1a1f; --text:#e8e8ec; --dim:#9ca3af;
+            --accent:#6366f1; --accent2:#8b5cf6; --green:#10b981; --orange:#f97316;
+            --border:rgba(255,255,255,0.06); }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+           background:var(--bg); color:var(--text); line-height:1.75; -webkit-font-smoothing:antialiased; }
+    .container { max-width:800px; margin:0 auto; padding:60px 24px 80px; }
+    h1 { font-size:1.8em; margin:16px 0 8px;
+         background:linear-gradient(135deg,var(--text) 0%,var(--accent) 60%,var(--accent2) 100%);
+         -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    .sub { color:var(--dim); margin-bottom:8px; }
+    .back { display:inline-block; margin-bottom:8px; color:var(--dim); text-decoration:none; font-size:0.9em; }
+    .back:hover { color:var(--accent); }
+    h2 { font-size:1.25em; margin:44px 0 14px; padding-bottom:10px; border-bottom:1px solid var(--border); }
+    h3 { font-size:1.05em; margin:26px 0 10px; }
+    p { margin:10px 0; }
+    ul { margin:10px 0 10px 22px; } li { margin:6px 0; }
+    code { background:rgba(99,102,241,0.12); color:#a5b4fc; padding:1px 6px; border-radius:5px; font-size:0.88em; }
+    table { width:100%; border-collapse:collapse; margin:14px 0; font-size:0.9em; }
+    th { text-align:left; color:var(--dim); font-weight:600; padding:8px 10px; border-bottom:1px solid var(--border); white-space:nowrap; }
+    td { padding:9px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+    .card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:18px 22px; margin:14px 0; }
+    .verdict { border-left:3px solid var(--green); }
+    .verdict::before { content:'✦ 拍板'; display:block; color:var(--green); font-weight:600; font-size:0.85em; margin-bottom:6px; }
+    .warn { border-left:3px solid var(--orange); }
+    .warn::before { content:'⚠ 注意'; display:block; color:var(--orange); font-weight:600; font-size:0.85em; margin-bottom:6px; }
+    .dim { color:var(--dim); }
+    .fig { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px 10px 8px; margin:18px 0; }
+    .fig svg { display:block; margin:0 auto; max-width:100%; height:auto; }
+    .figcap { text-align:center; color:var(--dim); font-size:0.82em; padding:8px 12px 6px; }
+    .footer { margin-top:60px; padding-top:20px; border-top:1px solid var(--border); color:var(--dim); font-size:0.82em; }
+    .footer a { color:var(--accent); text-decoration:none; }
+    svg .lbl { paint-order:stroke; stroke:#0f0f12; stroke-width:5px; stroke-linejoin:round; }
+    mjx-container { overflow-x:auto; overflow-y:hidden; padding:2px 0; }
+</style>
+</head>
+<body>
+<div class="container">
+    <a class="back" href="../index.html">← 返回总览</a>
+    <h1>222 个参数的陀螺标定去噪网：TinyGC-Net 与单片机部署</h1>
+    <p class="sub">无人机神经网络三篇 · 之二 · arXiv:2403.02618（上海交通大学，2024）· 2026-10-08</p>
+
+    <h2>§0 这篇论文在讲什么</h2>
+    <p><a href="uav-gyro-denoising-dilated-cnn.html">系列之一</a>证明了"学出来的陀螺滤波器"可行——但那个网络 77,052 个参数，推理要 GPU/桌面 CPU，且训练依赖动捕级真值数据集。这篇上海交大的论文把它推到极限：<b>把标定和去噪拆成两个子网，全模型只有 27 + 195 = 222 个参数，训练在 GPU 上完成后直接部署进资源受限的单片机实时运行</b>；训练数据不靠公开数据集——一台手动三轴转台，静止 1 秒 + 随机转 3 秒 + 静止 1 秒，重复 40 段（共 200 秒）就够，因为损失函数只要求<b>每段的起点和终点姿态</b>这两个参考值，甚至可以用"预标定好的加速度计"来提供。</p>
+    <p>结果：EuRoC 公开数据集上以纯陀螺输入击败 LSTM 方案 OriNet（多数序列），精度逊于之一（DIG）但 DIG 离开 GPU 就跑不动；实机转台实验 58 秒验证，原始陀螺积分末端姿态误差 RMSE 51.45°，经典 PSO 优化标定后 0.27°，TinyGC-Net <b>0.15°</b>——比 PSO 还小近一半，且推理成本是几个卷积核的乘加。</p>
+    <table>
+        <tr><th>项目</th><th>内容</th></tr>
+        <tr><td>作者 / 机构</td><td>崔超（Cui Chao）、赵健康、龙海辉、张瑞彤 — 上海交通大学</td></tr>
+        <tr><td>发表</td><td>arXiv:2403.02618v2（2024-04）</td></tr>
+        <tr><td>网络</td><td>标定子网：2×LBN + PReLU（27 参数）；去噪子网：三轴各一个 conv→conv→FC（195 参数）；输入<b>只有陀螺</b></td></tr>
+        <tr><td>损失</td><td>段端点四元数差：只要求每段（M=400 帧）首末参考姿态</td></tr>
+        <tr><td>训练</td><td>两阶段：先只训标定子网（N=1），冻结后再训去噪子网；AdamW，2000 epoch 约 15 分钟（RTX 4060 Ti）</td></tr>
+        <tr><td>实测平台</td><td>ASM330LHH 车规 MEMS IMU + STM32F405RGT6 + SD 卡记录；手动三轴转台</td></tr>
+        <tr><td>关键数字</td><td>222 参数 MCU 实时；实测 58s：raw 51.45° → PSO 0.27° → TinyGC 0.15°（RMSE）</td></tr>
+    </table>
+    <div class="card verdict">
+        一句话：<b>当网络小到 222 个参数，"神经网络"和"标定公式"的界限就消失了</b>——标定子网就是被拆成卷积写法的矩阵乘法，去噪子网就是三只学出来的小 FIR 滤波器。这篇论文的价值不在精度（它输给之一），而在回答了"学习方法能不能落到 5 块钱的单片机上"。
+    </div>
+
+    <h2>§1 前置知识</h2>
+
+    <h3>§1.1 陀螺标定到底在标什么</h3>
+    <p>陀螺的 ADC 电压读数 \(\omega\) 与物理角速度 \(\tilde\omega\)（rad/s）之间的关系写成线性模型：</p>
+    \[ \tilde\omega = R_g T_g S_g(\omega + b_g + n_g) = E_g\,\omega + B_g + \eta_g \]
+    <p>\(R_g\)（失准/非正交）、\(T_g\)（轴间耦合）、\(S_g\)（刻度因子）三个 3×3 阵合并成 \(E_g\)，加上偏置向量 \(B_g\)——<b>一共 12 个数</b>，这就是传统标定的全部目标。更精细的模型用高阶多项式刻画 \(E_g,B_g\) 随角速度的非线性，但传统方法估不动那么多系数（转台标定里它们的可观测性纠缠在一起）。MEMS 工艺进步后陀螺非线性已小到 0.01% 量级——这个数字后面决定了网络可以做到多小。</p>
+
+    <h3>§1.2 传统标定方法一览（与本文对照）</h3>
+    <table>
+        <tr><th>方法</th><th>参考基准</th><th>特点</th></tr>
+        <tr><td>转台标定（云台/精密转台）</td><td>转台给出的精确角速度</td><td>实验室级，设备贵</td></tr>
+        <tr><td>加计辅助标定</td><td>重力向量（预标定加计）</td><td>便宜，但要设计专门旋转序列+非线性代价</td></tr>
+        <tr><td>滤波器在线标定（EKF/TUKF）</td><td>多传感器融合残差</td><td>依赖 6 自由度激励的可观测性</td></tr>
+        <tr><td>群智能优化（PSO 等）</td><td>段端点姿态</td><td>能收敛到真值附近，但计算量大（本文实测对照组）</td></tr>
+    </table>
+
+    <h3>§1.3 已有学习方法的三宗罪</h3>
+    <p>论文对现有"学习派"（IONet / OriNet / RoNIN / TLIO / <a href="uav-gyro-denoising-dilated-cnn.html">DIG</a>）的批评恰好构成 TinyGC 的三个设计目标：</p>
+    <ul>
+        <li><b>参数量 → GPU 才能跑</b>：几万到几百万参数，部署不到 MCU —— 目标：压到几百参数；</li>
+        <li><b>依赖加速度计输入</b>：加计用来约束时变偏置，但极端动态（<b>自由落体时加计读数趋零</b>）会诱发异常输出 —— 目标：纯陀螺输入；</li>
+        <li><b>依赖公开数据集</b>：参考姿态（动捕）在工业场景又贵又难 —— 目标：损失函数只吃"段端点姿态"这种廉价参考。</li>
+    </ul>
+
+    <h2>§2 方法：两个子网与一个便宜的损失</h2>
+
+    <h3>§2.1 总体架构</h3>
+    <div class="fig">
+    <svg viewBox="0 0 720 250" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+            <marker id="arrB" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#9ca3af"/>
+            </marker>
+        </defs>
+        <!-- input -->
+        <text x="16" y="125" fill="#9ca3af" font-size="12" class="lbl">原始读数 ω<tspan font-size="9" dy="3">k</tspan><tspan dy="-3">（电压）</tspan></text>
+        <line x1="16" y1="132" x2="96" y2="132" stroke="#9ca3af" stroke-width="1.6" marker-end="url(#arrB)"/>
+        <!-- calibration subnet -->
+        <rect x="100" y="96" width="180" height="72" rx="10" fill="rgba(99,102,241,0.12)" stroke="#6366f1" stroke-width="1.6"/>
+        <text x="190" y="118" fill="#a5b4fc" font-size="12.5" text-anchor="middle" font-weight="600">标定子网（27 参数）</text>
+        <text x="190" y="136" fill="#a5b4fc" font-size="11" text-anchor="middle">LBN → PReLU → LBN</text>
+        <text x="190" y="153" fill="#a5b4fc" font-size="10.5" text-anchor="middle">≈ 非线性的 E·ω + B</text>
+        <!-- split node -->
+        <line x1="280" y1="132" x2="312" y2="132" stroke="#9ca3af" stroke-width="1.6"/>
+        <circle cx="316" cy="132" r="3.5" fill="#e8e8ec"/>
+        <line x1="316" y1="132" x2="316" y2="56" stroke="#9ca3af" stroke-width="1.4"/>
+        <line x1="316" y1="132" x2="346" y2="132" stroke="#9ca3af" stroke-width="1.4" marker-end="url(#arrB)"/>
+        <line x1="316" y1="132" x2="316" y2="208" stroke="#9ca3af" stroke-width="1.4"/>
+        <line x1="316" y1="56" x2="346" y2="56" stroke="#9ca3af" stroke-width="1.4" marker-end="url(#arrB)"/>
+        <line x1="316" y1="208" x2="346" y2="208" stroke="#9ca3af" stroke-width="1.4" marker-end="url(#arrB)"/>
+        <text x="322" y="100" fill="#9ca3af" font-size="10" class="lbl">三轴拆开</text>
+        <!-- denoise subnets -->
+        <g>
+            <rect x="350" y="34" width="200" height="44" rx="10" fill="rgba(16,185,129,0.10)" stroke="#10b981" stroke-width="1.6"/>
+            <text x="450" y="52" fill="#6ee7b7" font-size="11.5" text-anchor="middle">去噪子网 x 轴（65 参数）</text>
+            <text x="450" y="68" fill="#6ee7b7" font-size="10.5" text-anchor="middle">Conv(25) → Conv(13) → FC</text>
+        </g>
+        <g>
+            <rect x="350" y="110" width="200" height="44" rx="10" fill="rgba(16,185,129,0.10)" stroke="#10b981" stroke-width="1.6"/>
+            <text x="450" y="128" fill="#6ee7b7" font-size="11.5" text-anchor="middle">去噪子网 y 轴（65 参数）</text>
+            <text x="450" y="144" fill="#6ee7b7" font-size="10.5" text-anchor="middle">Conv(25) → Conv(13) → FC</text>
+        </g>
+        <g>
+            <rect x="350" y="186" width="200" height="44" rx="10" fill="rgba(16,185,129,0.10)" stroke="#10b981" stroke-width="1.6"/>
+            <text x="450" y="204" fill="#6ee7b7" font-size="11.5" text-anchor="middle">去噪子网 z 轴（65 参数）</text>
+            <text x="450" y="220" fill="#6ee7b7" font-size="10.5" text-anchor="middle">Conv(25) → Conv(13) → FC</text>
+        </g>
+        <!-- outputs -->
+        <line x1="550" y1="56" x2="600" y2="56" stroke="#9ca3af" stroke-width="1.4" marker-end="url(#arrB)"/>
+        <line x1="550" y1="132" x2="600" y2="132" stroke="#9ca3af" stroke-width="1.4" marker-end="url(#arrB)"/>
+        <line x1="550" y1="208" x2="600" y2="208" stroke="#9ca3af" stroke-width="1.4" marker-end="url(#arrB)"/>
+        <text x="606" y="60" fill="#e8e8ec" font-size="12" class="lbl">bω<tspan font-size="9" dy="3">x</tspan></text>
+        <text x="606" y="136" fill="#e8e8ec" font-size="12" class="lbl">bω<tspan font-size="9" dy="3">y</tspan></text>
+        <text x="606" y="212" fill="#e8e8ec" font-size="12" class="lbl">bω<tspan font-size="9" dy="3">z</tspan></text>
+        <text x="606" y="86" fill="#9ca3af" font-size="10" class="lbl">N=50 帧滑窗输入</text>
+        <text x="606" y="238" fill="#9ca3af" font-size="10" class="lbl">（每轴独立）</text>
+    </svg>
+    <div class="figcap">图 1 · TinyGC-Net 总体架构（依论文图 1 重绘，参数量按结构推算）。标定子网做"非线性矩阵修正"，随后三轴各自过一个微型卷积去噪网——轴间解耦是参数量骤降的关键假设。</div>
+    </div>
+
+    <h3>§2.2 标定子网：把矩阵乘法写成卷积</h3>
+    <p>核心构件 LBN（linear basic network）：<b>三个并行的 1×3 一维卷积（每个输出轴一个）+ 拼接</b>。若所有参数为常数，它数学上就<b>恒等于</b> \(\tilde\omega = E_g\omega + B_g\)——每个卷积权重就是 \(E_g\) 的一个元素，偏置就是 \(B_g\) 的一个分量。两个 LBN 之间夹一个 PReLU 激活（借鉴残差网络的连接思路，加速收敛），让"矩阵"的系数随输入轻微非线性化——正好对应 \(\S\)1.1 里的高阶多项式项。</p>
+    <div class="fig">
+    <svg viewBox="0 0 720 170" xmlns="http://www.w3.org/2000/svg">
+        <text x="30" y="26" fill="#e8e8ec" font-size="12.5" font-weight="600">同一个东西的两种写法：ω̃ = E·ω + B ⟷ 三个 1×3 卷积 + 拼接</text>
+        <!-- inputs -->
+        <text x="34" y="66" fill="#9ca3af" font-size="11.5">ω₀</text>
+        <text x="34" y="96" fill="#9ca3af" font-size="11.5">ω₁</text>
+        <text x="34" y="126" fill="#9ca3af" font-size="11.5">ω₂</text>
+        <line x1="62" y1="62" x2="180" y2="62" stroke="#4b5563" stroke-width="1.2"/>
+        <line x1="62" y1="92" x2="180" y2="92" stroke="#4b5563" stroke-width="1.2"/>
+        <line x1="62" y1="122" x2="180" y2="122" stroke="#4b5563" stroke-width="1.2"/>
+        <!-- weight grid E -->
+        <g>
+            <circle cx="200" cy="62" r="4" fill="#6366f1"/><circle cx="200" cy="92" r="4" fill="#6366f1"/><circle cx="200" cy="122" r="4" fill="#6366f1"/>
+            <circle cx="240" cy="62" r="4" fill="#6366f1"/><circle cx="240" cy="92" r="4" fill="#6366f1"/><circle cx="240" cy="122" r="4" fill="#6366f1"/>
+            <circle cx="280" cy="62" r="4" fill="#6366f1"/><circle cx="280" cy="92" r="4" fill="#6366f1"/><circle cx="280" cy="122" r="4" fill="#6366f1"/>
+        </g>
+        <line x1="62" y1="62" x2="196" y2="62" stroke="#4b5563" stroke-width="1.2"/>
+        <line x1="62" y1="62" x2="196" y2="92" stroke="#4b5563" stroke-width="0.8" opacity="0.55"/>
+        <line x1="62" y1="62" x2="196" y2="122" stroke="#4b5563" stroke-width="0.8" opacity="0.35"/>
+        <line x1="62" y1="92" x2="196" y2="62" stroke="#4b5563" stroke-width="0.8" opacity="0.55"/>
+        <line x1="62" y1="92" x2="196" y2="92" stroke="#4b5563" stroke-width="1.2"/>
+        <line x1="62" y1="92" x2="196" y2="122" stroke="#4b5563" stroke-width="0.8" opacity="0.55"/>
+        <line x1="62" y1="122" x2="196" y2="62" stroke="#4b5563" stroke-width="0.8" opacity="0.35"/>
+        <line x1="62" y1="122" x2="196" y2="92" stroke="#4b5563" stroke-width="0.8" opacity="0.55"/>
+        <line x1="62" y1="122" x2="196" y2="122" stroke="#4b5563" stroke-width="1.2"/>
+        <text x="240" y="146" fill="#a5b4fc" font-size="11" text-anchor="middle">E 的 9 个权重 = 9 个卷积核系数</text>
+        <!-- bias -->
+        <line x1="284" y1="62" x2="330" y2="62" stroke="#4b5563" stroke-width="1.2"/>
+        <line x1="284" y1="92" x2="330" y2="92" stroke="#4b5563" stroke-width="1.2"/>
+        <line x1="284" y1="122" x2="330" y2="122" stroke="#4b5563" stroke-width="1.2"/>
+        <circle cx="344" cy="62" r="4" fill="#8b5cf6"/><circle cx="344" cy="92" r="4" fill="#8b5cf6"/><circle cx="344" cy="122" r="4" fill="#8b5cf6"/>
+        <text x="344" y="146" fill="#c4b5fd" font-size="11" text-anchor="middle">B 偏置</text>
+        <!-- outputs -->
+        <line x1="348" y1="62" x2="420" y2="62" stroke="#9ca3af" stroke-width="1.4"/>
+        <line x1="348" y1="92" x2="420" y2="92" stroke="#9ca3af" stroke-width="1.4"/>
+        <line x1="348" y1="122" x2="420" y2="122" stroke="#9ca3af" stroke-width="1.4"/>
+        <text x="426" y="66" fill="#e8e8ec" font-size="11.5">ω̃₀</text>
+        <text x="426" y="96" fill="#e8e8ec" font-size="11.5">ω̃₁</text>
+        <text x="426" y="126" fill="#e8e8ec" font-size="11.5">ω̃₂</text>
+        <!-- equivalence note -->
+        <text x="470" y="70" fill="#6ee7b7" font-size="11.5" class="lbl">左边每个圆点，就是</text>
+        <text x="470" y="90" fill="#6ee7b7" font-size="11.5" class="lbl">一个可训练参数——</text>
+        <text x="470" y="110" fill="#6ee7b7" font-size="11.5" class="lbl">"标定" = "训练"这 12 个数</text>
+        <text x="470" y="130" fill="#9ca3af" font-size="10.5" class="lbl">（LBN×2 + PReLU = 27 参数）</text>
+    </svg>
+    <div class="figcap">图 2 · LBN 的等价性：矩阵乘法的每个系数都是卷积核里的一个权重。传统标定解 12 个方程，学习标定把这 12 个数当参数梯度下降——夹一层 PReLU 后还能顺带吃下 0.01% 级的非线性。</div>
+    </div>
+    <p>为什么只叠两个 LBN？作者实测加更多 LBN 与激活几乎不再提升——因为现代 MEMS 陀螺非线性本来就只有 0.01% 量级（ASM330LHH 手册：非线性 ±0.01% FS）。<b>模型容量与物理现实对齐</b>，这是"小"的第一个来源。</p>
+
+    <h3>§2.3 去噪子网：三只学出来的小滤波器</h3>
+    <p>第二个"小"的来源：<b>假设三轴测量过程相互独立</b>，去噪按轴各做各的：每轴一个 conv（核 N/2=25）→ conv（核 N/4=13）→ 全连接输出 1 个数，输入是过去 N=50 帧（0.25s @200Hz）的已标定角速度。每轴 65 参数、三轴共 195。本质上是<b>一只由数据学出抽头系数与非线性的小型 FIR 滤波器</b>——与经典低通滤波相比免调参，且能在"压噪声"与"引入延迟"之间按训练样本自动平衡。</p>
+
+    <h3>§2.4 损失函数：只在段端点要真值</h3>
+    <p>训练数据切成 M=400 帧的段；段内用滑窗跑 TinyGC-Net 并按运动学模型积分姿态；<b>损失只比较段的终点姿态</b>：</p>
+    \[ \mathcal{L}_j = q^{gt}_{jM} \ominus \hat q_{(j-1)M+N \to jM} \]
+    <p>\(\ominus\) 定义为两四元数四个分量之差的模长。这个设计的实用主义到了极点：<b>参考姿态只需要在"静止时刻"获取</b>——而静止时刻的滚转/俯仰可以用预标定加速度计测重力得到，偏航用对齐即可。<b>不需要动捕、不需要激光跟踪、不需要连续真值</b>。</p>
+    <div class="fig">
+    <svg viewBox="0 0 720 190" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+            <marker id="arrC" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#9ca3af"/>
+            </marker>
+        </defs>
+        <text x="30" y="26" fill="#e8e8ec" font-size="12.5" font-weight="600">采集协议：静止 1s → 手动随机转动 3s → 静止 1s（每段 5s，重复 40 段）</text>
+        <!-- timeline -->
+        <line x1="60" y1="110" x2="560" y2="110" stroke="#9ca3af" stroke-width="1.6" marker-end="url(#arrC)"/>
+        <rect x="60" y="96" width="95" height="28" fill="rgba(156,163,175,0.25)" rx="3"/>
+        <rect x="155" y="96" width="285" height="28" fill="rgba(249,115,22,0.45)" rx="3"/>
+        <rect x="440" y="96" width="95" height="28" fill="rgba(156,163,175,0.25)" rx="3"/>
+        <text x="107" y="88" fill="#e8e8ec" font-size="11" text-anchor="middle" class="lbl">静止 ~1s</text>
+        <text x="297" y="88" fill="#fdba74" font-size="11" text-anchor="middle" class="lbl">三轴转台手动随机转动 ~3s</text>
+        <text x="487" y="88" fill="#e8e8ec" font-size="11" text-anchor="middle" class="lbl">静止 ~1s</text>
+        <!-- reference markers -->
+        <circle cx="60" cy="110" r="5" fill="#10b981"/>
+        <circle cx="535" cy="110" r="5" fill="#10b981"/>
+        <text x="60" y="146" fill="#6ee7b7" font-size="11" text-anchor="middle" class="lbl">参考姿态 q₀</text>
+        <text x="535" y="146" fill="#6ee7b7" font-size="11" text-anchor="middle" class="lbl">参考姿态 q<tspan font-size="8" dy="2">M</tspan></text>
+        <text x="60" y="164" fill="#9ca3af" font-size="9.5" text-anchor="middle">（加计测重力即可）</text>
+        <!-- loss arc -->
+        <path d="M 60 102 C 150 40, 445 40, 535 102" fill="none" stroke="#fbbf24" stroke-width="1.6" stroke-dasharray="5 4"/>
+        <text x="297" y="48" fill="#fbbf24" font-size="11.5" text-anchor="middle" class="lbl">损失 L = q₀ ⊖ q̂：只罚两端，中间全靠积分对账</text>
+        <!-- repeat -->
+        <text x="576" y="114" fill="#9ca3af" font-size="12">× 40 段</text>
+        <text x="576" y="132" fill="#6b7280" font-size="10">= 200 秒数据</text>
+    </svg>
+    <div class="figcap">图 3 · 训练数据采集协议（依论文图 10 重绘）。真值只在两个静止端点出现——这是"不需要数据集"的全部秘密：端点参考用预标定加速度计就能廉价获得。</div>
+    </div>
+    <p><b>两阶段训练</b>：先令 N=1（去噪子网退化为直通），只训标定子网；收敛后冻结标定子网，再训去噪子网。共享同一个端点损失函数。AdamW，学习率 0.01，2000 epoch 约 15 分钟。</p>
+
+    <h2>§3 实验</h2>
+
+    <h3>§3.1 EuRoC 公开数据集：与学习派前辈同台</h3>
+    <p>与之一相同的 EuRoC 训练/测试划分，比较 AOE（绝对定向误差，度）：</p>
+    <table>
+        <tr><th>测试序列</th><th>原始</th><th>DIG（之一）</th><th>OriNet（LSTM）</th><th>TinyGC（仅标定）</th><th>TinyGC（标定+去噪）</th></tr>
+        <tr><td>MH 02 easy</td><td>146</td><td><b>1.39</b></td><td>5.75</td><td>6.36</td><td>4.60</td></tr>
+        <tr><td>MH 04 difficult</td><td>130</td><td><b>1.40</b></td><td>8.85</td><td>5.32</td><td>4.16</td></tr>
+        <tr><td>V1 01 easy</td><td>71.3</td><td><b>1.13</b></td><td>6.36</td><td>7.12</td><td>6.27</td></tr>
+        <tr><td>V1 03 difficult</td><td>119</td><td>2.70</td><td>14.7</td><td>3.64</td><td><b>2.23</b></td></tr>
+        <tr><td>V2 02 medium</td><td>117</td><td>3.85</td><td>11.7</td><td><b>4.95</b></td><td>5.03</td></tr>
+        <tr><td>参数量</td><td>—</td><td>77,052</td><td>更大（LSTM）</td><td>27</td><td>195</td></tr>
+        <tr><td>部署平台</td><td>—</td><td>GPU</td><td>GPU</td><td colspan="2"><b>MCU</b></td></tr>
+        <tr><td>网络输入</td><td>—</td><td>加计+陀螺</td><td>加计+陀螺</td><td colspan="2">仅陀螺</td></tr>
+    </table>
+    <p>读法：DIG 精度最高（多 400 倍参数+加速度计输入换来的），TinyGC 多数序列压过 OriNet，且是唯一能进 MCU 的方案；V1 03 上去噪子网把误差从 3.64° 再压到 2.23°，其余序列去噪收益有限——作者自己点破了原因（见 §4）。</p>
+
+    <h3>§3.2 实测：手动转台 + 车规 IMU + STM32</h3>
+    <div class="fig">
+    <svg viewBox="0 0 720 300" xmlns="http://www.w3.org/2000/svg">
+        <text x="30" y="24" fill="#e8e8ec" font-size="13" font-weight="600">实测 58 秒末端姿态误差（论文表 3，对数刻度，越短越好）</text>
+<line x1="170" y1="40" x2="170" y2="252" stroke="rgba(255,255,255,0.15)"/>
+<line x1="144.2" y1="40" x2="144.2" y2="252" stroke="rgba(255,255,255,0.05)"/>
+<text x="144.2" y="266" fill="#9ca3af" font-size="9.5" text-anchor="middle">0.01°</text>
+<line x1="273.2" y1="40" x2="273.2" y2="252" stroke="rgba(255,255,255,0.05)"/>
+<text x="273.2" y="266" fill="#9ca3af" font-size="9.5" text-anchor="middle">0.1°</text>
+<line x1="402.1" y1="40" x2="402.1" y2="252" stroke="rgba(255,255,255,0.05)"/>
+<text x="402.1" y="266" fill="#9ca3af" font-size="9.5" text-anchor="middle">1°</text>
+<line x1="531.1" y1="40" x2="531.1" y2="252" stroke="rgba(255,255,255,0.05)"/>
+<text x="531.1" y="266" fill="#9ca3af" font-size="9.5" text-anchor="middle">10°</text>
+<text x="162" y="70.0" fill="#e8e8ec" font-size="11.5" text-anchor="end">Roll 横滚</text>
+<rect x="170.0" y="48.0" width="463.8" height="13" rx="2" fill="#6b7280"/>
+<text x="639.8" y="58.0" fill="#e8e8ec" font-size="10.5" class="lbl">+62.68°</text>
+<rect x="170.0" y="67.0" width="162.8" height="13" rx="2" fill="#22d3ee"/>
+<text x="338.8" y="77.0" fill="#e8e8ec" font-size="10.5" class="lbl">+0.29°</text>
+<rect x="170.0" y="86.0" width="51.8" height="13" rx="2" fill="#fbbf24"/>
+<text x="227.8" y="96.0" fill="#e8e8ec" font-size="10.5" class="lbl">+0.04°</text>
+<text x="162" y="137.0" fill="#e8e8ec" font-size="11.5" text-anchor="end">Pitch 俯仰</text>
+<rect x="170.0" y="115.0" width="445.7" height="13" rx="2" fill="#6b7280"/>
+<text x="621.7" y="125.0" fill="#e8e8ec" font-size="10.5" class="lbl">+45.34°</text>
+<rect x="170.0" y="134.0" width="149.8" height="13" rx="2" fill="#22d3ee"/>
+<text x="325.8" y="144.0" fill="#e8e8ec" font-size="10.5" class="lbl">+0.23°</text>
+<rect x="170.0" y="153.0" width="74.6" height="13" rx="2" fill="#fbbf24"/>
+<text x="250.6" y="163.0" fill="#e8e8ec" font-size="10.5" class="lbl">+0.06°</text>
+<text x="162" y="204.0" fill="#e8e8ec" font-size="11.5" text-anchor="end">Yaw 偏航</text>
+<rect x="170.0" y="182.0" width="444.4" height="13" rx="2" fill="#6b7280"/>
+<text x="620.4" y="192.0" fill="#e8e8ec" font-size="10.5" class="lbl">+44.27°</text>
+<rect x="170.0" y="201.0" width="162.8" height="13" rx="2" fill="#22d3ee"/>
+<text x="338.8" y="211.0" fill="#e8e8ec" font-size="10.5" class="lbl">+0.29°</text>
+<rect x="170.0" y="220.0" width="154.5" height="13" rx="2" fill="#fbbf24"/>
+<text x="330.5" y="230.0" fill="#e8e8ec" font-size="10.5" class="lbl">+0.25°</text>
+<rect x="480" y="30" width="9" height="9" rx="2" fill="#6b7280"/>
+<text x="493" y="38" fill="#9ca3af" font-size="10">原始</text>
+<rect x="530" y="30" width="9" height="9" rx="2" fill="#22d3ee"/>
+<text x="543" y="38" fill="#9ca3af" font-size="10">PSO 标定</text>
+<rect x="600" y="30" width="9" height="9" rx="2" fill="#fbbf24"/>
+<text x="613" y="38" fill="#9ca3af" font-size="10">TinyGC-Net</text>
+        <text x="360" y="288" fill="#6b7280" font-size="10.5" text-anchor="middle">横条长度按 log₁₀(误差) 线性绘制以容纳 400 倍跨度；数值标注为真实角度</text>
+    </svg>
+    <div class="figcap">图 4 · 实测对比（数值来自论文表 3）。222 参数的学习网络在三个轴上全面追平甚至超过粒子群优化（PSO）离线标定，而 PSO 靠大量迭代计算换精度。</div>
+    </div>
+    <p>硬件：ASM330LHH 车规 IMU（偏置不稳定性 3°/h）装在手动三轴转台上，STM32F405 读取并写 SD 卡。验证段 58 秒保证起末姿态都为零度：<b>原始陀螺积分末端歪了 44~63°；TinyGC-Net 三轴 0.04°/0.06°/−0.25°，RMSE 0.15°，优于 PSO 的 0.27°</b>。z 轴（偏航）误差略大，作者归因于低端 MEMS 制造公差与 PCB 焊接应力。频谱上，去噪子网显著压掉了高频噪声（与之一观察一致：修正量小、收益大）。</p>
+
+    <h2>§4 作者的诚实注脚</h2>
+    <div class="card warn">
+        <b>三个清醒的判断</b>：① <b>去噪的收益本就被积分步掩盖</b>——引用前人结论：导航解算里积分环节对精度的主导作用远大于单点去噪，EuRoC 上去噪子网的改进更多来自滑窗平滑"洗掉"了数据集真值在动态段的瑕疵，而非真正滤掉了什么；② EuRoC 是为视觉里程计设计的数据集，<b>其 IMU 标定价值有限</b>（激光跟踪在剧烈动态段失准，官方已知问题）；③ 温漂未处理——下一步把温度读数也作为网络输入，并探索基于 TinyGC 架构的 <a href="imu-array-research.html">IMU 阵列</a>自动标定（与本库 IMU 阵列调研正好接上）。
+    </div>
+
+    <h2>§5 谱系定位</h2>
+    <p>三篇连读的分工至此清晰：<a href="uav-gyro-denoising-dilated-cnn.html">之一</a>证明"学出来的滤波器"精度上限（77k 参数、GPU、数据集）；<b>本文证明它的下限成本</b>（222 参数、MCU、转台 200 秒数据）——中间那条"精度-成本"曲线上，工程可以按预算选点；<a href="uav-neuroflight-nn-firmware.html">之三</a>则换了战场：不再滤信号，而是直接学控制律塞进同一类 MCU。与上一系列"滤波三篇"对照：本系列是每个经典角色的神经版本——<a href="uav-tailsitter-notch-filter-control.html">陷波器→之一</a>（都是对付桨振）、<a href="uav-throw-recovery-rls-indi.html">RLS 标定→本文</a>（都是低成本在线/在线可得的标定）、<a href="uav-indi-hinf-gain-scheduling.html">H∞ 增益调度→之三</a>（都是把"不确定性"交给设计流程兜底）。</p>
+
+    <div class="footer">
+        论文：<a href="https://arxiv.org/abs/2403.02618">arXiv:2403.02618</a> · TinyGC-Net: An Extremely Tiny Network for Calibrating and Denoising MEMS Gyroscopes (Cui, Zhao, Long, Zhang; SJTU, 2024) ·
+        公式由 MathJax（CDN）渲染，离线打开时显示原始 TeX 源码 ·
+        关联：<a href="uav-gyro-denoising-dilated-cnn.html">之一：学出来的陀螺滤波器</a> / <a href="uav-neuroflight-nn-firmware.html">之三：Neuroflight</a> / <a href="imu-array-research.html">IMU 阵列调研</a>
+    </div>
+</div>
+</body>
+</html>

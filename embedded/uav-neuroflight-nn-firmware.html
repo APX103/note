@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>无人机神经网络三篇之三：Neuroflight，跑在飞控固件里的神经网络</title>
+<script>
+window.MathJax = {
+    tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] },
+    svg: { fontCache: 'global' },
+    options: { renderActions: { addMenu: [] } }
+};
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+<style>
+    :root { --bg:#0f0f12; --surface:#1a1a1f; --text:#e8e8ec; --dim:#9ca3af;
+            --accent:#6366f1; --accent2:#8b5cf6; --green:#10b981; --orange:#f97316;
+            --border:rgba(255,255,255,0.06); }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+           background:var(--bg); color:var(--text); line-height:1.75; -webkit-font-smoothing:antialiased; }
+    .container { max-width:800px; margin:0 auto; padding:60px 24px 80px; }
+    h1 { font-size:1.8em; margin:16px 0 8px;
+         background:linear-gradient(135deg,var(--text) 0%,var(--accent) 60%,var(--accent2) 100%);
+         -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    .sub { color:var(--dim); margin-bottom:8px; }
+    .back { display:inline-block; margin-bottom:8px; color:var(--dim); text-decoration:none; font-size:0.9em; }
+    .back:hover { color:var(--accent); }
+    h2 { font-size:1.25em; margin:44px 0 14px; padding-bottom:10px; border-bottom:1px solid var(--border); }
+    h3 { font-size:1.05em; margin:26px 0 10px; }
+    p { margin:10px 0; }
+    ul { margin:10px 0 10px 22px; } li { margin:6px 0; }
+    code { background:rgba(99,102,241,0.12); color:#a5b4fc; padding:1px 6px; border-radius:5px; font-size:0.88em; }
+    table { width:100%; border-collapse:collapse; margin:14px 0; font-size:0.9em; }
+    th { text-align:left; color:var(--dim); font-weight:600; padding:8px 10px; border-bottom:1px solid var(--border); white-space:nowrap; }
+    td { padding:9px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+    .card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:18px 22px; margin:14px 0; }
+    .verdict { border-left:3px solid var(--green); }
+    .verdict::before { content:'✦ 拍板'; display:block; color:var(--green); font-weight:600; font-size:0.85em; margin-bottom:6px; }
+    .warn { border-left:3px solid var(--orange); }
+    .warn::before { content:'⚠ 注意'; display:block; color:var(--orange); font-weight:600; font-size:0.85em; margin-bottom:6px; }
+    .dim { color:var(--dim); }
+    .fig { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px 10px 8px; margin:18px 0; }
+    .fig svg { display:block; margin:0 auto; max-width:100%; height:auto; }
+    .figcap { text-align:center; color:var(--dim); font-size:0.82em; padding:8px 12px 6px; }
+    .footer { margin-top:60px; padding-top:20px; border-top:1px solid var(--border); color:var(--dim); font-size:0.82em; }
+    .footer a { color:var(--accent); text-decoration:none; }
+    svg .lbl { paint-order:stroke; stroke:#0f0f12; stroke-width:5px; stroke-linejoin:round; }
+    mjx-container { overflow-x:auto; overflow-y:hidden; padding:2px 0; }
+</style>
+</head>
+<body>
+<div class="container">
+    <a class="back" href="../index.html">← 返回总览</a>
+    <h1>跑在飞控固件里的神经网络：Neuroflight 从 PPO 到 Cortex-M7</h1>
+    <p class="sub">无人机神经网络三篇 · 之三 · arXiv:1901.06553（波士顿大学，2019）· 2026-10-08</p>
+
+    <h2>§0 这篇论文在讲什么</h2>
+    <p><a href="uav-throw-recovery-rls-indi.html">上一系列的抛飞论文</a>和本文的飞机跑在同一类固件上——Betaflight。前者的路线是把经典控制（INDI）做好，本文的路线激进得多：<b>把 Betaflight 里的 PID 控制器和电机混控整体删掉，换成一个小神经网络，在仿真里用强化学习（PPO）把自己练会，再编译成机器码链接进固件，跑在 ARM Cortex-M7 上</b>。这是第一个开源的神经网络飞控固件：网络只有 6 输入、2 隐层×32 节点、4 输出、1,344 个权重，却以 <b>2kHz</b> 控制频率驱动一台 432g 的竞速穿越机完成了横滚、空翻、Split-S 等特技——由人类竞速飞行员实测。</p>
+    <p>论文最有价值的部分其实不是"飞起来了"，而是把<b>仿真到现实（sim2real）的每一处坑</b>摆上台面：网络输入去掉电机转速（绝对转速依赖精确电机模型，学不动也迁不动）、任务从"到达目标转速"改成连续随机指令、奖励里加两项"少用力、少抖动"（否则输出像过调的 PID，电机直接烧）；工具链层面要逆向工程 TensorFlow 计算图找输入输出节点、给 tfcompile 改 LLVM 后端开 hard-float ABI。每一刀都是"第一次吃螃蟹"留下的经验。</p>
+    <table>
+        <tr><th>项目</th><th>内容</th></tr>
+        <tr><td>作者 / 机构</td><td>William Koch, Renato Mancuso, Azer Bestavros — 波士顿大学计算机系</td></tr>
+        <tr><td>发表</td><td>arXiv:1901.06553v2（2019-09）· 开源 github.com/wil3/neuroflight · 视频 wfk.io/neuroflight</td></tr>
+        <tr><td>固件</td><td>Betaflight 3.3.3 的 fork；NN 取代 PID 任务 + 电机混控，一个网络全包</td></tr>
+        <tr><td>网络</td><td>输入 [e, Δe]（角速度误差及其差分，各 3 维）；2×32 tanh 隐层；输出 4 个 [0,1] 电机功率；1,344 权重</td></tr>
+        <tr><td>训练</td><td>GYMFC-V1.5（Gazebo 数字孪生）+ PPO；1 千万步约 11 小时（实际 100 万步即收敛）；加 σ=5 陀螺噪声</td></tr>
+        <tr><td>工具链</td><td>freeze_graph → transform_graph（模型 12KB）→ tfcompile AOT 编译成 .o 链入固件（TF 运行时仅 24.86KB）</td></tr>
+        <tr><td>实机</td><td>NF1 竞速机：432g / 212mm 轴距 / 5 寸桨 / F722（Cortex-M7 @216MHz，512KB flash）</td></tr>
+        <tr><td>结果</td><td>2kHz 控制环（8× PX4 默认 250Hz）；控制任务 WCET 423µs；仿真回放中全部六项误差指标优于调好的 PID</td></tr>
+    </table>
+    <div class="card verdict">
+        一句话：<b>这是"神经飞控"第一次以开源固件的形态完整落地——不是在机载电脑上跑 ROS，而是钻进 512KB flash 的单片机里当 PID 用</b>。它证明的与其说是神经网络更会控制，不如说是<b>现代工具链已经能把一个训练好的策略当普通 C 代码一样编译、链接、部署</b>。
+    </div>
+
+    <h2>§1 前置知识</h2>
+
+    <h3>§1.1 姿态内环：飞控的心脏，以及 PID 的天花板</h3>
+    <p>竞速固件的姿态环是一条流水线：读遥控器得目标角速度 \(\Omega^*\) → 读陀螺得实际 \(\Omega\) → PID 算误差控制量 → 混控矩阵把控制量分配到四个电机 → DShot 数字协议写给电调。这条环每秒跑几千次，一切上层功能（自稳、定高、航线）都压在它头上。PID 简单可靠，但它是<b>线性控制器套非线性对象</b>：风、载荷变化、电压跌落都会让一套固定增益偏离最优——调参成了手艺活（上一系列里 <a href="uav-indi-hinf-gain-scheduling.html">H∞ 那篇</a>用鲁棒控制回应同一问题，本文用学习回应它）。</p>
+
+    <h3>§1.2 强化学习 60 秒速成（以姿态控制为例）</h3>
+    <p>强化学习的三件套：<b>智能体</b>（神经网络，即控制器）、<b>环境</b>（仿真器里的飞机）、<b>奖励</b>（每步给个分数）。每 1ms：网络读状态（角速度误差），输出动作（四个电机功率 0~1）；仿真器推进物理；奖励函数打分。训练就是让<b>期望累计奖励最大</b>的梯度上升。<b>PPO</b> 是当前最常用的策略梯度算法：网络输出一个高斯分布的均值（随机性用于探索），每次更新限制策略变化幅度（clip），防止一步迈太大练废。与监督学习的本质区别：<b>没有标准答案，只有后果</b>——好控制器的"答案"要靠自己飞出来。</p>
+
+    <h3>§1.3 sim2real：数字孪生 fidelity 的鸿沟</h3>
+    <p>在仿真里练，到现实中飞，中间隔着数字孪生的保真度。本文的对照堪称行为艺术：数字孪生用的是 Gazebo 自带的 <b>Iris</b>（1,282g、550mm 轴距、10 寸桨、3S 电池的航拍机），真机 <b>NF1</b> 是 432g、212mm、5 寸桨、4S 的竞速机——重量差 3 倍、机型差两个世界。作者只改了一个参数：从开源电机测试台查到自家动力组的最大转速 33,422 RPM，更新了仿真电机模型。就这么个粗糙的孪生，网络居然飞稳了——说明<b>对"角速度误差 → 电机增量"这种局部关系，RL 学到的策略有相当的鲁棒性</b>；但精度损失也真实存在（§5）。</p>
+
+    <h2>§2 Neuroflight 固件架构</h2>
+    <div class="fig">
+    <svg viewBox="0 0 720 270" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+            <marker id="arrD" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#9ca3af"/>
+            </marker>
+        </defs>
+        <!-- inputs -->
+        <text x="14" y="96" fill="#9ca3af" font-size="11.5" class="lbl">遥控 RX：Ω*(t)</text>
+        <line x1="16" y1="106" x2="66" y2="106" stroke="#9ca3af" stroke-width="1.5" marker-end="url(#arrD)"/>
+        <text x="14" y="150" fill="#9ca3af" font-size="11.5" class="lbl">陀螺：Ω(t)</text>
+        <line x1="16" y1="160" x2="66" y2="132" stroke="#9ca3af" stroke-width="1.5" marker-end="url(#arrD)"/>
+        <circle cx="80" cy="118" r="13" fill="#1a1a1f" stroke="#9ca3af" stroke-width="1.5"/>
+        <text x="80" y="123" fill="#e8e8ec" font-size="12.5" text-anchor="middle">Σ</text>
+        <line x1="93" y1="118" x2="140" y2="118" stroke="#9ca3af" stroke-width="1.5" marker-end="url(#arrD)"/>
+        <text x="100" y="108" fill="#e8e8ec" font-size="11.5" class="lbl">e(t)</text>
+        <!-- delta e branch -->
+        <line x1="118" y1="118" x2="118" y2="196" stroke="#9ca3af" stroke-width="1.3"/>
+        <circle cx="118" cy="118" r="3" fill="#e8e8ec"/>
+        <line x1="118" y1="196" x2="146" y2="196" stroke="#9ca3af" stroke-width="1.3" marker-end="url(#arrD)"/>
+        <rect x="150" y="182" width="130" height="28" rx="7" fill="rgba(156,163,175,0.10)" stroke="#9ca3af" stroke-width="1.3"/>
+        <text x="215" y="200" fill="#e8e8ec" font-size="11" text-anchor="middle">延迟一拍：Δe = e−e(t−1)</text>
+        <line x1="280" y1="196" x2="318" y2="196" stroke="#9ca3af" stroke-width="1.3"/>
+        <line x1="318" y1="196" x2="318" y2="148" stroke="#9ca3af" stroke-width="1.3" marker-end="url(#arrD)"/>
+        <!-- NN box -->
+        <rect x="160" y="92" width="170" height="56" rx="10" fill="rgba(99,102,241,0.14)" stroke="#6366f1" stroke-width="1.8"/>
+        <text x="245" y="112" fill="#a5b4fc" font-size="12.5" text-anchor="middle" font-weight="600">NN f(x)：6→32→32→4</text>
+        <text x="245" y="130" fill="#a5b4fc" font-size="10.5" text-anchor="middle">tanh 隐层 · 1,344 权重 · tanh 出口</text>
+        <text x="215" y="167" fill="#6b7280" font-size="10" text-anchor="middle">输入 x = [e, Δe]（不含电机转速）</text>
+        <line x1="330" y1="118" x2="392" y2="118" stroke="#9ca3af" stroke-width="1.5" marker-end="url(#arrD)"/>
+        <text x="336" y="108" fill="#e8e8ec" font-size="11.5" class="lbl">y(t) ∈ [0,1]⁴</text>
+        <!-- throttle mix -->
+        <rect x="396" y="86" width="180" height="64" rx="10" fill="rgba(139,92,246,0.12)" stroke="#8b5cf6" stroke-width="1.6"/>
+        <text x="486" y="106" fill="#c4b5fd" font-size="11.5" text-anchor="middle" font-weight="600">油门混合（NN 不管推力）</text>
+        <text x="486" y="124" fill="#c4b5fd" font-size="11" text-anchor="middle">T̂ = T·(1 − max yᵢ)</text>
+        <text x="486" y="140" fill="#c4b5fd" font-size="11" text-anchor="middle">uᵢ = T̂ + yᵢ</text>
+        <line x1="486" y1="52" x2="486" y2="84" stroke="#9ca3af" stroke-width="1.4" marker-end="url(#arrD)"/>
+        <text x="498" y="46" fill="#9ca3af" font-size="11.5" class="lbl">油门杆 T(t)</text>
+        <!-- ESC -->
+        <line x1="576" y1="118" x2="610" y2="118" stroke="#9ca3af" stroke-width="1.5" marker-end="url(#arrD)"/>
+        <text x="582" y="108" fill="#e8e8ec" font-size="11.5" class="lbl">u(t)</text>
+        <rect x="614" y="98" width="92" height="40" rx="8" fill="rgba(16,185,129,0.10)" stroke="#10b981" stroke-width="1.5"/>
+        <text x="660" y="115" fill="#6ee7b7" font-size="11" text-anchor="middle">DShot600</text>
+        <text x="660" y="130" fill="#6ee7b7" font-size="10.5" text-anchor="middle">ESC → 电机×4</text>
+        <!-- loop annotation -->
+        <text x="360" y="248" fill="#fdba74" font-size="11.5" text-anchor="middle" class="lbl">以上全部在 Cortex-M7 上一拍完成：WCET 423 µs → 2 kHz 控制环</text>
+    </svg>
+    <div class="figcap">图 1 · Neuroflight 运行时架构（依论文图 1 重绘）。神经网络吞掉了 PID+混控两件事，但推力（油门）不归它管——由油门混合公式按剩余余量注入，且任何电机饱和时拒绝加推力。</div>
+    </div>
+    <p>两个值得停留的设计：<b>① 输出归一化到 [0,1] 电机功率</b>而非 PWM 原始值——协议无关（DShot/未来协议都能接），也和 GYMFC-V1 的 PWM 输出彻底切割；<b>② 油门混合的保守逻辑</b>：网络只会"差动"，平移推力由遥控油门按 \(\hat T = T(1-\max_i y_i)\) 补——网络输出饱和时 \(\hat T=0\)，姿态控制永远优先于爬升。</p>
+
+    <h2>§3 GYMFC-V1.5：三个让 sim2real 成立的改造</h2>
+    <p>前作 GYMFC-V1 已能在仿真里练出胜过 PID 的姿态网络，但直接拿到真机上飞不了。V1.5 的三处手术：</p>
+
+    <h3>§3.1 状态表示：删掉电机转速</h3>
+    <p>V1 给网络喂 \((e(t), \omega(t))\)——角速度误差 + 各电机绝对转速。问题：<b>绝对转速把网络绑死在电机模型上</b>——仿真里的电机和真机差一点，网络的"转速直觉"就全错，而精确建模电机需要台架测电压-扭矩-推力曲面，又贵又慢。V1.5 把 \(\omega(t)\) 换成误差差分 \(\Delta e(t)\)：网络只看"误差及其变化趋势"。对照实验：换输入后误差平均<b>下降 45%</b>，控制输出只增大 3.4%。直觉解释：<b>PD 控制器本来也只用误差和误差变化率</b>——通用近似器用同样信息理应学到不差于 PD 的策略。</p>
+
+    <h3>§3.2 任务结构：从"考试"到"飞行"</h3>
+    <p>V1 的回合制任务"从静止加速到随机目标转速"只教会网络<b>单向</b>发力；真机需要随时从任意转速刹回静止。V1.5 改成连续任务：随机指令 ↔ 回中idle 交替，直到仿真时间耗尽——学会加速也学会刹车。</p>
+
+    <h3>§3.3 奖励工程：三个旋钮的平衡术</h3>
+    <div class="fig">
+    <svg viewBox="0 0 720 235" xmlns="http://www.w3.org/2000/svg">
+        <!-- three cards -->
+        <g>
+            <rect x="30" y="30" width="200" height="130" rx="10" fill="rgba(99,102,241,0.12)" stroke="#6366f1" stroke-width="1.5"/>
+            <text x="130" y="56" fill="#a5b4fc" font-size="12.5" text-anchor="middle" font-weight="600">追得准 r<tspan font-size="9" dy="2">e</tspan></text>
+            <text x="130" y="84" fill="#e8e8ec" font-size="11.5" text-anchor="middle">−(eφ² + eθ² + eψ²)</text>
+            <text x="130" y="110" fill="#9ca3af" font-size="10.5" text-anchor="middle">三轴角速度误差平方和</text>
+            <text x="130" y="130" fill="#9ca3af" font-size="10.5" text-anchor="middle">（V1 唯一的奖励项）</text>
+        </g>
+        <g>
+            <rect x="260" y="30" width="200" height="130" rx="10" fill="rgba(16,185,129,0.10)" stroke="#10b981" stroke-width="1.5"/>
+            <text x="360" y="56" fill="#6ee7b7" font-size="12.5" text-anchor="middle" font-weight="600">用得省 r<tspan font-size="9" dy="2">y</tspan></text>
+            <text x="360" y="84" fill="#e8e8ec" font-size="11.5" text-anchor="middle">α·(1 − ȳ)</text>
+            <text x="360" y="110" fill="#9ca3af" font-size="10.5" text-anchor="middle">输出均值越小奖励越高</text>
+            <text x="360" y="130" fill="#6ee7b7" font-size="10.5" text-anchor="middle">效果：输出 ↓90.6%</text>
+        </g>
+        <g>
+            <rect x="490" y="30" width="200" height="130" rx="10" fill="rgba(249,115,22,0.10)" stroke="#f97316" stroke-width="1.5"/>
+            <text x="590" y="56" fill="#fdba74" font-size="12.5" text-anchor="middle" font-weight="600">转得稳 r<tspan font-size="9" dy="2">Δ</tspan></text>
+            <text x="590" y="84" fill="#e8e8ec" font-size="11" text-anchor="middle">β·Σ max(0, Δy²max−(Δyᵢ)²)</text>
+            <text x="590" y="110" fill="#9ca3af" font-size="10.5" text-anchor="middle">仅在误差带内生效：带内</text>
+            <text x="590" y="130" fill="#9ca3af" font-size="10.5" text-anchor="middle">压输出抖动，带外不妨碍追赶</text>
+        </g>
+        <text x="360" y="192" fill="#e8e8ec" font-size="12.5" text-anchor="middle">r = r<tspan font-size="9" dy="2">e</tspan><tspan dy="-2"> + r</tspan><tspan font-size="9" dy="2">y</tspan><tspan dy="-2"> + r</tspan><tspan font-size="9" dy="2">Δ</tspan><tspan dy="-2">　（α=300, β=0.5, Δy</tspan><tspan font-size="9" dy="2">max</tspan><tspan dy="-2">=100²）</tspan></text>
+        <text x="360" y="216" fill="#9ca3af" font-size="10.5" text-anchor="middle">r_Δ 效果：输出抖动 Δy ↓88%；没有它会怎样？——一个永远在自我纠正的"过调 PID"，电机绕组过流烧毁</text>
+    </svg>
+    <div class="figcap">图 2 · 奖励系统的三根支柱（依论文 IV-B 节整理）。只有 r_e 是"性能"，r_y 与 r_Δ 是为了真机存活补的"工程约束"——奖励工程（reward engineering）比想象中更像艺术。</div>
+    </div>
+    <p>作者附送的踩坑清单同样值钱：<b>高斯策略输出 + 硬裁剪到 [0,1] 会引发高频振荡</b>（后来社区改用天然有界的 Beta 分布）；奖励要奖励"趋势"而非瞬时表现（随机探索本身就在抖，罚瞬时抖动等于罚探索）；多个奖励项的权重平衡本身就是调参——罚"振荡次数"不罚"幅值"会学出低频方波。另有两项工程细节：<b>训练时给陀螺加 σ=5 的高斯噪声</b>（模拟真实传感器，显著减少真机电机振荡）；训 3 个不同随机种子的网络挑奖励最高的上机。</p>
+
+    <h2>§4 工具链：把神经网络当 C 代码编译</h2>
+    <div class="fig">
+    <svg viewBox="0 0 720 200" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+            <marker id="arrE" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#9ca3af"/>
+            </marker>
+        </defs>
+        <text x="30" y="26" fill="#e8e8ec" font-size="12.5" font-weight="600">三段式工具链：数字孪生进，固件镜像出</text>
+        <!-- stage 1 -->
+        <rect x="30" y="48" width="190" height="120" rx="10" fill="rgba(99,102,241,0.12)" stroke="#6366f1" stroke-width="1.5"/>
+        <text x="125" y="70" fill="#a5b4fc" font-size="11.5" text-anchor="middle" font-weight="600">STAGE 1 训练</text>
+        <text x="125" y="92" fill="#e8e8ec" font-size="10.5" text-anchor="middle">Gazebo 数字孪生（Iris 改）</text>
+        <text x="125" y="110" fill="#e8e8ec" font-size="10.5" text-anchor="middle">GYMFC-V1.5 环境</text>
+        <text x="125" y="128" fill="#e8e8ec" font-size="10.5" text-anchor="middle">PPO（OpenAI Baselines）</text>
+        <text x="125" y="150" fill="#9ca3af" font-size="10.5" text-anchor="middle">→ RL checkpoint（3 文件）</text>
+        <!-- stage 2 -->
+        <rect x="265" y="48" width="190" height="120" rx="10" fill="rgba(139,92,246,0.12)" stroke="#8b5cf6" stroke-width="1.5"/>
+        <text x="360" y="70" fill="#c4b5fd" font-size="11.5" text-anchor="middle" font-weight="600">STAGE 2 优化</text>
+        <text x="360" y="92" fill="#e8e8ec" font-size="10.5" text-anchor="middle">freeze_graph：变量转常量</text>
+        <text x="360" y="110" fill="#e8e8ec" font-size="10.5" text-anchor="middle">裁掉训练专用子图 → 1 个 pb</text>
+        <text x="360" y="128" fill="#e8e8ec" font-size="10.5" text-anchor="middle">transform_graph 再瘦身</text>
+        <text x="360" y="150" fill="#9ca3af" font-size="10.5" text-anchor="middle">→ 优化后模型 12KB（−16%）</text>
+        <!-- stage 3 -->
+        <rect x="500" y="48" width="190" height="120" rx="10" fill="rgba(16,185,129,0.10)" stroke="#10b981" stroke-width="1.5"/>
+        <text x="595" y="70" fill="#6ee7b7" font-size="11.5" text-anchor="middle" font-weight="600">STAGE 3 编译（AOT）</text>
+        <text x="595" y="92" fill="#e8e8ec" font-size="10.5" text-anchor="middle">tfcompile：计算图 → C++</text>
+        <text x="595" y="110" fill="#e8e8ec" font-size="10.5" text-anchor="middle">.o + 头文件 + 24.86KB 轻运行时</text>
+        <text x="595" y="128" fill="#e8e8ec" font-size="10.5" text-anchor="middle">Arm GCC 链入 Neuroflight</text>
+        <text x="595" y="150" fill="#9ca3af" font-size="10.5" text-anchor="middle">→ 固件镜像（F722 目标板）</text>
+        <line x1="220" y1="108" x2="263" y2="108" stroke="#9ca3af" stroke-width="1.6" marker-end="url(#arrE)"/>
+        <line x1="455" y1="108" x2="498" y2="108" stroke="#9ca3af" stroke-width="1.6" marker-end="url(#arrE)"/>
+        <text x="360" y="186" fill="#fdba74" font-size="10.5" text-anchor="middle" class="lbl">两处 hack：逆向工程 Baselines 计算图找到输入/输出节点名；给 tfcompile 的 LLVM 后端开 hard-float ABI</text>
+    </svg>
+    <div class="figcap">图 3 · 工具链三阶段（依论文图 2 与第 V 节重绘）。关键选择是 AOT（提前编译）而非在 MCU 上跑解释器——TF 完整运行时塞不进 512KB flash，而 AOT 产物是自包含的静态代码。</div>
+    </div>
+    <p>工具链细节里藏着一个时代的印记：2019 年要在 MCU 上跑 TF 图，得手动确认 AOT 运行时（runtime.o、xla_compiled_cpu_function.o 等）共 24.86KB；固件整体（.text+.data+.bss）380KB，占 F722 flash 的 74%——作为对照，母项目 Betaflight 本体 375KB，<b>神经网络几乎没花额外空间</b>。另一处硬核修改：飞控要求全链路 hard-float ABI（FPU 硬浮点），而 tfcompile 不开放编译标志，作者直接改了其 LLVM 后端的 <code>llvm::TargetOptions::ABIType</code> 属性。</p>
+
+    <h2>§5 评估：时序、功耗与真机飞行</h2>
+    <div class="fig">
+    <svg viewBox="0 0 720 318" xmlns="http://www.w3.org/2000/svg">
+        <text x="30" y="24" fill="#e8e8ec" font-size="13" font-weight="600">武装状态执行时间对比（WCET 最坏情况，µs，按论文表 III/IV 绘制）</text>
+<line x1="60" y1="250" x2="680" y2="250" stroke="rgba(255,255,255,0.2)"/>
+<line x1="60" y1="210.0" x2="680" y2="210.0" stroke="rgba(255,255,255,0.05)" stroke-dasharray="3 4"/>
+<text x="52" y="213.5" fill="#9ca3af" font-size="10" text-anchor="end">100</text>
+<line x1="60" y1="170.0" x2="680" y2="170.0" stroke="rgba(255,255,255,0.05)" stroke-dasharray="3 4"/>
+<text x="52" y="173.5" fill="#9ca3af" font-size="10" text-anchor="end">200</text>
+<line x1="60" y1="130.0" x2="680" y2="130.0" stroke="rgba(255,255,255,0.05)" stroke-dasharray="3 4"/>
+<text x="52" y="133.5" fill="#9ca3af" font-size="10" text-anchor="end">300</text>
+<line x1="60" y1="90.0" x2="680" y2="90.0" stroke="rgba(255,255,255,0.05)" stroke-dasharray="3 4"/>
+<text x="52" y="93.5" fill="#9ca3af" font-size="10" text-anchor="end">400</text>
+<line x1="60" y1="50.0" x2="680" y2="50.0" stroke="rgba(255,255,255,0.05)" stroke-dasharray="3 4"/>
+<text x="52" y="53.5" fill="#9ca3af" font-size="10" text-anchor="end">500</text>
+<text x="20" y="150" fill="#9ca3af" font-size="10.5" transform="rotate(-90 20 150)" text-anchor="middle">WCET [µs]</text>
+<rect x="116" y="166.0" width="72" height="84.0" rx="3" fill="#fbbf24"/>
+<text x="152" y="158.0" fill="#e8e8ec" font-size="11.5" text-anchor="middle" class="lbl">210</text>
+<text x="152" y="266" fill="#9ca3af" font-size="10" text-anchor="middle">Neuroflight</text>
+<rect x="212" y="244.0" width="72" height="6.0" rx="3" fill="#6b7280"/>
+<text x="248" y="236.0" fill="#e8e8ec" font-size="11.5" text-anchor="middle" class="lbl">15</text>
+<text x="248" y="266" fill="#9ca3af" font-size="10" text-anchor="middle">Betaflight PID</text>
+<text x="200" y="66" fill="#fdba74" font-size="12.5" text-anchor="middle" class="lbl">14×</text>
+<text x="200" y="40" fill="#e8e8ec" font-size="11" text-anchor="middle">控制算法（NN前向 / PID）</text>
+<text x="200" y="280" fill="#6b7280" font-size="9.5" text-anchor="middle">变差窗口 7.1% vs 40.0%</text>
+<rect x="396" y="80.8" width="72" height="169.2" rx="3" fill="#fbbf24"/>
+<text x="432" y="72.8" fill="#e8e8ec" font-size="11.5" text-anchor="middle" class="lbl">423</text>
+<text x="432" y="266" fill="#9ca3af" font-size="10" text-anchor="middle">Neuroflight</text>
+<rect x="492" y="154.8" width="72" height="95.2" rx="3" fill="#6b7280"/>
+<text x="528" y="146.8" fill="#e8e8ec" font-size="11.5" text-anchor="middle" class="lbl">238</text>
+<text x="528" y="266" fill="#9ca3af" font-size="10" text-anchor="middle">Betaflight</text>
+<text x="480" y="66" fill="#fdba74" font-size="12.5" text-anchor="middle" class="lbl">1.78×</text>
+<text x="480" y="40" fill="#e8e8ec" font-size="11" text-anchor="middle">完整控制任务（含 I/O 与杂活）</text>
+<text x="480" y="280" fill="#6b7280" font-size="9.5" text-anchor="middle">变差窗口 37.8% vs 67.2%</text>
+        <text x="360" y="310" fill="#6b7280" font-size="10.5" text-anchor="middle">NN 前向本身比 PID 慢 14 倍，但 PID 之外的杂活（滤波、混控等）才是 Betaflight 的大头——整个任务只慢 1.78 倍，换来执行时间高度可预测</text>
+    </svg>
+    <div class="figcap">图 4 · 执行时间（数值来自论文表 III/IV）。左：控制算法本体；右：整个控制任务（含读陀螺、读 RC、写电机）。NN 每步计算量固定，方差窗口（WCET 与 BCET 的相对差）从 Betaflight 的 67% 降到 38%——实时系统更爱可预测。</div>
+    </div>
+    <ul>
+        <li><b>频率</b>：任务 WCET 423µs 允许最高 2.4kHz；因控制环必须是陀螺更新率（4kHz）的整数分频，实际配置 <b>2kHz</b>——是 PX4 默认 250Hz 的 8 倍，配 DShot600 电调协议（上限 37.5kHz）绰绰有余。研究界共识 4kHz 以上收益不可测，下一代还差一档。</li>
+        <li><b>功耗</b>：解锁待机时 NN 与 PID 功耗相同；武装怠速时 NN 多耗 70mA（约 11%）——它为盯紧设定点切换得更勤快。将来可把功耗写进奖励里让网络自己省电。</li>
+        <li><b>真机飞行</b>：竞速飞行员实测环形、八字、横滚、空翻、Split-S 全部完成（30mph 阵风下仍稳定）。把真机录的目标角速度回放到仿真里对比：sim2real 掉精度最明显的是<b>俯仰轴固定偏差 ~10°</b>——数字孪生的机架不对称轴与真机不一致，真机俯仰需要更大扭矩；这也量化了"粗糙孪生"的代价。</li>
+        <li><b>NN vs PID（仿真回放同一真机指令）</b>：PID 按 Ziegler-Nichols 整定再手工压超调（半小时调 9 个增益）；NN 六项误差指标（MAE/MSE/IAE/ISE/ITAE/ITSE）<b>平均全面占优</b>，Split-S 俯仰跟踪优势肉眼可见。算上调参时间账：PPO 训练比手工调 PID <b>快约 75 倍</b>。</li>
+    </ul>
+
+    <h2>§6 评价与未来</h2>
+    <div class="card verdict">
+        <b>真正的贡献是基础设施而非精度</b>：一个可复现的开源端到端流程（数字孪生 → RL → AOT → 固件），一个 2kHz 的验证平台，和一份 sim2real 坑位清单（状态选择、任务结构、奖励工程、噪声注入、ABI）。此后"神经飞控"研究不必再从零造轮子。时序与功耗的诚实测量（比 PID 慢、多耗电）也为后续工作立了标杆。
+    </div>
+    <div class="card warn">
+        <b>遗留的账</b>：① 数字孪生保真度与真机精度直接挂钩（俯仰 10° 偏差），精确孪生或域随机化是必经之路；② 纯离线策略无法应对电压跌落/载荷变化/风——论文自己列的下一步是自适应与在线增量学习（算力考虑卸载到云端）；③ 高斯策略+裁剪的振荡问题、奖励权重平衡，都还是手艺；④ 只验证了姿态内环，与外环（位置/轨迹）的联动未触及。有意思的对照：同年代 Betaflight 生态的另一支——<a href="uav-throw-recovery-rls-indi.html">上一篇的 INDIflight</a>——选择了"经典控制+在线辨识"路线，两篇对照恰好是 2019 年无人机内环的"学习派 vs 模型派"分叉口。
+    </div>
+
+    <h2>§7 谱系收束：六个角度看两套世界观</h2>
+    <table>
+        <tr><th></th><th>滤波三篇（经典/自适应/鲁棒）</th><th>神经网络三篇（学习）</th></tr>
+        <tr><td>对付桨振噪声</td><td><a href="uav-tailsitter-notch-filter-control.html">扫频辨识 + 陷波器</a>（频域手艺）</td><td><a href="uav-gyro-denoising-dilated-cnn.html">膨胀卷积学出修正量</a>（数据说话）</td></tr>
+        <tr><td>对付传感器误差</td><td><a href="uav-throw-recovery-rls-indi.html">RLS 在线辨识</a>（参数估计器）</td><td><a href="uav-tinygc-net-gyro-calibration.html">TinyGC-Net</a>（222 参数滤波器）</td></tr>
+        <tr><td>对付模型不确定</td><td><a href="uav-indi-hinf-gain-scheduling.html">H∞ 增益调度</a>（最坏情况保证）</td><td><a href="uav-neuroflight-nn-firmware.html">Neuroflight</a>（策略从交互中自学）</td></tr>
+        <tr><td>可解释性</td><td>每个参数有物理名分</td><td>黑箱为主，但之二把网络拆到与公式等价</td></tr>
+        <tr><td>换机型成本</td><td>重新建模/扫频/整定（之三已砍半）</td><td>重新采集/重训（之二已压到 200 秒转台）</td></tr>
+        <tr><td>保证</td><td>裕度、收敛性可证</td><td>只有统计意义上的经验表现</td></tr>
+    </table>
+    <p>两套世界观在 2020 年代明显开始合流：TLIO 用网络当 EKF 的观测模型、学习派给控制器加经典安全网、经典派借网络做标定——这个方向的完整故事，留给下一篇调研。</p>
+
+    <div class="footer">
+        论文：<a href="https://arxiv.org/abs/1901.06553">arXiv:1901.06553</a> · Neuroflight: Next Generation Flight Control Firmware (Koch, Mancuso, Bestavros; Boston University, 2019) ·
+        代码：<a href="https://github.com/wil3/neuroflight">github.com/wil3/neuroflight</a> · 飞行视频：<a href="https://wfk.io/neuroflight">wfk.io/neuroflight</a> ·
+        公式由 MathJax（CDN）渲染，离线打开时显示原始 TeX 源码 ·
+        关联：<a href="uav-gyro-denoising-dilated-cnn.html">之一：学出来的陀螺滤波器</a> / <a href="uav-tinygc-net-gyro-calibration.html">之二：TinyGC-Net</a> / <a href="uav-throw-recovery-rls-indi.html">INDIflight 抛飞</a> / <a href="uav-indi-hinf-gain-scheduling.html">H∞ 增益调度</a>
+    </div>
+</div>
+</body>
+</html>

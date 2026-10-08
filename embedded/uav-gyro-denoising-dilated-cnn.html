@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>无人机神经网络三篇之一：学出来的陀螺滤波器（膨胀卷积去噪）</title>
+<script>
+window.MathJax = {
+    tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] },
+    svg: { fontCache: 'global' },
+    options: { renderActions: { addMenu: [] } }
+};
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+<style>
+    :root { --bg:#0f0f12; --surface:#1a1a1f; --text:#e8e8ec; --dim:#9ca3af;
+            --accent:#6366f1; --accent2:#8b5cf6; --green:#10b981; --orange:#f97316;
+            --border:rgba(255,255,255,0.06); }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+           background:var(--bg); color:var(--text); line-height:1.75; -webkit-font-smoothing:antialiased; }
+    .container { max-width:800px; margin:0 auto; padding:60px 24px 80px; }
+    h1 { font-size:1.8em; margin:16px 0 8px;
+         background:linear-gradient(135deg,var(--text) 0%,var(--accent) 60%,var(--accent2) 100%);
+         -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    .sub { color:var(--dim); margin-bottom:8px; }
+    .back { display:inline-block; margin-bottom:8px; color:var(--dim); text-decoration:none; font-size:0.9em; }
+    .back:hover { color:var(--accent); }
+    h2 { font-size:1.25em; margin:44px 0 14px; padding-bottom:10px; border-bottom:1px solid var(--border); }
+    h3 { font-size:1.05em; margin:26px 0 10px; }
+    p { margin:10px 0; }
+    ul { margin:10px 0 10px 22px; } li { margin:6px 0; }
+    code { background:rgba(99,102,241,0.12); color:#a5b4fc; padding:1px 6px; border-radius:5px; font-size:0.88em; }
+    table { width:100%; border-collapse:collapse; margin:14px 0; font-size:0.9em; }
+    th { text-align:left; color:var(--dim); font-weight:600; padding:8px 10px; border-bottom:1px solid var(--border); white-space:nowrap; }
+    td { padding:9px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+    .card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:18px 22px; margin:14px 0; }
+    .verdict { border-left:3px solid var(--green); }
+    .verdict::before { content:'✦ 拍板'; display:block; color:var(--green); font-weight:600; font-size:0.85em; margin-bottom:6px; }
+    .warn { border-left:3px solid var(--orange); }
+    .warn::before { content:'⚠ 注意'; display:block; color:var(--orange); font-weight:600; font-size:0.85em; margin-bottom:6px; }
+    .dim { color:var(--dim); }
+    .fig { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px 10px 8px; margin:18px 0; }
+    .fig svg { display:block; margin:0 auto; max-width:100%; height:auto; }
+    .figcap { text-align:center; color:var(--dim); font-size:0.82em; padding:8px 12px 6px; }
+    .footer { margin-top:60px; padding-top:20px; border-top:1px solid var(--border); color:var(--dim); font-size:0.82em; }
+    .footer a { color:var(--accent); text-decoration:none; }
+    svg .lbl { paint-order:stroke; stroke:#0f0f12; stroke-width:5px; stroke-linejoin:round; }
+    mjx-container { overflow-x:auto; overflow-y:hidden; padding:2px 0; }
+</style>
+</head>
+<body>
+<div class="container">
+    <a class="back" href="../index.html">← 返回总览</a>
+    <h1>学出来的陀螺滤波器：膨胀卷积去噪与开环航姿推算</h1>
+    <p class="sub">无人机神经网络三篇 · 之一 · arXiv:2002.10718（MINES ParisTech / Safran，RA-L 2020）· 2026-10-08</p>
+
+    <h2>§0 这篇论文在讲什么</h2>
+    <p>廉价 MEMS 陀螺仪的原始读数直接积分，姿态十秒内就歪掉——偏置、刻度因子、轴失准、以及旋翼机特有的桨振有色噪声都在往积分器里灌误差。传统对策是<b>标定</b>（离线解出 12 个内参，Kalibr 那一类）或<b>融合</b>（给陀螺配相机/GNSS/磁力计，VIO、卡尔曼滤波那一类）。这篇论文走了第三条路：<b>用一个小型卷积神经网络，直接从原始 IMU 读数里回归出"陀螺修正量"，把去噪和时变标定一起学掉</b>——修正后的角速度做纯开环积分（dead reckoning），姿态精度竟然能与顶尖视觉-惯性里程计（VIO）掰手腕，而它全程没看过一眼相机。</p>
+    <p>三个数字记住这篇论文：<b>77,052</b> 个参数（5 层膨胀卷积）；训练只需 <b>8 分钟</b>真值数据、GTX 1080 上 <b>5 分钟</b>；开环航姿推算中值误差 <b>1.34°/分钟</b>（EuRoC 无人机数据集）、0.68°/min（TUM-VI 手持数据集）——比"只做经典标定"好 2~4 倍，击败 LSTM 方案 OriNet，在偏航（yaw）估计上甚至比受限版 VINS-Mono 好 3 倍。它是后续一大波"神经惯性滤波"工作（TLIO 等）的直接源头，系列之二 TinyGC-Net 就是把它缩小 400 倍塞进单片机。</p>
+    <table>
+        <tr><th>项目</th><th>内容</th></tr>
+        <tr><td>作者 / 机构</td><td>Martin Brossard, Silvère Bonnabel, Axel Barrau — MINES ParisTech（巴黎矿业学院）/ 新喀里多尼亚大学 / Safran Tech</td></tr>
+        <tr><td>发表</td><td>IEEE RA-L 2020 · arXiv:2002.10718v2 · 开源代码 github.com/mbrossar/denoise-imu-gyro</td></tr>
+        <tr><td>输入 / 输出</td><td>输入：过去 N=448 帧（2.24s @200Hz）的陀螺+加速度计六轴原始读数；输出：当前时刻的陀螺修正量 ω̃（3 维）</td></tr>
+        <tr><td>网络</td><td>5 层一维膨胀卷积（核 7，膨胀率 1/4/16/64，通道 16/32/64/128/1）+ batchnorm + GELU；外加一个可学习的 3×3 标定矩阵</td></tr>
+        <tr><td>损失</td><td>SO(3) 旋转增量上的 Huber 损失（j=16/32 两个尺度），旋转不变，只需低频真值</td></tr>
+        <tr><td>结果</td><td>EuRoC AOE 均值 2.10°（3D）/ 0.96°（yaw）：原始 66°、OriNet 9.46°、VINS-Mono 2.21°、Open-VINS 1.55°</td></tr>
+    </table>
+    <div class="card verdict">
+        一句话：<b>这不是"用神经网络替代滤波器"，而是"让神经网络学会当滤波器"</b>——膨胀卷积在 2.24 秒的局部窗口里看出偏置与振动的模式并实时扣掉，等价于一个系数由数据学出来的非线性时变滤波器。与<a href="uav-tailsitter-notch-filter-control.html">滤波三篇之一</a>里手设计的 14Hz 陷波器对照着读，恰好是同一件事的两种做法。
+    </div>
+
+    <h2>§1 前置知识</h2>
+
+    <h3>§1.1 MEMS 陀螺的误差清单</h3>
+    <p>教科书 IMU 模型把测量写成"真值过线性系统 + 偏置 + 白噪声"：</p>
+    \[ u^{IMU}_n = \begin{bmatrix}\omega^{IMU}_n \\ a^{IMU}_n\end{bmatrix} = C\begin{bmatrix}\omega_n \\ a_n\end{bmatrix} + b_n + \eta_n \]
+    <p>每一项都有物理出处，这篇论文要修正的对象就藏在这里：</p>
+    <table>
+        <tr><th>误差项</th><th>符号</th><th>物理出处</th><th>行为</th></tr>
+        <tr><td>偏置 bias</td><td>\(b_n\)</td><td>制造公差、温度、应力</td><td>准常值但随时间/温度缓慢漂移</td></tr>
+        <tr><td>刻度因子 scale</td><td>\(S_\omega\)</td><td>灵敏度标称偏差</td><td>转动越快误差越大（比例）</td></tr>
+        <tr><td>轴失准 misalignment</td><td>\(M_\omega\)</td><td>敏感轴不理想正交</td><td>三轴串扰</td></tr>
+        <tr><td>g 灵敏度</td><td>\(A\)</td><td>线加速度耦合进陀螺</td><td>大机动时出错的元凶之一</td></tr>
+        <tr><td>噪声</td><td>\(\eta_n\)</td><td>热噪声 + <b>旋翼桨振（有色！）</b></td><td>假设白高斯，实际上有色</td></tr>
+    </table>
+    <p>上表前三项+轴失准打包进内参矩阵 \(C\)（约 12 个数）——经典标定（如 Kalibr）就是离线把它们解出来，然后用 \(C^{-1}\) 反修正。<b>但 \(C\) 和 \(b\) 其实随温度与应力变化</b>，一次标定吃一辈子并不成立；而且有色噪声（无人机上电机的窄带振动）根本不在线性模型里。论文的立场：<b>这些"模型装不下"的误差，交给网络从数据里学</b>。</p>
+
+    <h3>§1.2 为什么开环积分必然漂</h3>
+    <p>姿态由角速度逐步积分得到（\(R_n = R_{n-1}\exp(\omega_n dt)\)，\(\exp\) 是 SO(3) 上的指数映射）。积分器是误差的放大器：<b>常值偏置 \(b\) 造成线性漂移</b>（0.1°/s 的偏置 → 每分钟 6°），<b>白噪声造成随机游走</b>（误差按 \(\sqrt{t}\) 增长），<b>有色噪声更是共振式灌入</b>。实测：EuRoC 上原始陀螺积分 <b>10 秒内</b>姿态就明显歪掉（AOE 动辄 60~140°）。VIO 之所以能稳，是靠相机不断"拉回来"；本文的目标是<b>不靠任何外部传感器，把灌进积分器的误差在源头上滤掉</b>。</p>
+
+    <h3>§1.3 膨胀卷积：一眼看穿 2.24 秒</h3>
+    <p>普通一维卷积每次只看相邻几个采样点，想覆盖 448 帧（2.24s）要么堆很深的层要么用大核。膨胀卷积（dilated convolution，WaveNet 一脉）的做法：<b>卷积核不变，但在输入上"跳着取"</b>——第 \(l\) 层的核隔着 \(d_l\) 个采样取数，感受野按层指数扩张。三个好处：感受野指数增长、计算量几乎不变、保持时间顺序（不像 RNN 要顺序递推，GPU 上可全并行）。</p>
+    <div class="fig">
+    <svg viewBox="0 0 720 330" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+            <marker id="arrA" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#6b7280"/>
+            </marker>
+        </defs>
+        <text x="30" y="24" fill="#e8e8ec" font-size="13" font-weight="600">膨胀卷积的感受野：核 7，膨胀率 1 → 4 → 16 → 64（按论文表精确复算）</text>
+<line x1="670.0" y1="278.5" x2="670.0" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="668.8" y1="278.5" x2="668.8" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="667.6" y1="278.5" x2="667.6" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="666.4" y1="278.5" x2="666.4" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="665.2" y1="278.5" x2="665.2" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="664.0" y1="278.5" x2="664.0" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="662.8" y1="278.5" x2="662.8" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="661.6" y1="278.5" x2="661.6" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="660.4" y1="278.5" x2="660.4" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="659.2" y1="278.5" x2="659.2" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="658.0" y1="278.5" x2="658.0" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="656.8" y1="278.5" x2="656.8" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="655.6" y1="278.5" x2="655.6" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="654.5" y1="278.5" x2="654.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="653.3" y1="278.5" x2="653.3" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="652.1" y1="278.5" x2="652.1" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="650.9" y1="278.5" x2="650.9" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="649.7" y1="278.5" x2="649.7" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="648.5" y1="278.5" x2="648.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="647.3" y1="278.5" x2="647.3" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="646.1" y1="278.5" x2="646.1" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="644.9" y1="278.5" x2="644.9" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="643.7" y1="278.5" x2="643.7" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="642.5" y1="278.5" x2="642.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="641.3" y1="278.5" x2="641.3" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="640.1" y1="278.5" x2="640.1" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="638.9" y1="278.5" x2="638.9" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="637.7" y1="278.5" x2="637.7" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="636.5" y1="278.5" x2="636.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="635.3" y1="278.5" x2="635.3" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="634.1" y1="278.5" x2="634.1" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="632.9" y1="278.5" x2="632.9" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="631.7" y1="278.5" x2="631.7" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="630.5" y1="278.5" x2="630.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="629.3" y1="278.5" x2="629.3" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="628.1" y1="278.5" x2="628.1" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="626.9" y1="278.5" x2="626.9" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="625.7" y1="278.5" x2="625.7" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="624.5" y1="278.5" x2="624.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="623.4" y1="278.5" x2="623.4" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="622.2" y1="278.5" x2="622.2" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="621.0" y1="278.5" x2="621.0" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="619.8" y1="278.5" x2="619.8" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="618.6" y1="278.5" x2="618.6" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="617.4" y1="278.5" x2="617.4" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="616.2" y1="278.5" x2="616.2" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="615.0" y1="278.5" x2="615.0" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="613.8" y1="278.5" x2="613.8" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="612.6" y1="278.5" x2="612.6" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="611.4" y1="278.5" x2="611.4" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="610.2" y1="278.5" x2="610.2" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="609.0" y1="278.5" x2="609.0" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="607.8" y1="278.5" x2="607.8" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="606.6" y1="278.5" x2="606.6" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="605.4" y1="278.5" x2="605.4" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="604.2" y1="278.5" x2="604.2" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="603.0" y1="278.5" x2="603.0" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="601.8" y1="278.5" x2="601.8" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="600.6" y1="278.5" x2="600.6" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="599.4" y1="278.5" x2="599.4" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="598.2" y1="278.5" x2="598.2" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="597.0" y1="278.5" x2="597.0" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="595.8" y1="278.5" x2="595.8" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="594.6" y1="278.5" x2="594.6" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="593.5" y1="278.5" x2="593.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="592.3" y1="278.5" x2="592.3" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="591.1" y1="278.5" x2="591.1" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="589.9" y1="278.5" x2="589.9" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="588.7" y1="278.5" x2="588.7" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="587.5" y1="278.5" x2="587.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="586.3" y1="278.5" x2="586.3" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="585.1" y1="278.5" x2="585.1" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="583.9" y1="278.5" x2="583.9" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="582.7" y1="278.5" x2="582.7" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="581.5" y1="278.5" x2="581.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="580.3" y1="278.5" x2="580.3" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="579.1" y1="278.5" x2="579.1" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="577.9" y1="278.5" x2="577.9" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="576.7" y1="278.5" x2="576.7" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="575.5" y1="278.5" x2="575.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="574.3" y1="278.5" x2="574.3" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="573.1" y1="278.5" x2="573.1" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="571.9" y1="278.5" x2="571.9" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="570.7" y1="278.5" x2="570.7" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="569.5" y1="278.5" x2="569.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="568.3" y1="278.5" x2="568.3" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="567.1" y1="278.5" x2="567.1" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="565.9" y1="278.5" x2="565.9" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="564.7" y1="278.5" x2="564.7" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="563.5" y1="278.5" x2="563.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="562.4" y1="278.5" x2="562.4" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="561.2" y1="278.5" x2="561.2" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="560.0" y1="278.5" x2="560.0" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="558.8" y1="278.5" x2="558.8" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="557.6" y1="278.5" x2="557.6" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="556.4" y1="278.5" x2="556.4" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="555.2" y1="278.5" x2="555.2" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="554.0" y1="278.5" x2="554.0" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="552.8" y1="278.5" x2="552.8" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="551.6" y1="278.5" x2="551.6" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="550.4" y1="278.5" x2="550.4" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="549.2" y1="278.5" x2="549.2" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="548.0" y1="278.5" x2="548.0" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="546.8" y1="278.5" x2="546.8" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="545.6" y1="278.5" x2="545.6" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="544.4" y1="278.5" x2="544.4" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="543.2" y1="278.5" x2="543.2" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="542.0" y1="278.5" x2="542.0" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="540.8" y1="278.5" x2="540.8" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="539.6" y1="278.5" x2="539.6" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="538.4" y1="278.5" x2="538.4" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="537.2" y1="278.5" x2="537.2" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="536.0" y1="278.5" x2="536.0" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="534.8" y1="278.5" x2="534.8" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="533.6" y1="278.5" x2="533.6" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="532.5" y1="278.5" x2="532.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="531.3" y1="278.5" x2="531.3" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="530.1" y1="278.5" x2="530.1" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="528.9" y1="278.5" x2="528.9" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="527.7" y1="278.5" x2="527.7" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="526.5" y1="278.5" x2="526.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="525.3" y1="278.5" x2="525.3" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="524.1" y1="278.5" x2="524.1" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="522.9" y1="278.5" x2="522.9" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="521.7" y1="278.5" x2="521.7" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="520.5" y1="278.5" x2="520.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="519.3" y1="278.5" x2="519.3" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="518.1" y1="278.5" x2="518.1" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="516.9" y1="278.5" x2="516.9" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="515.7" y1="278.5" x2="515.7" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="514.5" y1="278.5" x2="514.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="513.3" y1="278.5" x2="513.3" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="512.1" y1="278.5" x2="512.1" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="510.9" y1="278.5" x2="510.9" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="509.7" y1="278.5" x2="509.7" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="508.5" y1="278.5" x2="508.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="507.3" y1="278.5" x2="507.3" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="506.1" y1="278.5" x2="506.1" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="504.9" y1="278.5" x2="504.9" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="503.7" y1="278.5" x2="503.7" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="502.5" y1="278.5" x2="502.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="501.4" y1="278.5" x2="501.4" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="500.2" y1="278.5" x2="500.2" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="499.0" y1="278.5" x2="499.0" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="497.8" y1="278.5" x2="497.8" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="496.6" y1="278.5" x2="496.6" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="495.4" y1="278.5" x2="495.4" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="494.2" y1="278.5" x2="494.2" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="493.0" y1="278.5" x2="493.0" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="491.8" y1="278.5" x2="491.8" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="490.6" y1="278.5" x2="490.6" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="489.4" y1="278.5" x2="489.4" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="488.2" y1="278.5" x2="488.2" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="487.0" y1="278.5" x2="487.0" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="485.8" y1="278.5" x2="485.8" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="484.6" y1="278.5" x2="484.6" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="483.4" y1="278.5" x2="483.4" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="482.2" y1="278.5" x2="482.2" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="481.0" y1="278.5" x2="481.0" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="479.8" y1="278.5" x2="479.8" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="478.6" y1="278.5" x2="478.6" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="477.4" y1="278.5" x2="477.4" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="476.2" y1="278.5" x2="476.2" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="475.0" y1="278.5" x2="475.0" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="473.8" y1="278.5" x2="473.8" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="472.6" y1="278.5" x2="472.6" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="471.5" y1="278.5" x2="471.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="470.3" y1="278.5" x2="470.3" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="469.1" y1="278.5" x2="469.1" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="467.9" y1="278.5" x2="467.9" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="466.7" y1="278.5" x2="466.7" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="465.5" y1="278.5" x2="465.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="464.3" y1="278.5" x2="464.3" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="463.1" y1="278.5" x2="463.1" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="461.9" y1="278.5" x2="461.9" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="460.7" y1="278.5" x2="460.7" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="459.5" y1="278.5" x2="459.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="458.3" y1="278.5" x2="458.3" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="457.1" y1="278.5" x2="457.1" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="455.9" y1="278.5" x2="455.9" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="454.7" y1="278.5" x2="454.7" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="453.5" y1="278.5" x2="453.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="452.3" y1="278.5" x2="452.3" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="451.1" y1="278.5" x2="451.1" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="449.9" y1="278.5" x2="449.9" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="448.7" y1="278.5" x2="448.7" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="447.5" y1="278.5" x2="447.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="446.3" y1="278.5" x2="446.3" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="445.1" y1="278.5" x2="445.1" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="443.9" y1="278.5" x2="443.9" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="442.7" y1="278.5" x2="442.7" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="441.5" y1="278.5" x2="441.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="440.4" y1="278.5" x2="440.4" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="439.2" y1="278.5" x2="439.2" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="438.0" y1="278.5" x2="438.0" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="436.8" y1="278.5" x2="436.8" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="435.6" y1="278.5" x2="435.6" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="434.4" y1="278.5" x2="434.4" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="433.2" y1="278.5" x2="433.2" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="432.0" y1="278.5" x2="432.0" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="430.8" y1="278.5" x2="430.8" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="429.6" y1="278.5" x2="429.6" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="428.4" y1="278.5" x2="428.4" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="427.2" y1="278.5" x2="427.2" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="426.0" y1="278.5" x2="426.0" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="424.8" y1="278.5" x2="424.8" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="423.6" y1="278.5" x2="423.6" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="422.4" y1="278.5" x2="422.4" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="421.2" y1="278.5" x2="421.2" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="420.0" y1="278.5" x2="420.0" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="418.8" y1="278.5" x2="418.8" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="417.6" y1="278.5" x2="417.6" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="416.4" y1="278.5" x2="416.4" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="415.2" y1="278.5" x2="415.2" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="414.0" y1="278.5" x2="414.0" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="412.8" y1="278.5" x2="412.8" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="411.6" y1="278.5" x2="411.6" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="410.5" y1="278.5" x2="410.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="409.3" y1="278.5" x2="409.3" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="408.1" y1="278.5" x2="408.1" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="406.9" y1="278.5" x2="406.9" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="405.7" y1="278.5" x2="405.7" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="404.5" y1="278.5" x2="404.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="403.3" y1="278.5" x2="403.3" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="402.1" y1="278.5" x2="402.1" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="400.9" y1="278.5" x2="400.9" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="399.7" y1="278.5" x2="399.7" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="398.5" y1="278.5" x2="398.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="397.3" y1="278.5" x2="397.3" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="396.1" y1="278.5" x2="396.1" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="394.9" y1="278.5" x2="394.9" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="393.7" y1="278.5" x2="393.7" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="392.5" y1="278.5" x2="392.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="391.3" y1="278.5" x2="391.3" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="390.1" y1="278.5" x2="390.1" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="388.9" y1="278.5" x2="388.9" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="387.7" y1="278.5" x2="387.7" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="386.5" y1="278.5" x2="386.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="385.3" y1="278.5" x2="385.3" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="384.1" y1="278.5" x2="384.1" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="382.9" y1="278.5" x2="382.9" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="381.7" y1="278.5" x2="381.7" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="380.5" y1="278.5" x2="380.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="379.4" y1="278.5" x2="379.4" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="378.2" y1="278.5" x2="378.2" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="377.0" y1="278.5" x2="377.0" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="375.8" y1="278.5" x2="375.8" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="374.6" y1="278.5" x2="374.6" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="373.4" y1="278.5" x2="373.4" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="372.2" y1="278.5" x2="372.2" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="371.0" y1="278.5" x2="371.0" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="369.8" y1="278.5" x2="369.8" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="368.6" y1="278.5" x2="368.6" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="367.4" y1="278.5" x2="367.4" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="366.2" y1="278.5" x2="366.2" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="365.0" y1="278.5" x2="365.0" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="363.8" y1="278.5" x2="363.8" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="362.6" y1="278.5" x2="362.6" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="361.4" y1="278.5" x2="361.4" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="360.2" y1="278.5" x2="360.2" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="359.0" y1="278.5" x2="359.0" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="357.8" y1="278.5" x2="357.8" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="356.6" y1="278.5" x2="356.6" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="355.4" y1="278.5" x2="355.4" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="354.2" y1="278.5" x2="354.2" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="353.0" y1="278.5" x2="353.0" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="351.8" y1="278.5" x2="351.8" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="350.6" y1="278.5" x2="350.6" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="349.5" y1="278.5" x2="349.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="348.3" y1="278.5" x2="348.3" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="347.1" y1="278.5" x2="347.1" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="345.9" y1="278.5" x2="345.9" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="344.7" y1="278.5" x2="344.7" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="343.5" y1="278.5" x2="343.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="342.3" y1="278.5" x2="342.3" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="341.1" y1="278.5" x2="341.1" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="339.9" y1="278.5" x2="339.9" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="338.7" y1="278.5" x2="338.7" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="337.5" y1="278.5" x2="337.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="336.3" y1="278.5" x2="336.3" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="335.1" y1="278.5" x2="335.1" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="333.9" y1="278.5" x2="333.9" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="332.7" y1="278.5" x2="332.7" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="331.5" y1="278.5" x2="331.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="330.3" y1="278.5" x2="330.3" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="329.1" y1="278.5" x2="329.1" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="327.9" y1="278.5" x2="327.9" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="326.7" y1="278.5" x2="326.7" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="325.5" y1="278.5" x2="325.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="324.3" y1="278.5" x2="324.3" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="323.1" y1="278.5" x2="323.1" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="321.9" y1="278.5" x2="321.9" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="320.7" y1="278.5" x2="320.7" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="319.5" y1="278.5" x2="319.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="318.4" y1="278.5" x2="318.4" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="317.2" y1="278.5" x2="317.2" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="316.0" y1="278.5" x2="316.0" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="314.8" y1="278.5" x2="314.8" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="313.6" y1="278.5" x2="313.6" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="312.4" y1="278.5" x2="312.4" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="311.2" y1="278.5" x2="311.2" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="310.0" y1="278.5" x2="310.0" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="308.8" y1="278.5" x2="308.8" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="307.6" y1="278.5" x2="307.6" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="306.4" y1="278.5" x2="306.4" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="305.2" y1="278.5" x2="305.2" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="304.0" y1="278.5" x2="304.0" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="302.8" y1="278.5" x2="302.8" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="301.6" y1="278.5" x2="301.6" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="300.4" y1="278.5" x2="300.4" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="299.2" y1="278.5" x2="299.2" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="298.0" y1="278.5" x2="298.0" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="296.8" y1="278.5" x2="296.8" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="295.6" y1="278.5" x2="295.6" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="294.4" y1="278.5" x2="294.4" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="293.2" y1="278.5" x2="293.2" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="292.0" y1="278.5" x2="292.0" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="290.8" y1="278.5" x2="290.8" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="289.6" y1="278.5" x2="289.6" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="288.5" y1="278.5" x2="288.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="287.3" y1="278.5" x2="287.3" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="286.1" y1="278.5" x2="286.1" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="284.9" y1="278.5" x2="284.9" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="283.7" y1="278.5" x2="283.7" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="282.5" y1="278.5" x2="282.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="281.3" y1="278.5" x2="281.3" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="280.1" y1="278.5" x2="280.1" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="278.9" y1="278.5" x2="278.9" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="277.7" y1="278.5" x2="277.7" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="276.5" y1="278.5" x2="276.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="275.3" y1="278.5" x2="275.3" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="274.1" y1="278.5" x2="274.1" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="272.9" y1="278.5" x2="272.9" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="271.7" y1="278.5" x2="271.7" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="270.5" y1="278.5" x2="270.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="269.3" y1="278.5" x2="269.3" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="268.1" y1="278.5" x2="268.1" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="266.9" y1="278.5" x2="266.9" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="265.7" y1="278.5" x2="265.7" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="264.5" y1="278.5" x2="264.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="263.3" y1="278.5" x2="263.3" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="262.1" y1="278.5" x2="262.1" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="260.9" y1="278.5" x2="260.9" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="259.7" y1="278.5" x2="259.7" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="258.5" y1="278.5" x2="258.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="257.4" y1="278.5" x2="257.4" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="256.2" y1="278.5" x2="256.2" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="255.0" y1="278.5" x2="255.0" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="253.8" y1="278.5" x2="253.8" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="252.6" y1="278.5" x2="252.6" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="251.4" y1="278.5" x2="251.4" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="250.2" y1="278.5" x2="250.2" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="249.0" y1="278.5" x2="249.0" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="247.8" y1="278.5" x2="247.8" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="246.6" y1="278.5" x2="246.6" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="245.4" y1="278.5" x2="245.4" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="244.2" y1="278.5" x2="244.2" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="243.0" y1="278.5" x2="243.0" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="241.8" y1="278.5" x2="241.8" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="240.6" y1="278.5" x2="240.6" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="239.4" y1="278.5" x2="239.4" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="238.2" y1="278.5" x2="238.2" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="237.0" y1="278.5" x2="237.0" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="235.8" y1="278.5" x2="235.8" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="234.6" y1="278.5" x2="234.6" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="233.4" y1="278.5" x2="233.4" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="232.2" y1="278.5" x2="232.2" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="231.0" y1="278.5" x2="231.0" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="229.8" y1="278.5" x2="229.8" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="228.6" y1="278.5" x2="228.6" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="227.5" y1="278.5" x2="227.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="226.3" y1="278.5" x2="226.3" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="225.1" y1="278.5" x2="225.1" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="223.9" y1="278.5" x2="223.9" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="222.7" y1="278.5" x2="222.7" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="221.5" y1="278.5" x2="221.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="220.3" y1="278.5" x2="220.3" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="219.1" y1="278.5" x2="219.1" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="217.9" y1="278.5" x2="217.9" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="216.7" y1="278.5" x2="216.7" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="215.5" y1="278.5" x2="215.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="214.3" y1="278.5" x2="214.3" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="213.1" y1="278.5" x2="213.1" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="211.9" y1="278.5" x2="211.9" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="210.7" y1="278.5" x2="210.7" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="209.5" y1="278.5" x2="209.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="208.3" y1="278.5" x2="208.3" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="207.1" y1="278.5" x2="207.1" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="205.9" y1="278.5" x2="205.9" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="204.7" y1="278.5" x2="204.7" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="203.5" y1="278.5" x2="203.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="202.3" y1="278.5" x2="202.3" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="201.1" y1="278.5" x2="201.1" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="199.9" y1="278.5" x2="199.9" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="198.7" y1="278.5" x2="198.7" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="197.5" y1="278.5" x2="197.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="196.4" y1="278.5" x2="196.4" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="195.2" y1="278.5" x2="195.2" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="194.0" y1="278.5" x2="194.0" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="192.8" y1="278.5" x2="192.8" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="191.6" y1="278.5" x2="191.6" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="190.4" y1="278.5" x2="190.4" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="189.2" y1="278.5" x2="189.2" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="188.0" y1="278.5" x2="188.0" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="186.8" y1="278.5" x2="186.8" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="185.6" y1="278.5" x2="185.6" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="184.4" y1="278.5" x2="184.4" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="183.2" y1="278.5" x2="183.2" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="182.0" y1="278.5" x2="182.0" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="180.8" y1="278.5" x2="180.8" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="179.6" y1="278.5" x2="179.6" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="178.4" y1="278.5" x2="178.4" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="177.2" y1="278.5" x2="177.2" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="176.0" y1="278.5" x2="176.0" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="174.8" y1="278.5" x2="174.8" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="173.6" y1="278.5" x2="173.6" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="172.4" y1="278.5" x2="172.4" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="171.2" y1="278.5" x2="171.2" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="170.0" y1="278.5" x2="170.0" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="168.8" y1="278.5" x2="168.8" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="167.6" y1="278.5" x2="167.6" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="166.5" y1="278.5" x2="166.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="165.3" y1="278.5" x2="165.3" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="164.1" y1="278.5" x2="164.1" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="162.9" y1="278.5" x2="162.9" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="161.7" y1="278.5" x2="161.7" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="160.5" y1="278.5" x2="160.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="159.3" y1="278.5" x2="159.3" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="158.1" y1="278.5" x2="158.1" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="156.9" y1="278.5" x2="156.9" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="155.7" y1="278.5" x2="155.7" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="154.5" y1="278.5" x2="154.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="153.3" y1="278.5" x2="153.3" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="152.1" y1="278.5" x2="152.1" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="150.9" y1="278.5" x2="150.9" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="149.7" y1="278.5" x2="149.7" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="148.5" y1="278.5" x2="148.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="147.3" y1="278.5" x2="147.3" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="146.1" y1="278.5" x2="146.1" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="144.9" y1="278.5" x2="144.9" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="143.7" y1="278.5" x2="143.7" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="142.5" y1="278.5" x2="142.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="141.3" y1="278.5" x2="141.3" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="140.1" y1="278.5" x2="140.1" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="138.9" y1="278.5" x2="138.9" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="137.7" y1="278.5" x2="137.7" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="136.5" y1="278.5" x2="136.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="135.4" y1="278.5" x2="135.4" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="134.2" y1="278.5" x2="134.2" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="133.0" y1="278.5" x2="133.0" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="131.8" y1="278.5" x2="131.8" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="130.6" y1="278.5" x2="130.6" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="129.4" y1="278.5" x2="129.4" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="128.2" y1="278.5" x2="128.2" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="127.0" y1="278.5" x2="127.0" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="125.8" y1="278.5" x2="125.8" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="124.6" y1="278.5" x2="124.6" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="123.4" y1="278.5" x2="123.4" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="122.2" y1="278.5" x2="122.2" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="121.0" y1="278.5" x2="121.0" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="119.8" y1="278.5" x2="119.8" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="118.6" y1="278.5" x2="118.6" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="117.4" y1="278.5" x2="117.4" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="116.2" y1="278.5" x2="116.2" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="115.0" y1="278.5" x2="115.0" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="113.8" y1="278.5" x2="113.8" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="112.6" y1="278.5" x2="112.6" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="111.4" y1="278.5" x2="111.4" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="110.2" y1="278.5" x2="110.2" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="109.0" y1="278.5" x2="109.0" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="107.8" y1="278.5" x2="107.8" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="106.6" y1="278.5" x2="106.6" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="105.5" y1="278.5" x2="105.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="104.3" y1="278.5" x2="104.3" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="103.1" y1="278.5" x2="103.1" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="101.9" y1="278.5" x2="101.9" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="100.7" y1="278.5" x2="100.7" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="99.5" y1="278.5" x2="99.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="98.3" y1="278.5" x2="98.3" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="97.1" y1="278.5" x2="97.1" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="95.9" y1="278.5" x2="95.9" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="94.7" y1="278.5" x2="94.7" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="93.5" y1="278.5" x2="93.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="92.3" y1="278.5" x2="92.3" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="91.1" y1="278.5" x2="91.1" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="89.9" y1="278.5" x2="89.9" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="88.7" y1="278.5" x2="88.7" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="87.5" y1="278.5" x2="87.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="86.3" y1="278.5" x2="86.3" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="85.1" y1="278.5" x2="85.1" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="83.9" y1="278.5" x2="83.9" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="82.7" y1="278.5" x2="82.7" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="81.5" y1="278.5" x2="81.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="80.3" y1="278.5" x2="80.3" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="79.1" y1="278.5" x2="79.1" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="77.9" y1="278.5" x2="77.9" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="76.7" y1="278.5" x2="76.7" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="75.5" y1="278.5" x2="75.5" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="74.4" y1="278.5" x2="74.4" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="73.2" y1="278.5" x2="73.2" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="72.0" y1="278.5" x2="72.0" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="70.8" y1="278.5" x2="70.8" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="69.6" y1="278.5" x2="69.6" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="68.4" y1="278.5" x2="68.4" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="67.2" y1="278.5" x2="67.2" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="66.0" y1="278.5" x2="66.0" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="64.8" y1="278.5" x2="64.8" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="63.6" y1="278.5" x2="63.6" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="62.4" y1="278.5" x2="62.4" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="61.2" y1="278.5" x2="61.2" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<line x1="60.0" y1="278.5" x2="60.0" y2="285.5" stroke="#9ca3af" stroke-width="1.6"/>
+<text x="30" y="285.5" fill="#9ca3af" font-size="10.5">输入 511 帧</text>
+<line x1="670.0" y1="228.5" x2="670.0" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="665.2" y1="228.5" x2="665.2" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="660.4" y1="228.5" x2="660.4" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="655.6" y1="228.5" x2="655.6" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="650.9" y1="228.5" x2="650.9" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="646.1" y1="228.5" x2="646.1" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="641.3" y1="228.5" x2="641.3" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="636.5" y1="228.5" x2="636.5" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="631.7" y1="228.5" x2="631.7" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="626.9" y1="228.5" x2="626.9" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="622.2" y1="228.5" x2="622.2" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="617.4" y1="228.5" x2="617.4" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="612.6" y1="228.5" x2="612.6" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="607.8" y1="228.5" x2="607.8" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="603.0" y1="228.5" x2="603.0" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="598.2" y1="228.5" x2="598.2" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="593.5" y1="228.5" x2="593.5" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="588.7" y1="228.5" x2="588.7" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="583.9" y1="228.5" x2="583.9" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="579.1" y1="228.5" x2="579.1" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="574.3" y1="228.5" x2="574.3" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="569.5" y1="228.5" x2="569.5" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="564.7" y1="228.5" x2="564.7" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="560.0" y1="228.5" x2="560.0" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="555.2" y1="228.5" x2="555.2" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="550.4" y1="228.5" x2="550.4" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="545.6" y1="228.5" x2="545.6" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="540.8" y1="228.5" x2="540.8" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="536.0" y1="228.5" x2="536.0" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="531.3" y1="228.5" x2="531.3" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="526.5" y1="228.5" x2="526.5" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="521.7" y1="228.5" x2="521.7" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="516.9" y1="228.5" x2="516.9" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="512.1" y1="228.5" x2="512.1" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="507.3" y1="228.5" x2="507.3" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="502.5" y1="228.5" x2="502.5" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="497.8" y1="228.5" x2="497.8" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="493.0" y1="228.5" x2="493.0" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="488.2" y1="228.5" x2="488.2" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="483.4" y1="228.5" x2="483.4" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="478.6" y1="228.5" x2="478.6" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="473.8" y1="228.5" x2="473.8" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="469.1" y1="228.5" x2="469.1" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="464.3" y1="228.5" x2="464.3" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="459.5" y1="228.5" x2="459.5" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="454.7" y1="228.5" x2="454.7" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="449.9" y1="228.5" x2="449.9" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="445.1" y1="228.5" x2="445.1" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="440.4" y1="228.5" x2="440.4" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="435.6" y1="228.5" x2="435.6" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="430.8" y1="228.5" x2="430.8" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="426.0" y1="228.5" x2="426.0" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="421.2" y1="228.5" x2="421.2" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="416.4" y1="228.5" x2="416.4" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="411.6" y1="228.5" x2="411.6" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="406.9" y1="228.5" x2="406.9" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="402.1" y1="228.5" x2="402.1" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="397.3" y1="228.5" x2="397.3" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="392.5" y1="228.5" x2="392.5" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="387.7" y1="228.5" x2="387.7" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="382.9" y1="228.5" x2="382.9" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="378.2" y1="228.5" x2="378.2" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="373.4" y1="228.5" x2="373.4" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="368.6" y1="228.5" x2="368.6" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="363.8" y1="228.5" x2="363.8" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="359.0" y1="228.5" x2="359.0" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="354.2" y1="228.5" x2="354.2" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="349.5" y1="228.5" x2="349.5" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="344.7" y1="228.5" x2="344.7" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="339.9" y1="228.5" x2="339.9" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="335.1" y1="228.5" x2="335.1" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="330.3" y1="228.5" x2="330.3" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="325.5" y1="228.5" x2="325.5" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="320.7" y1="228.5" x2="320.7" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="316.0" y1="228.5" x2="316.0" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="311.2" y1="228.5" x2="311.2" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="306.4" y1="228.5" x2="306.4" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="301.6" y1="228.5" x2="301.6" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="296.8" y1="228.5" x2="296.8" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="292.0" y1="228.5" x2="292.0" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="287.3" y1="228.5" x2="287.3" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="282.5" y1="228.5" x2="282.5" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="277.7" y1="228.5" x2="277.7" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="272.9" y1="228.5" x2="272.9" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="268.1" y1="228.5" x2="268.1" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="263.3" y1="228.5" x2="263.3" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="258.5" y1="228.5" x2="258.5" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="253.8" y1="228.5" x2="253.8" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="249.0" y1="228.5" x2="249.0" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="244.2" y1="228.5" x2="244.2" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="239.4" y1="228.5" x2="239.4" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="234.6" y1="228.5" x2="234.6" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="229.8" y1="228.5" x2="229.8" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="225.1" y1="228.5" x2="225.1" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="220.3" y1="228.5" x2="220.3" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="215.5" y1="228.5" x2="215.5" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="210.7" y1="228.5" x2="210.7" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="205.9" y1="228.5" x2="205.9" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="201.1" y1="228.5" x2="201.1" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="196.4" y1="228.5" x2="196.4" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="191.6" y1="228.5" x2="191.6" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="186.8" y1="228.5" x2="186.8" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="182.0" y1="228.5" x2="182.0" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="177.2" y1="228.5" x2="177.2" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="172.4" y1="228.5" x2="172.4" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="167.6" y1="228.5" x2="167.6" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="162.9" y1="228.5" x2="162.9" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="158.1" y1="228.5" x2="158.1" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="153.3" y1="228.5" x2="153.3" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="148.5" y1="228.5" x2="148.5" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="143.7" y1="228.5" x2="143.7" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="138.9" y1="228.5" x2="138.9" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="134.2" y1="228.5" x2="134.2" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="129.4" y1="228.5" x2="129.4" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="124.6" y1="228.5" x2="124.6" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="119.8" y1="228.5" x2="119.8" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="115.0" y1="228.5" x2="115.0" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="110.2" y1="228.5" x2="110.2" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="105.5" y1="228.5" x2="105.5" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="100.7" y1="228.5" x2="100.7" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="95.9" y1="228.5" x2="95.9" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="91.1" y1="228.5" x2="91.1" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="86.3" y1="228.5" x2="86.3" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="81.5" y1="228.5" x2="81.5" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="76.7" y1="228.5" x2="76.7" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="72.0" y1="228.5" x2="72.0" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<line x1="67.2" y1="228.5" x2="67.2" y2="235.5" stroke="#6366f1" stroke-width="1.6"/>
+<text x="30" y="235.5" fill="#6366f1" font-size="10.5">层1 d=1 · 127</text>
+<line x1="670.0" y1="177.5" x2="670.0" y2="186.5" stroke="#8b5cf6" stroke-width="3.2"/>
+<line x1="650.9" y1="177.5" x2="650.9" y2="186.5" stroke="#8b5cf6" stroke-width="3.2"/>
+<line x1="631.7" y1="177.5" x2="631.7" y2="186.5" stroke="#8b5cf6" stroke-width="3.2"/>
+<line x1="612.6" y1="177.5" x2="612.6" y2="186.5" stroke="#8b5cf6" stroke-width="3.2"/>
+<line x1="593.5" y1="177.5" x2="593.5" y2="186.5" stroke="#8b5cf6" stroke-width="3.2"/>
+<line x1="574.3" y1="177.5" x2="574.3" y2="186.5" stroke="#8b5cf6" stroke-width="3.2"/>
+<line x1="555.2" y1="177.5" x2="555.2" y2="186.5" stroke="#8b5cf6" stroke-width="3.2"/>
+<line x1="536.0" y1="177.5" x2="536.0" y2="186.5" stroke="#8b5cf6" stroke-width="3.2"/>
+<line x1="516.9" y1="177.5" x2="516.9" y2="186.5" stroke="#8b5cf6" stroke-width="3.2"/>
+<line x1="497.8" y1="177.5" x2="497.8" y2="186.5" stroke="#8b5cf6" stroke-width="3.2"/>
+<line x1="478.6" y1="177.5" x2="478.6" y2="186.5" stroke="#8b5cf6" stroke-width="3.2"/>
+<line x1="459.5" y1="177.5" x2="459.5" y2="186.5" stroke="#8b5cf6" stroke-width="3.2"/>
+<line x1="440.4" y1="177.5" x2="440.4" y2="186.5" stroke="#8b5cf6" stroke-width="3.2"/>
+<line x1="421.2" y1="177.5" x2="421.2" y2="186.5" stroke="#8b5cf6" stroke-width="3.2"/>
+<line x1="402.1" y1="177.5" x2="402.1" y2="186.5" stroke="#8b5cf6" stroke-width="3.2"/>
+<line x1="382.9" y1="177.5" x2="382.9" y2="186.5" stroke="#8b5cf6" stroke-width="3.2"/>
+<line x1="363.8" y1="177.5" x2="363.8" y2="186.5" stroke="#8b5cf6" stroke-width="3.2"/>
+<line x1="344.7" y1="177.5" x2="344.7" y2="186.5" stroke="#8b5cf6" stroke-width="3.2"/>
+<line x1="325.5" y1="177.5" x2="325.5" y2="186.5" stroke="#8b5cf6" stroke-width="3.2"/>
+<line x1="306.4" y1="177.5" x2="306.4" y2="186.5" stroke="#8b5cf6" stroke-width="3.2"/>
+<line x1="287.3" y1="177.5" x2="287.3" y2="186.5" stroke="#8b5cf6" stroke-width="3.2"/>
+<line x1="268.1" y1="177.5" x2="268.1" y2="186.5" stroke="#8b5cf6" stroke-width="3.2"/>
+<line x1="249.0" y1="177.5" x2="249.0" y2="186.5" stroke="#8b5cf6" stroke-width="3.2"/>
+<line x1="229.8" y1="177.5" x2="229.8" y2="186.5" stroke="#8b5cf6" stroke-width="3.2"/>
+<line x1="210.7" y1="177.5" x2="210.7" y2="186.5" stroke="#8b5cf6" stroke-width="3.2"/>
+<line x1="191.6" y1="177.5" x2="191.6" y2="186.5" stroke="#8b5cf6" stroke-width="3.2"/>
+<line x1="172.4" y1="177.5" x2="172.4" y2="186.5" stroke="#8b5cf6" stroke-width="3.2"/>
+<line x1="153.3" y1="177.5" x2="153.3" y2="186.5" stroke="#8b5cf6" stroke-width="3.2"/>
+<line x1="134.2" y1="177.5" x2="134.2" y2="186.5" stroke="#8b5cf6" stroke-width="3.2"/>
+<line x1="115.0" y1="177.5" x2="115.0" y2="186.5" stroke="#8b5cf6" stroke-width="3.2"/>
+<line x1="95.9" y1="177.5" x2="95.9" y2="186.5" stroke="#8b5cf6" stroke-width="3.2"/>
+<text x="30" y="185.5" fill="#8b5cf6" font-size="10.5">层2 d=4 · 31</text>
+<line x1="670.0" y1="127.5" x2="670.0" y2="136.5" stroke="#a78bfa" stroke-width="3.2"/>
+<line x1="593.5" y1="127.5" x2="593.5" y2="136.5" stroke="#a78bfa" stroke-width="3.2"/>
+<line x1="516.9" y1="127.5" x2="516.9" y2="136.5" stroke="#a78bfa" stroke-width="3.2"/>
+<line x1="440.4" y1="127.5" x2="440.4" y2="136.5" stroke="#a78bfa" stroke-width="3.2"/>
+<line x1="363.8" y1="127.5" x2="363.8" y2="136.5" stroke="#a78bfa" stroke-width="3.2"/>
+<line x1="287.3" y1="127.5" x2="287.3" y2="136.5" stroke="#a78bfa" stroke-width="3.2"/>
+<line x1="210.7" y1="127.5" x2="210.7" y2="136.5" stroke="#a78bfa" stroke-width="3.2"/>
+<text x="30" y="135.5" fill="#a78bfa" font-size="10.5">层3 d=16 · 7</text>
+<line x1="670.0" y1="77.5" x2="670.0" y2="86.5" stroke="#fbbf24" stroke-width="4.5"/>
+<text x="30" y="85.5" fill="#fbbf24" font-size="10.5">层4 d=64 · 1</text>
+<line x1="670.0" y1="87" x2="670.0" y2="127" stroke="#fbbf24" stroke-width="1.1" opacity="0.85"/>
+<line x1="670.0" y1="87" x2="593.5" y2="127" stroke="#fbbf24" stroke-width="1.1" opacity="0.85"/>
+<line x1="670.0" y1="87" x2="516.9" y2="127" stroke="#fbbf24" stroke-width="1.1" opacity="0.85"/>
+<line x1="670.0" y1="87" x2="440.4" y2="127" stroke="#fbbf24" stroke-width="1.1" opacity="0.85"/>
+<line x1="670.0" y1="87" x2="363.8" y2="127" stroke="#fbbf24" stroke-width="1.1" opacity="0.85"/>
+<line x1="670.0" y1="87" x2="287.3" y2="127" stroke="#fbbf24" stroke-width="1.1" opacity="0.85"/>
+<line x1="670.0" y1="87" x2="210.7" y2="127" stroke="#fbbf24" stroke-width="1.1" opacity="0.85"/>
+<line x1="670.0" y1="137" x2="670.0" y2="177" stroke="#fbbf24" stroke-width="1.1" opacity="0.85"/>
+<line x1="670.0" y1="137" x2="650.9" y2="177" stroke="#fbbf24" stroke-width="1.1" opacity="0.85"/>
+<line x1="670.0" y1="137" x2="631.7" y2="177" stroke="#fbbf24" stroke-width="1.1" opacity="0.85"/>
+<line x1="670.0" y1="137" x2="612.6" y2="177" stroke="#fbbf24" stroke-width="1.1" opacity="0.85"/>
+<line x1="670.0" y1="137" x2="593.5" y2="177" stroke="#fbbf24" stroke-width="1.1" opacity="0.85"/>
+<line x1="670.0" y1="137" x2="574.3" y2="177" stroke="#fbbf24" stroke-width="1.1" opacity="0.85"/>
+<line x1="670.0" y1="137" x2="555.2" y2="177" stroke="#fbbf24" stroke-width="1.1" opacity="0.85"/>
+<line x1="670.0" y1="187" x2="670.0" y2="227" stroke="#fbbf24" stroke-width="1.1" opacity="0.85"/>
+<line x1="670.0" y1="187" x2="665.2" y2="227" stroke="#fbbf24" stroke-width="1.1" opacity="0.85"/>
+<line x1="670.0" y1="187" x2="660.4" y2="227" stroke="#fbbf24" stroke-width="1.1" opacity="0.85"/>
+<line x1="670.0" y1="187" x2="655.6" y2="227" stroke="#fbbf24" stroke-width="1.1" opacity="0.85"/>
+<line x1="670.0" y1="187" x2="650.9" y2="227" stroke="#fbbf24" stroke-width="1.1" opacity="0.85"/>
+<line x1="670.0" y1="187" x2="646.1" y2="227" stroke="#fbbf24" stroke-width="1.1" opacity="0.85"/>
+<line x1="670.0" y1="187" x2="641.3" y2="227" stroke="#fbbf24" stroke-width="1.1" opacity="0.85"/>
+<line x1="670.0" y1="237" x2="670.0" y2="277" stroke="#fbbf24" stroke-width="1.1" opacity="0.85"/>
+<line x1="670.0" y1="237" x2="668.8" y2="277" stroke="#fbbf24" stroke-width="1.1" opacity="0.85"/>
+<line x1="670.0" y1="237" x2="667.6" y2="277" stroke="#fbbf24" stroke-width="1.1" opacity="0.85"/>
+<line x1="670.0" y1="237" x2="666.4" y2="277" stroke="#fbbf24" stroke-width="1.1" opacity="0.85"/>
+<line x1="670.0" y1="237" x2="665.2" y2="277" stroke="#fbbf24" stroke-width="1.1" opacity="0.85"/>
+<line x1="670.0" y1="237" x2="664.0" y2="277" stroke="#fbbf24" stroke-width="1.1" opacity="0.85"/>
+<line x1="670.0" y1="237" x2="662.8" y2="277" stroke="#fbbf24" stroke-width="1.1" opacity="0.85"/>
+<line x1="670" y1="70" x2="670" y2="296" stroke="rgba(255,255,255,0.18)" stroke-dasharray="3 4"/>
+<text x="676" y="66" fill="#e8e8ec" font-size="10.5" class="lbl">当前时刻 n</text>
+<text x="676" y="90" fill="#fbbf24" font-size="10.5" class="lbl">ω̃ 输出</text>
+<line x1="60" y1="300" x2="670" y2="300" stroke="#4b5563" stroke-width="1"/>
+<line x1="60" y1="295" x2="60" y2="305" stroke="#4b5563" stroke-width="1"/>
+<line x1="670" y1="295" x2="670" y2="305" stroke="#4b5563" stroke-width="1"/>
+<text x="365" y="312" fill="#9ca3af" font-size="10.5" text-anchor="middle">过去 510 帧 ≈ 2.55s @200Hz（论文窗口 N=448）</text>
+        <text x="360" y="318" fill="#6b7280" font-size="10.5" text-anchor="middle">每层 7 个抽头按膨胀率隔点取样；四层叠加后，顶层 1 个输出连接底部全部 511 个输入采样（途经 127 个层1特征、31 个层2特征、7 个层3特征）</text>
+    </svg>
+    <div class="figcap">图 1 · 膨胀卷积"跳着看"的几何（计算复现）。灰色细线是各层抽头的连接关系：第 1 层看邻居，第 2 层跨 4 步，第 3 层跨 16 步，第 4 层跨 64 步——低层抓高频抖动，高层抓慢变偏置，各司其职。</div>
+    </div>
+
+    <h2>§2 方法：网络、修正模型与损失函数</h2>
+
+    <h3>§2.1 修正模型：恒等初始化，学残差</h3>
+    \[ \hat\omega_n = \hat C_\omega\,\omega^{IMU}_n + \tilde\omega_n,\qquad \tilde\omega_n = f\!\left(u^{IMU}_{n-N},\dots,u^{IMU}_n\right) \]
+    <p>设计有三个巧思：<b>①</b> \(\hat C_\omega\)（3×3，含刻度+失准）作为<b>静态可学习参数</b>从 \(I_3\) 开始训——经典标定被吸收成网络的一层；<b>②</b> 时变偏置与有色噪声交给网络 \(f\) 从局部窗口回归修正量 \(\tilde\omega_n\)（含静态偏置分量 \(\hat b\)）；<b>③</b> 初始时 \(\hat C_\omega=I,\ \tilde\omega\approx 0\)，即<b>未训练的网络 = 原始陀螺</b>——第一个 epoch 就只多不少地改善。<b>窗口局部性是抗过拟合的护城河</b>：每个修正量只依赖过去 2.24 秒，与整条轨迹无关，所以 8 分钟训练数据就够。</p>
+
+    <h3>§2.2 为什么加速度计也喂给网络</h3>
+    <p>乍看奇怪——去噪陀螺关加速度计什么事？推导给了答案：当速度缓变时，相邻两时刻加计读数之差近似等于重力方向在机体系里的旋转：</p>
+    \[ a_{n+1}-a_n \approx -\left(e^{-\omega_n dt}-I_3\right)R_{n-1}^{T}g \]
+    <p>也就是说<b>加计差分里藏着角速度的信息</b>（重力是免费的参考向量）。消融实验坐实：去掉加速度计输入，误差增加 50%。这等价于让网络免费拿到了互补滤波里"加计修姿态"的那条信息通道。</p>
+
+    <h3>§2.3 损失函数：在真值频率上比旋转增量</h3>
+    <p>监督信号哪里来？动捕/激光跟踪只有 20~120Hz，且动态段精度打折，<b>不可能提供 200Hz 的角速度真值</b>。论文的损失定义在"积分后的旋转增量"上——把预测角速度与真值姿态都积分成 \(j\) 步旋转再比较：</p>
+    \[ \delta R_{i,i+j} = R_i^T R_{j} \approx \prod_{k=i}^{i+j-1}\exp(\hat\omega_k),\qquad
+       \mathcal{L}_j = \sum_i \rho\!\left(\log\!\left(\delta R_{i,i+j}\,\delta\hat R_{i,i+j}^T\right)\right) \]
+    \[ \mathcal{L} = \mathcal{L}_{16} + \mathcal{L}_{32} \]
+    <p>逐项拆开：\(\log(\cdot)\) 把旋转差变成 3 维误差向量（SO(3) 对数映射）；\(\rho\) 是 <b>Huber 损失</b>，对真值里的离群点（动态段动捕失准）钝感；\(j=16/32\) 把比较频率降到 12.5/6.25Hz——<b>恰好在真值可靠带宽内</b>。两条更深的设计：<b>旋转不变性</b>——IMU 测量对整体旋转左不变，损失也构造得左不变，网络学不到也不需要学"绝对朝向"；<b>不过分长程</b>——若直接用整段姿态误差做损失，网络会去拟合特定轨迹形状（过拟合），增量式比较只约束局部一致性。实现上还有个工程妙招：\(j\) 步矩阵连乘画成<b>二叉树</b>批量并行（\(\log_2 j\) 次 GPU 批操作算完），训练提速约 6 倍。</p>
+
+    <h3>§2.4 训练配方（含消融结论）</h3>
+    <ul>
+        <li><b>数据增强</b>：只做一件事——训练时给 IMU 加标准差为数据集噪声一半的高斯噪声。作者试过"去标定"、"加静偏置"、"旋转加计"等花样，<b>均无稳定收益</b>。</li>
+        <li><b>平滑激活</b>：GELU/ELU 显著优于 ReLU——ReLU 倾向产生尖锐修正，而物理信号的修正应当平滑；batchnorm 必备。</li>
+        <li><b>正则化</b>：训练点只有 45k~90k 个，与参数量 77k 同量级，weight decay 0.1 + dropout 0.1 压住过拟合；Adam + 余弦热重启，1800 epoch 共 5 分钟。</li>
+        <li><b>换 LSTM 会怎样</b>：同思路换成 LSTM，误差 +40%、训练更慢——时序建模里"卷积吊打循环"在这个任务上成立。</li>
+    </ul>
+
+    <h2>§3 实验：一个网络打五个基线</h2>
+    <div class="fig">
+    <svg viewBox="0 0 720 320" xmlns="http://www.w3.org/2000/svg">
+        <text x="30" y="24" fill="#e8e8ec" font-size="13" font-weight="600">EuRoC 测试集 AOE 均值对比（3D 姿态 / 偏航，单位：度，按论文表 1 绘制）</text>
+<line x1="150" y1="44" x2="150" y2="288" stroke="rgba(255,255,255,0.15)"/>
+<line x1="227.1" y1="44" x2="227.1" y2="288" stroke="rgba(255,255,255,0.05)"/>
+<text x="227.1" y="300" fill="#9ca3af" font-size="9.5" text-anchor="middle">10°</text>
+<line x1="304.3" y1="44" x2="304.3" y2="288" stroke="rgba(255,255,255,0.05)"/>
+<text x="304.3" y="300" fill="#9ca3af" font-size="9.5" text-anchor="middle">20°</text>
+<line x1="381.4" y1="44" x2="381.4" y2="288" stroke="rgba(255,255,255,0.05)"/>
+<text x="381.4" y="300" fill="#9ca3af" font-size="9.5" text-anchor="middle">30°</text>
+<line x1="458.6" y1="44" x2="458.6" y2="288" stroke="rgba(255,255,255,0.05)"/>
+<text x="458.6" y="300" fill="#9ca3af" font-size="9.5" text-anchor="middle">40°</text>
+<line x1="535.7" y1="44" x2="535.7" y2="288" stroke="rgba(255,255,255,0.05)"/>
+<text x="535.7" y="300" fill="#9ca3af" font-size="9.5" text-anchor="middle">50°</text>
+<line x1="612.9" y1="44" x2="612.9" y2="288" stroke="rgba(255,255,255,0.05)"/>
+<text x="612.9" y="300" fill="#9ca3af" font-size="9.5" text-anchor="middle">60°</text>
+<line x1="690.0" y1="44" x2="690.0" y2="288" stroke="rgba(255,255,255,0.05)"/>
+<text x="690.0" y="300" fill="#9ca3af" font-size="9.5" text-anchor="middle">70°</text>
+<text x="142" y="67.0" fill="#e8e8ec" font-size="11" text-anchor="end">原始 IMU</text>
+<rect x="150.0" y="56.0" width="509.9" height="12" rx="2" fill="#6b7280"/>
+<text x="663.9" y="66.0" fill="#e8e8ec" font-size="10" class="lbl">66.1</text>
+<rect x="150.0" y="70.0" width="509.9" height="12" rx="2" fill="#6b7280" fill-opacity="0.45"/>
+<text x="663.9" y="80.0" fill="#9ca3af" font-size="10" class="lbl">66.10</text>
+<text x="142" y="106.0" fill="#e8e8ec" font-size="11" text-anchor="end">OriNet (LSTM)</text>
+<rect x="150.0" y="95.0" width="73.0" height="12" rx="2" fill="#6b7280"/>
+<text x="227.0" y="105.0" fill="#e8e8ec" font-size="10" class="lbl">9.46</text>
+<rect x="150.0" y="109.0" width="42.3" height="12" rx="2" fill="#6b7280" fill-opacity="0.45"/>
+<text x="196.3" y="119.0" fill="#9ca3af" font-size="10" class="lbl">5.48</text>
+<text x="142" y="145.0" fill="#e8e8ec" font-size="11" text-anchor="end">仅经典标定</text>
+<rect x="150.0" y="134.0" width="42.5" height="12" rx="2" fill="#22d3ee"/>
+<text x="196.5" y="144.0" fill="#e8e8ec" font-size="10" class="lbl">5.51</text>
+<rect x="150.0" y="148.0" width="19.0" height="12" rx="2" fill="#22d3ee" fill-opacity="0.45"/>
+<text x="173.0" y="158.0" fill="#9ca3af" font-size="10" class="lbl">2.46</text>
+<text x="142" y="184.0" fill="#e8e8ec" font-size="11" text-anchor="end">VINS-Mono (VIO)</text>
+<rect x="150.0" y="173.0" width="17.0" height="12" rx="2" fill="#8b5cf6"/>
+<text x="171.0" y="183.0" fill="#e8e8ec" font-size="10" class="lbl">2.21</text>
+<rect x="150.0" y="187.0" width="16.5" height="12" rx="2" fill="#8b5cf6" fill-opacity="0.45"/>
+<text x="170.5" y="197.0" fill="#9ca3af" font-size="10" class="lbl">2.14</text>
+<text x="142" y="223.0" fill="#e8e8ec" font-size="11" text-anchor="end">Open-VINS (VIO)</text>
+<rect x="150.0" y="212.0" width="12.0" height="12" rx="2" fill="#8b5cf6"/>
+<text x="166.0" y="222.0" fill="#e8e8ec" font-size="10" class="lbl">1.55</text>
+<rect x="150.0" y="226.0" width="10.0" height="12" rx="2" fill="#8b5cf6" fill-opacity="0.45"/>
+<text x="164.0" y="236.0" fill="#9ca3af" font-size="10" class="lbl">1.30</text>
+<text x="142" y="262.0" fill="#e8e8ec" font-size="11" text-anchor="end">本文（纯惯性）</text>
+<rect x="150.0" y="251.0" width="16.2" height="12" rx="2" fill="#fbbf24"/>
+<text x="170.2" y="261.0" fill="#e8e8ec" font-size="10" class="lbl">2.10</text>
+<rect x="150.0" y="265.0" width="7.4" height="12" rx="2" fill="#fbbf24" fill-opacity="0.45"/>
+<text x="161.4" y="275.0" fill="#9ca3af" font-size="10" class="lbl">0.96</text>
+<rect x="440" y="34" width="10" height="10" rx="2" fill="#a5b4fc"/>
+<text x="454" y="43" fill="#9ca3af" font-size="10">3D 姿态 AOE</text>
+<rect x="530" y="34" width="10" height="10" rx="2" fill="#a5b4fc" fill-opacity="0.45"/>
+<text x="544" y="43" fill="#9ca3af" font-size="10">偏航 AOE</text>
+        <text x="360" y="306" fill="#6b7280" font-size="10.5" text-anchor="middle">原始陀螺 66.1° 远超量程（柱子截断）；注意本文方法（金色）不用相机，却贴近两个 VIO 系统</text>
+    </svg>
+    <div class="figcap">图 2 · EuRoC 五条测试序列的平均绝对定向误差。原始 IMU 十秒级发散；经典标定（青色）已大幅改善；本文方法再好 2~4 倍，与用相机的 VINS-Mono / Open-VINS 处于同一梯队。</div>
+    </div>
+    <p>几个值得咀嚼的读数：</p>
+    <ul>
+        <li><b>"只标定"就很强</b>：把网络输入置零、只训 12 个标定参数（calibrated IMU 基线），AOE 从 66° 降到 5.5°——<b>便宜传感器认真标定后已经很准</b>，这是论文给所有学习方法的诚实对照组。</li>
+        <li><b>网络再乘 2~4</b>：时变修正量 \(\tilde\omega_n\) 的幅度其实只有每秒零点几度（与标定后信号肉眼不可分辨），却把误差再砍掉一大截——<b>小修正、大收益</b>。</li>
+        <li><b>偏航是惊喜</b>：VIO 靠加计随时回收横滚俯仰，但偏航随时间漂；本文方法在偏航上甚至比计算受限的 VINS-Mono 好 3 倍——纯惯性航向推算在 GPS 拒止场景有实用价值。</li>
+        <li><b>TUM-VI 复现</b>：换到手持设备 + 更便宜的 BMI160，结论不变（AOE 1.28° vs 标定 5.82°），证明方法不绑特定传感器。</li>
+    </ul>
+
+    <h2>§4 教训与边界</h2>
+    <div class="card warn">
+        <b>作者自曝的三个坑</b>：① <b>真值时间对齐是生死线</b>——IMU 与动捕哪怕错位几毫秒，网络就会"学会"一个时间延迟，一切白搭；② 真值本身的质量决定上限（EuRoC 动态段激光跟踪失准，作者只用每条序列前 50 秒最准的段训练）；③ 依赖像样的数据集是本文主要限制——换传感器/换机架要重训。这些教训后来直接塑造了系列之二：<b>能不能不要数据集？用手动转台 + 段端点参考姿态就够了</b>。
+    </div>
+    <p>部署成本账：网络只有 77k 参数、纯卷积、无递推，一次前向在嵌入式平台是微秒级——比 VIO 的图像流水线便宜几个数量级。这也解释了它为什么成了后续工作的地基：TLIO 把它扩成紧耦合滤波器的观测模型，系列之二把它压缩 400 倍搬进 MCU。</p>
+
+    <h2>§5 谱系定位</h2>
+    <table>
+        <tr><th></th><th>本文（2020）</th><th><a href="uav-tinygc-net-gyro-calibration.html">之二 TinyGC-Net（2024）</a></th><th><a href="uav-neuroflight-nn-firmware.html">之三 Neuroflight（2019）</a></th></tr>
+        <tr><td>神经网络的角色</td><td>学出来的<b>滤波器</b>（去噪+时变标定）</td><td>同上，但压缩到 222 参数进 MCU</td><td>学出来的<b>控制器</b>（姿态环+混控）</td></tr>
+        <tr><td>监督信号</td><td>动捕/激光真值（增量式损失）</td><td>只需段端点姿态（转台静止时刻）</td><td>无真值——强化学习奖励</td></tr>
+        <tr><td>对"滤波"的回答</td><td colspan="2">滤波器系数可以从数据学出来</td><td>控制器也可以从交互学出来</td></tr>
+    </table>
+    <p>与上一系列对照：<a href="uav-tailsitter-notch-filter-control.html">滤波三篇之一</a>用频域辨识+陷波器对付结构共振（模型驱动），本文用膨胀卷积从数据里学出等效的修正（数据驱动）——两篇处理的是同一头"桨振+偏置"的怪兽。上一系列之二/之三（<a href="uav-throw-recovery-rls-indi.html">RLS 抛飞辨识</a>、<a href="uav-indi-hinf-gain-scheduling.html">H∞ 增益调度</a>）与本文的关系同理：经典学派先建模再控制，学习学派让数据说话。</p>
+
+    <div class="footer">
+        论文：<a href="https://arxiv.org/abs/2002.10718">arXiv:2002.10718</a> · Denoising IMU Gyroscopes with Deep Learning for Open-Loop Attitude Estimation (Brossard, Bonnabel, Barrau; RA-L 2020) ·
+        代码：<a href="https://github.com/mbrossar/denoise-imu-gyro">github.com/mbrossar/denoise-imu-gyro</a> ·
+        公式由 MathJax（CDN）渲染，离线打开时显示原始 TeX 源码 ·
+        关联：<a href="uav-tinygc-net-gyro-calibration.html">之二：TinyGC-Net</a> / <a href="uav-neuroflight-nn-firmware.html">之三：Neuroflight</a> / <a href="imu-array-research.html">IMU 阵列调研</a> / <a href="uav-tailsitter-notch-filter-control.html">滤波三篇之一</a>
+    </div>
+</div>
+</body>
+</html>
