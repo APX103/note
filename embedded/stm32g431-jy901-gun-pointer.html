@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>STM32G431 空中枪指针全记录：JY901L 指向鼠标、HID 与姿态算法踩坑史</title>
+<style>
+:root{color-scheme:light;--bg:#f6f7fa;--paper:#fff;--ink:#202435;--muted:#626b80;--line:#dfe3ec;--accent:#4f46e5;--soft:#eef2ff}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:24px}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.85 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}main{max-width:1040px;margin:auto;padding:38px 28px 72px}a{color:var(--accent);text-underline-offset:3px}h1{font-size:clamp(29px,5vw,44px);line-height:1.28;letter-spacing:-.03em;margin:12px 0 18px}h2{font-size:25px;line-height:1.45;margin:0 0 22px}h3{font-size:18px;margin:25px 0 10px}p{margin:12px 0}.lead,.meta{color:var(--muted)}.meta{font-size:13px}.eyebrow{color:var(--accent);font-weight:700;letter-spacing:.12em;font-size:12px;margin-top:30px}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:30px 0}.metric{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:17px}.metric strong{display:block;font-size:26px;line-height:1.3}.metric span{font-size:12px;color:var(--muted)}nav{background:var(--soft);padding:22px 26px;border-radius:14px;margin-bottom:28px}nav ol{columns:2;column-gap:36px;margin:10px 0 0;padding-left:22px}nav li{break-inside:avoid;padding:2px 0}section{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:30px;margin:22px 0}.note{border-left:3px solid var(--accent);padding:12px 18px;background:var(--soft);margin:20px 0}.warn{border-left:3px solid #dc2626;padding:12px 18px;background:#fef2f2;margin:20px 0}.table-wrap{overflow:auto;margin:18px 0}table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;vertical-align:top;padding:12px 14px;border-bottom:1px solid var(--line)}th{background:#f4f5f9;font-weight:650}code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.88em;overflow-wrap:anywhere}p code,li code,td code{background:#f1f3f8;padding:2px 5px;border-radius:4px}pre{background:#171c2b;color:#e8ecf7;overflow:auto;border-radius:10px;padding:20px;line-height:1.65;font-size:13px;tab-size:4}pre code{font-size:inherit;overflow-wrap:normal}ul,ol{padding-left:24px}li{margin:5px 0}.footer{font-size:13px;color:var(--muted);margin-top:32px}
+@media(max-width:700px){main{padding:24px 16px 45px}section{padding:23px 18px}.metrics{grid-template-columns:repeat(2,1fr)}nav ol{columns:1}pre{padding:14px}th,td{padding:10px}}
+@media print{body{background:white;font-size:11pt}main{max-width:none;padding:0}section{border:0;border-radius:0;padding:18px 0}nav,.back{display:none}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f3f4f7;color:#111}}
+</style>
+</head>
+<body>
+<main>
+<a class="back" href="index.html">&larr; 返回 Notes</a>
+<header>
+<div class="eyebrow">EMBEDDED / STM32G431 / IMU / USB HID / 空中指针</div>
+<h1>STM32G431 空中枪指针全记录<br>JY901L 指向鼠标、HID 与姿态算法踩坑史</h1>
+<p class="lead">WeAct STM32G431CBU6 核心板 + 维特智能 JY901L 九轴模块，做一个玩具枪形态的空中鼠标：指哪打哪、按住离合换位、点按开火。完整记录从 macOS 工具链搭建、I2C 远程诊断、ICM-20948 自研姿态融合（Madgwick/Mahony/Kalman 三算法对比）失败与教训，到最终 JY901L 片内融合方案落地的全过程。含全部数据格式、寄存器表、校准流程、验证方法与实测数据。</p>
+<p class="meta">记录日期:2026-10-10 &nbsp;|&nbsp; 前序:<a href="stm32h743-openmv-camera/index.html">STM32H743 摄像头教程</a>(同套 macOS GCC+OpenOCD 路线) &middot; <a href="weact-stm32h723-macos-dev-log.html">WeAct H723 开发实录</a> &middot; 代码仓库:<code>WeActStudio.STM32G431CoreBoard</code> 分支 <code>gunpointer-v1</code></p>
+</header>
+<div class="metrics">
+<div class="metric"><strong>0.00°</strong><span>静止 60 秒 yaw 漂移(JY901L 校准后实测)</span></div>
+<div class="metric"><strong>200 Hz</strong><span>姿态采样/映射刷新率(SWD 计数器精确验证)</span></div>
+<div class="metric"><strong>21.7 dps</strong><span>GY 模块陀螺 Z 轴静止零偏(B 级芯片,弃用主因)</span></div>
+<div class="metric"><strong>0</strong><span>对原厂例程源码的修改(GCC 工程并存)</span></div>
+</div>
+<nav aria-label="文章目录"><strong>阅读导航</strong><ol>
+<li><a href="#goal">目标与最终形态</a></li>
+<li><a href="#hardware">硬件清单与接线</a></li>
+<li><a href="#toolchain">macOS 工具链:Keil 工程转 GCC</a></li>
+<li><a href="#i2c-debug">I2C 远程诊断方法学(无示波器)</a></li>
+<li><a href="#icm20948">方案一:ICM-20948 自研融合(教训)</a></li>
+<li><a href="#jy901">方案二:JY901L 片内融合(正解)</a></li>
+<li><a href="#jy901-format">JY901L 数据格式与寄存器全表</a></li>
+<li><a href="#calibration">校准:加计/磁/静止验收数据</a></li>
+<li><a href="#usb">USB HID 鼠标实现与坑</a></li>
+<li><a href="#mapping">绝对映射算法:闭环/离合/无限旋转</a></li>
+<li><a href="#edge-cases">三个边界问题:回卷/漂移/万向节锁</a></li>
+<li><a href="#verification">验证方法汇总</a></li>
+<li><a href="#repro">复现手册</a></li>
+<li><a href="#refs">参考资料</a></li>
+</ol></nav>
+
+<section id="goal">
+<h2>1. 目标与最终形态</h2>
+<p>做一个"电子教鞭/玩具枪空中鼠标":IMU 装在枪头,枪口指向映射为鼠标光标(或 FPS 游戏视角)移动。交互设计:</p>
+<div class="table-wrap"><table>
+<tr><th>操作</th><th>效果</th></tr>
+<tr><td>转动枪头</td><td>光标<strong>绝对跟随</strong>:枪转多少度,视角转多少度(默认增益 60 count/度)</td></tr>
+<tr><td>回正枪头</td><td>光标精确回到原位(闭环记账,无累积误差)</td></tr>
+<tr><td><strong>按住 KEY(PC13)</strong></td><td>离合:视角冻结,枪随便挪——等于"抬起鼠标换个位置"</td></tr>
+<tr><td><strong>松开 KEY</strong></td><td>无缝衔接,当前枪姿成为新参考点 → <strong>无限旋转</strong></td></tr>
+<tr><td>快速点按 KEY(&lt;0.3s)</td><td>鼠标左键(开火)</td></tr>
+<tr><td>按住 KEY ≥5s 后松开</td><td>进入磁校准模式(LED 快闪),画 8 字 15 秒,再点按一下结束并保存到模块 Flash</td></tr>
+</table></div>
+<p>USB 枚举为 <strong>"USB Optical Mouse"</strong>(VID 0x0483 / PID 0x5710,标准 HID 启动协议鼠标,4 字节报告 [buttons, dx, dy, wheel])。注意:是有意的通用鼠标身份,不是克隆任何具体厂商的 VID/PID。</p>
+</section>
+
+<section id="hardware">
+<h2>2. 硬件清单与接线</h2>
+<h3>2.1 物料</h3>
+<ul>
+<li><strong>WeAct STM32G431 CoreBoard</strong>(STM32G431CBU6,QFN48,Cortex-M4 170MHz,128K Flash/32K SRAM)——板载 LED=PC6,用户按键 KEY=PC13,BOOT0 键=PB8,8MHz HSE 晶振</li>
+<li><strong>维特智能 JY901L</strong> 九轴姿态模块(片内卡尔曼融合,直接输出角度)——最终方案</li>
+<li>GY-ICM20948V2(ICM-20948 裸九轴)——方案一,已弃用(原因见第 5 节)</li>
+<li>ST-Link V2(SWD 烧录/调试),USB-C 数据线(必须带数据芯)</li>
+</ul>
+<h3>2.2 接线(JY901L 与 ICM-20948 通用同一组引脚)</h3>
+<div class="table-wrap"><table>
+<tr><th>传感器模块</th><th>WeAct G431 排针</th><th>说明</th></tr>
+<tr><td>VCC</td><td>3V3</td><td>两个模块都支持 3.3V</td></tr>
+<tr><td>GND</td><td>GND</td><td></td></tr>
+<tr><td>SCL</td><td><strong>PA15</strong>(丝印 A15,内排)</td><td>I2C1_SCL, AF4</td></tr>
+<tr><td>SDA</td><td><strong>PB7</strong>(丝印 B7,外排)</td><td>I2C1_SDA, AF4</td></tr>
+</table></div>
+<div class="warn"><strong>G431 的 I2C 引脚坑(查 DS12589 复用表确认)</strong>:PB6 在 G431 上<strong>不是</strong> I2C1_SCL(和 F1/F4 不一样),PB8/PB9 虽然可以是 I2C1 但 PB8 兼 BOOT0。最终选 PA15+PB7,干净无占用。JY901L 的 I2C 是开漏输出,官方要求 4.7kΩ 外部上拉;实测 STM32 内部 40k 弱上拉在 87kHz 短线下可用,升 400kHz 或长线时务必补外部上拉电阻。</div>
+</section>
+
+<section id="toolchain">
+<h2>3. macOS 工具链:Keil 工程转 GCC</h2>
+<p>官方仓库的例程全是 Keil MDK-ARM 工程,macOS 没法用。转换方法(每个例程通用):</p>
+<ol>
+<li><strong>工具链</strong>:用 xpack 发行版(<code>arm-none-eabi-gcc</code> 15.2.1)。<strong>brew 装的 arm-none-eabi-gcc 不带 newlib</strong>,编译任何 <code>stdint.h</code> 代码直接报 <code>cannot find crt0.o</code>——这是已知坑,别用 brew 版。</li>
+<li><strong>GCC 启动文件</strong>:从 ST 官方 <a href="https://github.com/STMicroelectronics/cmsis-device-g4">cmsis-device-g4</a> 仓库取 <code>Source/Templates/gcc/startup_stm32g431xx.s</code>(Keil 自带的 .s 是 ARM 汇编语法,GCC 不认)。</li>
+<li><strong>链接脚本</strong>:手写 <code>STM32G431CBTx_FLASH.ld</code>(Flash 128K @ 0x08000000,SRAM 32K @ 0x20000000)。</li>
+<li><strong>Makefile</strong>:源文件清单直接从 .uvprojx 里 grep 出来逐个对齐,保证与 Keil 工程一个不差。</li>
+</ol>
+<pre><code># 烧录 + 校验 + 复位(OpenOCD)
+openocd -s /opt/homebrew/share/openocd/scripts \
+  -f interface/stlink.cfg -f target/stm32g4x.cfg \
+  -c "adapter speed 4000" \
+  -c "program build/xxx.elf verify reset exit"
+
+# USB DFU 备用通道(按住 BOOT0 → 点 NRST → 松开 BOOT0)
+dfu-util -a 0 -s 0x08000000:leave -D build/xxx.bin</code></pre>
+<div class="note">DFU 的 <code>:leave</code> 在 G4 bootloader 上会报 "Error during download get_status",<strong>是良性提示</strong>,固件其实已烧好,按一下 NRST 即可运行。</div>
+</section>
+
+<section id="i2c-debug">
+<h2>4. I2C 远程诊断方法学(无示波器)</h2>
+<p>这次最有价值的方法论:传感器"扫不到"时,不用示波器,用 SWD 读 GPIO 输入寄存器做电气层诊断。</p>
+<h3>4.1 上拉/下拉试探法</h3>
+<p>把引脚临时切成输入模式,分别挂内部上拉(40kΩ)和下拉,读 IDR:</p>
+<div class="table-wrap"><table>
+<tr><th>上拉读值</th><th>下拉读值</th><th>结论</th></tr>
+<tr><td>高</td><td>低</td><td>悬空(线没接通/断芯)</td></tr>
+<tr><td>低</td><td>低</td><td>外部硬拉低(短路到 GND,或对端模块没上电——ESD 二极管把信号钳到 0)</td></tr>
+<tr><td>高</td><td>高</td><td>外部强上拉(模块已供电,板上拉电阻生效)</td></tr>
+</table></div>
+<p>GPIOB IDR 地址 <code>0x48000410</code>,GPIOA 是 <code>0x48000010</code>。这次实战结果:SCL 线硬低 + SDA 线悬空 → 定位为<strong>杜邦线断芯</strong>,换线即解决。</p>
+<h3>4.2 I2C 总线挂死恢复</h3>
+<p>MCU 在 I2C 传输中途复位,从机可能攥住 SDA 不放(挂死)。恢复方法:固件里先把 SCL 切 GPIO 开漏输出,打 9~16 个时钟脉冲直到 SDA 释放,再补一个 STOP 条件,然后才初始化 I2C 外设。09 工程已实现(<code>I2C1_BusRecovery()</code>)。</p>
+<h3>4.3 验证脚本</h3>
+<p>符号地址用 <code>arm-none-eabi-nm</code> 从 elf 提取,OpenOCD <code>mdw</code> 读内存,<code>mww</code> 写变量(可在线改运行参数,如灵敏度、轴模式)。注意:<strong>重新编译后符号地址会偏移,必须重新取地址</strong>;OpenOCD 的 mdw 输出在 stderr,管道处理要 <code>2>&amp;1</code>。</p>
+</section>
+
+<section id="icm20948">
+<h2>5. 方案一:ICM-20948 自研融合(教训记录)</h2>
+<p>第一版用 GY-ICM20948V2(I2C 地址 0x68,WHO_AM_I=0xEA),自己跑姿态融合,USB CDC 输出四元数+欧拉角(200Hz,逗号分隔)。这一步走通了,但最终弃用,教训如下。</p>
+<h3>5.1 三算法同实现,按键轮切对比</h3>
+<div class="table-wrap"><table>
+<tr><th>算法</th><th>本质</th><th>特点</th></tr>
+<tr><td>Madgwick</td><td>梯度下降修正四元数</td><td>单增益 β=0.1 好调,收敛快;无零偏估计</td></tr>
+<tr><td>Mahony</td><td>PI 反馈(比例+积分)</td><td>Ki 积分项自动学出陀螺零偏;稳态下等价于零偏的 Kalman 估计</td></tr>
+<tr><td>2 态 Kalman</td><td>逐轴 [角度, 零偏] 状态估计</td><td>roll/pitch 用加速度做观测;yaw 只能陀螺积分+磁力计互补</td></tr>
+</table></div>
+<h3>5.2 零偏校准两层防御</h3>
+<ul>
+<li><strong>开机校准</strong>:静止 3 秒采 600 样本求均值;带静止校验(偏离均值 >1dps 就重采)</li>
+<li><strong>ZRU 零偏在线学习</strong>:关键设计是<strong>看"信号恒定程度"而不是"绝对值"</strong>——对原始陀螺做慢均值(τ≈1.2s),偏差 &lt;1.5dps 且 |加速度|≈1g 持续 2s 判静止,首次判静止时<strong>快照式锁定</strong>(bias=g_avg,光标立刻停),持续静止时慢速跟踪(α=0.01)。这样即使零偏漂到很大也能重新锁定。</li>
+</ul>
+<h3>5.3 弃用原因</h3>
+<div class="warn">GY 模块的 ICM-20948 是 B 级芯片:<strong>陀螺 Z 轴静止零偏高达 21.7 dps</strong>(良品应 &lt;1 dps),且零偏随温度/时间游走(两次校准测得 21.7 → 25.3 dps)。再好的算法也救不了这个硬件底子。这也是"PS 手柄 6 轴不漂"的真相之一:消费级大厂用筛选过的良品 + 运行时持续零偏学习 + 游戏层回中兜底,三件套缺一不可。</div>
+<p>另一个收获:ICM-20948 内部磁力计 AK09916 不直接挂总线,要开 bypass 模式(INT_PIN_CFG=0x02)后以 0x0C 地址直读,或配内部 I2C 主机搬到 EXT_SENS_DATA 寄存器。</p>
+</section>
+
+<section id="jy901">
+<h2>6. 方案二:JY901L 片内融合(正解)</h2>
+<p>JY901L 片内跑动态卡尔曼,直接输出融合好的 roll/pitch/yaw/角速度/四元数,陀螺静止零漂 ±0.5~1 dps(比 GY 模块好 20 倍以上)。我们只剩"读寄存器+映射"两件事。</p>
+<ul>
+<li>I2C 地址 <strong>0x50</strong>,上电启动时间约 1000ms(固件里要先 delay 再配置)</li>
+<li>默认回传速率只有 10Hz,<strong>必须写 RRATE 寄存器(0x03)= 0x0B 提到 200Hz</strong></li>
+<li>陀螺输出有"静止自动归零"特性(低于阈值输出精确 0)——防漂移设计,别误以为是坏了</li>
+<li>航向角是 9 轴磁融合,<strong>磁场校准前 yaw 可能游走</strong>,校准后稳定</li>
+</ul>
+</section>
+
+<section id="jy901-format">
+<h2>7. JY901L 数据格式与寄存器全表(实测验证)</h2>
+<p>I2C 寄存器读:标准 <code>HAL_I2C_Mem_Read</code>,8 位寄存器地址,返回<strong>小端 int16</strong>。实测 dump 0x30~0x5A 验证:</p>
+<div class="table-wrap"><table>
+<tr><th>寄存器</th><th>内容</th><th>换算</th><th>实测验证</th></tr>
+<tr><td>0x00</td><td>SAVE(写 0x0000 保存配置到 Flash)</td><td>—</td><td></td></tr>
+<tr><td>0x01</td><td>CALSW 校准</td><td>0x0001=加计校准; 0x0007=磁校准开始; 0x0000=结束</td><td></td></tr>
+<tr><td>0x03</td><td>RRATE 回传速率</td><td>0x06=10Hz(默认), 0x0B=200Hz</td><td>✅</td></tr>
+<tr><td>0x34~0x36</td><td>加速度 AX/AY/AZ</td><td>raw/32768×16 = g</td><td>✅ 静止 AZ=1.0005g</td></tr>
+<tr><td>0x37~0x39</td><td>角速度 GX/GY/GZ</td><td>raw/32768×2000 = °/s</td><td>✅(静止时输出精确 0 是特性)</td></tr>
+<tr><td>0x3A~0x3C</td><td>磁场 HX/HY/HZ</td><td>原始值</td><td>✅</td></tr>
+<tr><td>0x3D~0x3F</td><td>姿态角 Roll/Pitch/Yaw</td><td>raw/32768×180 = 度</td><td>✅ 范围 X:±180 Y:±90 Z:±180</td></tr>
+<tr><td>0x51~0x54</td><td>四元数 q0~q3</td><td>raw/32768</td><td>(备用,指向向量法用)</td></tr>
+</table></div>
+<p>UART 模式(备选,本项目未用):默认 9600 波特率,0x55 帧头连续输出,可接 USART2(PA2/PA3)。</p>
+</section>
+
+<section id="calibration">
+<h2>8. 校准:加计/磁/静止验收数据</h2>
+<h3>8.1 校准流程(全部可通过 I2C 命令在板完成,无需上位机)</h3>
+<ol>
+<li><strong>加速度校准</strong>:模块水平静置 → 写 <code>CALSW=0x0001</code> → 等 5 秒 → 写 <code>CALSW=0x0000</code> 结束 → 写 <code>SAVE=0x0000</code> 保存</li>
+<li><strong>磁校准</strong>:写 <code>CALSW=0x0007</code> → 拿起模块<strong>画 8 字翻转 15 秒</strong> → 写 <code>CALSW=0x0000</code> 结束 → <code>SAVE</code> 保存。09 固件里已做成"长按 KEY 5 秒进入,点按结束"</li>
+<li>陀螺零偏:JY901L 上电自动校准(静止即可)</li>
+</ol>
+<h3>8.2 静止验收(60 秒,加计校准后)</h3>
+<div class="table-wrap"><table>
+<tr><th>轴</th><th>起始</th><th>60s 后</th><th>漂移</th></tr>
+<tr><td>yaw</td><td>97.10°</td><td>97.10°</td><td><strong>0.00°</strong></td></tr>
+<tr><td>pitch</td><td>0.32°</td><td>0.35°</td><td>0.03°</td></tr>
+<tr><td>roll</td><td>-2.31°</td><td>-2.32°</td><td>0.01°</td></tr>
+</table></div>
+<p>验收标准:完全静止 = 输出纹丝不动。达标。</p>
+</section>
+
+<section id="usb">
+<h2>9. USB HID 鼠标实现与坑</h2>
+<h3>9.1 时钟</h3>
+<p>G431 的 USB 要 48MHz:HSE 8MHz → PLLM/2 → PLLN×72 → VCO 288MHz → <strong>PLLQ/6 = 48MHz</strong> 供 USB,PLLR/2 = 144MHz 主频。USB 引脚 PA11/PA12 直出 Type-C,无需 GPIO 配置。</p>
+<h3>9.2 踩过的坑</h3>
+<ul>
+<li><strong>ST USB Device Library 版本匹配</strong>:CubeG4 v1.5 自带 core 是旧 API,CDC/HID 类层必须用 <a href="https://github.com/STMicroelectronics/stm32-mw-usb-device/tree/v2.9.0">v2.9.0</a>;v2.10+ 引入 <code>pClassDataCmsit/classId</code> 字段,直接编译不过。</li>
+<li><strong>nano.specs 的 printf 默认不带浮点</strong>:%f 输出空白,链接加 <code>-Wl,-u,_printf_float</code>,并补齐 newlib 桩(<code>_sbrk/_write/_read/_close/_lseek/_isatty/_fstat/_kill/_getpid/_exit</code>)。</li>
+<li><strong>HID 报告要攒着发</strong>:主机轮询 100Hz(bInterval=10ms)而固件产 200Hz,<code>USBD_HID_SendReport</code> 返回 BUSY 时位移要保留累加,否则丢一半位移。</li>
+<li><strong>未连接主机时位移积压要封顶</strong>(±500 count),否则重连瞬间光标暴跳。</li>
+<li>HID 报告格式(启动协议鼠标):<code>[buttons, dx, dy, wheel]</code> 4 字节,int8 相对位移 -127~127。ST 的 usbd_hid.c 自带标准鼠标报告描述符,不用自己写。</li>
+</ul>
+</section>
+
+<section id="mapping">
+<h2>10. 绝对映射算法:闭环/离合/无限旋转</h2>
+<h3>10.1 核心:用相对鼠标 API 实现绝对定位</h3>
+<p>鼠标只能发相对位移,所以固件自己记账维护"镜头位置估计",每帧只发"还差多少":</p>
+<pre><code>每帧 (200Hz):
+  off_yaw = yaw_unwrapped - yaw_lock        // 当前枪姿相对锁定姿态的偏移(度)
+  target  = -sens × off_yaw                  // 目标镜头位置(count), 符号实测校准
+  dx      = round(target - cam_x_est)        // 差多少发多少
+  cam_x_est += dx_sent                       // 发出去的记账</code></pre>
+<p>闭环的妙处:<strong>量化误差、丢帧、任何扰动自动校正</strong>,整条链路没有自由积分器 → 原理性免疫积分漂移。FOV 60° 的游戏里 sens≈60 时,枪转 30° ≈ 镜头扫满屏。</p>
+<h3>10.2 离合(抬鼠换位)与无限旋转</h3>
+<pre><code>按住 KEY:  冻结, 不发位移, 累积器清零(防松手跳变)
+松开 KEY:  yaw_lock = yaw_now - cam_x_est / sens
+           → 镜头位置不变(无缝), 当前枪姿成为新参考</code></pre>
+<p>游戏里转身 180° 后手扭到极限 → 按住 KEY 把枪放回舒适位 → 松开继续,视角纹丝不动。这就是无限旋转。</p>
+<h3>10.3 按键状态机(单键三功能+磁校准)</h3>
+<div class="table-wrap"><table>
+<tr><th>动作</th><th>判定</th><th>功能</th></tr>
+<tr><td>点按 &lt;0.3s</td><td>松开时 press_cnt&lt;60 帧</td><td>左键(发按下+松开两帧报告)</td></tr>
+<tr><td>按住</td><td>press_cnt&gt;0</td><td>离合冻结</td></tr>
+<tr><td>按住 ≥5s 后松开</td><td>press_cnt≥1000 帧</td><td>进入磁校准(LED 快闪),再点按结束+保存</td></tr>
+</table></div>
+</section>
+
+<section id="edge-cases">
+<h2>11. 三个边界问题:回卷/漂移/万向节锁</h2>
+<h3>11.1 yaw ±180° 回卷跳变(已修)</h3>
+<p>症状:拖到某些位置光标突然从一边飞到另一边。根因:yaw 量程 ±180°,跨界瞬间偏移量跳 360°,闭环把它当巨大反向位移修正。<strong>修法:对 yaw/roll 做连续展开(unwrap)</strong>——每帧把增量 wrap 到 ±180 再累加,展开域里永不回卷:</p>
+<pre><code>yaw_u += wrap180(yaw - yaw_prev);  yaw_prev = yaw;</code></pre>
+<h3>11.2 Z 轴(yaw)漂移的正确认知</h3>
+<p>roll/pitch 有重力做绝对锚,<strong>永不漂移,也不被 yaw 漂移传染</strong>;yaw 没有重力参考,只能靠磁力计。处理:磁校准(一次性)+ 离合随手重锁(使用习惯)+ axis_mode 可切换。</p>
+<p>固件留了 <code>axis_mode</code> 全局变量(SWD 可在线改):<code>0</code>=yaw/pitch(磁融合),<code>1</code>=roll/pitch(纯重力锚定,物理零漂移,代价是左右改侧倾手势)。</p>
+<h3>11.3 万向节锁(极点保护,已修)</h3>
+<p>枪口接近正上/正下(pitch≈±90°)时欧拉角退化,yaw/roll 瞬间互换身份跳 180° → 光标方向翻转。<strong>修法:|pitch|>80° 时冻结水平轴输出</strong>,离开极点区域无缝恢复。终极方案是四元数指向向量映射(JY901L 的 0x51~0x54 直接出四元数),需要时再上。</p>
+</section>
+
+<section id="verification">
+<h2>12. 验证方法汇总</h2>
+<div class="table-wrap"><table>
+<tr><th>验证项</th><th>方法</th><th>结果</th></tr>
+<tr><td>I2C 设备识别</td><td>扫描固件 + SWD 读 RAM 结果数组</td><td>0x50 应答 ✓</td></tr>
+<tr><td>200Hz 刷新率</td><td>SWD 读 frame_count/uwTick,精确 3000ms 窗口</td><td>600 帧整 = 200.0Hz ✓</td></tr>
+<tr><td>静止漂移</td><td>SWD 读姿态角,60s 对比</td><td>yaw 0.00° ✓</td></tr>
+<tr><td>USB 枚举</td><td><code>ioreg -p IOUSB | grep "Optical Mouse"</code></td><td>✓</td></tr>
+<tr><td>光标实际移动</td><td><code>swift -e 'import Cocoa; print(NSEvent.mouseLocation)'</code> 连续采样</td><td>✓ 方向已校准</td></tr>
+<tr><td>HID 报告流</td><td>SWD 读 report_count 计数器</td><td>✓</td></tr>
+</table></div>
+<p>注意:macOS 的 <code>awk</code> 没有 <code>strtonum</code>(BSD awk),hex 解析要用 python。</p>
+</section>
+
+<section id="repro">
+<h2>13. 复现手册</h2>
+<pre><code># 仓库: WeActStudio.STM32G431CoreBoard, 分支 gunpointer-v1
+# 工具链: xpack arm-none-eabi-gcc 15.2.1 (Makefile 里 TOOLCHAIN 变量指到 bin 目录)
+
+cd Examples/09-GunPointer/GCC
+make          # 编译
+make flash    # ST-Link 烧录+校验+复位
+make dfu      # 备用: USB DFU 烧录 (按住 BOOT0 点 NRST 进入)
+
+# 使用
+# 1. 插 Type-C 到电脑, 枚举为 "USB Optical Mouse"
+# 2. 枪口指向屏幕, 松开状态下即绝对跟随
+# 3. 按住 KEY = 冻结视角换位; 点按 = 左键; 长按 5s = 磁校准模式
+
+# 工程谱系
+# 01-Blink      GCC 工具链最小验证 (LED PC6 闪烁)
+# 05-I2C_Scan   I2C 总线扫描器 (接新传感器先烧它)
+# 06-Attitude   ICM-20948 三算法姿态融合 + USB CDC 输出 (弃用但可玩)
+# 07-AirMouse   ICM-20948 角速度->HID 鼠标 (弃用)
+# 08-JY901      JY901L 读取/格式验证/校准命令测试
+# 09-GunPointer 最终版: JY901L 绝对映射 HID 鼠标
+
+# 在线调参 (无需重编译)
+openocd ... -c init -c halt \
+  -c "mww &lt;sens 地址&gt; 0x42C80000" ...   # sens=float, 需先 nm 取地址</code></pre>
+<p>关键调参变量(<code>arm-none-eabi-nm build/09-GunPointer.elf</code> 取地址):<code>sens</code>(灵敏度 count/度,当前 60)、<code>axis_mode</code>(0=yaw 1=roll)、<code>dbg_angle/dbg_lock/dbg_cam</code>(观测)。</p>
+</section>
+
+<section id="refs">
+<h2>14. 参考资料</h2>
+<ul>
+<li><a href="https://www.st.com/resource/en/datasheet/stm32g431cb.pdf">STM32G431xB Datasheet DS12589</a>(复用功能表:I2C 引脚选择依据)</li>
+<li><a href="https://www.st.com/resource/en/reference_manual/rm0440-stm32g4-series-advanced-armbased-32bit-mcus-stmicroelectronics.pdf">RM0440 参考手册</a></li>
+<li><a href="http://invensense.tdk.com/wp-content/uploads/2021/07/DS-000189-ICM-20948-v1.4.pdf">ICM-20948 Datasheet (TDK)</a></li>
+<li><a href="https://wit-motion.cn/proztmz/22.html">维特智能 JY901 系列产品页</a>(寄存器协议、校准命令)</li>
+<li><a href="https://github.com/STMicroelectronics/cmsis-device-g4">ST cmsis-device-g4</a>(GCC 启动文件来源)</li>
+<li><a href="https://github.com/STMicroelectronics/stm32-mw-usb-device/tree/v2.9.0">ST USB Device Library v2.9.0</a>(CDC/HID 类层必须匹配此版本)</li>
+<li><a href="https://github.com/xpack-dev-tools/arm-none-eabi-gcc-xpack">xpack arm-none-eabi-gcc</a>(带 newlib 的 macOS 工具链)</li>
+<li>Madgwick/Mahony 原始论文与 <a href="https://github.com/xioTechnologies/Fusion">xioTechnologies/Fusion</a> 参考实现</li>
+</ul>
+<p class="footer">关联笔记:<a href="stm32h743-openmv-camera/index.html">STM32H743 摄像头教程</a>(工具链三章与本篇第 3 节同源) &middot; <a href="weact-stm32h723-macos-dev-log.html">WeAct H723 开发实录</a> &middot; <a href="imu-array-research.html">IMU 阵列调研</a></p>
+</section>
+
+</main>
+</body>
+</html>
