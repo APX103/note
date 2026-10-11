@@ -330,7 +330,40 @@ roll 天然免疫。它是理解指针问题的绝佳教材，但屏幕有限 + 
 </table>
 
 <!-- ================================================================ -->
-<h2 id="code">11. 核心代码导览</h2>
+<h2 id="knob">11. 硬件灵敏度旋钮：增量编码器（v0.2.6）</h2>
+<p>灵敏度是空鼠最「个人」的参数：同一台设备，精细修图要慢、客厅演示要快。
+串口 <code>fov</code> 命令只适合调试台，日常使用需要物理旋钮。
+选的是微雪 Rotation Sensor——本质是 <b>20 脉冲/圈的机械增量编码器 + 按键</b>，
+不是电位器（增量式没有端点，正好契合「无限」的哲学）。接 GPIO4/5/6（SIA/SIB/SW），直插。</p>
+
+<table>
+<tr><th>动作</th><th>效果</th></tr>
+<tr><td>旋一格（一圈 20 格）</td><td>fovH ±2°，范围 20–150（20=极灵敏，150=极慢）；fovV 按 55/75 比例跟随</td></tr>
+<tr><td>按下旋钮</td><td>恢复默认 75/55</td></tr>
+<tr><td>停转 5 秒</td><td>自动写 NVS 掉电保存（写 flash 放低优先级 loop，绝不碰采样管线）</td></tr>
+</table>
+
+<h3>11.1 解码：1kHz 轮询正交，一格一计</h3>
+<p>机械编码器触点抖动大，中断方案易炸；管线任务本来就是 1ms 节拍，轮询顺手且稳。
+三条纪律：<b>只在 A 相下降沿计一格</b>，此刻读 B 相电平定方向（正交 90° 相位差的意义就在这一读）；
+<b>2 拍一致性消抖</b>（新电平连续 2ms 才承认）；<b>A 相回高 ≥2 拍才接受下一次下降沿</b>——
+触点在档位间的反复抖动不会再多计。按键独立 20ms 消抖。</p>
+
+<pre><code><span class="cm">// encoder.h —— 正交解码核心（完整版见 code/encoder.h）</span>
+<span class="kw">if</span> (aStable_ == <span class="num">0</span> && aHighRun_ >= <span class="num">2</span>) {   <span class="cm">// 高电平维持够久后的下降沿 = 真一格</span>
+  int8_t dir = (b == HIGH) ? <span class="num">1</span> : -<span class="num">1</span>;   <span class="cm">// 此刻读 B 相：90°相位差 → 方向</span>
+  net_ += dir;
+}</code></pre>
+
+<p>实测连旋十几圈：每格 ±2° 单调无跳变，零多计零漏计；按下复位、5s 自动保存均多次触发正常。</p>
+
+<h3>11.2 为什么能即时生效</h3>
+<p>积分模式<b>每帧现读</b> <code>par->fovH</code> 计算增益，旋钮改完参数下一帧就是新灵敏度——
+无重锚、无模式切换、无副作用，这是 §3 无限积分架构的又一项红利：
+灵敏度不再是「几何映射的组成部分」（abs 模式改 fov 会动锚点），而是一个纯增益系数。</p>
+
+<!-- ================================================================ -->
+<h2 id="code">12. 核心代码导览</h2>
 <p>本目录 <code>code/</code> 附完整核心源码（与仓库 <code>D:\work\AirMouse-Wireless\firmware\</code> 同步）：</p>
 <table class="files">
 <tr><th>文件</th><th>内容</th></tr>
@@ -343,11 +376,12 @@ roll 天然免疫。它是理解指针问题的绝佳教材，但屏幕有限 + 
 <tr><td>link.cpp / .h</td><td>鼠标端 ESP-NOW 发送（广播、心跳、warp、TX 功率）</td></tr>
 <tr><td>receiver.ino</td><td>接收端全部：收包校验、心跳同步、HID 翻译、自动配对</td></tr>
 <tr><td>mouse.ino</td><td>鼠标端主程序（RTOS 管线任务、按键语义、调参 shell 接线）</td></tr>
+<tr><td>encoder.h</td><td>灵敏度旋钮：增量编码器 1kHz 正交解码（2 拍消抖 + 一格一计）</td></tr>
 <tr><td>config.h</td><td>引脚表 + 全部可调参数（FOV/滤波/死区/阈值）</td></tr>
 </table>
 
 <p>调参速查（串口 115200，<code>help</code> 可见全部）：
-<code>fov H V</code>（灵敏度）· <code>rate 250</code> · <code>euro fc beta</code> · <code>dead px</code> ·
+<code>fov H V</code>（灵敏度；亦可用编码器旋钮现场调，停 5s 自动保存）· <code>rate 250</code> · <code>euro fc beta</code> · <code>dead px</code> ·
 <code>mode rate|abs</code> · <code>mount/invx/invy</code>（朝向标定）· <code>stat</code> · <code>save</code></p>
 
 <div class="panel" style="margin-top:30px">
