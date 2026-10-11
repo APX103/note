@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HH-M03（BS21E 星闪模组）完全攻略 — 引脚·烧录·SLE启动（2026-10-12）</title>
+<style>
+    :root {
+        --bg: #fafbfc; --surface: #ffffff; --text: #1a1a2e; --text-secondary: #5a5a7a;
+        --accent: #6366f1; --border: #e8eaef; --code-bg: #f1f3f5; --tag-bg: #eef0ff; --tag-color: #6366f1;
+        --warn: #d97706; --ok: #059669; --danger: #dc2626; --shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif; line-height: 1.75; }
+    .container { max-width: 880px; margin: 0 auto; padding: 48px 24px 80px; }
+    h1 { font-size: 1.7em; margin-bottom: 8px; }
+    .subtitle { color: var(--text-secondary); font-size: 0.95em; margin-bottom: 32px; }
+    h2 { font-size: 1.25em; margin: 40px 0 14px; padding-left: 12px; border-left: 4px solid var(--accent); }
+    h3 { font-size: 1.05em; margin: 24px 0 10px; }
+    p { margin: 10px 0; }
+    table { width: 100%; border-collapse: collapse; margin: 14px 0; background: var(--surface); font-size: 0.92em; box-shadow: var(--shadow); }
+    th { background: var(--tag-bg); color: var(--tag-color); text-align: left; }
+    th, td { padding: 8px 12px; border: 1px solid var(--border); vertical-align: top; }
+    code { background: var(--code-bg); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; font-family: "SF Mono", Menlo, monospace; font-size: 0.88em; }
+    pre { background: #1e1e2e; color: #cdd6f4; border-radius: 10px; padding: 16px 18px; overflow-x: auto; margin: 14px 0; font-size: 0.85em; line-height: 1.6; }
+    pre code { background: none; border: none; color: inherit; padding: 0; }
+    .warn { border-left: 4px solid var(--warn); background: #fffbeb; padding: 10px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-size: 0.93em; }
+    .ok { border-left: 4px solid var(--ok); background: #ecfdf5; padding: 10px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-size: 0.93em; }
+    .danger { border-left: 4px solid var(--danger); background: #fef2f2; padding: 10px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-size: 0.93em; }
+    ul, ol { padding-left: 24px; margin: 10px 0; }
+    li { margin: 4px 0; }
+</style>
+</head>
+<body>
+<div class="container">
+<h1>HH-M03（BS21E 星闪模组）完全攻略</h1>
+<div class="subtitle">2026-10-12 · 引脚档案 → 复位按键之谜 → 烧录终局方案（猎手+拔插）→ SLE 协议栈启动的正确开关 · AirMouse-SLE 鼠标端实战沉淀</div>
+
+<div class="ok"><strong>TL;DR：</strong>①烧录<strong>只拔插 USB 线，永远别按 RST 键</strong>（这板按键疑似没接，与 EB21duino 同病）；②拔插会打崩 CH340 端口，hsflash 不会自愈——用<strong>猎手脚本</strong>盯端口秒重启工具；③烧录中断后 loader 常驻下载模式，<strong>直跑 hsflash 即可续烧</strong>；④SLE 起不来先查 <code>protocol/Kconfig</code> 的 choice 有没有选 <code>SUPPORT_SLE_PERIPHERAL</code>。</div>
+
+<h2>一、板子是什么</h2>
+<p>润和 <strong>HH-M03</strong> 星闪模组（海思 <strong>BS21E</strong>，BLE5.4+SLE1.0，RISC-V 32bit @64MHz 带FPU，1MB Flash/160KB RAM），插在 CH340 载板上（串口 <strong>COM8</strong> @115200，烧录+日志三合一）。在 AirMouse-SLE 项目中担任<strong>鼠标端</strong>（EB21duino 是 dongle 端）。资料：<code>D:\work\NearLink\document\HH-M03\HH-M03 模组规格说明书-20241111.pdf</code>。</p>
+
+<h2>二、引脚速查（模组 39 针，载板排针全引出）</h2>
+<table>
+<tr><th>功能</th><th>引脚</th><th>备注</th></tr>
+<tr><td><strong>LED</strong></td><td><strong>IO31 = LED_OUT</strong></td><td>pin 表明确标注；输出高电平亮（未实测载板是否焊了灯，串口日志为准）</td></tr>
+<tr><td><strong>I2C0（IMU用）</strong></td><td>IO25=CLK，IO26=DATA</td><td>M3 计划接 ICM-20948</td></tr>
+<tr><td><strong>QDEC（编码器用）</strong></td><td>IO29=A，IO30=B</td><td>硬件正交解码器，M3 接灵敏度旋钮</td></tr>
+<tr><td>按键</td><td>IO14（载板）</td><td>HANDOFF 实测是按键输入</td></tr>
+<tr><td>UART_L0（烧录+日志）</td><td>IO15=RX，IO16=TX</td><td>→ CH340 → COM8</td></tr>
+<tr><td>USB</td><td>IO7=D-，IO8=D+</td><td><strong>载板未连到 USB 口</strong>（用户查过原理图），此板无 USB 功能</td></tr>
+<tr><td>SWD</td><td>SWD_CLK(33)，SWD_DAT(34)</td><td>调试口</td></tr>
+<tr><td><strong>nRESET</strong></td><td><strong>❌ 39 针里没有引出！</strong></td><td>无法飞线外接复位键，只能拔插供电重启</td></tr>
+</table>
+
+<h2>三、复位按键之谜（重要！）</h2>
+<div class="danger"><strong>RST 键疑似没接到模组 nRESET</strong>（与 EB21duino 同款病）：按了电源灯不灭（这个正常，复位≠断电）、程序无感、烧录命中率 0。整个通宵的烧录失败几乎都耗在这上面。<strong>正确做法：拔插 USB 线 = 100% 硬重启模组。</strong></div>
+<p>注意一个陷阱：曾两次观察到"按复位后 COM8 掉线"，一度误以为按键有效——实为碰线/USB 抖动。判断复位是否生效的金标准是<strong>串口开机横幅</strong>（<code>Jump to addr / Debug uart init succ / version: bs21e x.x.x</code>），不是端口掉线。</p>
+
+<h2>四、烧录终局方案（已实证 100% 烧成过）</h2>
+<h3>4.1 原理</h3>
+<ul>
+<li>flashboot 上电后约 <strong>1 秒内</strong>在 COM8@115200 监听串口下载，随后跳转 App</li>
+<li><strong>坑</strong>：拔插瞬间 CH340 从系统消失 → 正在等待的 hsflash 句柄死掉且<strong>不会重开</strong> → 错过窗口</li>
+<li><strong>猎手脚本</strong>补这一刀：20ms 轮询 COM8，端口消失杀 hsflash，端口回来（~300-600ms）秒重启 hsflash 抢窗口尾巴</li>
+</ul>
+<h3>4.2 操作</h3>
+<pre><code>python D:\work\AirMouse-SLE-research\hhm03_burn_hunter.py
+# 跑起来后拔插一次 HH-M03 的 USB 线（等2秒再插回）
+# 终端出现进度条 = 抓中, 跑完出 *** BURN SUCCESS ***
+# 没中就再拔插, 每次≈1/3~1/2 命中率, 连拔3次基本必中
+# 脚本常驻15分钟, 只限制开新回合, 绝不打断进行中的烧录(v2修复)</code></pre>
+<h3>4.3 保命锦囊：loader 常驻下载模式</h3>
+<div class="ok">烧录被中断（脚本被杀/线被碰）后，模组的 loader <strong>常驻下载模式等人</strong>——此时<strong>不拔插、直接跑 hsflash 就能续烧</strong>。通宵那次 100% 成功正是这么来的。COM8 打不开(拒绝访问)=有程序占口，先杀干净再试。</div>
+<h3>4.4 已废弃的路（别再踩）</h3>
+<table>
+<tr><th>路</th><th>死因</th></tr>
+<tr><td>按 RST 键触发</td><td>按键疑似没接（§三）</td></tr>
+<tr><td>BurnTool CLI</td><td>Qt 报错秒退（"instantiate QApplication first"），与 chip 配置无关；它还会自己改写 config_chip_type.ini</td></tr>
+<tr><td>USB DFU</td><td>此板 USB 未连模组</td></tr>
+<tr><td>纯 hsflash + 拔插（无猎手）</td><td>工具不自愈，必 miss</td></tr>
+</table>
+
+<h2>五、SLE 协议栈启动的正确开关（大坑）</h2>
+<div class="danger"><code>enable_sle()</code> 返回成功但回调永不到来 / SLE 起不来的第一嫌疑：<strong><code>src/protocol/Kconfig</code> 里有个 choice "Select sle ble support"，默认选 <code>SUPPORT_SLE_BLE_CENTRAL_DEFAULT</code>（空转项，不编 SLE 应用栈）</strong>。必须显式选角色：</div>
+<pre><code># 鼠标端(server/广播方):
+python build/script/usr_config.py --command setconfig --chip bs21e --target standard-bs21e-1100e \
+    SAMPLE_ENABLE=y ENABLE_PRODUCTS_SAMPLE=y SAMPLE_SUPPORT_AIRMOUSE_SLE=y AIRMOUSE_SLE_MOUSE=y \
+    SUPPORT_SLE_PERIPHERAL=y
+# dongle端(client/扫描方)对应选 SUPPORT_SLE_CENTRAL
+python build.py standard-bs21e-1100e -c   # 切choice后必须clean build</code></pre>
+<p>症状对照：固件跑着但 <code>alive: sle=FAIL</code> = 协议栈没编进去；修好后 <code>alive: sle=OK announce=ON</code>。SLE 服务端最小代码模板见 <code>AirMouse-SLE/src/application/samples/products/airmouse_sle/airmouse_mouse.c</code>（广播名 sle_airmouse，UUID 0xA179/0xA17A，广播/连接参数抄官方 rcu 样例）。</p>
+
+<h2>六、当前状态（2026-10-12 晨）</h2>
+<table>
+<tr><th>项</th><th>状态</th></tr>
+<tr><td>板上固件</td><td>mouse v1（sle=FAIL 版，SLE 栈未编入）——v2（SUPPORT_SLE_PERIPHERAL=y，426KB）已编译待烧</td></tr>
+<tr><td>下一步</td><td>猎手+拔插烧 v2 → 验证 alive:sle=OK + IO31 灯闪 + IO14 按键日志 → 三验证点收官</td></tr>
+<tr><td>之后</td><td>M3：IMU(I2C0)+QDEC+算法管线移植；M1/M4：SLE 双板连通（dongle 侧需 SUPPORT_SLE_CENTRAL 重编）</td></tr>
+</table>
+
+<h2>七、相关文件</h2>
+<ul>
+<li>猎手：<code>D:\work\AirMouse-SLE-research\hhm03_burn_hunter.py</code>（15分钟窗口版）</li>
+<li>固件：<code>D:\work\AirMouse-SLE\src\application\samples\products\airmouse_sle\airmouse_mouse.c</code></li>
+<li>交接：<code>D:\work\HANDOFF.md</code>；姊妹篇：<a href="eb21duino-complete-guide.html">EB21duino 完全攻略</a>（dongle 端）</li>
+<li>社区文档站（星闪工具箱/HH-D03 指南，备选未试）：<code>nearlink.docs.haohanyh.ovh</code></li>
+</ul>
+
+<p class="subtitle" style="margin-top:40px">— 完 · 2026-10-12 · AirMouse-SLE 项目 HH-M03 鼠标端通宵实战沉淀 —</p>
+</div>
+</body>
+</html>

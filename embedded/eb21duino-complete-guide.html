@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EB21duino（BS21 星闪）完全攻略 — 硬件档案·烧录·排错（2026-10-12）</title>
+<style>
+    :root {
+        --bg: #fafbfc;
+        --surface: #ffffff;
+        --text: #1a1a2e;
+        --text-secondary: #5a5a7a;
+        --accent: #6366f1;
+        --border: #e8eaef;
+        --code-bg: #f1f3f5;
+        --tag-bg: #eef0ff;
+        --tag-color: #6366f1;
+        --warn: #d97706;
+        --ok: #059669;
+        --danger: #dc2626;
+        --shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif; line-height: 1.75; }
+    .container { max-width: 880px; margin: 0 auto; padding: 48px 24px 80px; }
+    h1 { font-size: 1.7em; margin-bottom: 8px; }
+    .subtitle { color: var(--text-secondary); font-size: 0.95em; margin-bottom: 32px; }
+    h2 { font-size: 1.25em; margin: 40px 0 14px; padding-left: 12px; border-left: 4px solid var(--accent); }
+    h3 { font-size: 1.05em; margin: 24px 0 10px; }
+    p { margin: 10px 0; }
+    table { width: 100%; border-collapse: collapse; margin: 14px 0; background: var(--surface); font-size: 0.92em; box-shadow: var(--shadow); }
+    th { background: var(--tag-bg); color: var(--tag-color); text-align: left; }
+    th, td { padding: 8px 12px; border: 1px solid var(--border); vertical-align: top; }
+    code { background: var(--code-bg); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; font-family: "SF Mono", Menlo, monospace; font-size: 0.88em; }
+    pre { background: #1e1e2e; color: #cdd6f4; border-radius: 10px; padding: 16px 18px; overflow-x: auto; margin: 14px 0; font-size: 0.85em; line-height: 1.6; }
+    pre code { background: none; border: none; color: inherit; padding: 0; }
+    .tag { display: inline-block; background: var(--tag-bg); color: var(--tag-color); border-radius: 4px; padding: 1px 10px; font-size: 0.8em; margin-right: 8px; }
+    .warn { border-left: 4px solid var(--warn); background: #fffbeb; padding: 10px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-size: 0.93em; }
+    .ok { border-left: 4px solid var(--ok); background: #ecfdf5; padding: 10px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-size: 0.93em; }
+    .danger { border-left: 4px solid var(--danger); background: #fef2f2; padding: 10px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-size: 0.93em; }
+    ul, ol { padding-left: 24px; margin: 10px 0; }
+    li { margin: 4px 0; }
+    .num { font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+<div class="container">
+<h1>EB21duino（BS21 星闪）完全攻略</h1>
+<div class="subtitle">2026-10-12 · 硬件档案 → 三重陷阱破案 → 烧录配方（已验证）→ 诊断工具箱 → 排错速查 · 附出厂固件尸检报告</div>
+
+<div class="ok"><strong>TL;DR：板子是好的。</strong> 烧录一句话：<code>hsflash</code> 挂在 COM10 等 → <strong>拔功耗跳帽 2 秒再插回</strong>（这是唯一可靠的复位方法）→ flashboot 开机 250ms 窗口自动抓住握手 → 全镜像烧写 → 自动重启。RST_KEY 按键在本板上<strong>无效</strong>，别再按了。</div>
+
+<h2>一、板子是什么</h2>
+<p>利尔达（Lierda）<strong>EB21duino</strong> 开发板（正式型号 <code>L-NLEEB21-G5PP4-DK01</code>，Arduino UNO 板型），载 <strong>EB21 模组</strong>（海思 <strong>BS21</strong> 芯片，BLE 5.4 + 星闪 SLE 1.0，RISC-V 32bit @64MHz 带浮点，1MB Flash / 160KB RAM——flash 容量由 flashboot 开机横幅实证 <code>flash length:0x100000</code>）。出厂角色：<strong>星闪鼠标 dongle（接收器）</strong>——插电脑 USB 就是一个 SLE 鼠标接收器。</p>
+<table>
+<tr><th>项目</th><th>规格 / 说明</th></tr>
+<tr><td>芯片</td><td>海思 BS21（EB21 模组封装），SLE 1.0 + BLE 5.4，USB 2.0 HS/FS device</td></tr>
+<tr><td>Flashboot</td><td><code>bs21e 1.0.19</code>（开机横幅实证），上电后约 <strong>250ms</strong> 内在 UART_L0@115200 监听串口下载，随后跳转 App（<code>Jump to addr = 0x9011B300</code>）</td></tr>
+<tr><td>SDK</td><td>海思 <code>fbb_bs2x</code>（本机 <code>D:\work\fbb_bs2x</code>，工作 clone 在 <code>D:\work\AirMouse-SLE</code>）</td></tr>
+<tr><td>官方文档</td><td><code>D:\work\fbb_bs2x\vendor\Lierda-EB21\hardware\</code> 三份 PDF：开发板硬件说明书 Rev1.5、EB21duino 原理图 Rev0.1、EB21 模组硬件参考设计手册 Rev1.2</td></tr>
+<tr><td>USB 烧录/DFU</td><td>❌ 本板 flashboot 不支持 USB DFU（复位时无任何新 USB 设备枚举，实测）；手册里唯一烧录接口是 <strong>SWD</strong>（未用上，串口跳帽法已够）</td></tr>
+</table>
+
+<h2>二、硬件全档案（接口 / 灯 / 按键 / 跳帽）</h2>
+<h3>2.1 两个 Type-C（都可供电，可同时插）</h3>
+<table>
+<tr><th>口</th><th>里面接的</th><th>枚举结果</th><th>用途</th></tr>
+<tr><td><strong>Type-C1（UART）</strong></td><td>Silabs <strong>CP2105</strong> 双通道 USB 转串口 → 模组 UART</td><td><strong>COM9</strong>（Enhanced，标"AT"）+ <strong>COM10</strong>（Standard，UART_L0）</td><td><strong>COM10 = 烧录 + 日志口</strong>（115200）；COM9 在本板上无响应（出厂固件不用它）</td></tr>
+<tr><td><strong>Type-C2（USB）</strong></td><td>经 ESD/0Ω 直连 <strong>BS21 原生 USB</strong>（USB_DP=模组 pin14，USB_DN=pin15）</td><td>取决于固件（出厂固件枚举为 SLE_MOUSE HID 设备）</td><td>跑 USB 功能（HID 鼠标等）时插，<strong>必须用数据线</strong>（充电线无数据）</td></tr>
+</table>
+<div class="warn"><strong>烧录只需要插 Type-C1</strong>（串口供电 + 烧录 + 日志三合一）。Type-C2 是给固件的 USB 功能用的。</div>
+
+<h3>2.2 灯（两个）</h3>
+<table>
+<tr><th>灯</th><th>驱动</th><th>含义</th></tr>
+<tr><td><strong>红灯（电源）</strong></td><td>LDO 直接驱动</td><td>常亮 = 5V 供电正常。<strong>红灯亮 ≠ 模组有电</strong>（模组电要走功耗跳帽）</td></tr>
+<tr><td><strong>绿灯（编程指示）</strong></td><td><strong>GPIO P0.30 直推，高电平点亮</strong></td><td>用于 PWM 调试；SDK blinky 样例设 <code>SAMPLE_BLINKY_PIN=30</code> 就是闪它（500ms 周期）</td></tr>
+</table>
+
+<h3>2.3 按键（只有一个）与跳帽</h3>
+<table>
+<tr><th>元件</th><th>手册说法</th><th>本板实测</th></tr>
+<tr><td><strong>RST_KEY</strong>（唯一按键）</td><td>按 1ms 以上复位模组（说明书 §3.3）</td><td><span style="color:#dc2626"><strong>无效！</strong></span>确认按键 + 60 秒串口监听 = 0 字节开机横幅，USB 也不重新枚举。<strong>芯片从未被它复位过</strong>。烧录失败一整晚的元凶。可能是按键坏或板改版没接（图注写 PWR 的锅也算它）</td></tr>
+<tr><td><strong>功耗测试接口（2pin 跳帽）</strong></td><td>串电流表测功耗；<strong>短接 = 模组正常供电</strong>（§3.1.2：不短接模组无法工作）</td><td>短接着 = 正常；<strong>拔掉 = 模组断电</strong>（CP2105 由串口线供电不受影响，COM10 保持在线）→ <span style="color:#059669"><strong>这就是可靠的手动复位方法</strong></span></td></tr>
+</table>
+<div class="danger"><strong>记住这两个事实，能省一晚上：</strong>① RST_KEY 别信，用拔插功耗跳帽复位；② 红灯常亮但串口全静默时，第一件事检查功耗跳帽在不在。</div>
+
+<h3>2.4 模组引脚速查（EB21 模组，1.26mm 邮票口引出）</h3>
+<table>
+<tr><th>功能</th><th>引脚</th><th>备注</th></tr>
+<tr><td>USB_DP / USB_DN</td><td>pin14 / pin15</td><td>→ 板上 Type-C2</td></tr>
+<tr><td>SWCLK / SWDIO / nRESET</td><td>pin12 / pin13 / pin11</td><td>→ 板上 SWD 烧录接口（手册唯一官方烧录口，暂未用）</td></tr>
+<tr><td>UART_L0（烧录+日志）</td><td>→ CP2105 Standard = COM10</td><td>115200</td></tr>
+<tr><td>nRESET</td><td>上拉 + RST_KEY 按键 + 排针引出</td><td>排针上引出意味着可以飞线外接复位按键</td></tr>
+<tr><td>GPIO</td><td>两侧 2×26Pin 2.54mm 排针全引出</td><td>P0.30 = 绿灯已被占用</td></tr>
+</table>
+
+<h2>三、三重陷阱（2026-10-11 "变砖" 乌龙破案记）</h2>
+<p>10-11 晚 BurnTool 各种尝试后板子"全波特率无响应"，一度判死刑"flashboot 写坏=砖，需售后或 SWD 救砖"。10-12 凌晨全部推翻，真相是三个独立陷阱叠加：</p>
+<ol>
+<li><strong>陷阱一：RST_KEY 不复位芯片。</strong>所有"按复位触发握手"的尝试里芯片根本没重启，flashboot 的 250ms 监听窗口从未打开过。</li>
+<li><strong>陷阱二：手册 Rev1.2（2024-08）删除了"串口烧录"章节。</strong>于是所有人（包括之前的 agent）默认串口烧录不存在 → 去试 USB DFU → 但 Type-C2 的线没插/用的充电线 → 无 DFU 设备 → 加深"砖"的误判。</li>
+<li><strong>陷阱三：出厂固件是生产版 SLE dongle，不打日志。</strong>串口监听全静默（其实 COM10 有全字节回显——透传固件的特征——但当时没识别出来），误以为芯片死了。</li>
+</ol>
+<p>破案钥匙是<strong>冷启动横幅抓取</strong>（§5.3 工具）：拔插串口线 + 毫秒级轮询抢开 COM10，抓到 <code>Jump to addr = 0x9011B300 / Debug uart init succ! flash length:0x100000, version: bs21e 1.0.19</code>——flashboot 活着、串口 115200、只听 250ms。之后把"复位"换成"拔插功耗跳帽"，烧录一发入魂。</p>
+<div class="warn"><strong>工具教训：</strong>BurnTool（cfbb 版）CLI 模式<strong>无任何报错</strong>，只会静默失败，别用它调试；统一用 <code>hsflash</code>（有清晰报错）：<code>D:\hispark\tools\hsflash\hsflash.exe</code>（hs-flash 26.09.1）。</div>
+
+<h2>四、烧录标准流程（已验证，全过程约 1 分钟）</h2>
+<h3>4.1 前置条件</h3>
+<ul>
+<li>Type-C1 串口线插电脑（COM10 出现），Type-C2 无需插</li>
+<li>功耗跳帽短接在位（正常工作状态）</li>
+<li>固件包就绪：<code>*.fwpkg</code>（编译见 §6；标准全量包 <code>bs21e_all_in_one.fwpkg</code>）</li>
+<li>没有别的程序占用 COM10（python 监听脚本记得关）</li>
+</ul>
+
+<h3>4.2 操作步骤</h3>
+<pre><code># 1. 后台挂起烧录器（它会持续广播握手包，等待约30秒×2轮）
+cd /d/hispark/tools/hsflash
+./hsflash.exe write -c bs21e -p COM10 -b 115200 -f &lt;fwpkg路径&gt; &amp;
+
+# 2. 【手上动作】看到 "Please reset the device..." 后：
+#    拔掉功耗测试跳帽 → 等 2 秒 → 插回跳帽
+#    （模组断电重启，COM10 不掉线，flashboot 开机 250ms 窗口抓住握手）
+
+# 3. 看到 loaderboot/partition/flashboot a,b/application/nv 逐个下载到 100%
+#    "Burn ... successfully" 烧录器自动复位芯片，新固件启动
+</code></pre>
+<div class="ok">实测（2026-10-12 00:5x）：115200 波特率全镜像（blinky）约 40 秒烧完，绿灯 500ms 闪烁 + 串口每秒 2 条 <code>Blinky working.</code>，双验证通过。</div>
+
+<h3>4.3 fwpkg 变体（编译输出目录里都有）</h3>
+<table>
+<tr><th>包</th><th>内容</th><th>什么时候用</th></tr>
+<tr><td><code>bs21e_all_in_one.fwpkg</code></td><td>loaderboot+分区表+flashboot a/b+应用+NV 全量</td><td><strong>默认用这个</strong>，最稳</td></tr>
+<tr><td><code>bs21e_flashboot_only.fwpkg</code></td><td>只刷引导</td><td>引导损坏时的修复包（目前没这需求）</td></tr>
+<tr><td><code>bs21e_loadapp_only.fwpkg</code></td><td>只刷应用</td><td>日常迭代刷应用（更快）</td></tr>
+<tr><td><code>bs21e_nv_only.fwpkg</code></td><td>只刷 NV</td><td>NV 损坏/恢复出厂配置</td></tr>
+</table>
+
+<h3>4.4 与 agent 协作的"弹框协议"（推荐）</h3>
+<p>需要人工按跳帽/插线的环节，让 agent：<strong>后台挂起烧录器 → 弹询问框说明手上动作 → 你做完点确认 → agent 查结果</strong>。弹框不点 = 没做，时序永远不会错乱。本次破案全程靠这个协议排除了"到底按没按"的罗生门。</p>
+
+<h2>五、诊断工具箱（全部实测过的脚本）</h2>
+<h3>5.1 串口监听（看日志）</h3>
+<pre><code>python -c "
+import serial, time
+s = serial.Serial('COM10', 115200, timeout=1)
+t0=time.time(); buf=b''
+while time.time()-t0 < 6: buf += s.read(256)
+s.close(); print(buf.decode(errors='replace'))
+"</code></pre>
+
+<h3>5.2 多波特率扫描（抓"乱码信标"）</h3>
+<pre><code># CP2105 支持档：115200 / 921600（750000、2000000 会报错31不支持）
+# 对端固件跑什么波特率，就在那档收到数据
+import serial, time
+for baud in [115200, 921600, 57600]:
+    s = serial.Serial('COM10', baud, timeout=0.5)
+    t0=time.time(); buf=b''
+    while time.time()-t0 < 4: buf += s.read(256)
+    s.close(); print(baud, repr(buf[:60]))</code></pre>
+
+<h3>5.3 冷启动横幅抓取（<strong>破案神器</strong>：判断 flashboot 死活）</h3>
+<pre><code># 原理：等 COM10 消失(拔线)→20ms轮询抢在重现第一毫秒打开→抓开机横幅
+# 用法：跑起来后 拔串口线→等3秒→只插回串口线（让芯片冷启动）
+import serial, time
+import serial.tools.list_ports
+def ok(): return any(p.device=='COM10' for p in serial.tools.list_ports.comports())
+while ok(): time.sleep(0.05)                      # 等拔线
+while not ok(): time.sleep(0.02)                  # 等(重)插线,高频轮询
+s = serial.Serial('COM10', 115200, timeout=0.05)  # 抢开!
+t0=time.time()
+while time.time()-t0 < 10:
+    b = s.read(512)
+    if b: print(f'+{time.time()-t0:.3f}s', repr(b[:120]))</code></pre>
+<div class="ok">判读：有 <code>Jump to addr / Debug uart init succ / version: bs21e ...</code> = flashboot 活着且串口正常 → 烧录通道可用；什么都没有 = 检查功耗跳帽、换线、再怀疑 flashboot。</div>
+
+<h3>5.4 USB 设备监视（复位是否真的发生 / DFU 是否出现）</h3>
+<pre><code>powershell: Get-PnpDevice -PresentOnly | ? InstanceId -match 'VID_1111'   # 模组USB设备(SLE_MOUSE族)
+# 或循环监视新设备到达：
+while (...) { Get-PnpDevice -PresentOnly | ? { -not $known[$_.InstanceId] } ... }</code></pre>
+<p>判读：按复位/拔跳帽时若芯片真重启，USB 设备（如 SLE_MOUSE）会消失重现；持续无变化 = 复位没发生（本板 RST_KEY 就是这样实锤的）。<strong>注意 0.6s 轮询可能漏掉极快的重枚举，实锤复位请用 §5.3 的横幅法。</strong></p>
+
+<h3>5.5 AT 指令探测（透传/AT 类固件）</h3>
+<pre><code># AT 固件是"你问它才答"，被动监听全静默不代表死！
+# 本板出厂固件：COM9 无响应；COM10 全字节回显(透传环回特征)但 AT/+++ 均不解析
+s = serial.Serial('COM10', 115200, timeout=0.3)
+for cmd in [b'AT\r\n', b'AT+VER\r\n', b'+++']:
+    s.write(cmd); time.sleep(1.0); print(cmd, repr(s.read(256)))</code></pre>
+
+<h2>六、固件编译（本机已跑通的路径）</h2>
+<div class="warn">工程隔离约定：<code>D:\work\fbb_bs2x</code> 是原始仓（别动），日常开发用 <code>D:\work\AirMouse-SLE</code>（本地 clone，已补拷 4 个工具链 DLL + libsec_image.pyd）。clone 后不补这 5 个文件，编译器全部 0xC000007B 崩溃。</div>
+<pre><code>export PATH="/d/work/AirMouse-SLE/src/tools/bin/compiler/riscv/cc_riscv32_musl_b010/cc_riscv32_musl_fp_win/bin:/d/hispark/tools/Windows/ninja:/d/hispark/tools/python:$PATH"
+cd /d/work/AirMouse-SLE/src
+
+# 配置样例（例：blinky，绿灯 P0.30）
+python build/script/usr_config.py --command setconfig --chip bs21e --target standard-bs21e-1100e \
+    SAMPLE_ENABLE=y ENABLE_PERIPHERAL_SAMPLE=y SAMPLE_SUPPORT_BLINKY=y SAMPLE_BLINKY_PIN=30
+
+# 编译（-c 为 clean）
+python build.py standard-bs21e-1100e -c
+</code></pre>
+<p>产物目录：<code>src/output/bs21e/fwpkg/standard-bs21e-1100e/</code>（all_in_one / flashboot_only / loadapp_only / nv_only 四个包，见 §4.3）。注意 <code>flashboot_sign_a/b.bin</code> 是构建时自动重新生成的（36032B），clone 后无需手工处理。验证固件内容：对 <code>application_sign.bin</code> 搜特征字符串（如 <code>"Blinky working"</code>）。</p>
+
+<h2>七、排错速查表</h2>
+<table>
+<tr><th>症状</th><th>根因</th><th>对策</th></tr>
+<tr><td><code>Shakehand failed, The board does not respond</code></td><td>握手窗口内芯片没重启（RST_KEY 无效 / 没拔跳帽）</td><td>烧录器挂着等 → <strong>拔功耗跳帽 2 秒 → 插回</strong>。别再按 RST_KEY</td></tr>
+<tr><td>COM9/COM10 从设备管理器消失</td><td>串口线松了/被碰掉，或复位瞬间的供电抖动</td><td>重插 Type-C1 串口线</td></tr>
+<tr><td>红灯常亮但一切静默</td><td><strong>功耗跳帽没短接 = 模组没电</strong>（红灯只代表 5V）</td><td>检查/装回跳帽</td></tr>
+<tr><td>串口 0 字节、无横幅</td><td>固件为生产版不打日志；或波特率不对；或模组没电</td><td>①确认跳帽 ②波特率 115200 ③跑 §5.3 冷启动抓横幅定生死</td></tr>
+<tr><td>COM10 收到的东西 = 发出去的东西（全回显）</td><td>固件是透传/环回类（出厂 dongle 固件的行为）</td><td>正常现象。想换固件就直接烧（§四）</td></tr>
+<tr><td><code>No DFU device found</code>（USB 模式）</td><td>本板 flashboot 无 USB DFU；或 Type-C2 没插/用了充电线</td><td>不用 USB 烧录，走串口跳帽法即可；USB 口留給固件功能用</td></tr>
+<tr><td>hsflash 打不开串口 / invalid handle</td><td>COM10 被占用（python 监听脚本没关）</td><td>关掉所有占用 COM10 的程序再烧</td></tr>
+<tr><td>编译器 0xC000007B 崩溃</td><td>32 位 gcc 缺 4 个 DLL（libgcc_s_sjlj-1 / libssp-0 / libstdc++-6 / libwinpthread-1 + lib/sec/libsec_image.pyd）</td><td>从 <code>D:\work\fbb_bs2x</code>（或 D:\hispark\tools\Windows\cc_riscv32_musl_fp_win）拷入新工程工具链 bin/lib 目录</td></tr>
+<tr><td>750000 / 2000000 波特率报错（错误31）</td><td>CP2105 不支持该档位</td><td>用 115200（烧录握手与日志都是它）或 921600</td></tr>
+<tr><td>烧完没反应/异常</td><td>局部包刷错、NV 损坏等</td><td>直接刷 <code>bs21e_all_in_one.fwpkg</code> 全量重写，一了百了</td></tr>
+</table>
+
+<h2>八、出厂固件尸检报告（已被覆盖，留档备查）</h2>
+<p>2026-10-12 凌晨被 blinky 全量覆盖。<strong>覆盖前</strong>的出厂形态（万一想找回：利尔达售后/官网资料可重刷）：</p>
+<table>
+<tr><th>项</th><th>记录</th></tr>
+<tr><td>身份</td><td>SLE dongle client（星闪鼠标接收器固件），开机日志 <code>[sle dongle client] uapi_nv_read failed / Config succ / usb_init in</code></td></tr>
+<tr><td>USB</td><td>HID 设备名 <strong>SLE_MOUSE</strong>，VID <code>0x1111</code> PID <code>0x000F</code>，4 个 HID 接口：鼠标、键盘、厂商自定义 UsagePage <code>0xffb1</code>/<code>0xffb2</code>（利尔达私有，PC 端协议未知，疑似其升级/配置通道；hsflash 的 hiddfu 因报告尺寸不符不认）</td></tr>
+<tr><td>串口行为</td><td>COM10@115200 对任意字节全量回显（延迟恒 ~105ms，透传环回特征）；不解析 AT / <code>+++</code>；COM9 完全静默；无任何自发日志（生产版关日志）</td></tr>
+<tr><td>USB 日志特征</td><td>插入 Type-C2 时 COM10 偶发 <code>[usbsuspend] / NEW USB ADDRESS 029</code>（模组 USB 协议栈枚举日志——曾误判为"部分固件还活着"的关键线索）</td></tr>
+</table>
+
+<h2>九、已验证事实时间线（证据链）</h2>
+<table>
+<tr><th>时间</th><th>事实</th><th>证据</th></tr>
+<tr><td>10-11 白天</td><td>BurnTool 多轮失败 → 误判"变砖"</td><td>D:\work\burn*.log / hsflash_*.log</td></tr>
+<tr><td>10-12 00:0x</td><td>新工程 blinky 编译打包成功（40s）</td><td><code>AirMouse-SLE\src\output\...\bs21e_all_in_one.fwpkg</code> 含 "Blinky working" 字符串</td></tr>
+<tr><td>10-12 00:1x</td><td>COM10@115200/921600、COM9@115200 三组确认按键烧录全失败；多波特率监听全静默</td><td>本页 §三 陷阱解释</td></tr>
+<tr><td>10-12 00:2x</td><td>DTR/RTS 脉冲无自动复位（实验）</td><td>双口交叉监听 0 字节</td></tr>
+<tr><td>10-12 00:3x</td><td>USB 口插数据线 → SLE_MOUSE(1111:000F) 现身 → 板子没砖！</td><td><code>hsflash list hid -d</code></td></tr>
+<tr><td>10-12 00:4x</td><td>冷启动横幅抓到 flashboot bs21e 1.0.19 / 1MB / 250ms 串口监听窗口</td><td>§5.3 脚本输出</td></tr>
+<tr><td>10-12 00:4x</td><td>确认 RST_KEY 无效（按键 60s 监听 0 字节横幅）</td><td>弹框协议协同实验</td></tr>
+<tr><td>10-12 00:5x</td><td><strong>跳帽断电法烧录成功</strong>：全镜像 100%，绿灯闪 + 串口 Blinky working 双验证</td><td>§四 配方</td></tr>
+</table>
+
+<h2>十、相关文件索引（本机）</h2>
+<ul>
+<li>官方 PDF：<code>D:\work\fbb_bs2x\vendor\Lierda-EB21\hardware\</code>（说明书 Rev1.5 / 原理图 Rev0.1 / 模组手册 Rev1.2）</li>
+<li>原理图渲染图：<code>D:\work\AirMouse-SLE-research\eb21duino_p*.png</code>（含高清版）</li>
+<li>烧录工具：<code>D:\hispark\tools\hsflash\hsflash.exe</code>（唯一推荐）；BurnTool 在 <code>D:\hispark\tools\cfbb\BurnTool\</code>（勿用于调试）</li>
+<li>工作工程：<code>D:\work\AirMouse-SLE</code>（fbb_bs2x 本地 clone）；原始仓 <code>D:\work\fbb_bs2x</code>（保持不动）</li>
+<li>交接文档：<code>D:\work\HANDOFF.md</code>；项目方案：<code>D:\work\AirMouse-SLE-research\AirMouse-SLE-移植方案.md</code></li>
+</ul>
+
+<p class="subtitle" style="margin-top:40px">— 完 · 2026-10-12 · 由 AirMouse-SLE 项目 M0 里程碑实战沉淀 —</p>
+</div>
+</body>
+</html>
