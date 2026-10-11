@@ -67,10 +67,84 @@
 </ul>
 <h3>4.2 操作</h3>
 <pre><code>python D:\work\AirMouse-SLE-research\hhm03_burn_hunter.py
-# 跑起来后拔插一次 HH-M03 的 USB 线（等2秒再插回）
+# 跑起来后拔插一次 HH-M03 的 USB 线(等2秒再插回)
 # 终端出现进度条 = 抓中, 跑完出 *** BURN SUCCESS ***
 # 没中就再拔插, 每次≈1/3~1/2 命中率, 连拔3次基本必中
-# 脚本常驻15分钟, 只限制开新回合, 绝不打断进行中的烧录(v2修复)</code></pre>
+# 脚本常驻15分钟, 只限制开新回合, 绝不打断进行中的烧录(v2修复)
+# v3起实时透传hsflash全部输出(握手/进度/错误), 不再黑盒</code></pre>
+<h3>4.2.1 猎手脚本完整源码（v3，实时输出版）</h3>
+<p>副本：<code>hh-m03-burn-hunter.py</code>（与本页同目录）；原始路径 <code>D:\work\AirMouse-SLE-research\hhm03_burn_hunter.py</code>。改固件路径/串口只要动开头的 <code>FW</code> 和 <code>PORT</code> 常量——EB21duino 换成 COM10 + 跳帽拔插同样可用。</p>
+<pre><code>import subprocess, time, sys, threading, serial.tools.list_ports
+
+HSFLASH = r"D:\hispark\tools\hsflash\hsflash.exe"
+FW = r"D:\work\AirMouse-SLE\src\output\bs21e\fwpkg\standard-bs21e-1100e\bs21e_all_in_one.fwpkg"
+PORT = "COM8"
+
+def ts(): return time.strftime("%H:%M:%S")
+
+def com_present():
+    return any(p.device == PORT for p in serial.tools.list_ports.comports())
+
+def spawn():
+    proc = subprocess.Popen([HSFLASH, "write", "-c", "bs21e", "-p", PORT,
+                             "-b", "115200", "-f", FW],
+                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                            text=True, bufsize=1)
+    state = {"lines": [], "success": False}
+    def reader():
+        try:
+            for line in proc.stdout:
+                line = line.rstrip()
+                if not line: continue
+                state["lines"].append(line); state["lines"] = state["lines"][-20:]
+                s = line.strip()
+                if "%" in s:   # 进度条行压缩: 只在整10%透传
+                    try:
+                        pct = int(s.split("%")[0].strip(" [=-]").split("-")[-1].strip(" []=-"))
+                        if pct % 10 == 0: print(f"  [hsflash] ...{pct}%", flush=True)
+                    except Exception: pass
+                else:
+                    print(f"  [hsflash] {line}", flush=True)
+                if "successfully" in line.lower() and "burn" in line.lower():
+                    state["success"] = True
+        except Exception: pass
+    threading.Thread(target=reader, daemon=True).start()
+    return proc, state
+
+def main():
+    print(f"[hunter v3] {ts()} 等待 {PORT} ...", flush=True)
+    t0 = time.time()
+    while not com_present():
+        time.sleep(0.02)
+        if time.time() - t0 > 120: print("[hunter] 2分钟没等到端口, 退出"); return 1
+    print(f"[hunter] {ts()} 端口在位。", flush=True)
+    print("[hunter] &gt;&gt;&gt; 现在可以拔插 HH-M03 的 USB 线了(等2秒再插回), 可重复 &lt;&lt;&lt;", flush=True)
+    rounds = 0
+    t_end = time.time() + 900   # 15分钟, 只限制开新回合, 绝不打断进行中的烧录
+    while True:
+        if time.time() &gt; t_end: return 1
+        rounds += 1
+        print(f"[hunter] {ts()} ---- 回合 {rounds}: 启动 hsflash ----", flush=True)
+        proc, state = spawn()
+        while True:
+            if proc.poll() is not None: break
+            if not com_present():
+                proc.kill(); proc.wait()
+                t1 = time.time()
+                while not com_present():
+                    time.sleep(0.01)
+                    if time.time() - t1 &gt; 15: break
+                print(f"[hunter] {ts()} 端口重现({(time.time()-t1)*1000:.0f}ms) → 重启hsflash抢窗口", flush=True)
+                break
+            if state["success"]:
+                proc.wait(timeout=30); break
+            time.sleep(0.02)
+        if state["success"]:
+            print(f"[hunter] {ts()} *** BURN SUCCESS ***", flush=True); return 0
+        time.sleep(0.05)
+
+if __name__ == "__main__":
+    sys.exit(main())</code></pre>
 <h3>4.3 保命锦囊：loader 常驻下载模式</h3>
 <div class="ok">烧录被中断（脚本被杀/线被碰）后，模组的 loader <strong>常驻下载模式等人</strong>——此时<strong>不拔插、直接跑 hsflash 就能续烧</strong>。通宵那次 100% 成功正是这么来的。COM8 打不开(拒绝访问)=有程序占口，先杀干净再试。</div>
 <h3>4.4 已废弃的路（别再踩）</h3>
