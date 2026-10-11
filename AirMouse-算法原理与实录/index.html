@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AirMouse —— ESP32-S3 无线空中鼠标：算法原理与实录</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --panel2:#1d212b; --line:#2a2f3c;
+    --tx:#d7dce4; --dim:#8b93a3; --acc:#4fc3f7; --acc2:#81c784;
+    --warn:#ffb74d; --bad:#e57373; --code:#0b0d11;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--tx);
+    font-family:"Segoe UI","Microsoft YaHei",system-ui,sans-serif;line-height:1.75;font-size:16px}
+  .wrap{max-width:980px;margin:0 auto;padding:40px 24px 100px}
+  header{border-bottom:1px solid var(--line);padding-bottom:28px;margin-bottom:36px}
+  h1{font-size:34px;margin:0 0 10px;letter-spacing:.5px}
+  h1 .en{color:var(--acc);font-weight:300}
+  .sub{color:var(--dim);font-size:15px}
+  h2{font-size:24px;margin-top:56px;border-left:4px solid var(--acc);padding-left:12px}
+  h3{font-size:19px;margin-top:34px;color:var(--acc2)}
+  p{margin:12px 0}
+  code{background:var(--code);border:1px solid var(--line);border-radius:4px;
+    padding:1px 6px;font-family:Consolas,"JetBrains Mono",monospace;font-size:14px;color:var(--acc)}
+  pre{background:var(--code);border:1px solid var(--line);border-radius:10px;
+    padding:18px 20px;overflow-x:auto;line-height:1.55}
+  pre code{background:none;border:none;padding:0;color:#c8d3e0;font-size:13.5px}
+  .cm{color:#5c6773} .kw{color:#c792ea} .fn{color:#82aaff} .num{color:#f78c6c} .str{color:#c3e88d}
+  table{border-collapse:collapse;width:100%;margin:16px 0;font-size:14.5px}
+  th,td{border:1px solid var(--line);padding:8px 12px;text-align:left}
+  th{background:var(--panel2);color:var(--acc)}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 22px;margin:18px 0}
+  .ok{color:var(--acc2)} .warn{color:var(--warn)} .bad{color:var(--bad)}
+  .tag{display:inline-block;background:var(--panel2);border:1px solid var(--line);
+    border-radius:20px;padding:2px 12px;font-size:13px;color:var(--dim);margin:3px 4px 3px 0}
+  .figure{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;margin:20px 0;text-align:center}
+  .figure svg{max-width:100%;height:auto}
+  .figcap{color:var(--dim);font-size:13.5px;margin-top:8px}
+  .math{font-family:Cambria Math,"Times New Roman",serif;font-style:italic;font-size:17px;
+    background:var(--panel2);border-radius:8px;padding:10px 18px;margin:12px 0;display:block;overflow-x:auto}
+  .lesson{border-left:4px solid var(--warn);background:var(--panel);border-radius:0 12px 12px 0;padding:14px 20px;margin:18px 0}
+  .lesson b{color:var(--warn)}
+  .toc{columns:2;column-gap:40px;font-size:14.5px}
+  .toc a{color:var(--acc);text-decoration:none;display:block;padding:2px 0}
+  .toc a:hover{color:#fff}
+  .files td:first-child{color:var(--acc);font-family:Consolas,monospace;font-size:13.5px;white-space:nowrap}
+  footer{margin-top:80px;border-top:1px solid var(--line);padding-top:20px;color:var(--dim);font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>AirMouse <span class="en">· 无线空中鼠标</span></h1>
+  <div class="sub">ESP32-S3 双板（ESP-NOW）+ ICM-20948（Madgwick 6 轴融合 + 无限积分指针）
+  &nbsp;|&nbsp; 2026-10 &nbsp;|&nbsp; 仓库：<code>D:\work\AirMouse-Wireless</code>（无线主工程）、<code>D:\work\AirMouse</code>（有线基准）</div>
+  <div style="margin-top:14px">
+    <span class="tag">指哪打哪 → 无限移动</span><span class="tag">250Hz 融合</span>
+    <span class="tag">芯片内延迟 3–6ms</span><span class="tag">pitch/roll 零漂移</span>
+    <span class="tag">静态漂移 0.56°/min（闭环消除）</span><span class="tag">RTOS 管线任务</span>
+  </div>
+  <nav class="toc" style="margin-top:20px">
+    <a href="#arch">1. 系统架构：谁在哪块板上</a>
+    <a href="#fusion">2. 姿态融合：Madgwick 6 轴 AHRS</a>
+    <a href="#pointer">3. 指针算法：无限积分（核心）</a>
+    <a href="#wall">4. 空气墙剖析：本项目的中心教训</a>
+    <a href="#freeze">5. 静止冻结与点击冻结</a>
+    <a href="#filter">6. One-Euro 滤波与手感调音</a>
+    <a href="#link">7. 无线链路：airlink over ESP-NOW</a>
+    <a href="#rtos">8. RTOS 任务架构</a>
+    <a href="#data">9. 实测数据</a>
+    <a href="#bugs">10. 踩坑实录（编年史）</a>
+    <a href="#code">11. 核心代码导览</a>
+  </nav>
+</header>
+
+<!-- ================================================================ -->
+<h2 id="arch">1. 系统架构：谁在哪块板上</h2>
+<p>两块 WeAct ESP32-S3 通过乐鑫的 <b>ESP-NOW</b>（免连接点对点协议，单程 1–4ms）相连。
+设计原则：<b>所有智能都在鼠标端，接收端是哑桥</b>——这样有线版验证过的算法一行不改就能搬过来。</p>
+
+<div class="figure">
+<svg viewBox="0 0 900 300" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="ar" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 z" fill="#4fc3f7"/>
+    </marker>
+  </defs>
+  <!-- 鼠标端 -->
+  <rect x="20" y="30" width="360" height="240" rx="14" fill="#171a21" stroke="#2a2f3c"/>
+  <text x="200" y="58" fill="#4fc3f7" font-size="17" text-anchor="middle" font-weight="bold">板 B · 鼠标端（手持）</text>
+  <rect x="45" y="80" width="310" height="40" rx="8" fill="#1d212b" stroke="#2a2f3c"/>
+  <text x="200" y="105" fill="#d7dce4" font-size="14" text-anchor="middle">ICM-20948 · I2C 400kHz · ±1000°/s</text>
+  <rect x="45" y="135" width="310" height="40" rx="8" fill="#1d212b" stroke="#2a2f3c"/>
+  <text x="200" y="160" fill="#d7dce4" font-size="14" text-anchor="middle">Madgwick 6轴融合（250Hz，0.02ms/次）</text>
+  <rect x="45" y="190" width="310" height="40" rx="8" fill="#1d212b" stroke="#2a2f3c"/>
+  <text x="200" y="215" fill="#d7dce4" font-size="14" text-anchor="middle">无限积分 + 冻结/死区 + One-Euro</text>
+  <text x="200" y="258" fill="#8b93a3" font-size="12.5" text-anchor="middle">BOOT=回中(abs模式) · GPIO47=左键 · 串口调参</text>
+  <!-- 箭头 -->
+  <line x1="385" y1="150" x2="505" y2="150" stroke="#4fc3f7" stroke-width="2.5" marker-end="url(#ar)"/>
+  <text x="445" y="132" fill="#4fc3f7" font-size="13" text-anchor="middle">ESP-NOW 广播</text>
+  <text x="445" y="176" fill="#8b93a3" font-size="12" text-anchor="middle">dx/dy · 250Hz</text>
+  <!-- 接收端 -->
+  <rect x="510" y="30" width="360" height="240" rx="14" fill="#171a21" stroke="#2a2f3c"/>
+  <text x="690" y="58" fill="#81c784" font-size="17" text-anchor="middle" font-weight="bold">板 A · 接收端（插电脑）</text>
+  <rect x="535" y="80" width="310" height="40" rx="8" fill="#1d212b" stroke="#2a2f3c"/>
+  <text x="690" y="105" fill="#d7dce4" font-size="14" text-anchor="middle">ESP-NOW 收包 · magic+CRC8+seq 校验</text>
+  <rect x="535" y="135" width="310" height="40" rx="8" fill="#1d212b" stroke="#2a2f3c"/>
+  <text x="690" y="160" fill="#d7dce4" font-size="14" text-anchor="middle">心跳 abs 同步（防丢包漂移）· 自动配对</text>
+  <rect x="535" y="190" width="310" height="40" rx="8" fill="#1d212b" stroke="#2a2f3c"/>
+  <text x="690" y="215" fill="#d7dce4" font-size="14" text-anchor="middle">USB HID 鼠标（TinyUSB，1ms 轮询）</text>
+  <text x="690" y="258" fill="#8b93a3" font-size="12.5" text-anchor="middle">蓝灯=等配对 · 绿灯=已锁定 · 红闪=丢链</text>
+</svg>
+<div class="figcap">系统架构：算法全部在鼠标端，接收端只做「无线包 → HID 报文」的翻译</div>
+</div>
+
+<p><b>传感器选型的插曲</b>：项目最初的主角是 BNO085（Hillcrest 血统、LG 遥控器同源芯片），
+但手上那颗因一次误接（GND→3.3V + SCL→GND）导致 SCL 引脚内部 ESD 二极管烧熔对地短路——
+SDA 和 INT 都活着、固件还会做协议握手，唯独 SCL 永远是 0V。遂换微雪 ICM-20948 + 自研融合。BNO085 支持仍保留在固件里（<code>sensor bno</code> 切换）。</p>
+
+<!-- ================================================================ -->
+<h2 id="fusion">2. 姿态融合：Madgwick 6 轴 AHRS</h2>
+<p>目标是持续获得姿态四元数 <span class="math">q</span>（约定：<span class="math">v_{world} = q ⊗ v_{body} ⊗ q^*</span>，
+世界系 Z 轴 = 重力反方向向上）。6 轴（陀螺+加计）融合的性质决定了后面所有设计：</p>
+<ul>
+  <li><b>pitch / roll 不漂</b>：加速度计直接「看见」重力方向，是绝对参考。实测 5 分钟漂移 0.018 / 0.002 °/min——噪声地板。</li>
+  <li><b>yaw 慢漂</b>：绕重力轴的旋转在 6 轴方案里无绝对参考，纯陀螺积分，实测 0.56°/min。对策见 §4/§5。</li>
+</ul>
+
+<h3>2.1 算法骨架（~100 行，零依赖）</h3>
+<p>Madgwick 的思想：<b>陀螺管快速跟踪，加计管长期纠偏</b>。每步两件事——</p>
+<span class="math">
+① 陀螺外推：&nbsp; q̇<sub>gyro</sub> = ½ q ⊗ [0, ω] &nbsp;&nbsp;(ω = 陀螺角速度，已扣除零偏)<br>
+② 重力对齐：预测的机体系重力方向 &nbsp; h(q) = (2(zx−wy), &nbsp; 2(wx+zy), &nbsp; 1−2(x²+y²))<br>
+与加计实测 â 求误差 e = h − â，对 q 求梯度 ∇ = J<sup>T</sup>e，沿负梯度方向修正（步长 β）
+</span>
+<pre><code><span class="cm">// madgwick.h —— 核心一步（完整实现见 code/madgwick.h）</span>
+<span class="cm">// 陀螺积分项</span>
+<span class="kw">float</span> dqw = <span class="num">0.5f</span> * (-x*gx - y*gy - z*gz);  <span class="cm">// … dqx/dqy/dqz 同理</span>
+<span class="cm">// 加计梯度修正：e = h(q) - a，梯度 ∇=Jᵀe，归一化后按 β 步长回拉</span>
+<span class="kw">if</span> (al > <span class="num">0.3f</span>) {                              <span class="cm">// 加计有效（不在自由落体/大机动）</span>
+  <span class="kw">float</span> ex = hx - ax, ey = hy - ay, ez = hz - az;  <span class="cm">// 重力方向误差</span>
+  <span class="kw">float</span> gwv = -<span class="num">2</span>*y*ex + <span class="num">2</span>*x*ey,  gxv = <span class="num">2</span>*z*ex + <span class="num">2</span>*w*ey - <span class="num">4</span>*x*ez, <span class="cm">// Jᵀe</span>
+        gyv = -<span class="num">2</span>*w*ex + <span class="num">2</span>*z*ey - <span class="num">4</span>*y*ez, gzv = <span class="num">2</span>*x*ex + <span class="num">2</span>*y*ey;
+  <span class="kw">float</span> gn = sqrtf(gwv*gwv + gxv*gxv + gyv*gyv + gzv*gzv);
+  <span class="kw">if</span> (gn > <span class="num">1e-6f</span>) { <span class="kw">float</span> s = beta / gn;      <span class="cm">// β=0.12：信任加计的强度</span>
+    dqw -= gwv*s; dqx -= gxv*s; dqy -= gyv*s; dqz -= gzv*s; }
+}
+q = qnorm(q + qDot*dt);                              <span class="cm">// 归一化防发散</span></code></pre>
+
+<h3>2.2 开机零偏标定</h3>
+<p>上电静置 1.5 秒，平均 150 帧陀螺得零偏（典型 0.3–0.6 dps）后全程扣除。
+这是 yaw 漂移大小的第一决定因素——标定期间板子必须真的静止。</p>
+
+<div class="lesson"><b>教训 #1（假速度）：</b>项目早期用「四元数帧间差分」当角速度，
+静止时读数 10–13°/s——那不是运动，是<b>噪声地板</b>（差分把逐帧噪声整流成了正速度）。
+它骗过了静止检测（冻结从未触发过），在积分模式里更把噪声积成光标狂漂。
+正解：<b>角速度永远直接读陀螺</b>，噪声低两个数量级；四元数只用来做坐标变换。</div>
+
+<!-- ================================================================ -->
+<h2 id="pointer">3. 指针算法：无限积分（核心）</h2>
+<p>最终形态是<b>「无限积分 + 重力系分解」</b>——与 LG Magic Remote / Hillcrest 商用空鼠同族。
+一句话：<b>光标速度 = 设备角速度 × 灵敏度，永无边界；屏幕边缘的停靠交给操作系统。</b></p>
+
+<h3>3.1 为什么必须「无限」——鼠标协议的本质</h3>
+<p>USB 鼠标是<b>纯增量协议</b>：设备只发 dx/dy，<b>操作系统才是位置的积分器</b>。
+所以设备侧任何「位置」概念都只是自说自话的影子模型，它和真实光标之间隔着
+一个不可观测的偏移（开机时光标在哪由 Windows 决定）。由此得出两条铁律：</p>
+<div class="panel">
+① 模型必须<b>无界积分</b>，永不钳制——钳制模型 = 在屏幕中间凭空造墙（§4 详述）；<br>
+② 屏幕边缘行为完全交给 OS：真实光标到边后系统丢弃继续的增量，<b>回转一度、负增量立刻生效</b>——与实体鼠标完全一致，零死区。
+</div>
+
+<h3>3.2 重力系分解：roll 免疫的数学</h3>
+<p>裸用机体系陀螺积分有个著名问题：手腕内旋（roll）会串扰到光标 XY。
+解法是先把角速度旋到世界系再取分量：</p>
+<span class="math">
+ω<sub>w</sub> = R(q) · ω<sub>body</sub> &nbsp;&nbsp;&nbsp;
+yawRate = ω<sub>w</sub> · ẑ &nbsp;&nbsp;&nbsp;（水平：绕竖直轴的分量）<br>
+elevRate = ω<sub>w</sub> · unit(d × ẑ) &nbsp;&nbsp;&nbsp;（垂直：绕「当前指向的水平垂直轴」的分量）
+</span>
+<p>因为 ẑ 由重力锚定（不随手腕内旋转动），roll 只改变 d 的方位、不改变
+ω 在这两个轴上的投影语义 → <b>手腕怎么拧，上下左右语义不变</b>。
+这正是 Hillcrest 专利 US7158118B2「倾角补偿」要做的事，ray-cast 时代我们靠几何实现，积分模式靠世界系分解实现。</p>
+
+<pre><code><span class="cm">// pointer.cpp · onQuatRate() —— 无限积分核心（完整版见 code/pointer.cpp）</span>
+Vec3 w_w = qrot(q, gyroBody);                  <span class="cm">// 陀螺角速度 → 世界系（°/s）</span>
+<span class="kw">float</span> yawRate  = w_w.z;                        <span class="cm">// 绕竖直轴 = 水平移动</span>
+Vec3  elevAxis = vnorm(vcross(horiz(d), Vec3{<span class="num">0</span>,<span class="num">0</span>,<span class="num">1</span>}));
+<span class="kw">float</span> elevRate = vdot(w_w, elevAxis);           <span class="cm">// 绕水平垂轴 = 垂直移动</span>
+
+yawRate  = softdb(yawRate);                    <span class="cm">// ±0.5°/s 软死区：消化陀螺白噪</span>
+elevRate = softdb(elevRate);
+<span class="kw">if</span> (par->invX) yawRate = -yawRate;
+<span class="kw">if</span> (par->invY) elevRate = -elevRate;
+
+<span class="kw">float</span> gainX = (par->scrW - <span class="num">1</span>) / par->fovH;   <span class="cm">// FOV=灵敏度：fov 75° ⇔ 转75°走一个屏宽</span>
+<span class="kw">float</span> gainY = (par->scrH - <span class="num">1</span>) / par->fovV;
+Xf += yawRate  * dt * gainX;                   <span class="cm">// 无界积分 —— 绝不 clamp！</span>
+Yf += -elevRate * dt * gainY;</code></pre>
+
+<h3>3.3 FOV 的最终语义：纯灵敏度</h3>
+<p>项目早期 FOV 是「指向窗口」（±FOV/2 映射到屏幕边），撞出各种墙感后被推翻。
+最终语义只剩一条：<span class="math">灵敏度 = 屏宽 / fovH &nbsp;(px/°)</span>。
+<code>fov 50</code> = 转 50° 扫满全屏（灵敏），<code>fov 90</code> = 转 90° 才扫满（细腻）。
+数字有清晰物理含义，用户调参不用猜。</p>
+
+<h3>3.4 曾用方案：ray-cast 绝对指点（保留为 <code>mode abs</code>）</h3>
+<p>「指哪打哪」的几何实现：姿态四元数构造指向射线，与虚拟屏幕平面求交得光标位置，
+roll 天然免疫。它是理解指针问题的绝佳教材，但屏幕有限 + 模型/OS 偏移使它必然带边界感，
+最终让位于无限积分。代码保留可切换，调研与推导见仓库 docs/。</p>
+
+<!-- ================================================================ -->
+<h2 id="wall">4. 空气墙剖析：本项目的中心教训</h2>
+<p>用户反复报告「缓慢摆动会遇到确定性的墙：一个方向卡死、垂直方向自由」。
+三轮误诊（FOV 窗口太近 → tanh 软边界 → 解冻阈值）后，真凶落网：</p>
+
+<div class="figure">
+<svg viewBox="0 0 900 200" xmlns="http://www.w3.org/2000/svg">
+  <rect x="20" y="20" width="860" height="160" rx="8" fill="#0b0d11" stroke="#2a2f3c"/>
+  <text x="40" y="48" fill="#8b93a3" font-size="13">Windows 屏幕（0 … 1919）</text>
+  <line x1="60" y1="120" x2="840" y2="120" stroke="#2a2f3c" stroke-width="2"/>
+  <!-- 模型边界 -->
+  <rect x="200" y="70" width="600" height="100" fill="none" stroke="#e57373" stroke-dasharray="6 4" stroke-width="2"/>
+  <text x="500" y="63" fill="#e57373" font-size="13" text-anchor="middle">固件内部模型的钳制边界（0…1919，与OS无关!）</text>
+  <!-- 真实光标 -->
+  <circle cx="430" cy="120" r="9" fill="#4fc3f7"/>
+  <text x="430" y="152" fill="#4fc3f7" font-size="13" text-anchor="middle">真实光标（OS积分器）</text>
+  <!-- 模型点 -->
+  <circle cx="800" cy="120" r="9" fill="#e57373"/>
+  <text x="800" y="152" fill="#e57373" font-size="13" text-anchor="middle">模型已撞墙</text>
+  <line x1="430" y1="95" x2="800" y2="95" stroke="#ffb74d" stroke-width="1.5" stroke-dasharray="3 3"/>
+  <text x="615" y="88" fill="#ffb74d" font-size="12.5" text-anchor="middle">未知偏移（开机即存在，不可观测）</text>
+  <path d="M 440 120 H 640" stroke="#81c784" stroke-width="2" marker-end="url(#ar)"/>
+  <text x="540" y="110" fill="#81c784" font-size="12" text-anchor="middle">还能走</text>
+  <path d="M 640 120 H 680" stroke="#e57373" stroke-width="2" marker-end="url(#ar)"/>
+  <text x="700" y="110" fill="#e57373" font-size="12">空气墙！dx=0</text>
+</svg>
+<div class="figcap">空气墙机理：模型与真实光标之间隔着开机即存在的未知偏移。
+模型先撞自己的钳制 → dx=0 → 真实光标在屏幕中间被冻住；另一轴未到界 → 仍自由。</div>
+</div>
+
+<div class="lesson"><b>教训 #2（空气墙）：</b>在增量协议里给<b>自己的影子模型</b>加边界钳制，
+等于把墙建在了「模型坐标系」而非真实屏幕上——偏移多少，墙就离真实边缘差多少。
+修复只需删掉两行 <code>clamp</code>：模型无界积分，屏幕边缘交给 OS。
+（用户从头到尾的直觉「鼠标就该是无限 dx/dy」是完全正确的架构判断。）</div>
+
+<!-- ================================================================ -->
+<h2 id="freeze">5. 静止冻结与点击冻结</h2>
+<h3>5.1 静止冻结（状态机）</h3>
+<span class="math">
+静止检测：speedEma = EMA(‖ω<sub>gyro</sub>|)&nbsp;&nbsp;
+进入冻结：&lt; 1.2°/s 持续 900ms&nbsp;&nbsp;
+解冻：EMA &gt; 2.0°/s <b>或瞬时</b> ‖ω‖ &gt; 2.5°/s
+</span>
+<p>冻结期间不积分 → 静止时陀螺零偏残余（&lt;0.5°/s 死区之下本就为零，双保险）
+完全无法变成光标漂移；解冻用「瞬时值或」条件保证从静止开始的<b>缓慢</b>移动也立刻响应。</p>
+<div class="lesson"><b>教训 #3（解冻阈值）：</b>解冻阈值 6°/s 是给「假速度时代」（静止读 13°/s）定的；
+换真陀螺后忘了收紧，结果静止后 2–5°/s 的轻推永远够不着解冻线——「它不动了」。
+教训：<b>换数据源时，围绕旧数据标定的所有阈值都要重新审计。</b></div>
+
+<h3>5.2 点击冻结（学 Hillcrest 专利）</h3>
+<p>按键按下瞬间手会下压抖动，光标一滑点击就变拖拽。对策（US7535456B2 思想）：
+按下 → 冻结光标（只发按键、不发位移）；按住超时 <b>且</b> 姿态转过大角度 → 解冻转拖拽；
+否则松键完成一次「按哪点哪」的干净点击。</p>
+
+<!-- ================================================================ -->
+<h2 id="filter">6. One-Euro 滤波与手感调音</h2>
+<p>光标位置层套 One-Euro：低速强低通（静止稳如老狗）、高速弱低通（甩动跟手），
+截止频率随速度自适应：<span class="math">fc = fc_min + β·|dX/dt|</span>。
+参数串口热调（<code>euro 1.0 0.007</code>）——「粘」还是「跟手」，一个 β 解决。
+外加 1px 静止死区。</p>
+
+<!-- ================================================================ -->
+<h2 id="link">7. 无线链路：airlink over ESP-NOW</h2>
+<pre><code><span class="cm">// airlink.h —— 10/14 字节，两端各持一份拷贝（Arduino 目录限制）</span>
+<span class="kw">typedef struct {</span>
+  <span class="kw">uint16_t</span> magic;   <span class="cm">// 0xA179</span>
+  <span class="kw">uint16_t</span> seq;     <span class="cm">// 去重</span>
+  <span class="kw">int16_t</span>  dx, dy;  <span class="cm">// 位移增量（核心载荷）</span>
+  <span class="kw">uint8_t</span>  buttons; <span class="cm">// 每包全量重发，丢包不怕</span>
+  <span class="kw">uint8_t</span>  flags;   <span class="cm">// ABS=带绝对坐标 / WARP=瞬移</span>
+  <span class="kw">int16_t</span>  absX, absY;
+<span class="kw">}</span> airlink_pkt_t;   <span class="cm">// + crc8(poly 0x31) 尾字节</span></code></pre>
+<table>
+<tr><th>机制</th><th>设计</th><th>为什么</th></tr>
+<tr><td>位移包</td><td>有增量即发（≤250Hz），静止静默</td><td>省射频 + 省电</td></tr>
+<tr><td>心跳包</td><td>500ms 一发，带模型绝对坐标</td><td>丢包造成的两端模型偏差 &gt;2px 自动补差</td></tr>
+<tr><td>按键</td><td>每包全量重发</td><td>丢包最不能容忍的是按键丢失</td></tr>
+<tr><td>配对</td><td>鼠标端广播；接收端锁第一个合法源 MAC，断链 10s 解锁</td><td>零配置、防串台</td></tr>
+<tr><td>信道</td><td>双端显式钉死信道 1</td><td>未关联 STA 的默认信道受 NVS 历史影响，可能各在各道（教训 #5）</td></tr>
+</table>
+
+<!-- ================================================================ -->
+<h2 id="rtos">8. RTOS 任务架构</h2>
+<p>Arduino-ESP32 底层本就是 FreeRTOS，关键在于<b>把时间关键管线从 Arduino 主循环里拆出来</b>：</p>
+<pre><code>xTaskCreatePinnedToCore(pipelineTask, <span class="str">"pipe"</span>, <span class="num">8192</span>, <span class="kw">nullptr</span>, <span class="num">20</span>, <span class="kw">nullptr</span>, <span class="num">1</span>);
+<span class="cm">// 优先级 20（Arduino loop=1），核心 1（WiFi 协议栈在核 0）</span>
+<span class="cm">// pipelineTask: 按键 → IMU读取 → 融合 → 指针 → 无线发送，1ms 节拍</span>
+<span class="cm">// loop(): 串口调参 shell、遥测打印、LED —— 永远不敢再挡采样的路</span></code></pre>
+<p>附加降温措施：CPU 240→160MHz（融合 0.02ms/次毫无压力）+ WiFi 发射 19.5→10dBm，芯片从烫手降到 ~65°C。</p>
+
+<!-- ================================================================ -->
+<h2 id="data">9. 实测数据</h2>
+<table>
+<tr><th>指标</th><th>数值</th><th>测法</th></tr>
+<tr><td>静态漂移 pitch / roll</td><td class="ok">−0.018 / +0.002 °/min</td><td>5 分钟静置线性回归（R4 平台，2928 样本）</td></tr>
+<tr><td>静态漂移 yaw</td><td class="warn">−0.56 °/min</td><td>同上；由死区+冻结+（可选）在线补偿闭环消除</td></tr>
+<tr><td>Madgwick 单次计算</td><td class="ok">0.115 ms @48MHz → ~0.02ms @240MHz</td><td>micros() 环测</td></tr>
+<tr><td>I2C 单帧读取 @400kHz</td><td class="ok">1.09 ms</td><td>同上（100kHz 时 4.38ms——瓶颈教训）</td></tr>
+<tr><td>融合更新率</td><td>250 Hz</td><td>门控轮询</td></tr>
+<tr><td>芯片内延迟预算</td><td class="ok">3–6ms（有线）/ 5–11ms（含 ESP-NOW 1–4ms）</td><td>分项实测累加</td></tr>
+<tr><td>对照</td><td>商用无线空鼠 20–60ms</td><td>调研数据</td></tr>
+<tr><td>动作包络</td><td class="ok">yaw/roll 全程 ±180° 无丢失</td><td>423 样本动作测试</td></tr>
+</table>
+
+<!-- ================================================================ -->
+<h2 id="bugs">10. 踩坑实录（编年史）</h2>
+<table>
+<tr><th>#</th><th>坑</th><th>根因</th><th>修复</th></tr>
+<tr><td>1</td><td class="bad">BNO085 SCL 永远 0V</td><td>误接（GND→3.3V+SCL→GND）烧熔引脚内部 ESD 二极管</td><td>换 ICM-20948；教训：PS/电平脚必须先核对接线</td></tr>
+<tr><td>2</td><td class="bad">静止读数 13°/s「假速度」</td><td>四元数帧间差分 = 噪声整流</td><td>角速度一律直读陀螺</td></tr>
+<tr><td>3</td><td class="bad">空气墙（屏幕中间单向卡死）</td><td>给影子模型加了屏幕钳制，而模型与 OS 光标有未知偏移</td><td>删钳制，无限积分，边缘交给 OS</td></tr>
+<tr><td>4</td><td class="bad">静止后轻推不动</td><td>解冻阈值 6°/s 是假速度时代标定</td><td>2°/s 或瞬时 2.5°/s 立即解冻</td></tr>
+<tr><td>5</td><td class="bad">接收端蓝灯永不锁定</td><td>协议常量改动只刷了一端（空中包格式不匹配）；另：两板可能驻留不同 WiFi 信道</td><td>协议改动双板同刷；双端显式钉信道 1</td></tr>
+<tr><td>6</td><td class="warn">tanh 软边界手感更差</td><td>渐近线使边缘「永远差一点到不了」</td><td>回退线性；边界问题最终由无限积分根治</td></tr>
+<tr><td>7</td><td class="warn">driftComp 越补越歪（dx 消失）</td><td>补偿旋转符号写反（锚点应同向跟转）</td><td>修正符号 + 限幅 + 投影守卫</td></tr>
+<tr><td>8</td><td class="warn">rate 参数存不住</td><td>命令只改运行时没写参数表</td><td>写入 Params 再 save（两仓库同修）</td></tr>
+</table>
+
+<!-- ================================================================ -->
+<h2 id="code">11. 核心代码导览</h2>
+<p>本目录 <code>code/</code> 附完整核心源码（与仓库 <code>D:\work\AirMouse-Wireless\firmware\</code> 同步）：</p>
+<table class="files">
+<tr><th>文件</th><th>内容</th></tr>
+<tr><td>pointer.cpp / .h</td><td><b>★ 指针算法全部</b>：无限积分、重力系分解、静止/点击冻结、（abs 模式的 ray-cast 与回中亦保留）</td></tr>
+<tr><td>madgwick.h</td><td><b>★ 6 轴 AHRS</b>，零依赖 ~110 行</td></tr>
+<tr><td>quat.h</td><td>四元数/向量数学（哈密顿约定、qrot、yawBetween、rotZ）</td></tr>
+<tr><td>imu.cpp / .h</td><td>ICM-20948 驱动（零偏标定、量程、DLPF、陀螺角速度出口）+ BNO085 备选（__has_include 守卫）</td></tr>
+<tr><td>filters.h</td><td>One-Euro 滤波器</td></tr>
+<tr><td>airlink.h</td><td>无线协议定义（包结构 + CRC8）</td></tr>
+<tr><td>link.cpp / .h</td><td>鼠标端 ESP-NOW 发送（广播、心跳、warp、TX 功率）</td></tr>
+<tr><td>receiver.ino</td><td>接收端全部：收包校验、心跳同步、HID 翻译、自动配对</td></tr>
+<tr><td>mouse.ino</td><td>鼠标端主程序（RTOS 管线任务、按键语义、调参 shell 接线）</td></tr>
+<tr><td>config.h</td><td>引脚表 + 全部可调参数（FOV/滤波/死区/阈值）</td></tr>
+</table>
+
+<p>调参速查（串口 115200，<code>help</code> 可见全部）：
+<code>fov H V</code>（灵敏度）· <code>rate 250</code> · <code>euro fc beta</code> · <code>dead px</code> ·
+<code>mode rate|abs</code> · <code>mount/invx/invy</code>（朝向标定）· <code>stat</code> · <code>save</code></p>
+
+<div class="panel" style="margin-top:30px">
+<b>致谢与参考</b><br>
+Hillcrest Labs / CEVA —— Freespace 空鼠信号链专利（US7535456B2、US7158118B2）；
+Meta Gear VR Controller Best Practices —— 指针与 recenter 交互范式；
+Sebastian Madgwick —— AHRS。完整调研（商用方案对比、选型、测试计划）见
+<code>D:\work\AirMouse-Wireless\docs\方案.md</code> 与 <code>D:\work\AirMouse\docs\</code>。
+</div>
+
+<footer>
+AirMouse 项目 · 2026-10 · 有线基准仓库 D:\work\AirMouse · 无线主仓库 D:\work\AirMouse-Wireless ·
+工作区索引 D:\work\WORKSPACE.md<br>
+从调研到无线指哪打哪：一块 BNO085 的死亡、一颗 ICM-20948 的转正、三堵空气墙的拆迁，与一个始终正确的用户直觉。
+</footer>
+
+</div>
+</body>
+</html>
