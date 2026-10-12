@@ -26,7 +26,7 @@ from pathlib import Path
 ROOT = Path.cwd()
 BUILD = ROOT / "build"
 CHAPTERS = BUILD / "chapters"
-SOURCE_MD = sorted(ROOT.glob("Chapter_*.md"))
+SOURCE_MD = sorted(ROOT.glob("Chapter_*.md")) + sorted(ROOT.glob("Appendix_*.md"))
 README_MD = ROOT / "README.md"
 ASSETS = Path(os.environ.get("RTB_ASSETS", Path(__file__).resolve().parent / "assets"))
 
@@ -288,7 +288,7 @@ def main():
         print("Pandoc warnings:\n", r.stderr)
 
     print("\n=== Tectonic 编译 ===")
-    tectonic_cmd = ["tectonic", "-X", "compile", "--keep-logs",
+    tectonic_cmd = ["tectonic", "-X", "compile", "--keep-logs", "--reruns", "3",
                     "--keep-intermediates", "build/book.tex"]
     r = subprocess.run(tectonic_cmd, cwd=str(ROOT), capture_output=True, text=True)
     print(r.stdout[-2000:] if len(r.stdout) > 2000 else r.stdout)

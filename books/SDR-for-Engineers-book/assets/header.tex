@@ -67,11 +67,14 @@
 % =========================================================
 \usepackage{booktabs}
 \usepackage{longtable}
+\usepackage{etoolbox}
+\AtBeginEnvironment{longtable}{\setstretch{1.15}}
 \usepackage{array}
 \usepackage{tabularx}
 % 数学公式（第 5、6 章公式密集；build.py 数学直通配合 Pandoc 输出 $...$/$$...$$）
 \usepackage{amsmath}
 \usepackage{amssymb}
+\usepackage{mathtools}   % \xleftrightarrow 等扩展箭头（式 2.4 傅里叶变换对）
 % 图表标题：图/表名 + 按章编号 + 小号字
 % 注意：不能用 caption 宏包——它与 pandoc longtable 输出的 \LTcaptype{none} 冲突
 % （caption 包把 none 当计数器名，报 "No counter 'none' defined"）
@@ -98,10 +101,12 @@
 \newcommand{\pandocbounded}[1]{%
   \sbox\@tempboxa{#1}%
   \ifdim\wd\@tempboxa>\linewidth
-    \resizebox{\linewidth}{!}{\usebox\@tempboxa}%
-  \else
-    \usebox\@tempboxa%
+    \setbox\@tempboxa\hbox{\resizebox{\linewidth}{!}{\usebox\@tempboxa}}%
   \fi
+  \ifdim\ht\@tempboxa>0.82\textheight
+    \setbox\@tempboxa\hbox{\resizebox{!}{0.82\textheight}{\usebox\@tempboxa}}%
+  \fi
+  \usebox\@tempboxa%
 }
 \makeatother
 \usepackage{microtype}

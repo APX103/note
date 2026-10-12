@@ -10,20 +10,23 @@
 - 原书 PDF（英文原版）已批量下载至本书目录下的 `pdf/`（已 gitignore，不入库）：整本书 `SDR4Engineers.pdf`（375 页）+ 11 章分章 PDF + 4 个附录 PDF。
 - 重新下载方法见 `tools/download_pdfs.sh`。
 
-## 全书结构（按原书目录）
+## 翻译进度 TODO（✅ 全书完成：正文 11 章 + 附录 A–D）
 
-- [第 1 章　软件定义无线电导论](./Chapter_01_软件定义无线电导论.md)【已译】
-- 第 2 章　信号与系统（Signals and Systems）【待译】
-- 第 3 章　通信中的概率（Probability in Communications）【待译】
-- 第 4 章　数字通信基础（Digital Communications Fundamentals）【待译】
-- 第 5 章　理解 SDR 硬件（Understanding SDR Hardware）【待译】
-- 第 6 章　定时同步（Timing Synchronization）【待译】
-- 第 7 章　载波同步（Carrier Synchronization）【待译】
-- 第 8 章　帧同步与信道编码（Frame Synchronization and Channel Coding）【待译】
-- 第 9 章　信道估计与均衡（Channel Estimation and Equalization）【待译】
-- 第 10 章　正交频分复用（Orthogonal Frequency Division Multiplexing）【待译】
-- 第 11 章　SDR 的应用（Applications for Software-Defined Radio）【待译】
-- 附录 A　更长的通信史 / 附录 B　MATLAB 与 Simulink 入门 / 附录 C　均衡器推导 / 附录 D　三角恒等式【待译】
+- [x] [第 1 章　软件定义无线电导论](./Chapter_01_软件定义无线电导论.md)（9 图）
+- [x] [第 2 章　信号与系统](./Chapter_02_信号与系统.md)（54 图，全书最长、公式最密）
+- [x] [第 3 章　通信中的概率](./Chapter_03_通信中的概率.md)（11 图）
+- [x] [第 4 章　数字通信基础](./Chapter_04_数字通信基础.md)（26 图）
+- [x] [第 5 章　理解 SDR 硬件](./Chapter_05_理解SDR硬件.md)（8 图）
+- [x] [第 6 章　定时同步](./Chapter_06_定时同步.md)（17 图）
+- [x] [第 7 章　载波同步](./Chapter_07_载波同步.md)（10 图）
+- [x] [第 8 章　帧同步与信道编码](./Chapter_08_帧同步与信道编码.md)（14 图）
+- [x] [第 9 章　信道估计与均衡](./Chapter_09_信道估计与均衡.md)（13 图）
+- [x] [第 10 章　正交频分复用](./Chapter_10_正交频分复用.md)（12 图）
+- [ ] 第 11 章　SDR 的应用（Applications for Software-Defined Radio）
+- [x] [附录 A　更长的通信史](./Appendix_A_更长的通信史.md)（6 图）
+- [x] [附录 B　MATLAB 与 Simulink 入门](./Appendix_B_MATLAB与Simulink入门.md)（1 图）
+- [x] [附录 C　均衡器推导](./Appendix_C_均衡器推导.md)
+- [x] [附录 D　三角恒等式](./Appendix_D_三角恒等式.md)
 
 ## 译本工作流（每章通用）
 
