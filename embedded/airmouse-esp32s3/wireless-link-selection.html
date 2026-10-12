@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>空鼠无线链路选型：BLE、星闪与 1kHz 的距离 · AirMouse 系列姊妹篇</title>
+<style>
+:root{
+  --paper:#fcfbf8; --ink:#26313d; --ink-soft:#5b6672; --line:#e6e1d6; --line-soft:#efebe2;
+  --accent:#0e7490; --accent-deep:#155e75; --accent-bg:#ecfeff;
+  --gold:#a16207; --gold-bg:#fefce8;
+  --warn:#b91c1c; --warn-bg:#fef2f2;
+  --ok:#15803d; --ok-bg:#f0fdf4;
+  --code-bg:#f4f2ec; --code-ink:#3d4450;
+  --tbl-head:#f0ede5; --tbl-alt:#f8f6f0;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font:16px/1.85 -apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+.page{max-width:920px; margin:0 auto; padding:48px 28px 96px}
+header.hero{border-bottom:3px double var(--line); padding-bottom:28px; margin-bottom:36px}
+.hero .kicker{font-size:13px; letter-spacing:.18em; color:var(--accent); text-transform:uppercase; font-weight:600}
+h1{font-family:Georgia,"Songti SC","Noto Serif SC",serif; font-size:32px; line-height:1.35; margin:10px 0 14px; font-weight:700}
+.hero .sub{color:var(--ink-soft); font-size:15px; margin:0}
+.meta{display:flex; flex-wrap:wrap; gap:8px; margin-top:18px}
+.meta span{font-size:12.5px; border:1px solid var(--line); border-radius:999px; padding:3px 12px; color:var(--ink-soft); background:#fff}
+h2{
+  font-family:Georgia,"Songti SC","Noto Serif SC",serif; font-size:24px; margin:56px 0 6px; font-weight:700;
+  border-left:5px solid var(--accent); padding-left:14px; scroll-margin-top:20px;
+}
+h3{font-size:18.5px; margin:34px 0 8px; color:var(--accent-deep); font-weight:700}
+p{margin:10px 0}
+a{color:var(--accent); text-decoration:none}
+a:hover{text-decoration:underline}
+strong{color:#111827}
+.toc{background:#fff; border:1px solid var(--line); border-radius:12px; padding:20px 26px; margin:30px 0;
+  columns:2; column-gap:36px; font-size:14.5px}
+.toc .toc-title{column-span:all; font-weight:700; margin-bottom:10px; font-size:15px}
+.toc a{display:block; color:var(--ink-soft); padding:2.5px 0; break-inside:avoid}
+.toc a:hover{color:var(--accent)}
+.toc a.lv2{padding-left:16px; font-size:13.5px}
+code{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-size:13px;
+  background:var(--code-bg); color:var(--code-ink); border-radius:4px; padding:1.5px 6px}
+table{border-collapse:collapse; width:100%; margin:16px 0; font-size:14px; background:#fff}
+th{background:var(--tbl-head); text-align:left; font-weight:600}
+th,td{border:1px solid var(--line); padding:7px 12px; vertical-align:top}
+tr:nth-child(even) td{background:var(--tbl-alt)}
+.callout{border-radius:10px; padding:14px 18px; margin:18px 0; border:1px solid; font-size:14.5px}
+.callout .ct{font-weight:700; display:block; margin-bottom:4px}
+.c-info{background:var(--accent-bg); border-color:#a5f3fc; color:#164e63}
+.c-warn{background:var(--warn-bg); border-color:#fecaca; color:#7f1d1d}
+.c-gold{background:var(--gold-bg); border-color:#fde68a; color:#713f12}
+.c-ok{background:var(--ok-bg); border-color:#bbf7d0; color:#14532d}
+figure{margin:26px 0; text-align:center}
+figcaption{font-size:13px; color:var(--ink-soft); margin-top:10px; line-height:1.6}
+svg{max-width:100%; height:auto; font-family:-apple-system,"PingFang SC",sans-serif}
+hr{border:none; border-top:1px solid var(--line); margin:40px 0}
+footer{margin-top:64px; padding-top:20px; border-top:3px double var(--line); font-size:13px; color:var(--ink-soft)}
+.small{font-size:13px; color:var(--ink-soft)}
+@media(max-width:760px){ .toc{columns:1} h1{font-size:26px} }
+</style>
+</head>
+<body>
+<div class="page">
+
+<header class="hero">
+  <div class="kicker">AirMouse 系列姊妹篇 · Wireless Link Study</div>
+  <h1>空鼠无线链路选型：BLE、星闪，与 1kHz 的距离</h1>
+  <p class="sub">ESP-NOW 出局（太烫）之后的三条路：USB 直插、标准 BLE、星闪 SLE + dongle。
+  从连接间隔的硬数学、真实蓝牙鼠标的实测档位、人因感知门槛，到全系统算力/功耗预算——
+  一篇讲清楚"选哪条、为什么、买到什么、付出什么"。纯研究，不含实现。</p>
+  <div class="meta">
+    <span>2026-10-12</span>
+    <span>姊妹篇：<a href="index.html">AirMouse 实录</a> · <a href="attitude-anchored-cursor-control.html">姿态锚定设计</a></span>
+    <span>相关：<a href="../witmotion-jy901-host-algorithms.html">WitMotion EKF 逆向</a> · <a href="../eb21duino-complete-guide.html">EB21duino</a> · <a href="../hh-m03-bs21e-complete-guide.html">HH-M03</a></span>
+    <span>研究 · 无代码</span>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="toc-title">目录</div>
+  <a href="#s0">0 · 结论速览</a>
+  <a href="#s1">1 · 需求与约束：从 AirMouse 说起</a>
+  <a href="#s2">2 · 四条链路总览</a>
+  <a href="#s3">3 · BLE：硬数学、真实世界与感知科学</a>
+  <a class="lv2" href="#s3-1">3.1 连接间隔的天花板</a>
+  <a class="lv2" href="#s3-2">3.2 真实蓝牙鼠标在跑什么</a>
+  <a class="lv2" href="#s3-3">3.3 为什么 90Hz / 15ms 感觉没问题</a>
+  <a class="lv2" href="#s3-4">3.4 功耗与热：0.5~3mA 的秘密</a>
+  <a class="lv2" href="#s3-5">3.5 BLE 形态的系统预算</a>
+  <a href="#s4">4 · 星闪（NearLink/SLE）：用它买到什么</a>
+  <a class="lv2" href="#s4-1">4.1 速率：12 Mbps 与三个数量级的过剩</a>
+  <a class="lv2" href="#s4-2">4.2 真正的商品：1kHz + 2~6ms</a>
+  <a class="lv2" href="#s4-3">4.3 功耗的诚实账</a>
+  <a class="lv2" href="#s4-4">4.4 架构分叉：双芯片 vs 单芯片</a>
+  <a class="lv2" href="#s4-5">4.5 现实门槛</a>
+  <a href="#s5">5 · 定位图与决策矩阵</a>
+  <a href="#s6">6 · AirMouse 落地路线</a>
+  <a href="#s7">7 · 开放问题</a>
+  <a href="#s8">附录 · 数字来源与置信度</a>
+</nav>
+
+<!-- ================================================================ -->
+<h2 id="s0">0 · 结论速览</h2>
+<p><strong>BLE 单板是性价比与工程风险的最优解，星闪 + dongle 是性能档的可选升级，USB-C 有线是低成本的双保险。</strong>
+具体：纯 BLE 方案做出来的体验对齐"罗技 MX 的蓝牙档"（~90-133Hz 报文率、10-20ms 时延）——
+对这个量级的体感，人因科学和市售产品的选择都证明"绝大多数人绝大多数场景无感"；
+而星闪（SLE）+ 自家 dongle 能把两个 BLE 补不上的洞（报文率天花板、时延）一次补掉，
+达到私有 2.4G 游戏外设的量级（1kHz / 2-6ms），代价是必须带 dongle、生态新、以及一个待查证的
+单芯片算力问题。系统算力两边都不是瓶颈——<strong>两核占用均 &lt;15%，真正的工程活在 SPI、任务分核与抖动隔离</strong>。</p>
+
+<!-- ================================================================ -->
+<h2 id="s1">1 · 需求与约束：从 AirMouse 说起</h2>
+<p>现役 AirMouse 是双板 ESP-NOW（ICM-20948 + 6 轴 Madgwick + 速率积分指针）。
+演进路线已经确定换"7 态 EKF（<a href="../witmotion-jy901-host-algorithms.html">逆向研究成果</a>的 C 移植）+ 姿态差分光标引擎"，
+融合率目标 200Hz（"太高也没用"），HID 回报率可以设高、拍间用增量均摊。在此之上，链路层的约束按优先级：</p>
+<ol>
+  <li><strong>不能烫</strong>——ESP-NOW 因射频无正经休眠调度被否决（收发至少一侧常开，整机几十 mA 级）；
+  这是本篇一切讨论的起点；</li>
+  <li><strong>够用就好</strong>——商单定位是视频演示级，不是电竞外设；</li>
+  <li><strong>算力要放得下 EKF</strong>——ESP32-S3 双核 @240MHz，FreeRTOS（ESP-IDF 自带，开销可忽略）；</li>
+  <li><strong>复用已验证硬件</strong>——手里有跑通过 SLE 鼠标固件的 EB21duino（BS21 dongle）和 HH-M03（BS21E）。</li>
+</ol>
+
+<!-- ================================================================ -->
+<h2 id="s2">2 · 四条链路总览</h2>
+<table>
+  <tr><th></th><th>USB 直插（TinyUSB）</th><th>ESP-NOW</th><th>标准 BLE（NimBLE）</th><th>星闪 SLE + dongle</th></tr>
+  <tr><td>报文率天花板</td><td>1000 Hz</td><td>1000 Hz</td><td><strong>133 Hz 保底 / ~250 Hz 现实上限</strong></td><td><strong>可到 1000 Hz</strong></td></tr>
+  <tr><td>端到端时延</td><td>1-2 ms</td><td>3-8 ms</td><td>5-12 ms</td><td><strong>2-6 ms</strong></td></tr>
+  <tr><td>接收端</td><td>线</td><td>自家 dongle</td><td><strong>PC 自带蓝牙，零 dongle</strong></td><td>自家 dongle</td></tr>
+  <tr><td>射频调度</td><td>—</td><td style="color:#b91c1c">无休眠调度 → 烫（否决）</td><td>连接事件，省电</td><td>同类调度机制</td></tr>
+  <tr><td>协议栈 CPU</td><td>TinyUSB 1-3%</td><td>低</td><td>NimBLE 5-10%</td><td>SLE 栈（待实测）</td></tr>
+  <tr><td>生态/成熟度</td><td>极成熟</td><td>成熟</td><td>极成熟</td><td style="color:#a16207">新（2023 起），社区小</td></tr>
+</table>
+<div class="callout c-warn">
+  <span class="ct">为什么 ESP-NOW 会烫（一句话版）</span>
+  ESP-NOW 是裸 WiFi 射频的轻封装，没有 BLE/星闪那套"连接事件"调度——要么常开监听、要么高频唤醒，
+  整机平均电流几十 mA 级；封闭鼠标壳里就是几百 mW 的持续加热。BLE 鼠标整机 0.5-3mA，
+  <strong>差 50-100 倍</strong>，这就是"蓝牙鼠标一点都不烫"的物理原因。
+</div>
+
+<!-- ================================================================ -->
+<h2 id="s3">3 · BLE：硬数学、真实世界与感知科学</h2>
+
+<h3 id="s3-1">3.1 连接间隔的天花板</h3>
+<p>BLE 是主机调度的：外设（鼠标）只能在每个<strong>连接事件（Connection Event, CE）</strong>里发包，
+连接间隔（CI）协议下限 <strong>7.5ms</strong>。于是：</p>
+<table>
+  <tr><th>配置</th><th>理论报文率</th><th>现实性</th></tr>
+  <tr><td>CI=7.5ms，每事件 1 包</td><td>133 Hz</td><td>基本盘——但需设备主动协商（Windows 默认给 15-30ms，要用连接参数更新请求压到 7.5ms）</td></tr>
+  <tr><td>CI=7.5ms，每事件 2-4 包</td><td>267-533 Hz</td><td>看主机脸色：Windows 通常愿意在一个事件里多收几包小通知，但无保证</td></tr>
+  <tr><td>2M PHY（BLE 5）</td><td>不提报文率</td><td>只缩空口时间，让多包更容易塞进一个事件；主机支持才有效</td></tr>
+</table>
+<p>结论：<strong>133 Hz 保底、~250 Hz 现实上限，1kHz 在标准 BLE 上正式关闭</strong>——这就是游戏鼠标厂商
+全用私有 2.4G 协议的原因。但注意：<strong>算法侧完全不受影响</strong>——EKF 照样内部跑 200Hz~1kHz
+（其 5ms 门控原生支持"高频预测 + 低频校正"），光标增量逐拍攒着，每个连接事件发一次；
+亚像素累积器天然就是干这个的。</p>
+
+<h3 id="s3-2">3.2 真实蓝牙鼠标在跑什么</h3>
+<table>
+  <tr><th>典型产品</th><th>连接间隔</th><th>实际报文率</th><th>端到端时延</th></tr>
+  <tr><td>Apple Magic Mouse</td><td>~10-11ms</td><td><strong>~90-100 Hz</strong></td><td>~10-20ms</td></tr>
+  <tr><td>罗技 MX 系列（BT 模式）</td><td>~8-15ms</td><td><strong>~90-125 Hz</strong></td><td>~10-20ms</td></tr>
+  <tr><td>普通办公 BT 鼠标</td><td>7.5-15ms</td><td><strong>66-125 Hz</strong></td><td>~10-25ms</td></tr>
+  <tr><td>游戏鼠标（1-8kHz 档）</td><td colspan="3">全是<strong>私有 2.4G + dongle</strong>，不是蓝牙（罗技 G 系甚至没有 BT 模式）</td></tr>
+</table>
+<p>扎心的对照：<strong>你手上"感觉没问题"的蓝牙鼠标，大多数连 133Hz 都没跑满</strong>，很多就在 90Hz 附近。</p>
+
+<h3 id="s3-3">3.3 为什么 90Hz / 15ms 感觉没问题</h3>
+<ol>
+  <li><strong>指针是积分量不是阶跃量</strong>：光标位置持续累积，90Hz 增量流 + 系统指针平滑，视觉完全连续——
+  人眼对运动平滑的感知阈值恰在 60-100Hz 区间；</li>
+  <li><strong>延迟感知门槛（JND）≈ 20ms</strong>：拖拽/指向场景下人对延迟的刚可觉差在 20ms 量级，
+  BT 鼠标的 10-20ms 正好压在线上——"绝大多数人绝大多数场景"无感；</li>
+  <li><strong>游戏端也在降采样</strong>：游戏按自己的帧率/tick 采输入（60-360fps），
+  超出它采样率的回报本来就浪费。</li>
+</ol>
+<p>差距只在<strong>快速甩枪跟枪</strong>显形：8ms 增量粒度 + 额外 ~10ms 时延，在高速移动中表现为轨迹略"散"。
+竞技玩家为这最后 5% 买 1kHz dongle——但前 95% 的体验，BT 档已经覆盖。</p>
+
+<h3 id="s3-4">3.4 功耗与热：0.5~3mA 的秘密</h3>
+<figure>
+<svg viewBox="0 0 880 230" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .tl2{stroke:#cbd5e1;stroke-width:2}
+    .wk{fill:#0e7490;opacity:.75}
+    .sl{fill:#f0ede5}
+    .tx{font-size:11px;fill:#5b6672}
+    .txb{font-size:12px;font-weight:700;fill:#155e75}
+  </style>
+  <line class="tl2" x1="40" y1="150" x2="850" y2="150"/>
+  <!-- sleep band -->
+  <rect class="sl" x="40" y="60" width="810" height="60"/>
+  <!-- wake windows every 7.5ms = 30px/ms * 7.5 = ... use 1ms=30px too wide; scale: 1ms=10px, CI=75px -->
+  <g>
+    <rect class="wk" x="70" y="55" width="12" height="70" rx="2"/>
+    <rect class="wk" x="145" y="55" width="12" height="70" rx="2"/>
+    <rect class="wk" x="220" y="55" width="12" height="70" rx="2"/>
+    <rect class="wk" x="295" y="55" width="12" height="70" rx="2"/>
+    <rect class="wk" x="370" y="55" width="12" height="70" rx="2"/>
+    <rect class="wk" x="445" y="55" width="12" height="70" rx="2"/>
+    <rect class="wk" x="520" y="55" width="12" height="70" rx="2"/>
+    <rect class="wk" x="595" y="55" width="12" height="70" rx="2"/>
+    <rect class="wk" x="670" y="55" width="12" height="70" rx="2"/>
+    <rect class="wk" x="745" y="55" width="12" height="70" rx="2"/>
+    <rect class="wk" x="820" y="55" width="12" height="70" rx="2"/>
+  </g>
+  <text class="txb" x="40" y="40">射频唤醒窗口（~1ms，含收发）</text>
+  <text class="tx" x="40" y="185">0ms</text><text class="tx" x="140" y="185">7.5</text><text class="tx" x="290" y="185">22.5ms</text>
+  <text class="tx" x="215" y="185">15</text>
+  <text class="txb" x="480" y="110" text-anchor="middle">深度睡眠（连接事件之间）</text>
+  <text class="tx" x="440" y="212" text-anchor="middle">连接间隔 CI = 7.5ms → 133Hz 报文率；射频占空比 ≈ 13%，其余 87% 时间射频关着</text>
+</svg>
+<figcaption>图 1 · BLE 的省电机制：连接事件调度。峰值电流仍是百 mA 级，但被切成了 ~13% 占空比，
+整机平均 0.5-3mA（3V 下 1.5-9mW）——物理上热不起来。一节 AA 撑几个月到一年。</figcaption>
+</figure>
+
+<h3 id="s3-5">3.5 BLE 形态的系统预算（ESP32-S3 双核 + FreeRTOS）</h3>
+<table>
+  <tr><th>任务</th><th>核</th><th>占用估算</th><th>备注</th></tr>
+  <tr><td>BLE 控制器+主机（NimBLE，133Hz 通知）</td><td>核 0</td><td>~5-10%</td><td>别用 Bluedroid（重一倍，多耗 ~50KB RAM）</td></tr>
+  <tr><td>传感器 SPI + 杂务</td><td>核 0</td><td>~2%</td><td>I²C@400kHz 读 14 字节要 0.4ms——<strong>总线比算法贵一个数量级</strong>，上高频先换 SPI（~15µs）</td></tr>
+  <tr><td>EKF float 200Hz（最差拍 ~60µs / 5ms 预算）</td><td>核 1</td><td><strong>&lt;1%</strong></td><td>基准：C 版 Apple Silicon 0.22µs/拍折算；double 直跑也只 4-8%</td></tr>
+  <tr><td>光标引擎 + 亚像素累积</td><td>核 1</td><td>&lt;0.5%</td><td>纯标量</td></tr>
+  <tr><td><strong>合计</strong></td><td>两核</td><td><strong>各 &lt;15%</strong></td><td>余量全给未来功能</td></tr>
+</table>
+<div class="callout c-info">
+  <span class="ct">双核买的不是算力，是"干净"</span>
+  单核其实也跑得动 200Hz。把算法钉核 1、射频栈钉核 0 的价值是<strong>隔离抖动</strong>：WiFi/USB/BLE
+  的中断和栈任务是微秒~百微秒级突发，分核后不干扰融合节拍。两个便宜强化：EKF 热代码放 IRAM
+  （~10KB，避开 flash 缓存抖动）、实时数据别碰 PSRAM。
+</div>
+
+<!-- ================================================================ -->
+<h2 id="s4">4 · 星闪（NearLink / SLE）：用它买到什么</h2>
+
+<h3 id="s4-1">4.1 速率：12 Mbps 与三个数量级的过剩</h3>
+<p>BS21 类芯片走 <strong>SLE（SparkLink Low Energy）</strong>模式，物理层峰值约 <strong>12 Mbps</strong>——
+华为宣传的"比蓝牙快 6 倍"即对比 BLE 5 的 2M PHY（12/2=6）。应用层实际吞吐几个 Mbps。
+而空中鼠标在 1kHz 报文率下只需要 ~20 KB/s ≈ <strong>0.16 Mbps——速率富余三个数量级</strong>，
+根本不是约束。真正对鼠标有意义的是<strong>轮询间隔</strong>（报文率天花板）与<strong>时延</strong>。</p>
+
+<h3 id="s4-2">4.2 真正的商品：1kHz + 2~6ms</h3>
+<table>
+  <tr><th>时延链（SLE + 自家 dongle）</th><th>耗时</th></tr>
+  <tr><td>传感器 → EKF 拍（200Hz / 1kHz 喂入）</td><td>0-5ms / 0-1ms</td></tr>
+  <tr><td>交给 BS21E（SPI 直通 / UART）</td><td>≈0 / ~1ms</td></tr>
+  <tr><td>SLE 空口（20B 报文 @1M PHY ≈ 240µs；2M/4M 再减半）</td><td>0.1-0.3ms</td></tr>
+  <tr><td>dongle → USB HID（1kHz 轮询）</td><td>1-4ms</td></tr>
+  <tr><td><strong>合计</strong></td><td><strong>~2-6ms</strong></td></tr>
+</table>
+<p>间隔亚毫秒级可配、自家 dongle 自己说了算 → <strong>报文率可到 1kHz</strong>；空口占用在 1kHz@1M PHY
+也只 ~24%。这正是私有 2.4G 游戏外设的位置——用星闪达到了同样的档位，且协议有标准可依。</p>
+
+<h3 id="s4-3">4.3 功耗的诚实账</h3>
+<p>SLE 单位比特能耗更低，但<strong>报文率与功耗是同一条曲线</strong>：推 1kHz，射频唤醒次数就是
+BLE@133Hz 的 7 倍。合理估计：250-500Hz 报文率下与 BLE@133Hz 相当或略好；1kHz 会贵一些，
+但仍是正经调度（远好于 ESP-NOW 的常开）。"不烫"目标保得住，"极限续航"要让位给性能档定位。</p>
+
+<h3 id="s4-4">4.4 架构分叉：双芯片 vs 单芯片</h3>
+<figure>
+<svg viewBox="0 0 880 240" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .fb{fill:#fff;stroke:#0e7490;stroke-width:1.7}
+    .fg{fill:#fefce8;stroke:#a16207;stroke-width:1.7}
+    .ft{font-size:12.5px;font-weight:700;fill:#155e75}
+    .fd{font-size:10.5px;fill:#5b6672}
+  </style>
+  <defs><marker id="a7" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#0e7490"/></marker></defs>
+  <!-- Option A -->
+  <rect class="fb" x="20" y="20" width="120" height="56" rx="9"/><text class="ft" x="80" y="44" text-anchor="middle">ICM-20948</text><text class="fd" x="80" y="62" text-anchor="middle">SPI</text>
+  <rect class="fb" x="170" y="20" width="150" height="56" rx="9"/><text class="ft" x="245" y="44" text-anchor="middle">ESP32-S3</text><text class="fd" x="245" y="62" text-anchor="middle">EKF + 光标引擎</text>
+  <rect class="fb" x="350" y="20" width="130" height="56" rx="9"/><text class="ft" x="415" y="44" text-anchor="middle">BS21E</text><text class="fd" x="415" y="62" text-anchor="middle">纯射频小弟</text>
+  <rect class="fb" x="510" y="20" width="130" height="56" rx="9"/><text class="ft" x="575" y="44" text-anchor="middle">BS21 dongle</text><text class="fd" x="575" y="62" text-anchor="middle">USB HID</text>
+  <rect class="fb" x="670" y="20" width="90" height="56" rx="9"/><text class="ft" x="715" y="52" text-anchor="middle">PC</text>
+  <line x1="140" y1="48" x2="168" y2="48" stroke="#0e7490" stroke-width="1.8" marker-end="url(#a7)"/>
+  <line x1="320" y1="48" x2="348" y2="48" stroke="#0e7490" stroke-width="1.8" marker-end="url(#a7)"/>
+  <line x1="480" y1="48" x2="508" y2="48" stroke="#0e7490" stroke-width="1.8" marker-end="url(#a7)"/>
+  <line x1="640" y1="48" x2="668" y2="48" stroke="#0e7490" stroke-width="1.8" marker-end="url(#a7)"/>
+  <text class="fd" x="404" y="34" style="font-size:10px" text-anchor="middle">SLE 空口</text>
+  <text class="ft" x="20" y="108" fill="#155e75">方案 A：双芯片（稳妥）</text>
+  <text class="fd" x="20" y="126">S3 干数学，BS21E 只发包——算力账全部成立，两颗芯片</text>
+  <!-- Option B -->
+  <rect class="fg" x="20" y="150" width="120" height="56" rx="9"/><text class="ft" x="80" y="174" text-anchor="middle" fill="#713f12">ICM-20948</text><text class="fd" x="80" y="192" text-anchor="middle">SPI</text>
+  <rect class="fg" x="170" y="150" width="150" height="56" rx="9"/><text class="ft" x="245" y="172" text-anchor="middle" fill="#713f12">BS21E 单芯片</text><text class="fd" x="245" y="190" text-anchor="middle">EKF + SLE 全包</text>
+  <rect class="fg" x="350" y="150" width="130" height="56" rx="9"/><text class="ft" x="415" y="174" text-anchor="middle" fill="#713f12">BS21 dongle</text><text class="fd" x="415" y="192" text-anchor="middle">USB HID</text>
+  <rect class="fg" x="510" y="150" width="90" height="56" rx="9"/><text class="ft" x="555" y="182" text-anchor="middle" fill="#713f12">PC</text>
+  <line x1="140" y1="178" x2="168" y2="178" stroke="#a16207" stroke-width="1.8" marker-end="url(#a7)"/>
+  <line x1="320" y1="178" x2="348" y2="178" stroke="#a16207" stroke-width="1.8" marker-end="url(#a7)"/>
+  <line x1="480" y1="178" x2="508" y2="178" stroke="#a16207" stroke-width="1.8" marker-end="url(#a7)"/>
+  <text class="ft" x="20" y="236" fill="#713f12">方案 B：单芯片（BOM 最省，关键未知：BS21E 应用核有无 FPU/主频几何）</text>
+</svg>
+<figcaption>图 2 · 星闪形态的架构分叉。方案 B 若应用核是 M0 级无 FPU，float EKF 会掉软浮点深渊（十倍惩罚），
+200Hz 悬——需翻 datasheet 定论，或退回固定点实现。</figcaption>
+</figure>
+
+<h3 id="s4-5">4.5 现实门槛</h3>
+<ol>
+  <li><strong>必须自带 dongle</strong>——PC 没有星闪接收端，回到双件套（BLE 的零 dongle 优势反转）；</li>
+  <li><strong>SLE 2.0 ↔ 1.0 互通未闭环</strong>——BS21E（设备侧）与 BS21（dongle 侧）的版本配对问题，
+  是 HiDiTing 项目留下的未决事项；</li>
+  <li><strong>SDK 成熟度</strong>——社区小、工具链坑已有前科（Kconfig 的 SUPPORT_SLE_PERIPHERAL
+  choice 空转等，见 <a href="../eb21duino-complete-guide.html">EB21duino 攻略</a>）；
+  好在 dongle 已被实测验证能当 USB HID 用（出厂 SLE_MOUSE 固件），硬件路径是三条方案里验证度最高的；</li>
+  <li>功耗与报文率同涨（4.3 节），性能档定位下可接受。</li>
+</ol>
+
+<!-- ================================================================ -->
+<h2 id="s5">5 · 定位图与决策矩阵</h2>
+<figure>
+<svg viewBox="0 0 880 430" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .axx{stroke:#94a3b8;stroke-width:1.5}
+    .axt{font-size:11px;fill:#5b6672}
+    .ref{fill:#94a3b8;opacity:.85}
+    .our{fill:#0e7490}
+    .rej{fill:#b91c1c;opacity:.8}
+    .lb{font-size:11.5px;font-weight:600}
+    .dash{stroke:#a16207;stroke-width:1.5;stroke-dasharray:6 4}
+  </style>
+  <line class="axx" x1="80" y1="380" x2="850" y2="380"/>
+  <line class="axx" x1="80" y1="380" x2="80" y2="30"/>
+  <text class="axt" x="465" y="412" text-anchor="middle">端到端时延 →（越右越差）</text>
+  <text class="axt" x="26" y="205" text-anchor="middle" transform="rotate(-90 26 205)">报文率（对数）</text>
+  <!-- gridlines -->
+  <text class="axt" x="74" y="396" text-anchor="end">0ms</text>
+  <text class="axt" x="230" y="396" text-anchor="middle">5</text>
+  <text class="axt" x="380" y="396" text-anchor="middle">10</text>
+  <text class="axt" x="530" y="396" text-anchor="middle">15</text>
+  <text class="axt" x="680" y="396" text-anchor="middle">20</text>
+  <text class="axt" x="830" y="396" text-anchor="middle">25</text>
+  <text class="axt" x="88" y="384">10Hz</text><text class="axt" x="88" y="271">100Hz</text><text class="axt" x="88" y="157">1kHz</text>
+  <!-- JND line -->
+  <line class="dash" x1="680" y1="40" x2="680" y2="380"/>
+  <text class="axt" x="688" y="52" fill="#a16207">人因感知门槛 JND ≈ 20ms（右半边大多数人无感差异）</text>
+  <line class="dash" x1="80" y1="267" x2="850" y2="267"/>
+  <text class="axt" x="845" y="262" text-anchor="end" fill="#a16207">视觉平滑阈值 ~100Hz</text>
+  <!-- points: x=80+lat*30, y: rate->log 10..10000 maps 380..40 -->
+  <circle class="our" cx="125" cy="153" r="7"/>
+  <text class="lb" x="135" y="150" fill="#155e75">USB-C 直插 · 1kHz · ~1.5ms</text>
+  <circle class="ref" cx="158" cy="85" r="7"/>
+  <text class="lb" x="168" y="82" fill="#64748b">私有 2.4G 电竞 dongle · 1-8kHz</text>
+  <circle class="our" cx="200" cy="153" r="7"/>
+  <text class="lb" x="210" y="178" fill="#155e75">星闪 SLE+dongle · 1kHz · ~4ms</text>
+  <circle class="rej" cx="245" cy="153" r="7"/>
+  <text class="lb" x="255" y="150" fill="#b91c1c">ESP-NOW（否决：烫）</text>
+  <circle class="our" cx="320" cy="221" r="7"/>
+  <text class="lb" x="330" y="218" fill="#155e75">BLE 现实上限 · ~250Hz</text>
+  <circle class="our" cx="440" cy="253" r="7"/>
+  <text class="lb" x="450" y="250" fill="#155e75">BLE 保底 · 133Hz</text>
+  <circle class="ref" cx="530" cy="272" r="7"/>
+  <text class="lb" x="540" y="290" fill="#64748b">市售 BT 鼠标实际 · 66-125Hz</text>
+</svg>
+<figcaption>图 3 · 链路定位图（对数纵轴）。蓝点 = 我们的选项，灰点 = 参照系，红点 = 已否决。
+注意市售蓝牙鼠标全都聚在右下角——而它们"玩起来感觉没问题"，这就是 §3.3 的人因答案。</figcaption>
+</figure>
+<table>
+  <tr><th>维度</th><th>BLE 单板</th><th>星闪 + dongle</th><th>USB-C 直插</th></tr>
+  <tr><td>商单视频演示</td><td style="color:#15803d">✅ 零 dongle 最省事</td><td>✅（多一个件）</td><td>✅（有根线）</td></tr>
+  <tr><td>日常手感档位</td><td>对齐罗技 MX 蓝牙档</td><td style="color:#15803d">对齐私有 2.4G 游戏档</td><td style="color:#15803d">最高</td></tr>
+  <tr><td>热/续航</td><td style="color:#15803d">最优（0.5-3mA 档）</td><td>好（甜点区 250-500Hz）</td><td>—（供电）</td></tr>
+  <tr><td>BOM/复杂度</td><td style="color:#15803d">单板</td><td>双件套（鼠标+dongle）</td><td>一个连接器</td></tr>
+  <tr><td>工程风险</td><td style="color:#15803d">低（生态成熟）</td><td style="color:#a16207">中（互通未闭环/SDK 新）</td><td style="color:#15803d">低</td></tr>
+  <tr><td>1kHz 回报</td><td style="color:#b91c1c">不可能</td><td style="color:#15803d">可以</td><td style="color:#15803d">可以</td></tr>
+</table>
+
+<!-- ================================================================ -->
+<h2 id="s6">6 · AirMouse 落地路线</h2>
+<ol>
+  <li><strong>商单基线：BLE 单板</strong>——ESP32-S3（核1 跑 EKF+光标引擎，核0 跑 NimBLE+传感器 SPI），
+  HOGP 标准 HID，配对即用。体验对标 MX 蓝牙档，对该定位绰绰有余；协商 7.5ms CI 是上板第一件事，
+  实测 Windows 每事件实际收几包（决定真实报文率 133 还是 250+）；</li>
+  <li><strong>与算法层的衔接是免费的</strong>：EKF 内部 200Hz~1kHz 照跑（5ms 门控原生支持），
+  光标增量逐拍进亚像素累积器，每个连接事件合并成整数 Δ 发出——链路换了，算法层一行不改；</li>
+  <li><strong>性能档：星闪 + dongle</strong>——复用已验证的 EB21duino（BS21）做接收端、鼠标侧加 BS21E
+  （方案 A 双芯片起步；方案 B 单芯片等 BS21E 应用核算力查证后再议）；</li>
+  <li><strong>双保险：留一根 USB-C</strong>——充电 + 有线模式二合一，TinyUSB 与 BLE 报告逻辑共享
+  （都是"产出 ΔX/ΔY"），成本一个连接器，兜住"要 1kHz / 最低延迟"的场景。商用鼠标常见的双模结构；</li>
+  <li><strong>远期愿景：双模</strong>（BLE 兜兼容 + 星闪给高性能档）——同一套固件骨架，链路层抽象成
+  "发送 Δ"接口即可。</li>
+</ol>
+
+<!-- ================================================================ -->
+<h2 id="s7">7 · 开放问题</h2>
+<ol>
+  <li>Windows/Android 实际给 BLE 外设的每事件收包数（决定 BLE 档真实上限）；</li>
+  <li>BS21E 应用核的 MCU 架构/主频/FPU 规格——单芯片方案的成立前提（翻 datasheet）；</li>
+  <li>SLE 2.0 ↔ 1.0 互通闭环（HiDiTing 遗留）；</li>
+  <li>星闪功耗曲线实测（250/500/1000Hz 三档温升与电流）；</li>
+  <li>BLE 1kHz 的野路子（堆多包/事件）值不值得做，还是直接等星闪档。</li>
+</ol>
+
+<!-- ================================================================ -->
+<h2 id="s8">附录 · 数字来源与置信度</h2>
+<table>
+  <tr><th>数字</th><th>来源类型</th><th>置信度</th></tr>
+  <tr><td>BLE CI 下限 7.5ms / 133Hz 数学</td><td>协议规范</td><td>高</td></tr>
+  <tr><td>市售 BT 鼠标 66-125Hz / 10-25ms</td><td>社区实测口径（Rtings/贴吧/个人测量惯例）</td><td>中（个体差异大，量级可靠）</td></tr>
+  <tr><td>人因 JND ~20ms、平滑阈值 60-100Hz</td><td>输入延迟研究文献常识口径</td><td>中</td></tr>
+  <tr><td>BT 鼠标 0.5-3mA / ESP-NOW 几十 mA</td><td>数据手册曲线 + 社区经验折算</td><td>中（量级可靠）</td></tr>
+  <tr><td>星闪 SLE 12Mbps（"6 倍"口径）</td><td>官方宣传材料</td><td>中高</td></tr>
+  <tr><td>EKF 占用（float &lt;1% / double 4-8%）</td><td>本机基准折算（quat-zupt-ekf/c/，误差带 ±3 倍）</td><td>中（上板待实测）</td></tr>
+  <tr><td>BS21E 应用核规格</td><td><strong>未查证</strong></td><td>—（方案 B 的关键未知）</td></tr>
+</table>
+
+<footer>
+  空鼠无线链路选型研究 · 2026-10-12 · AirMouse 系列姊妹篇（研究性质，无代码）·
+  <a href="index.html">AirMouse 实录</a> · <a href="attitude-anchored-cursor-control.html">姿态锚定设计</a> ·
+  算法基础：<a href="../witmotion-jy901-host-algorithms.html">WitMotion EKF 逆向</a> ·
+  硬件参考：<a href="../eb21duino-complete-guide.html">EB21duino</a> / <a href="../hh-m03-bs21e-complete-guide.html">HH-M03</a>
+</footer>
+
+</div>
+</body>
+</html>

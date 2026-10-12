@@ -142,6 +142,10 @@
     </div>
     <div class="section-title"><span class="dot" style="background:#f97316"></span> 开发实录与调研 <span class="count">(12)</span></div>
     <div class="grid">
+        <a class="card" data-date="2026-10-12" href="airmouse-esp32s3/wireless-link-selection.html">
+            <div class="card-title"><span class="arrow">&rarr;</span> 空鼠无线链路选型：BLE、星闪与 1kHz 的距离（AirMouse 姊妹篇）</div>
+            <div class="card-desc"><span class="tag">2026-10-12 · 选型研究</span> ESP-NOW 出局（射频无休眠调度→烫）后的三条路 · BLE 硬数学（CI 7.5ms 下限 → 133Hz 保底/~250Hz 上限，1kHz 正式关闭）· 市售蓝牙鼠标实测全在 66-125Hz 而你感觉没问题的人因解释（JND≈20ms/指针积分/游戏降采样）· 不烫的物理账（0.5-3mA vs ESP-NOW 几十 mA，差 50-100 倍）· 星闪 SLE 买到什么（12Mbps 过剩三数量级、真商品是 1kHz+2-6ms=私有 2.4G 游戏档、功耗与报文率同曲线）· 双芯片 vs BS21E 单芯片架构分叉（关键未知：应用核 FPU）· 链路定位图+决策矩阵 · 全系统预算两核&lt;15%（EKF float &lt;1%，I2C 才是真瓶颈）· 结论：商单=BLE 单板，性能档=星闪+dongle，留根 USB-C 兜底</div>
+        </a>
         <a class="card" data-date="2026-10-12" href="witmotion-jy901-host-algorithms.html">
             <div class="card-title"><span class="arrow">&rarr;</span> WitMotion 上位机算法逆向：JY901 九轴姿态 EKF · 振动 · 磁标定全套实现</div>
             <div class="card-desc"><span class="tag">2026-10-12 · 逆向研究</span> macOS 上拆 Windows 上位机（.NET 无混淆，ILSpy 全量反编译）· SinsEKF7.Core.dll = 7 状态全量 EKF（四元数+速度），ZUPT 四档自适应 R、磁航向一维观测、三级静止检测、静止分窗零偏、安装矩阵自标定 · 谱系锁定 PX4 早期 7 态 EKF · 挖出匀速旋转被误判静止的严重缺陷（yaw 冻结+零偏污染）· 附振动三模式算法族（Simulink 积分链/1024 点 FFT/20 项特征/0.25x–6x 倍频段）与 15 态 EKF 实时磁标定接口 · dotnet10 直接跑原厂 DLL 做黑盒差分：Python 复刻逐拍等价（5e-15）+ C99 移植（3.8e-10~3.2e-8，可直接进固件）· 固件考古：三层芯片双层架构（模块 MCU 姿态=正主，PC EKF=位移），评估板 hex=STM32F1 人格桥接固件（基因检测零命中，连 π/180 都没有），OTA 镜像=ESP8266 WiFi 桥，模块主 MCU 固件不随软件分发</div>
