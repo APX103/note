@@ -134,6 +134,10 @@
     </div>
     <div class="section-title"><span class="dot" style="background:#f97316"></span> 开发实录与调研 <span class="count">(12)</span></div>
     <div class="grid">
+        <a class="card" data-date="2026-10-12" href="witmotion-jy901-host-algorithms.html">
+            <div class="card-title"><span class="arrow">&rarr;</span> WitMotion 上位机算法逆向：JY901 九轴姿态 EKF · 振动 · 磁标定全套实现</div>
+            <div class="card-desc"><span class="tag">2026-10-12 · 逆向研究</span> macOS 上拆 Windows 上位机（.NET 无混淆，ILSpy 全量反编译）· SinsEKF7.Core.dll = 7 状态全量 EKF（四元数+速度），ZUPT 四档自适应 R、磁航向一维观测、三级静止检测、静止分窗零偏、安装矩阵自标定 · 谱系锁定 PX4 早期 7 态 EKF · 挖出匀速旋转被误判静止的严重缺陷（yaw 冻结+零偏污染）· 附振动三模式算法族（Simulink 积分链/1024 点 FFT/20 项特征/0.25x–6x 倍频段）与 15 态 EKF 实时磁标定接口 · dotnet10 直接跑原厂 DLL 做黑盒差分：Python 复刻逐拍等价（最大差 5e-15，静止判别全同）</div>
+        </a>
         <a class="card" data-date="2026-10-08" href="weact-stm32h723-macos-dev-log.html">
             <div class="card-title"><span class="arrow">&rarr;</span> WeAct MiniSTM32H723 macOS 开发实录：GCC 工具链自救到 ST7735 五特效 Demo</div>
             <div class="card-desc"><span class="tag">2026-10-08 · 开发实录</span> brew arm-none-eabi-gcc 无 newlib 死路 → Arm 官方工具链 pkgutil 免 sudo 解包 · openocd 转储 1MB 原厂固件备份 · Keil 例程转 Makefile · 逆向 BSP 关键事实（TFT96 宏藏 uvprojx · 背光 TIM1_CH2N）· 五特效 Demo · 附 H723 芯片特性全表、RTOS 注意细节（Cache×DMA/DTCM/时基/优先级）、十一类项目方向调研</div>

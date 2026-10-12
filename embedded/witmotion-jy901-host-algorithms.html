@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WitMotion 上位机算法逆向：JY901 九轴姿态 EKF · 振动 · 磁标定 全套实现</title>
+<style>
+:root{
+  --paper:#fcfbf8; --ink:#26313d; --ink-soft:#5b6672; --line:#e6e1d6; --line-soft:#efebe2;
+  --accent:#0e7490; --accent-deep:#155e75; --accent-bg:#ecfeff;
+  --gold:#a16207; --gold-bg:#fefce8;
+  --warn:#b91c1c; --warn-bg:#fef2f2;
+  --ok:#15803d; --ok-bg:#f0fdf4;
+  --code-bg:#f4f2ec; --code-ink:#3d4450;
+  --tbl-head:#f0ede5; --tbl-alt:#f8f6f0;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font:16px/1.85 -apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+.page{max-width:920px; margin:0 auto; padding:48px 28px 96px}
+header.hero{border-bottom:3px double var(--line); padding-bottom:28px; margin-bottom:36px}
+.hero .kicker{font-size:13px; letter-spacing:.18em; color:var(--accent); text-transform:uppercase; font-weight:600}
+h1{font-family:Georgia,"Songti SC","Noto Serif SC",serif; font-size:34px; line-height:1.35; margin:10px 0 14px; font-weight:700}
+.hero .sub{color:var(--ink-soft); font-size:15px; margin:0}
+.meta{display:flex; flex-wrap:wrap; gap:8px; margin-top:18px}
+.meta span{font-size:12.5px; border:1px solid var(--line); border-radius:999px; padding:3px 12px; color:var(--ink-soft); background:#fff}
+h2{
+  font-family:Georgia,"Songti SC","Noto Serif SC",serif; font-size:24px; margin:56px 0 6px; font-weight:700;
+  border-left:5px solid var(--accent); padding-left:14px; scroll-margin-top:20px;
+}
+h3{font-size:18.5px; margin:34px 0 8px; color:var(--accent-deep); font-weight:700}
+h4{font-size:16px; margin:24px 0 6px; color:var(--ink); font-weight:700}
+p{margin:10px 0}
+a{color:var(--accent); text-decoration:none}
+a:hover{text-decoration:underline}
+strong{color:#111827}
+.toc{
+  background:#fff; border:1px solid var(--line); border-radius:12px; padding:20px 26px; margin:30px 0;
+  columns:2; column-gap:36px; font-size:14.5px;
+}
+.toc .toc-title{column-span:all; font-weight:700; margin-bottom:10px; font-size:15px; color:var(--ink)}
+.toc a{display:block; color:var(--ink-soft); padding:2.5px 0; break-inside:avoid}
+.toc a:hover{color:var(--accent)}
+.toc a.lv2{padding-left:16px; font-size:13.5px}
+code{
+  font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-size:13px;
+  background:var(--code-bg); color:var(--code-ink); border-radius:4px; padding:1.5px 6px;
+}
+pre{
+  background:var(--code-bg); border:1px solid var(--line); border-radius:10px; padding:16px 18px;
+  overflow-x:auto; line-height:1.6; font-size:13px; margin:14px 0;
+}
+pre code{background:none; padding:0}
+table{border-collapse:collapse; width:100%; margin:16px 0; font-size:14px; background:#fff}
+th{background:var(--tbl-head); text-align:left; font-weight:600}
+th,td{border:1px solid var(--line); padding:7px 12px; vertical-align:top}
+tr:nth-child(even) td{background:var(--tbl-alt)}
+.callout{border-radius:10px; padding:14px 18px; margin:18px 0; border:1px solid; font-size:14.5px}
+.callout .ct{font-weight:700; display:block; margin-bottom:4px}
+.c-info{background:var(--accent-bg); border-color:#a5f3fc; color:#164e63}
+.c-warn{background:var(--warn-bg); border-color:#fecaca; color:#7f1d1d}
+.c-gold{background:var(--gold-bg); border-color:#fde68a; color:#713f12}
+.c-ok{background:var(--ok-bg); border-color:#bbf7d0; color:#14532d}
+figure{margin:26px 0; text-align:center}
+figcaption{font-size:13px; color:var(--ink-soft); margin-top:10px; line-height:1.6}
+svg{max-width:100%; height:auto; font-family:-apple-system,"PingFang SC",sans-serif}
+.eq{
+  display:block; text-align:center; margin:18px 0; font-size:17.5px; line-height:2.1;
+  font-family:Georgia,"Times New Roman","Songti SC",serif; overflow-x:auto; overflow-y:hidden; padding:4px 0;
+}
+.eq i, .mvar{font-family:Georgia,"Times New Roman",serif; font-style:italic; padding:0 1px}
+.eq sub,.eq sup,.mvar sub,.mvar sup{font-size:70%}
+.op{font-style:normal; padding:0 5px}
+.fr{display:inline-block; vertical-align:-0.9em; text-align:center; margin:0 3px}
+.fr .nu{display:block; border-bottom:1.3px solid currentColor; padding:0 6px; line-height:1.5}
+.fr .de{display:block; padding:0 6px; line-height:1.5}
+.vec{font-weight:600; font-style:normal}
+.tagchip{display:inline-block; font-size:11.5px; background:var(--accent); color:#fff; border-radius:4px; padding:1px 8px; margin-right:6px; vertical-align:2px}
+.tagchip.g{background:var(--gold)} .tagchip.w{background:var(--warn)} .tagchip.ok{background:var(--ok)}
+hr{border:none; border-top:1px solid var(--line); margin:40px 0}
+footer{margin-top:64px; padding-top:20px; border-top:3px double var(--line); font-size:13px; color:var(--ink-soft)}
+.small{font-size:13px; color:var(--ink-soft)}
+.grid2{display:grid; grid-template-columns:1fr 1fr; gap:18px}
+@media(max-width:760px){ .toc{columns:1} .grid2{grid-template-columns:1fr} h1{font-size:27px} }
+</style>
+</head>
+<body>
+<div class="page">
+
+<header class="hero">
+  <div class="kicker">Reverse Engineering · Commercial IMU Firmware Companion</div>
+  <h1>WitMotion 上位机算法逆向<br>—— JY901 九轴姿态 EKF、振动特征与磁力计标定的全套实现</h1>
+  <p class="sub">对维特智能 Windows 上位机（.NET/WPF，2025-09-30 构建）的互操作性逆向研究：
+  从 <code>SinsEKF7.Core.dll</code> 等程序集中完整提取 PC 端姿态解算、振动分析、磁标定三族商用算法，
+  含逐行 Python 复刻与合成数据验证。</p>
+  <div class="meta">
+    <span>2026-10-12</span><span>ILSpy 11.1 反编译</span><span>.NET / C# → Python 复刻</span>
+    <span>研究工程: work/witmotion-ekf7-research/</span><span>仅个人研究 · 不商用</span>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="toc-title">目录</div>
+  <a href="#s0">0 · 结论速览</a>
+  <a href="#s1">1 · 研究方法与法律边界</a>
+  <a href="#s2">2 · 上位机算法资产地图</a>
+  <a href="#s3">3 · 姿态解算：七状态全量 EKF</a>
+  <a class="lv2" href="#s3-1">3.1 坐标系与状态约定</a>
+  <a class="lv2" href="#s3-2">3.2 信号预处理与自动标定</a>
+  <a class="lv2" href="#s3-3">3.3 三段式初始化</a>
+  <a class="lv2" href="#s3-4">3.4 机械编排预测</a>
+  <a class="lv2" href="#s3-5">3.5 协方差传播与可观测性</a>
+  <a class="lv2" href="#s3-6">3.6 ZUPT 零速观测</a>
+  <a class="lv2" href="#s3-7">3.7 磁航向观测</a>
+  <a class="lv2" href="#s3-8">3.8 静止检测与陀螺零偏管理</a>
+  <a class="lv2" href="#s3-9">3.9 出厂调参全表</a>
+  <a href="#s4">4 · 「准确的姿态」是如何获得的</a>
+  <a href="#s5">5 · Python 复刻与双重验证</a>
+  <a href="#s6">6 · 谱系：它从哪里来</a>
+  <a href="#s7">7 · 商用算法的七个弱点</a>
+  <a href="#s8">8 · 振动算法族</a>
+  <a href="#s9">9 · 磁力计标定族</a>
+  <a href="#s10">10 · 简化位移解算器</a>
+  <a href="#s11">11 · 附录</a>
+</nav>
+
+<!-- ================================================================ -->
+<h2 id="s0">0 · 结论速览</h2>
+<p><strong>能拿到，拿到了，而且验证过了。</strong>这套上位机是 C#/.NET 写的、无混淆、类名清晰，
+姿态解算算法完整地放在独立程序集 <code>Bin/SinsEKF7.Core.dll</code>（44 KB，26 个源文件）中。它的本质是一个
+<strong>七状态全量卡尔曼滤波器</strong>（四元数 4 + 导航系速度 3），配 ZUPT 零速观测、磁航向观测、
+三级静止检测和静止零偏估计——结构与 PX4/Pixhawk <strong>早期七状态姿态 EKF 高度同源</strong>。
+此外还完整挖出了三族伴随算法：<strong>振动特征算法族</strong>（时域链 + FFT 域 + 20 项统计指标）、
+<strong>磁力计标定族</strong>（含一个 15 状态 EKF 的实时标定原生库）、以及一套<strong>简化 ZUPT 位移解算器</strong>。</p>
+<div class="callout c-info">
+  <span class="ct">一个容易混淆的点</span>
+  这套 PC 端算法的用途是上位机的「位移解算 / 3D 轨迹回放」功能（代码里挂的测试数据集是"手术刀推轨"等
+  HWT605 录制集）。<strong>传感器模块本体固件里跑的那套融合算法并不在这套软件里</strong>——模块上电直接输出的
+  四元数是固件算的。想研究固件算法，路线是安装目录 <code>Plugins/Python/OTA/upgrade/user1.4096.new.6.bin</code>
+  （ESP 系 OTA 镜像），那是另一个课题。
+</div>
+
+<!-- ================================================================ -->
+<h2 id="s1">1 · 研究方法与法律边界</h2>
+<p>目标软件为本人购买的维特智能模块配套 Windows 上位机。在 macOS 上无法运行，故采用静态逆向：</p>
+<pre><code># dotnet 10 + ILSpy 命令行（ilspycmd 11.1）
+export DOTNET_ROOT=/opt/homebrew/Cellar/dotnet/10.0.400/libexec
+~/.dotnet/tools/ilspycmd -p -o &lt;输出目录&gt; &lt;程序集.dll&gt;   # 整集反编译为 C# 工程</code></pre>
+<p>所有结论均基于反编译源码（IL → C# 还原，语义等价；变量名为 ILSpy 生成，非原始命名）。
+本文的反编译产物仅保留在本地研究目录，<strong>不用于商业用途、不对第三方分发</strong>；算法著作权归原厂所有。
+引用的数值常量、阈值、结构均逐行核对过反编译输出。</p>
+
+<!-- ================================================================ -->
+<h2 id="s2">2 · 上位机算法资产地图</h2>
+<p>先给全貌：这套软件约 30 个 <code>Wit.*.dll</code> 自研程序集，真正含算法的有五处。</p>
+<figure>
+<svg viewBox="0 0 880 560" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#5b6672"/>
+    </marker>
+  </defs>
+  <style>
+    .bx{fill:#fff;stroke:#cbd5e1;stroke-width:1.5;rx:10}
+    .t1{font-size:15px;font-weight:700;fill:#26313d}
+    .t2{font-size:11.5px;fill:#5b6672}
+    .hot{stroke:#0e7490;stroke-width:2}
+    .hotf{fill:#ecfeff}
+  </style>
+  <!-- top box -->
+  <rect class="bx" x="250" y="14" width="380" height="58" rx="10"/>
+  <text class="t1" x="440" y="38" text-anchor="middle">WitMotion.exe（WPF 主程序）</text>
+  <text class="t2" x="440" y="57" text-anchor="middle">产品配置界面 · 数据视图 · 3D 显示</text>
+  <!-- attitude -->
+  <rect class="bx hotf hot" x="30" y="120" width="250" height="120" rx="10"/>
+  <text class="t1" x="155" y="146" text-anchor="middle" fill="#155e75">① 姿态解算 ★本文主角</text>
+  <text class="t2" x="155" y="170" text-anchor="middle">SinsEKF7.Core.dll</text>
+  <text class="t2" x="155" y="188" text-anchor="middle">7 状态全量 EKF：四元数+速度</text>
+  <text class="t2" x="155" y="206" text-anchor="middle">ZUPT · 磁航向 · 静止检测 · 自标定</text>
+  <text class="t2" x="155" y="224" text-anchor="middle">调用方: Wit.Product.dll (JY901.DataView)</text>
+  <!-- vibration -->
+  <rect class="bx hotf hot" x="315" y="120" width="250" height="120" rx="10"/>
+  <text class="t1" x="440" y="146" text-anchor="middle" fill="#155e75">② 振动算法族</text>
+  <text class="t2" x="440" y="170" text-anchor="middle">VibrationAlgorithm.dll（托管）</text>
+  <text class="t2" x="440" y="188" text-anchor="middle">时域链 · FFT 域 · 20 项统计特征</text>
+  <text class="t2" x="440" y="206" text-anchor="middle">WTVibrationC.dll（原生 x64 C 版）</text>
+  <text class="t2" x="440" y="224" text-anchor="middle">Plugins/algorithm/ServerApp.exe 承载</text>
+  <!-- magcal -->
+  <rect class="bx hotf hot" x="600" y="120" width="250" height="120" rx="10"/>
+  <text class="t1" x="725" y="146" text-anchor="middle" fill="#155e75">③ 磁力计标定族</text>
+  <text class="t2" x="725" y="170" text-anchor="middle">Wit.MagCal.dll（792 KB，UI+拟合）</text>
+  <text class="t2" x="725" y="188" text-anchor="middle">八面标定 · 椭圆拟合 · 最大最小法</text>
+  <text class="t2" x="725" y="206" text-anchor="middle">Lib/RealMagCal*.dll（原生）</text>
+  <text class="t2" x="725" y="224" text-anchor="middle">MATLAB Coder 生成 · 15 状态 EKF</text>
+  <!-- displacement -->
+  <rect class="bx hotf hot" x="160" y="290" width="250" height="96" rx="10"/>
+  <text class="t1" x="285" y="316" text-anchor="middle" fill="#155e75">④ 简化位移解算器</text>
+  <text class="t2" x="285" y="340" text-anchor="middle">ImuOptDisplacementSolver（Wit.Product）</text>
+  <text class="t2" x="285" y="358" text-anchor="middle">外部四元数 + 一阶低通 + ZUPT</text>
+  <text class="t2" x="285" y="376" text-anchor="middle">位移钳制 ±2 m</text>
+  <!-- protocol -->
+  <rect class="bx" x="470" y="290" width="250" height="96" rx="10"/>
+  <text class="t1" x="595" y="316" text-anchor="middle">⑤ 协议解析器（非算法）</text>
+  <text class="t2" x="595" y="340" text-anchor="middle">Wit.SDK.DeviceOptions.dll</text>
+  <text class="t2" x="595" y="358" text-anchor="middle">每产品一个 Resolver（WitResolver…）</text>
+  <text class="t2" x="595" y="376" text-anchor="middle">可当串口协议文档读</text>
+  <!-- firmware note -->
+  <rect class="bx" x="160" y="440" width="560" height="86" rx="10" stroke-dasharray="6 4"/>
+  <text class="t1" x="440" y="468" text-anchor="middle" fill="#a16207">未在本次范围：模块固件算法 / OTA 镜像</text>
+  <text class="t2" x="440" y="492" text-anchor="middle">Plugins/Python/OTA/upgrade/user1.4096.new.6.bin · user2.4096.new.6.bin</text>
+  <text class="t2" x="440" y="510" text-anchor="middle">ESP 系 OTA 分区命名 —— 固件级算法是另一条研究路线</text>
+  <!-- arrows -->
+  <line x1="380" y1="72" x2="180" y2="118" stroke="#5b6672" stroke-width="1.5" marker-end="url(#ar)"/>
+  <line x1="440" y1="72" x2="440" y2="118" stroke="#5b6672" stroke-width="1.5" marker-end="url(#ar)"/>
+  <line x1="500" y1="72" x2="700" y2="118" stroke="#5b6672" stroke-width="1.5" marker-end="url(#ar)"/>
+  <line x1="250" y1="240" x2="275" y2="288" stroke="#5b6672" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#ar)"/>
+  <line x1="595" y1="386" x2="590" y2="438" stroke="#5b6672" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#ar)"/>
+  <text class="t2" x="612" y="416">⑤协议数据来源</text>
+</svg>
+<figcaption>图 1 · 上位机算法资产地图。实线框为本次完整提取的算法（①②③④），虚线框为未涉及部分。</figcaption>
+</figure>
+
+<!-- ================================================================ -->
+<h2 id="s3">3 · 姿态解算：七状态全量 EKF（SinsEKF7.Core）</h2>
+<p>这是整套软件里最有价值的部分。<code>SinsEKF7.Core.dll</code> 是一个自包含算法库，
+只依赖 MathNet.Numerics 做线性代数，26 个类职责分明（预测器 / 观测器 / 雅可比 / 检测器 / 参数各一个文件）。
+它在软件里的角色：JY901 数据视图拿原始 acc/gyro/mag 喂给它，输出姿态四元数 + 速度 + 位移，
+驱动 3D 轨迹回放。</p>
+
+<figure>
+<svg viewBox="0 0 880 300" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .pb{fill:#fff;stroke:#0e7490;stroke-width:1.6}
+    .pt{font-size:12.5px;font-weight:600;fill:#155e75}
+    .pd{font-size:10.5px;fill:#5b6672}
+    .nb{fill:#fefce8;stroke:#a16207;stroke-width:1.4}
+  </style>
+  <defs>
+    <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#0e7490"/>
+    </marker>
+  </defs>
+  <rect x="20" y="110" width="130" height="80" rx="9" class="pb"/>
+  <text class="pt" x="85" y="138" text-anchor="middle">原始数据</text>
+  <text class="pd" x="85" y="157" text-anchor="middle">acc / gyro / mag</text>
+  <text class="pd" x="85" y="172" text-anchor="middle">体坐标系</text>
+  <rect x="185" y="110" width="130" height="80" rx="9" class="pb"/>
+  <text class="pt" x="250" y="132" text-anchor="middle">输入低通</text>
+  <text class="pd" x="250" y="151" text-anchor="middle">KFilterInPlace</text>
+  <text class="pd" x="250" y="166" text-anchor="middle">k=0.1 标量一阶</text>
+  <rect x="350" y="110" width="150" height="80" rx="9" class="nb"/>
+  <text class="pt" x="425" y="132" text-anchor="middle" fill="#713f12">静止自标定(前10s)</text>
+  <text class="pd" x="425" y="151" text-anchor="middle">ImuAutoCalibrator</text>
+  <text class="pd" x="425" y="166" text-anchor="middle">安装矩阵 R + 陀螺零偏</text>
+  <rect x="535" y="110" width="130" height="80" rx="9" class="pb"/>
+  <text class="pt" x="600" y="132" text-anchor="middle">静止检测</text>
+  <text class="pd" x="600" y="151" text-anchor="middle">MotionDetector</text>
+  <text class="pd" x="600" y="166" text-anchor="middle">flag: 0/1/2/4</text>
+  <rect x="700" y="60" width="160" height="180" rx="9" fill="#ecfeff" stroke="#0e7490" stroke-width="2.4"/>
+  <text class="pt" x="780" y="90" text-anchor="middle">NavigationFilter</text>
+  <text class="pd" x="780" y="112" text-anchor="middle">初始化状态机(0–4s)</text>
+  <text class="pd" x="780" y="130" text-anchor="middle">机械编排预测</text>
+  <text class="pd" x="780" y="148" text-anchor="middle">协方差传播 F7/Q7</text>
+  <text class="pd" x="780" y="166" text-anchor="middle">ZUPT 观测</text>
+  <text class="pd" x="780" y="184" text-anchor="middle">磁航向观测(amode=9)</text>
+  <text class="pd" x="780" y="202" text-anchor="middle">零偏窗口估计</text>
+  <text class="pd" x="780" y="228" text-anchor="middle">→ q, v, p, 欧拉角</text>
+  <line x1="150" y1="150" x2="183" y2="150" stroke="#0e7490" stroke-width="1.8" marker-end="url(#ar2)"/>
+  <line x1="315" y1="150" x2="348" y2="150" stroke="#0e7490" stroke-width="1.8" marker-end="url(#ar2)"/>
+  <line x1="500" y1="150" x2="533" y2="150" stroke="#0e7490" stroke-width="1.8" marker-end="url(#ar2)"/>
+  <line x1="665" y1="150" x2="698" y2="150" stroke="#0e7490" stroke-width="1.8" marker-end="url(#ar2)"/>
+</svg>
+<figcaption>图 2 · 姿态解算信号流水线（对应 <code>DataAlgorithm.calculate()</code> 的调用链）。</figcaption>
+</figure>
+
+<h3 id="s3-1">3.1 坐标系与状态约定</h3>
+<p>导航系取 <strong>ENU</strong>（x 东、y 北、z 天），重力沿 −z。姿态用单位四元数
+<span class="mvar">q</span> = [<span class="mvar">q</span><sub>0</sub>, <span class="mvar">q</span><sub>1</sub>, <span class="mvar">q</span><sub>2</sub>, <span class="mvar">q</span><sub>3</sub>]（<span class="mvar">q</span><sub>0</sub>=w）表示，
+<span class="mvar">R</span>(<span class="mvar">q</span>) 为<strong>体→导航</strong>方向余弦阵（代码 <code>Quaternion.ToDirectionCosine()</code>，
+<code>Alignment.BodyToNav()</code>）。滤波器状态是<strong>七维全量状态</strong>（不是误差状态）：</p>
+<div class="eq">
+  <span class="mvar"><span class="vec">x</span></span> = [ <span class="mvar">q</span><sub>0</sub>, <span class="mvar">q</span><sub>1</sub>, <span class="mvar">q</span><sub>2</sub>, <span class="mvar">q</span><sub>3</sub>, <span class="mvar">v</span><sub>E</sub>, <span class="mvar">v</span><sub>N</sub>, <span class="mvar">v</span><sub>U</sub> ]<sup> T</sup> ∈ ℝ⁷
+</div>
+<p>协方差 <span class="mvar">P</span> 直接在这个 7 维状态上传播（7×7）。这是 2013 年前后嵌入式 EKF 的典型做法：
+实现简单、无需误差状态注入，代价是大机动下的数值稳定性弱于现代 ES-EKF（后述）。</p>
+
+<h3 id="s3-2">3.2 信号预处理与自动标定</h3>
+<p>进入滤波器之前有两级处理（调用方 <code>DataAlgorithm</code> 中）：</p>
+<ul>
+  <li><strong>标量一阶低通</strong>（他们叫 K 滤波）：<span class="mvar">y</span><sub>k</sub> = (1−<span class="mvar">k</span>)<span class="mvar">y</span><sub>k−1</sub> + <span class="mvar">k x</span><sub>k</sub>，acc/gyro 各 k=0.1；</li>
+  <li><strong>前 10 秒静止自标定</strong>（<code>ImuAutoCalibrator</code>）：窗口峰峰值低于阈值（陀螺 0.2°/s、加计 0.1 m/s²）持续 2 s 判静止，
+  再用 0.5×Fs 的三段轮转窗口累计均值，得到<span class="mvar"><strong>安装矩阵</strong></span> <span class="mvar">R</span><sub>inst</sub>（加计调平四元数的 DCM）
+  与<strong>陀螺零偏</strong> <span class="mvar">b</span><sub>g</sub>；完成后把输入旋转到调平系、扣除零偏，并 <code>filter.Reset()</code> 重启初始化。
+  好处：模块不用严格水平安装，算法自己找水平。</li>
+</ul>
+
+<h3 id="s3-3">3.3 三段式初始化（0–4 s 状态机）</h3>
+<figure>
+<svg viewBox="0 0 880 190" xmlns="http://www.w3.org/2000/svg">
+  <style>.tl{stroke:#cbd5e1;stroke-width:3}.ph{font-size:13px;font-weight:700;fill:#155e75}.tx{font-size:11px;fill:#5b6672}</style>
+  <line class="tl" x1="40" y1="100" x2="850" y2="100"/>
+  <g>
+    <circle cx="60" cy="100" r="8" fill="#0e7490"/>
+    <text class="ph" x="60" y="70" text-anchor="middle">0–0.1 s</text>
+    <text class="tx" x="60" y="128" text-anchor="middle">强制 q=[1,0,0,0]</text>
+    <text class="tx" x="60" y="144" text-anchor="middle">（身份复位）</text>
+    <circle cx="280" cy="100" r="8" fill="#0e7490"/>
+    <text class="ph" x="280" y="70" text-anchor="middle">0.1–3 s 静置累计</text>
+    <text class="tx" x="280" y="128" text-anchor="middle">逐拍陀螺变化 &lt; 0.02 rad/s 才计数</text>
+    <text class="tx" x="280" y="144" text-anchor="middle">需累计满 Fs 个样本（否则 3 s 超时兜底）</text>
+    <circle cx="520" cy="100" r="8" fill="#a16207"/>
+    <text class="ph" x="520" y="70" text-anchor="middle" fill="#713f12">3–4 s 粗对准</text>
+    <text class="tx" x="520" y="128" text-anchor="middle">AlignTilt：加计调平</text>
+    <text class="tx" x="520" y="144" text-anchor="middle">AlignHeading：磁航向对准 + P₀ 置初值</text>
+    <circle cx="760" cy="100" r="8" fill="#15803d"/>
+    <text class="ph" x="760" y="70" text-anchor="middle" fill="#14532d">4 s 起 正式滤波</text>
+    <text class="tx" x="760" y="128" text-anchor="middle">预测 + 4 拍轮转观测</text>
+    <text class="tx" x="760" y="144" text-anchor="middle">零偏取静置均值(&lt;0.05 rad/s 时)</text>
+  </g>
+  <text x="40" y="30" font-size="12" fill="#5b6672">InitMaxTime 状态机（NavigationFilter.Step 前三个分支）</text>
+</svg>
+<figcaption>图 3 · 初始化时间轴。静置均值为粗对准提供干净的加计/磁向量。</figcaption>
+</figure>
+<p>两条对准公式（<code>Alignment.cs</code>）——调平用平均比力方向：</p>
+<div class="eq">
+  <span class="mvar">θ</span><sub>tilt</sub> = atan2( √(<span class="mvar">a</span><sub>x</sub>² + <span class="mvar">a</span><sub>y</sub>²), <span class="mvar">a</span><sub>z</sub> ),&nbsp;&nbsp;
+  <span class="mvar">axis</span> = <span class="fr"><span class="nu"><span class="mvar">a</span> × ẑ</span><span class="de">| <span class="mvar">a</span> × ẑ |</span></span>,&nbsp;&nbsp;
+  <span class="mvar">q</span><sub>tilt</sub> = [cos(<span class="mvar">θ</span>/2), <span class="mvar">axis</span>·sin(<span class="mvar">θ</span>/2)]
+</div>
+<p>航向用调平后的磁向量（水平分量指北）：</p>
+<div class="eq">
+  <span class="mvar">ψ</span> = <span class="mvar">D</span><sub>ec</sub> + atan2( <span class="mvar">m</span><sub>E</sub>, <span class="mvar">m</span><sub>N</sub> )
+</div>
+
+<h3 id="s3-4">3.4 机械编排预测（每拍执行）</h3>
+<p>姿态：陀螺角增量扣零偏 → 旋转向量转四元数（小角度用泰勒级数，避免除零）→ 右乘传播：</p>
+<div class="eq">
+  δ<span class="mvar">q</span> = quat( (<span class="mvar">ω</span><sub>b</sub>·Δt − δ<span class="mvar">θ</span><sub>bias</sub>) ),&nbsp;&nbsp;
+  <span class="mvar">q</span><sub>k+1</sub> = normalize( <span class="mvar">q</span><sub>k</sub> ⊗ δ<span class="mvar">q</span> )
+</div>
+<p>速度：比力旋转到导航系后积分，重力沿 −z 扣除；<span class="mvar">K</span><sub>a</sub> 是粗对准算出的加计刻度因子（<span class="mvar">g</span>₀/|<span class="mvar">a</span>̄|）：</p>
+<div class="eq">
+  <span class="mvar"><span class="vec">v</span></span><sub>k+1</sub> = <span class="mvar"><span class="vec">v</span></span><sub>k</sub> + <span class="mvar">R</span>(<span class="mvar">q</span><sub>k+1</sub>) · ( <span class="mvar">K</span><sub>a</sub> <span class="mvar"><span class="vec">a</span></span><sub>b</sub> Δt ) − <span class="mvar">g</span>₀ Δt · [0,0,1]<sup>T</sup>
+</div>
+<p>位置：仅在运动档位允许时做梯形积分，且任何静止标志（flag&gt;0）都直接清零——位置只是短时演示量：</p>
+<div class="eq">
+  <span class="mvar"><span class="vec">p</span></span><sub>k+1</sub> = <span class="mvar"><span class="vec">p</span></span><sub>k</sub> + ½Δt ( <span class="mvar"><span class="vec">v</span></span><sub>k</sub> + <span class="mvar"><span class="vec">v</span></span><sub>k+1</sub> )&nbsp;&nbsp;(仅 outRunPosFlag=1)
+</div>
+
+<h3 id="s3-5">3.5 协方差传播与可观测性开关</h3>
+<p>每 5 ms 一次、按 4 拍轮转中的第 1/3 拍执行（<code>CovariancePredictor</code> + <code>Jacobian.CalcF7/CalcQ7</code>）：</p>
+<div class="eq">
+  <span class="mvar">P</span> ← <span class="mvar">F</span>₇ <span class="mvar">P</span> <span class="mvar">F</span>₇<sup>T</sup> + <span class="mvar">Q</span>₇,&nbsp;&nbsp;随后 <span class="mvar">P</span> ← ½(<span class="mvar">P</span> + <span class="mvar">P</span><sup>T</sup>)，对角负值截断
+</div>
+<p><span class="mvar">F</span>₇ 是状态转移对 [<span class="mvar">q</span>, <span class="mvar">v</span>] 的解析雅可比（以累计角增量/速度增量为一阶项），
+<span class="mvar">Q</span>₇ 由过程噪声（角度增量噪声 0.01 rad、速度增量噪声 0.35 m/s）经四元数结构映射而成——两块 7×7
+解析式在 <code>Jacobian.cs</code> 里全部显式展开（每块 ~90 行标量式），工程上很"莽"但透明可查。三个关键设计：</p>
+<ul>
+  <li><strong>可观测性开关</strong>：<code>amode=6</code>（六轴）时 <span class="mvar">Q</span> 中 <span class="mvar">σ</span><sub>θz</sub>²←0 且 <span class="mvar">P</span>₀ 中 <span class="mvar">q</span>₃ 方差置 0——<strong>偏航被显式声明为不可观</strong>，只靠陀螺积分，不发散；</li>
+  <li><strong>静止时角度增量清零</strong>（dax=day=daz=0 进 <span class="mvar">F</span>）：静止期间不往姿态注入过程噪声，姿态确定性保持；</li>
+  <li><strong>噪声按累计增量注入</strong>：协方差用累计 Δθ、Δv（DelAngCov/DelVelCov）而不是瞬时值，对变步长更稳。</li>
+</ul>
+
+<h3 id="s3-6">3.6 ZUPT 零速观测（第 0 拍）</h3>
+<p>这是整套算法的"锚"。IMU 没有绝对姿态/速度参考，加计只测比力——<strong>靠"静止时速度必为零"这个物理事实，
+把速度误差拉回零，姿态误差随之通过 <span class="mvar">P</span> 的交叉协方差被连带修正</strong>。观测模型：</p>
+<div class="eq">
+  <span class="mvar">H</span> = [ 0<sub>3×4</sub>  <span class="mvar">I</span>₃ ],&nbsp;&nbsp; <span class="mvar">z</span> = 0（零速伪观测）,&nbsp;&nbsp;
+  新息 <span class="mvar">ν</span> = 0 − <span class="mvar"><span class="vec">v</span></span>̂ = −<span class="mvar"><span class="vec">v</span></span>̂
+</div>
+<p>逐轴卡方式门控：<span class="mvar">ν</span><sub>i</sub>² / (<span class="mvar">γ</span>² <span class="mvar">S</span><sub>ii</sub>) &gt; 1 则<strong>整体拒绝</strong>本拍（防坏数据拉崩）。
+精髓在量测方差 <span class="mvar">R</span> 与门限 <span class="mvar">γ</span> 随运动状态分四档，越静止拉得越狠：</p>
+<table>
+  <tr><th>motionlessFlag</th><th>含义（检测条件）</th><th>R（量测方差）</th><th>门限 γ</th><th>附加动作</th></tr>
+  <tr><td><code>0</code></td><td>运动中</td><td>10⁴（等于不信）</td><td>γ₀×10⁻⁴</td><td>—</td></tr>
+  <tr><td><code>1</code></td><td>低角速率 ≥0.2 s（|ω|&lt;1.5°/s）</td><td>1</td><td>γ₀（=10）</td><td>|v|&gt;0.5 则硬置零</td></tr>
+  <tr><td><code>2</code></td><td>偏航静止 ≥1 s（ω_z 峰峰值&lt;0.5°/s）</td><td>10⁻²</td><td>γ₀×10</td><td>同上</td></tr>
+  <tr><td><code>4</code></td><td>完全静止 ≥2 s（六路峰峰值全低于阈值）</td><td>10⁻⁴</td><td>γ₀×100</td><td>|v|&gt;0.1 则硬置零</td></tr>
+</table>
+<p>增益与协方差按标准 KF 更新：<span class="mvar">K</span> = <span class="mvar">P H</span><sup>T</sup><span class="mvar">S</span>⁻¹，
+<span class="mvar">x</span> ← <span class="mvar">x</span> − <span class="mvar">Kν</span>（四元数归一化），<span class="mvar">P</span> ← (<span class="mvar">I</span>−<span class="mvar">KH</span>)<span class="mvar">P</span> 对称化。</p>
+
+<h3 id="s3-7">3.7 磁航向观测（第 2 拍，仅 amode=9）</h3>
+<p>一维观测，量测函数是"把磁向量旋到导航系后取水平角"：</p>
+<div class="eq">
+  <span class="mvar">h</span>(<span class="mvar">q</span>) = atan2( ( <span class="mvar">R</span>(<span class="mvar">q</span>)<span class="mvar"><span class="vec">m</span></span> )<sub>E</sub>, ( <span class="mvar">R</span>(<span class="mvar">q</span>)<span class="mvar"><span class="vec">m</span></span> )<sub>N</sub> ),&nbsp;&nbsp;
+  新息 <span class="mvar">ν</span> = <span class="mvar">h</span>(<span class="mvar">q</span>) − <span class="mvar">D</span><sub>ec</sub>
+</div>
+<p>即"当前姿态下解算出的磁航向"应等于当地磁偏角——期望值本身就是参考。<span class="mvar">H</span> = ∂<span class="mvar">h</span>/∂<span class="mvar">q</span> 是
+<strong>解析雅可比</strong>（<code>Jacobian.CalcH_Hdgc</code>，atan2 比值求导展开成 ~40 行标量式）。测量噪声自适应：</p>
+<ul>
+  <li>运动中：启动 2 s 内 <span class="mvar">R</span><sub>mag</sub>=100（很松），之后 10·<span class="mvar">σ</span><sub>hdg</sub>²；</li>
+  <li>静止中：0.3·<span class="mvar">σ</span><sub>hdg</sub>²（收紧），且<strong>静止累计超 10 s 时直接重新粗对准航向并重置 P</strong>（快速收敛不怕暂态）。</li>
+</ul>
+<p>门控同样是卡方式（<span class="mvar">ν</span>²/(<span class="mvar">γ</span><sub>mag</sub>²<span class="mvar">S</span>) ≤ 1，<span class="mvar">γ</span><sub>mag</sub>=5），磁干扰大时整拍拒绝。</p>
+
+<h3 id="s3-8">3.8 静止检测与陀螺零偏管理</h3>
+<p><code>MotionDetector</code> 输出三级标志（见 3.6 表），检测器是"窗口峰峰值 + 阈值突破时锚点重置"式。
+完全静止（flag=4）时有两件事发生：</p>
+<ul>
+  <li><strong>姿态冻结</strong>：角增量 δθ 直接替换为 δθ<sub>bias</sub>（只扣零偏，不积分真实旋转）；</li>
+  <li><strong>分窗零偏估计</strong>：以 0.23·Fs 为窗长做三段轮转累计（清零→累计1→累计2→出均值），
+  均值以 α=0.04 指数平滑进 <span class="mvar">b</span><sub>g</sub>——静止越久零偏越准，这是 MEMS 陀螺
+  "零偏不稳"的对冲手段。</li>
+</ul>
+
+<h3 id="s3-9">3.9 出厂调参全表（ParametersInitC7，200 Hz 档）</h3>
+<table>
+  <tr><th>组</th><th>参数</th><th>值</th><th>含义 / 备注</th></tr>
+  <tr><td rowspan="6">Wit</td><td><code>Fs / IPackMean</code></td><td>200 / 1</td><td>采样率、打包均值</td></tr>
+  <tr><td><code>AccFiltK / GyroFiltK</code></td><td>0.1 / 0.1</td><td>输入一阶低通系数</td></tr>
+  <tr><td><code>Amode</code></td><td>6（默认）</td><td>6=六轴无磁；9=磁航向融合</td></tr>
+  <tr><td><code>G0</code></td><td>9.7955025</td><td>重力值 ≈ 广州纬度 g（本土彩蛋）</td></tr>
+  <tr><td><code>WorkMode</code></td><td>0/1/2</td><td>位置积分手感档位（1=高机动阈值）</td></tr>
+  <tr><td><code>KBias</code></td><td>0.1</td><td>（遗留，未在主循环使用）</td></tr>
+  <tr><td rowspan="2">AutoCal</td><td><code>AutoCalGyroMaxMin</code></td><td>π/900 ≈ 0.2°/s</td><td>自标定静止陀螺峰峰值阈值</td></tr>
+  <tr><td><code>AutoCalAccMaxMin</code></td><td>0.05 m/s²（×2 使用）</td><td>自标定静止加计峰峰值阈值</td></tr>
+  <tr><td rowspan="2">Prediction</td><td><code>AngRateNoise</code></td><td>0.01 rad</td><td>Q 注入：角度增量噪声</td></tr>
+  <tr><td><code>AccelNoise</code></td><td>0.35 m/s</td><td>Q 注入：速度增量噪声</td></tr>
+  <tr><td rowspan="5">Fusion</td><td><code>BodyVelGate</code></td><td>10</td><td>ZUPT 卡方门限基数 γ₀</td></tr>
+  <tr><td><code>MagFuseMethod</code></td><td>2</td><td>2=启用磁航向融合</td></tr>
+  <tr><td><code>MagHdgError</code></td><td>0.1745</td><td>磁航向噪声 σ²（≈10° 档）</td></tr>
+  <tr><td><code>MagHdgGate</code></td><td>5</td><td>磁航向卡方门限</td></tr>
+  <tr><td><code>AngRateBiasK</code></td><td>0.04</td><td>陀螺零偏指数平滑系数</td></tr>
+  <tr><td rowspan="3">Alignment</td><td><code>VelErrNE / VelErrD</code></td><td>5 / 1</td><td>P₀ 速度初方差</td></tr>
+  <tr><td><code>QuatErr</code></td><td>0.1</td><td>P₀ 四元数初方差</td></tr>
+  <tr><td><code>MagDeclDeg</code></td><td>0°</td><td>磁偏角（按地点设置）</td></tr>
+</table>
+
+<!-- ================================================================ -->
+<h2 id="s4">4 · 「准确的姿态」是如何获得的</h2>
+<p>商用算法与教科书 Demo 的差距，不在"会写 EKF 公式"，而在<strong>把物理先验和工程防御做成闭环</strong>。
+把这套实现拆开看，准确姿态来自七层机制的叠加：</p>
+<figure>
+<svg viewBox="0 0 880 400" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .lay{fill:#fff;stroke:#cbd5e1;stroke-width:1.4}
+    .ln{font-size:13px;font-weight:700;fill:#26313d}
+    .ld{font-size:11px;fill:#5b6672}
+    .num{fill:#0e7490;font-size:15px;font-weight:800}
+  </style>
+  <g>
+    <rect class="lay" x="30" y="20" width="820" height="46" rx="8"/>
+    <text class="num" x="50" y="49">1</text>
+    <text class="ln" x="76" y="49">机械编排闭环（比力→导航系→减重力→速度）</text>
+    <text class="ld" x="560" y="49">姿态误差直接表现为错误的比力旋转 → 速度漂移</text>
+    <rect class="lay" x="30" y="76" width="820" height="46" rx="8"/>
+    <text class="num" x="50" y="105">2</text>
+    <text class="ln" x="76" y="105">ZUPT 锚定：静止 ⇒ 速度=0 的伪观测</text>
+    <text class="ld" x="560" y="105">误差经 P 交叉协方差反哺姿态修正</text>
+    <rect class="lay" x="30" y="132" width="820" height="46" rx="8"/>
+    <text class="num" x="50" y="161">3</text>
+    <text class="ln" x="76" y="161">四档自适应 R/γ：越静止越信任零速</text>
+    <text class="ld" x="560" y="161">R 从 10⁴ 到 10⁻⁴ 跨 8 个数量级</text>
+    <rect class="lay" x="30" y="188" width="820" height="46" rx="8"/>
+    <text class="num" x="50" y="217">4</text>
+    <text class="ln" x="76" y="217">磁航向锚定（九轴）：h(q)−D_ec 一维观测 + 静止重对准</text>
+    <text class="ld" x="560" y="217">yaw 由磁提供绝对参考，门控挡磁干扰</text>
+    <rect class="lay" x="30" y="244" width="820" height="46" rx="8"/>
+    <text class="num" x="50" y="273">5</text>
+    <text class="ln" x="76" y="273">陀螺零偏在线管理：静止分窗 + 指数平滑</text>
+    <text class="ld" x="560" y="273">对冲 MEMS 零偏不稳定性（主要误差源）</text>
+    <rect class="lay" x="30" y="300" width="820" height="46" rx="8"/>
+    <text class="num" x="50" y="329">6</text>
+    <text class="ln" x="76" y="329">初始条件：三段式粗对准 + 加计刻度因子 K_a 归一</text>
+    <text class="ld" x="560" y="329">起点准，滤波才收敛得快且稳</text>
+    <rect class="lay" x="30" y="356" width="820" height="40" rx="8" stroke="#0e7490" stroke-width="1.8" fill="#ecfeff"/>
+    <text class="num" x="50" y="382">7</text>
+    <text class="ln" x="76" y="382" fill="#155e75">防御工事：卡方式门控（逐拍拒绝坏量测）· 对称化+对角截断 · amode 可观测性开关</text>
+  </g>
+</svg>
+<figcaption>图 4 · 准确性的七层来源。教科书只教第 1、2 层；商用价值在 3–7 层。</figcaption>
+</figure>
+<div class="callout c-gold">
+  <span class="ct">一句话版本</span>
+  加计管"水平不漂"（经 ZUPT 间接起作用）、磁力计管"航向不漂"、陀螺管"动态跟得上"、
+  静止检测管"什么时候该信谁"、零偏估计管"陀螺慢变"、门控管"坏数据进不来"。
+  姿态解算从来不是单个公式，而是这套<strong>信任调度系统</strong>。
+</div>
+<p>值得注意的对照：模块<strong>固件</strong>里跑的算法（输出四元数的那套）通常是 Mahony/互补滤波或小型 EKF，
+受限于 MCU 算力；而这套 PC 端算法跑在 x86 上，可以放手做 7×7 矩阵运算和多重防御。
+也就是说：同一台 JY901，上位机里的"二次解算"在某些场景（尤其需要位移时）比模块固件输出更讲究。</p>
+
+<!-- ================================================================ -->
+<h2 id="s5">5 · Python 复刻与双重验证</h2>
+<p>研究工程 <code>work/witmotion-ekf7-research/</code> 内含逐行忠实的 numpy 移植
+（<code>python/sins_ekf7.py</code>，函数名/变量名与反编译源码一一对应，含全部门控怪癖）。
+验证做了两层：<strong>行为验证</strong>（对真值）与<strong>黑盒一致性验证</strong>（对原厂 DLL 逐拍比对）。</p>
+
+<h3>5.1 行为验证（vs 真值）</h3>
+<p>场景：200 Hz，初始横滚/俯仰 5°/−3°，陀螺零偏 [0.11, −0.05, 0.09]°/s，加计噪声 0.02 m/s²，
+8 s 静置后 ±60° 正弦往复偏航（<code>python/demo_synthetic.py</code>，只依赖 numpy）：</p>
+<table>
+  <tr><th>模式</th><th>roll/pitch 稳态最大误差</th><th>yaw 最大 / 末端误差</th><th>说明</th></tr>
+  <tr><td>九轴（amode=9, 磁开）</td><td>0.043° / 0.038°</td><td>2.3°（磁融合暂态）/ 0.86°</td><td>磁航向收敛后 yaw 有绝对参考</td></tr>
+  <tr><td>六轴（amode=6, 磁关）</td><td>0.030° / 0.029°</td><td>1.8° / 1.3°</td><td>yaw 纯陀螺积分，零偏扣除后缓漂</td></tr>
+</table>
+
+<h3>5.2 黑盒一致性验证（原厂 DLL vs 移植，逐拍比对）</h3>
+<p>这是检验"复刻是否忠实"最硬的手段：macOS 上用 dotnet 10 <strong>直接加载原厂发布的
+<code>SinsEKF7.Core.dll</code></strong>（net462 纯 IL，可正常运行）作为参照实现，
+按 <code>DataAlgorithm.calculate()</code> 的反编译接线驱动（输入低通 → 前 10 s 自标定 →
+静止检测 → <code>NavigationFilter.Step</code>）；移植版喂<strong>同一份 CSV</strong>
+（合成数据，%.17g 往返精度），逐拍比对 14 路输出与静止判别序列：</p>
+<figure>
+<svg viewBox="0 0 880 200" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .bb{fill:#fff;stroke:#0e7490;stroke-width:1.6}
+    .bt{font-size:13px;font-weight:700;fill:#155e75}
+    .bd{font-size:11px;fill:#5b6672}
+    .cmp{fill:#f0fdf4;stroke:#15803d;stroke-width:1.8}
+  </style>
+  <defs><marker id="ar4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#0e7490"/></marker></defs>
+  <rect x="20" y="60" width="180" height="80" rx="9" class="bb"/>
+  <text class="bt" x="110" y="88" text-anchor="middle">同一份 CSV</text>
+  <text class="bd" x="110" y="108" text-anchor="middle">1000 / 3000 拍</text>
+  <text class="bd" x="110" y="124" text-anchor="middle">acc/gyro/mag %.17g</text>
+  <rect x="250" y="24" width="270" height="70" rx="9" class="bb"/>
+  <text class="bt" x="385" y="48" text-anchor="middle">C# 参照：原厂 SinsEKF7.Core.dll</text>
+  <text class="bd" x="385" y="68" text-anchor="middle">dotnet 10 加载 · DataAlgorithm 接线</text>
+  <rect x="250" y="110" width="270" height="70" rx="9" class="bb"/>
+  <text class="bt" x="385" y="134" text-anchor="middle">Python 移植：sins_ekf7.py</text>
+  <text class="bd" x="385" y="154" text-anchor="middle">WitPipeline 同接线</text>
+  <rect x="570" y="60" width="280" height="80" rx="9" class="cmp"/>
+  <text class="bt" x="710" y="86" text-anchor="middle" fill="#14532d">逐拍比对（compare.py）</text>
+  <text class="bd" x="710" y="106" text-anchor="middle">最大绝对差 5.1~8.5 × 10⁻¹⁵</text>
+  <text class="bd" x="710" y="122" text-anchor="middle">motionlessFlag 序列完全一致</text>
+  <line x1="200" y1="82" x2="248" y2="60" stroke="#0e7490" stroke-width="1.8" marker-end="url(#ar4)"/>
+  <line x1="200" y1="118" x2="248" y2="142" stroke="#0e7490" stroke-width="1.8" marker-end="url(#ar4)"/>
+  <line x1="520" y1="59" x2="568" y2="86" stroke="#15803d" stroke-width="1.8" marker-end="url(#ar4)"/>
+  <line x1="520" y1="145" x2="568" y2="118" stroke="#15803d" stroke-width="1.8" marker-end="url(#ar4)"/>
+</svg>
+<figcaption>图 5 · 黑盒差分测试：三个场景（1000 拍九轴 / 3000 拍九轴 / 3000 拍六轴）全部通过，
+差异在机器精度量级（来源是 MathNet 托管矩阵乘与 numpy BLAS 的求和顺序）。</figcaption>
+</figure>
+<table>
+  <tr><th>场景</th><th>拍数</th><th>最大绝对差（全列）</th><th>静止判别序列</th></tr>
+  <tr><td>amode=9，5 s（静置→变速旋转→静置）</td><td>1000</td><td>5.1 × 10⁻¹⁵</td><td>完全一致</td></tr>
+  <tr><td>amode=9，15 s 长序列</td><td>3000</td><td>8.5 × 10⁻¹⁵</td><td>完全一致</td></tr>
+  <tr><td>amode=6，15 s 长序列</td><td>3000</td><td>6.1 × 10⁻¹⁵</td><td>完全一致</td></tr>
+</table>
+<p>覆盖面核查：四级静止档位（flag 0/1/2/4）在数据中全部出现并被两侧同拍触发；粗对准输出
+roll 5.002° / pitch −3.002°（与数据真值一致）；ZUPT 末端 |v| = 0.0001 m/s；
+磁航向观测实测生效（amode 9 与 6 的末端 yaw 差 0.053° ≠ 0）。</p>
+<div class="callout c-ok">
+  <span class="ct">黑盒测试还抓出并修复了一处移植偏差</span>
+  <code>MotionState / AutoCalState</code> 的 min/max 字段在 C# 里默认是 <strong>0</strong>（double 字段默认值），
+  移植版最初用了 ±∞ 初始化——首拍峰峰值行为不同。按 C# 默认值对齐后三场景全绿。
+  这正说明差分黑盒测试的价值：<strong>看代码逐行对照会漏的东西，逐拍比对抓得出来</strong>。
+</div>
+
+<!-- ================================================================ -->
+<h2 id="s6">6 · 谱系：它从哪里来</h2>
+<p>多处结构证据指向 <strong>PX4/Pixhawk 早期的七状态姿态-位置 EKF</strong>（<code>ekf_att_pos_estimator</code> / ecl 前身一支）：</p>
+<ul>
+  <li>同样的全量状态 [quat, velocity] 与 7×7 协方差直接传播；</li>
+  <li><code>DelAngCov / DelVelCov</code> 式的 IMU 增量累计 + 周期性协方差注入调度；</li>
+  <li>ZUPT 的 H=[0 I] + 逐轴卡方门控 + 按运动状态切换 R；</li>
+  <li>磁航向一维观测 <code>atan2((R·m)_x,(R·m)_y) − dec</code> 及其解析雅可比；</li>
+  <li>min/max 锚点重置式静止检测、静止分窗零偏估计；</li>
+  <li>6/9 轴"amode"与 Q 中 z 轴角度噪声置零的可观测性处理。</li>
+</ul>
+<p>本土化改造：G₀ 取广州纬度值 9.7955、参数 Wit 化命名、加入安装矩阵自标定、
+WorkMode 位移档位、磁航向静止超时重对准（MagRunTime&gt;10 s 触发 P 重置）。
+结论：<strong>可视为 PX4 早期 EKF 的商用移植改良版</strong>（基于结构判断，未做逐行比对核实）。
+对照现代实现：PX4 当前的 ECL2/EKF2 是 24 状态误差状态 EKF；误差状态式在大机动一致性、
+数值稳定上都优于这种全量式——但全量式的可读性与实现成本优势，正是它在商用上位机里活到 2025 年的原因。</p>
+
+<!-- ================================================================ -->
+<h2 id="s7">7 · 商用算法的七个弱点（研究价值所在）</h2>
+<div class="callout c-warn">
+  <span class="ct">⚠ 1 · 匀速旋转会被误判为"静止"（最严重的坑）</span>
+  静止检测是"窗口峰峰值 + 阈值突破时锚点重置到当前值"式。开始<strong>匀速</strong>旋转后锚点即重置，
+  随后峰峰值只剩噪声 → 2 s 后 flag=4。后果链：姿态增量被 δθ<sub>bias</sub> 替代（<strong>yaw 冻结</strong>）
+  → 零偏窗口吸入转速 → 零偏被污染（合成数据实测 z 轴零偏被拉偏 ~5°/s 量级）→ 解冻后姿态跳变。
+  原厂测试集是"手术刀推轨"式往复运动，从不触发；车载匀速转弯、云台连续跟拍场景必踩。
+</div>
+<p>其余六个按严重程度排列：</p>
+<ol start="2">
+  <li><strong>冻结与污染互相放大</strong>：冻结期间预测仍用被污染的 δθ<sub>bias</sub>，错误在静止期持续累积；</li>
+  <li><code>DataAlgorithm.calculate()</code> 内硬编码 <code>cfg.Fs=200</code>，覆盖外层数据集采样率——500/1000 Hz 数据集实际按 200 Hz 阈值运行；</li>
+  <li>全量四元数协方差传播：大机动数值稳定性弱于 ES-EKF，只能靠 0.5(P+Pᵀ) 对称化和对角截断兜底；</li>
+  <li><code>G0=9.7955</code> 是广州本地 g：纬度差 ~0.1% g，经 ZUPT 拉扯表现为小俯仰偏差；</li>
+  <li>位置输出在 flag&gt;0 时清零：只是短时相对位移演示量，不是 PDR 级输出；</li>
+  <li>初始化计数要求陀螺<strong>逐拍</strong>变化 &lt;0.02 rad/s：振动环境下计数反复清零，粗对准延迟（有超时兜底）。</li>
+</ol>
+
+<!-- ================================================================ -->
+<h2 id="s8">8 · 振动算法族（VibrationAlgorithm.dll + WTVibrationC.dll）</h2>
+<p>服务维特振动类产品（WTVB 系列），由 <code>Plugins/algorithm/ServerApp.exe</code> 独立进程承载，
+另有原生 x64 的 <code>WTVibrationC.dll</code>（C 版，给 <code>WTVibrationHelper64.exe</code> 用）。
+入口 <code>VibrationCalculator.Calculate()</code> 按三模式分发：</p>
+<figure>
+<svg viewBox="0 0 880 350" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .vb{fill:#fff;stroke:#0e7490;stroke-width:1.5}
+    .vt{font-size:12.5px;font-weight:700;fill:#155e75}
+    .vd{font-size:10.5px;fill:#5b6672}
+  </style>
+  <defs><marker id="ar3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#0e7490"/></marker></defs>
+  <rect x="330" y="12" width="220" height="44" rx="8" class="vb"/>
+  <text class="vt" x="440" y="32" text-anchor="middle">VibrationCalculator</text>
+  <text class="vd" x="440" y="48" text-anchor="middle">输入：raw acc(short) + accScale + 打包参数</text>
+  <!-- stats common -->
+  <rect x="30" y="100" width="255" height="108" rx="8" class="vb"/>
+  <text class="vt" x="157" y="122" text-anchor="middle">公共层 · AccMagnitudeReal</text>
+  <text class="vd" x="157" y="141" text-anchor="middle">20 项时域统计特征（见下表）</text>
+  <text class="vd" x="157" y="158" text-anchor="middle">1 Hz 高通 → 0.5 s 滑窗 RMS</text>
+  <text class="vd" x="157" y="175" text-anchor="middle">总 RMS &lt; 0.06 → 判静止、输出清零</text>
+  <text class="vd" x="157" y="192" text-anchor="middle">RmsCalculator / FsCal 过零测频</text>
+  <!-- time domain -->
+  <rect x="315" y="100" width="255" height="108" rx="8" fill="#fefce8" stroke="#a16207" stroke-width="1.6"/>
+  <text class="vt" x="442" y="122" text-anchor="middle" fill="#713f12">时域低频 · AmpCaliculateMatlabKfilter</text>
+  <text class="vd" x="442" y="141" text-anchor="middle">Simulink 生成（名带 Kfilter 实为滤波链）</text>
+  <text class="vd" x="442" y="158" text-anchor="middle">acc →1Hz HP→ 积分速度(mm/s) →HP→</text>
+  <text class="vd" x="442" y="175" text-anchor="middle">积分位移(mm) →HP→，三轴各自三阶级联</text>
+  <text class="vd" x="442" y="192" text-anchor="middle">0.1 s 窗静止判别 + 幅值突变重置</text>
+  <!-- FFT -->
+  <rect x="600" y="100" width="255" height="108" rx="8" class="vb"/>
+  <text class="vt" x="727" y="122" text-anchor="middle">频域 · FFTFsCalculate（默认模式）</text>
+  <text class="vd" x="727" y="141" text-anchor="middle">1024 点实数 FFT（SimpleRfft）</text>
+  <text class="vd" x="727" y="158" text-anchor="middle">谱积分得位移/速度幅值</text>
+  <text class="vd" x="727" y="175" text-anchor="middle">0.25x…6x 倍频 bin + 分频段能量</text>
+  <text class="vd" x="727" y="192" text-anchor="middle">（旋转机械故障特征频段）</text>
+  <!-- high -->
+  <rect x="315" y="240" width="255" height="90" rx="8" class="vb"/>
+  <text class="vt" x="442" y="262" text-anchor="middle">时域高频 · HighFsCalculate</text>
+  <text class="vd" x="442" y="281" text-anchor="middle">结构与时域低频同源</text>
+  <text class="vd" x="442" y="298" text-anchor="middle">高频段参数组，适配高采样率场景</text>
+  <text class="vd" x="442" y="315" text-anchor="middle">（每轴独立系数块）</text>
+  <line x1="390" y1="56" x2="160" y2="98" stroke="#0e7490" stroke-width="1.6" marker-end="url(#ar3)"/>
+  <line x1="440" y1="56" x2="442" y2="98" stroke="#0e7490" stroke-width="1.6" marker-end="url(#ar3)"/>
+  <line x1="490" y1="56" x2="720" y2="98" stroke="#0e7490" stroke-width="1.6" marker-end="url(#ar3)"/>
+  <line x1="442" y1="208" x2="442" y2="238" stroke="#0e7490" stroke-width="1.6" stroke-dasharray="4 3" marker-end="url(#ar3)"/>
+</svg>
+<figcaption>图 6 · 振动算法三模式。一阶高通统一为 y<sub>k</sub> = α(y<sub>k−1</sub> + x<sub>k</sub> − x<sub>k−1</sub>)，α = 1/(1+2πf<sub>c</sub>Δt)。</figcaption>
+</figure>
+<p>时域特征全集（AccMagnitudeReal 输出，三轴各一组）——标准振动监测指标全套：</p>
+<table>
+  <tr><th>类别</th><th>指标</th></tr>
+  <tr><td>基础</td><td>原始幅值、均值、绝对均值、方差、RMS、交流 RMS、峰值</td></tr>
+  <tr><td>无量纲特征</td><td>峰值因子（Crest，AC/DC 两版）、峭度（Kurtosis）、偏度（Skewness）、脉冲因子、波形因子（Shape）</td></tr>
+  <tr><td>积分量</td><td>速度 RMS、位移 RMS、速度峭度</td></tr>
+  <tr><td>频域（FFT 模式）</td><td>加速度/速度/位移幅值谱，0.25x/0.5x/1x/2x/3x/4x/5x/6x 倍频 bin，0–0.5x/0.5–1x/1–2x/2–3x/3–4x/4–5x 分段能量，段总和</td></tr>
+</table>
+<p>频率估计用带滞回的<strong>过零法</strong>（<code>FsCal</code>）：信号越过 ±阈值判定半周期，
+f = Fs / 半周期样本数；静止标志直接冻结计数。倍频 bin 的存在说明这族算法瞄准的是
+<strong>旋转机械状态监测</strong>（转频的各次谐波是轴承/齿轮/不平衡的经典特征）。</p>
+
+<!-- ================================================================ -->
+<h2 id="s9">9 · 磁力计标定族（Wit.MagCal.dll + Lib/RealMagCal*.dll）</h2>
+<p>四套并存，对应不同产品形态：</p>
+<table>
+  <tr><th>实现</th><th>形态</th><th>算法要点</th></tr>
+  <tr><td><code>CMagCali</code>（椭圆拟合 UI 内）</td><td>托管 C#</td>
+      <td>最小二乘意义下的 offset/range 迭代拟合：以 hOffset/hRange 参数化椭球，
+      <code>GetErrorSum</code> 作为目标函数逐步收敛；初值 hRange=500</td></tr>
+  <tr><td>八面标定（EightFaceCalibration）</td><td>托管 C# UI</td>
+      <td>引导用户六面+对角共 8 个朝向采点，取各面均值定 offset/scale</td></tr>
+  <tr><td>片上最大最小（OnChipMaxAndMin）</td><td>UI + 下发命令</td>
+      <td>旋转采点记录 max/min，标定在<strong>模块固件内</strong>完成，上位机只引导</td></tr>
+  <tr><td><code>RealMagCal.dll</code>（实时标定）</td><td><strong>原生 32 位</strong>，MATLAB Coder 生成</td>
+      <td>接口暴露 <code>states[15]</code> + <code>covariance[225]</code> —— <strong>15 状态 EKF</strong>（PDB 路径
+      <code>D:\RealMagCal20230920\…</code>），运动中在线估计磁偏移/椭球参数；
+      批量版 <code>RealMagCalOutN</code> 吞 10 万点 gyro+mag 序列输出 8 路状态与距离序列</td></tr>
+</table>
+<div class="callout c-info">
+  <span class="ct">为什么这族值得单看</span>
+  15 状态 EKF 接口（姿态 3 + 速度 3 + 陀螺零偏 3 + 加计零偏 3 + 磁相关 3 的经典划分）
+  说明"实时磁标定"实际上是<strong>导航级误差状态滤波器 + 磁椭球参数在线估计</strong>的组合——
+  与第 3 节的 7 状态全量 EKF 是两代技术混用在同一软件里。原生 MATLAB 生成代码可另开课题用 Ghidra 慢啃。
+</div>
+
+<!-- ================================================================ -->
+<h2 id="s10">10 · 简化位移解算器（ImuOptDisplacementSolver）</h2>
+<p>JY901 视图里的第二套、轻量位移方案——<strong>姿态由外部给定</strong>（模块输出的四元数），只做位移积分：</p>
+<pre><code>// 输入：raw acc + gyro + 外部四元数 q
+acc_LP = α·acc + (1−α)·acc_LP_prev          // α = 0.12
+a_nav  = R(q)·acc_LP − [0,0,g]              // 转导航系并去重力
+static ‖a_nav‖&lt;0.1 m/s² 且 ‖ω‖&lt;0.012 rad/s 连续 5 帧？
+  ├─ 是：v←0（ZUPT），且 accBias += a_nav×0.0008   // 零偏慢速回修
+  └─ 否：v += ½(a_prev+a_now)·dt；p += v·dt       // 梯形积分
+p ← clamp(p, ±2 m)                          // 硬限幅防漂</pre>
+<p>对比第 3 节的 EKF：这套是"无协方差、纯阈值"的工程捷径，胜在便宜；两套并存说明
+厂商自己也在"精确但重"与"简单但糙"之间做了双轨。</p>
+
+<!-- ================================================================ -->
+<h2 id="s11">11 · 附录</h2>
+<h3>11.1 文件对照表（研究工程目录）</h3>
+<pre><code>work/witmotion-ekf7-research/
+├── README.md                    本文的工程版笔记（含复现命令）
+├── csharp_decompiled/
+│   ├── SinsEKF7.Core/           姿态算法库完整反编译（26 文件）
+│   └── JY901_DataView_caller/   调用方源码（DataAlgorithm 等 4 文件）
+├── python/
+│   ├── sins_ekf7.py             逐行忠实移植（Filter+检测器+自标定+Pipeline）
+│   └── demo_synthetic.py        合成数据验证（numpy only）
+└── blackbox/                    黑盒差分测试（原厂 DLL vs 移植）
+    ├── gen_data.py              数据生成（1000/3000 拍）
+    ├── cs/SinsBlackbox.csproj   C# 参照驱动（加载原厂 SinsEKF7.Core.dll）
+    ├── run_py.py                Python 侧驱动
+    └── compare.py               逐拍比对器</code></pre>
+<h3>11.2 关键类速查</h3>
+<table>
+  <tr><th>类（SinsEKF7.Core）</th><th>职责</th></tr>
+  <tr><td><code>NavigationFilter</code></td><td>主循环：初始化状态机、4 拍调度、零偏窗口</td></tr>
+  <tr><td><code>StateVector / Quaternion</code></td><td>7 维状态；四元数运算（含小角度级数）</td></tr>
+  <tr><td><code>StatePredictor</code></td><td>机械编排递推（姿态/速度/位置）</td></tr>
+  <tr><td><code>CovariancePredictor + Jacobian</code></td><td>F7/Q7/H 解析雅可比</td></tr>
+  <tr><td><code>VelocityObservation</code></td><td>ZUPT（逐轴门控，任一超限整体拒绝）</td></tr>
+  <tr><td><code>MagHeadingObservation</code></td><td>磁航向一维观测</td></tr>
+  <tr><td><code>MotionDetector / MotionState</code></td><td>三级静止检测</td></tr>
+  <tr><td><code>ImuAutoCalibrator / Alignment / StateInitializer</code></td><td>自标定与粗对准</td></tr>
+  <tr><td><code>ParametersInitC7</code></td><td>出厂调参（第 3.9 节表）</td></tr>
+</table>
+<h3>11.3 声明</h3>
+<p class="small">研究对象为本人合法购得的商用软件；本文及配套研究工程仅用于个人学习研究，
+不含原厂源码的再分发，不用于商业用途。反编译变量名为 ILSpy 还原结果，非原始命名；
+所有行为结论以反编译 IL 的语义为准，文档中已区分「观察到的实现」与「推断」（如谱系分析）。</p>
+
+<footer>
+  WitMotion 上位机算法逆向研究 · 2026-10-12 · 配套工程 <code>work/witmotion-ekf7-research/</code> ·
+  反编译 ILSpy 11.1 · 验证 Python 3 / numpy · 仅个人研究用途
+</footer>
+
+</div>
+</body>
+</html>
