@@ -166,15 +166,41 @@ python build/script/usr_config.py --command setconfig --chip bs21e --target stan
 python build.py standard-bs21e-1100e -c   # 切choice后必须clean build</code></pre>
 <p>症状对照：固件跑着但 <code>alive: sle=FAIL</code> = 协议栈没编进去；修好后 <code>alive: sle=OK announce=ON</code>。SLE 服务端最小代码模板见 <code>AirMouse-SLE/src/application/samples/products/airmouse_sle/airmouse_mouse.c</code>（广播名 sle_airmouse，UUID 0xA179/0xA17A，广播/连接参数抄官方 rcu 样例）。</p>
 
-<h2>六、当前状态（2026-10-12 晨）</h2>
+<h2>六、SLE 双板联调坑史（2026-10-13 凌晨，一晚四连修）</h2>
+<p>链路：HH-M03(v8) 100Hz发矩形dx/dy → SLE → EB21duino(v3) 收包转USB HID。整晚逐环点亮，每个坑都有日志实证：</p>
+<table>
+<tr><th>版本</th><th>坑</th><th>症状与修法</th></tr>
+<tr><td>v5</td><td>广播载荷缺TLV</td><td><code>sle_set_announce_data</code>拒绝空载荷——必须带"发现等级+接入模式"两个TLV(各3字节)，名字放扫描响应。修前 <code>sle=FAIL</code>，修后 <code>announce=ON</code></td></tr>
+<tr><td>v6</td><td><strong>conn_id=0 误判未连接</strong></td><td>第一条连接的id就是0！用<code>conn_id != 0</code>当连接判据→发送器永远不发。经典零值bug。修法：独立<code>link_up</code>布尔，回调里维护</td></tr>
+<tr><td>v7</td><td>缺CCCD描述符</td><td>没有CCCD预使能，<code>ssaps_notify_indicate</code>全被拒(tx_ok=0/3360)。修法：特征挂<code>{0x01,0x00}</code>的CCCD描述符(官方air_mouse同款)。修后 tx=1145包被接受</td></tr>
+<tr><td>v8/dongle v3</td><td>配对残留</td><td>每次全量烧录重置NV→身份变化→旧配对互不认。修法：两端开机<code>sle_remove_all_pairs()</code>。⚠️ 修后配对仍失败，见残局</td></tr>
+</table>
+<h3>6.1 残局：配对失败 0x8000600d（唯一未通环节）</h3>
+<div class="warn"><strong>现状</strong>：连接→<code>pair complete status:0x8000600d</code>失败→掉线(reason 0x1b/0x10)→重连，无限抖动。配对失败时tx被栈接受但对端rx=0（通知没真正送达，推测SMP失败/加密未建立）。<strong>清配对记录无效</strong>。其余全通：dongle USB已枚举为HID鼠标，光标输出通路就绪——配对一通即是全链贯通。</div>
+<p>下次嫌疑清单（按优先级）：</p>
+<ol>
+<li>mouse广播 own_addr 全零 <code>{0,0,0,0,0,0}</code>——dongle看到对端是00:..:00，SMP可能拒绝（sle_uart样例也用全零但官方rcu用真地址，存疑）</li>
+<li>dongle在 enable回调里调 sle_remove_all_pairs 的时机（官方client不在那时清）</li>
+<li><strong>杀手锏对照实验</strong>：官方 sle_uart 双板样例原样烧入两板——它配对能成=我们的代码问题；也败=板子/环境问题，一测定位</li>
+</ol>
+<h3>6.2 联调方法论沉淀</h3>
+<ul>
+<li><strong>双口串口同时监听</strong>（python双线程）是定位抖动类问题的神器：dongle侧和mouse侧的事件时间线一拼，半开连接/单侧事件缺失一眼看穿</li>
+<li>日志参数错位排查：<code>conn=0x9015b9ee</code>这种闪存地址出现在整数位置=printf格式串少了占位符（%s比参数少）</li>
+<li>烧录换NV身份：fwpkg全量包含NV——<strong>每次重烧=设备身份重置</strong>，配对类问题先想到这个</li>
+<li>两端固件版本戳（alive[v8]/AT+AMVER答dongle[v3]）避免了至少三次"烧没烧上"的罗生门</li>
+</ul>
+
+<h2>七、当前状态（2026-10-13 晨）</h2>
 <table>
 <tr><th>项</th><th>状态</th></tr>
-<tr><td>板上固件</td><td>mouse v1（sle=FAIL 版，SLE 栈未编入）——v2（SUPPORT_SLE_PERIPHERAL=y，426KB）已编译待烧</td></tr>
-<tr><td>下一步</td><td>猎手+拔插烧 v2 → 验证 alive:sle=OK + IO31 灯闪 + IO14 按键日志 → 三验证点收官</td></tr>
-<tr><td>之后</td><td>M3：IMU(I2C0)+QDEC+算法管线移植；M1/M4：SLE 双板连通（dongle 侧需 SUPPORT_SLE_CENTRAL 重编）</td></tr>
+<tr><td>HH-M03</td><td>跑 v8（清配对版），广播/连接/通知队列全通</td></tr>
+<tr><td>EB21duino</td><td>跑 v3（清配对版），扫描/连接/发现/USB HID枚举全通</td></tr>
+<tr><td>待办</td><td>攻克配对0x8000600d（§6.1清单）→ 光标画矩形 = 全链贯通 → 之后M1测延迟/M3接IMU</td></tr>
+<tr><td>固件</td><td><code>D:\work\AirMouse-SLE\out\airmouse_MOUSE_v8.fwpkg</code> / <code>airmouse_DONGLE_v3.fwpkg</code></td></tr>
 </table>
 
-<h2>七、相关文件</h2>
+<h2>八、相关文件</h2>
 <ul>
 <li>猎手：<code>D:\work\AirMouse-SLE-research\hhm03_burn_hunter.py</code>（15分钟窗口版）</li>
 <li>固件：<code>D:\work\AirMouse-SLE\src\application\samples\products\airmouse_sle\airmouse_mouse.c</code></li>
