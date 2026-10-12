@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>姿态锚定式光标控制 · 设计研究 — AirMouse 系列姊妹篇</title>
+<style>
+:root{
+  --paper:#fcfbf8; --ink:#26313d; --ink-soft:#5b6672; --line:#e6e1d6; --line-soft:#efebe2;
+  --accent:#0e7490; --accent-deep:#155e75; --accent-bg:#ecfeff;
+  --gold:#a16207; --gold-bg:#fefce8;
+  --warn:#b91c1c; --warn-bg:#fef2f2;
+  --ok:#15803d; --ok-bg:#f0fdf4;
+  --code-bg:#f4f2ec; --code-ink:#3d4450;
+  --tbl-head:#f0ede5; --tbl-alt:#f8f6f0;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font:16px/1.85 -apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+.page{max-width:920px; margin:0 auto; padding:48px 28px 96px}
+header.hero{border-bottom:3px double var(--line); padding-bottom:28px; margin-bottom:36px}
+.hero .kicker{font-size:13px; letter-spacing:.18em; color:var(--accent); text-transform:uppercase; font-weight:600}
+h1{font-family:Georgia,"Songti SC","Noto Serif SC",serif; font-size:32px; line-height:1.35; margin:10px 0 14px; font-weight:700}
+.hero .sub{color:var(--ink-soft); font-size:15px; margin:0}
+.meta{display:flex; flex-wrap:wrap; gap:8px; margin-top:18px}
+.meta span{font-size:12.5px; border:1px solid var(--line); border-radius:999px; padding:3px 12px; color:var(--ink-soft); background:#fff}
+h2{
+  font-family:Georgia,"Songti SC","Noto Serif SC",serif; font-size:24px; margin:56px 0 6px; font-weight:700;
+  border-left:5px solid var(--accent); padding-left:14px; scroll-margin-top:20px;
+}
+h3{font-size:18.5px; margin:34px 0 8px; color:var(--accent-deep); font-weight:700}
+h4{font-size:16px; margin:24px 0 6px; color:var(--ink); font-weight:700}
+p{margin:10px 0}
+a{color:var(--accent); text-decoration:none}
+a:hover{text-decoration:underline}
+strong{color:#111827}
+.toc{background:#fff; border:1px solid var(--line); border-radius:12px; padding:20px 26px; margin:30px 0;
+  columns:2; column-gap:36px; font-size:14.5px}
+.toc .toc-title{column-span:all; font-weight:700; margin-bottom:10px; font-size:15px}
+.toc a{display:block; color:var(--ink-soft); padding:2.5px 0; break-inside:avoid}
+.toc a:hover{color:var(--accent)}
+.toc a.lv2{padding-left:16px; font-size:13.5px}
+code{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-size:13px;
+  background:var(--code-bg); color:var(--code-ink); border-radius:4px; padding:1.5px 6px}
+pre{background:var(--code-bg); border:1px solid var(--line); border-radius:10px; padding:16px 18px;
+  overflow-x:auto; line-height:1.6; font-size:13px; margin:14px 0}
+pre code{background:none; padding:0}
+table{border-collapse:collapse; width:100%; margin:16px 0; font-size:14px; background:#fff}
+th{background:var(--tbl-head); text-align:left; font-weight:600}
+th,td{border:1px solid var(--line); padding:7px 12px; vertical-align:top}
+tr:nth-child(even) td{background:var(--tbl-alt)}
+.callout{border-radius:10px; padding:14px 18px; margin:18px 0; border:1px solid; font-size:14.5px}
+.callout .ct{font-weight:700; display:block; margin-bottom:4px}
+.c-info{background:var(--accent-bg); border-color:#a5f3fc; color:#164e63}
+.c-warn{background:var(--warn-bg); border-color:#fecaca; color:#7f1d1d}
+.c-gold{background:var(--gold-bg); border-color:#fde68a; color:#713f12}
+.c-ok{background:var(--ok-bg); border-color:#bbf7d0; color:#14532d}
+figure{margin:26px 0; text-align:center}
+figcaption{font-size:13px; color:var(--ink-soft); margin-top:10px; line-height:1.6}
+svg{max-width:100%; height:auto; font-family:-apple-system,"PingFang SC",sans-serif}
+.eq{display:block; text-align:center; margin:18px 0; font-size:17.5px; line-height:2.1;
+  font-family:Georgia,"Times New Roman","Songti SC",serif; overflow-x:auto; overflow-y:hidden; padding:4px 0}
+.eq i,.mvar{font-family:Georgia,"Times New Roman",serif; font-style:italic; padding:0 1px}
+.eq sub,.eq sup{font-size:70%}
+.fr{display:inline-block; vertical-align:-0.9em; text-align:center; margin:0 3px}
+.fr .nu{display:block; border-bottom:1.3px solid currentColor; padding:0 6px; line-height:1.5}
+.fr .de{display:block; padding:0 6px; line-height:1.5}
+hr{border:none; border-top:1px solid var(--line); margin:40px 0}
+footer{margin-top:64px; padding-top:20px; border-top:3px double var(--line); font-size:13px; color:var(--ink-soft)}
+.small{font-size:13px; color:var(--ink-soft)}
+@media(max-width:760px){ .toc{columns:1} h1{font-size:26px} }
+</style>
+</head>
+<body>
+<div class="page">
+
+<header class="hero">
+  <div class="kicker">AirMouse 系列姊妹篇 · Design Study</div>
+  <h1>姿态锚定式光标控制：从速率积分到姿态偏差的设计研究</h1>
+  <p class="sub">对现有 AirMouse（ICM-20948 + 6 轴 Madgwick + 无限积分指针 + 影子模型空气墙）的
+  控制律演进方案：用姿态偏差直接驱动光标，以"走廊式混合映射 + 锚点管理 + 磁门控降级"
+  三件套同时实现回中、零漂与无限工作区。纯设计文档，不含实现代码。</p>
+  <div class="meta">
+    <span>2026-10-12</span><span>姊妹篇: <a href="index.html">AirMouse 算法原理与实录</a></span>
+    <span>相关: <a href="../witmotion-jy901-host-algorithms.html">WitMotion 姿态 EKF 逆向</a></span>
+    <span>设计研究 · 无代码</span>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="toc-title">目录</div>
+  <a href="#s1">1 · 问题：速率积分的三个先天缺陷</a>
+  <a href="#s2">2 · 核心思想与信号链</a>
+  <a href="#s3">3 · 三种控制律与走廊式混合</a>
+  <a href="#s4">4 · 锚点管理（回中的灵魂）</a>
+  <a href="#s5">5 · 姿态滤波器接口与选型</a>
+  <a href="#s6">6 · 磁锚定与降级阶梯</a>
+  <a href="#s7">7 · 误差预算</a>
+  <a href="#s8">8 · 参数空间与默认建议</a>
+  <a href="#s9">9 · 实验验证方案</a>
+  <a href="#s10">10 · 对现有架构的演进映射</a>
+  <a href="#s11">11 · 开放问题</a>
+</nav>
+
+<!-- ================================================================ -->
+<h2 id="s1">1 · 问题：速率积分的三个先天缺陷</h2>
+<p>现有 AirMouse 的指针通路是<strong>速率式映射</strong>：矫正角速度（或原始角速度）积分成指针位置，
+经影子模型钳制与空气墙、换算成 OS 光标偏移。这个结构有三个性质上的（而非调参能解决的）缺陷：</p>
+<ol>
+  <li><strong>无界积分</strong>：<code>cursor += S·ω·dt</code> 在数学上是开环积分，
+  陀螺零偏、量化噪声、链路丢包都会线性累积。现有方案靠死区 + 静止再校零压制，属于"减慢漂移"，
+  不是"消灭漂移"。</li>
+  <li><strong>无回中语义</strong>：手腕转回自然握姿时，光标不会回来——速率控制天生没有"原点"。
+  要回中必须显式重置，用户体验上就是"找不到家"。</li>
+  <li><strong>轴耦合</strong>：体坐标系下积分，设备横滚后手腕的"水平转动"不再对准屏幕水平轴，
+  光标轨迹斜走。6 轴 Madgwick 输出的姿态若只用于显示而未回填到指针通路，此问题独立于漂移存在。</li>
+</ol>
+<p>姿态锚定（attitude-anchored）映射从结构上换掉了积分环节：光标位置直接由<strong>姿态相对锚点的偏差</strong>给出。
+姿态有界（加计锚 roll/pitch、磁锚 yaw），位置便按构造有界——漂移与回中问题同时消失，
+轴耦合由水平系偏差角自然解决。代价是工作区受手腕工学限制，这由第 3 节的混合设计吸收。</p>
+
+<!-- ================================================================ -->
+<h2 id="s2">2 · 核心思想与信号链</h2>
+<figure>
+<svg viewBox="0 0 880 250" xmlns="http://www.w3.org/2000/svg">
+  <defs><marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#0e7490"/></marker></defs>
+  <style>
+    .b{fill:#fff;stroke:#0e7490;stroke-width:1.6}
+    .by{fill:#fefce8;stroke:#a16207;stroke-width:1.6}
+    .t{font-size:12.5px;font-weight:700;fill:#155e75}
+    .d{font-size:10.5px;fill:#5b6672}
+  </style>
+  <rect x="15" y="60" width="150" height="90" rx="9" class="b"/>
+  <text class="t" x="90" y="88" text-anchor="middle">姿态滤波器</text>
+  <text class="d" x="90" y="108" text-anchor="middle">9 轴（或降级 6 轴）</text>
+  <text class="d" x="90" y="124" text-anchor="middle">输出 q, b̂, 静止标志</text>
+  <rect x="205" y="60" width="160" height="90" rx="9" class="by"/>
+  <text class="t" x="285" y="88" text-anchor="middle" fill="#713f12">偏差角计算</text>
+  <text class="d" x="285" y="108" text-anchor="middle">ψ_err = wrap(ψ(q) − ψ_ref)</text>
+  <text class="d" x="285" y="124" text-anchor="middle">θ_err = θ(q) − θ_ref</text>
+  <rect x="405" y="60" width="160" height="90" rx="9" class="by"/>
+  <text class="t" x="485" y="88" text-anchor="middle" fill="#713f12">走廊式增益曲线</text>
+  <text class="d" x="485" y="108" text-anchor="middle">内区线性 → 软墙压缩</text>
+  <text class="d" x="485" y="124" text-anchor="middle">边缘带触发重锚</text>
+  <rect x="605" y="60" width="130" height="90" rx="9" class="b"/>
+  <text class="t" x="670" y="88" text-anchor="middle">饱和 → 光标</text>
+  <text class="d" x="670" y="108" text-anchor="middle">绝对光标位置</text>
+  <text class="d" x="670" y="124" text-anchor="middle">死区 + 显示滤波</text>
+  <rect x="765" y="60" width="100" height="90" rx="9" class="b"/>
+  <text class="t" x="815" y="88" text-anchor="middle">HID Δ</text>
+  <text class="d" x="815" y="108" text-anchor="middle">绝对→相对桥</text>
+  <text class="d" x="815" y="124" text-anchor="middle">沿用影子模型</text>
+  <rect x="205" y="190" width="360" height="44" rx="9" fill="#f0fdf4" stroke="#15803d" stroke-width="1.5"/>
+  <text class="d" x="385" y="217" text-anchor="middle" fill="#14532d">锚点管理器：q_ref 的设定/重锚/离合（见第 4 节） ─┐</text>
+  <line x1="165" y1="105" x2="203" y2="105" stroke="#0e7490" stroke-width="1.8" marker-end="url(#a1)"/>
+  <line x1="365" y1="105" x2="403" y2="105" stroke="#0e7490" stroke-width="1.8" marker-end="url(#a1)"/>
+  <line x1="565" y1="105" x2="603" y2="105" stroke="#0e7490" stroke-width="1.8" marker-end="url(#a1)"/>
+  <line x1="735" y1="105" x2="763" y2="105" stroke="#0e7490" stroke-width="1.8" marker-end="url(#a1)"/>
+  <line x1="385" y1="188" x2="385" y2="152" stroke="#15803d" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#a1)"/>
+</svg>
+<figcaption>图 1 · 姿态锚定光标的信号链。积分环节被"偏差角 → 增益曲线"取代；
+影子模型从指针域退到 HID 桥接层，职责不变。</figcaption>
+</figure>
+<p>坐标与符号约定：滤波器输出体→水平导航系姿态四元数 <span class="mvar">q</span>（ENU），
+由其取欧拉角 [<span class="mvar">φ</span>, <span class="mvar">θ</span>, <span class="mvar">ψ</span>]（roll/pitch/yaw）。
+锚点 <span class="mvar">q</span><sub>ref</sub> 是某一时刻保存的参考姿态。光标驱动量取<strong>水平系欧拉差</strong>
+而非 <span class="mvar">q</span><sub>err</sub> 的欧拉分解——前者实现更直接，且绕开了大俯仰下的万向节奇异性
+（俯角工作区 < ±25°，远离 ±90°）：</p>
+<div class="eq">
+  <span class="mvar">ψ</span><sub>err</sub> = wrap<sub>±π</sub>( <span class="mvar">ψ</span>(<span class="mvar">q</span>) − <span class="mvar">ψ</span><sub>ref</sub> ),&nbsp;&nbsp;&nbsp;
+  <span class="mvar">θ</span><sub>err</sub> = <span class="mvar">θ</span>(<span class="mvar">q</span>) − <span class="mvar">θ</span><sub>ref</sub>
+</div>
+<p>矫正角速度在本方案里退居二线：不再驱动光标位移，但保留两个用途——边缘带的"推墙"手感增强
+（第 3.3 节）与静止判据。水平系矫正角速度由 <span class="mvar">ω</span>̂ = <span class="mvar">R</span>(<span class="mvar">q</span>)(<span class="mvar">ω</span> − <span class="mvar">b</span>̂) 给出，
+轴耦合在此一并解决。</p>
+
+<!-- ================================================================ -->
+<h2 id="s3">3 · 三种控制律与走廊式混合</h2>
+<h3>3.1 纯速率式（现状）</h3>
+<div class="eq">cursor += S · ω̂ · Δt&nbsp;&nbsp;——工作区无限，但积分无界、无原点</div>
+<h3>3.2 纯姿态锚定式</h3>
+<div class="eq">
+  cursor<sub>x</sub> = <span class="fr"><span class="nu"><span class="mvar">W</span></span><span class="de">2</span></span> · F( <span class="mvar">ψ</span><sub>err</sub> / Ψ<sub>max</sub> ),&nbsp;&nbsp;
+  cursor<sub>y</sub> = <span class="fr"><span class="nu"><span class="mvar">H</span></span><span class="de">2</span></span> · F( <span class="mvar">θ</span><sub>err</sub> / Θ<sub>max</sub> )
+</div>
+<p>其中 F 为奇函数：原点附近线性（斜率即灵敏度），向 ±1 渐进压缩（软墙）。
+性质：<strong>漂移按构造为零</strong>（姿态有界 ⇔ 光标有界）、手腕回正即光标回中、
+轴向永远对齐屏幕。代价：工作区 = 手腕工学角度 × 灵敏度，超出即"顶墙"，长距离巡航需要离合操作。</p>
+<h3>3.3 走廊式混合（推荐）</h3>
+<p>把工作角域分成三段，兼得两者优点：</p>
+<table>
+  <tr><th>区段</th><th>条件</th><th>行为</th><th>等效语义</th></tr>
+  <tr><td>内区（走廊）</td><td>|ψ<sub>err</sub>| &lt; Ψ<sub>lin</sub></td><td>F 线性段，增益 G<sub>pos</sub></td><td>位置控制：回中、零漂、指哪打哪</td></tr>
+  <tr><td>软墙区</td><td>Ψ<sub>lin</sub> ≤ |ψ<sub>err</sub>| &lt; Ψ<sub>max</sub></td><td>F 压缩段，增益单调递减</td><td>接近边缘越来越"钝"，提供边界预感</td></tr>
+  <tr><td>边缘带</td><td>|ψ<sub>err</sub>| ≥ Ψ<sub>max</sub></td><td>光标钉死在屏边；<b>锚点以速率 ρ 向 q 追赶</b>（yaw/pitch 分别 slew）</td><td>速率控制：推墙继续走、无限工作区</td></tr>
+</table>
+<figure>
+<svg viewBox="0 0 880 360" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .ax{stroke:#94a3b8;stroke-width:1.5}
+    .axt{font-size:11px;fill:#5b6672}
+    .l1{stroke:#94a3b8;stroke-width:2;stroke-dasharray:5 4;fill:none}
+    .l2{stroke:#b91c1c;stroke-width:2.2;fill:none}
+    .l3{stroke:#0e7490;stroke-width:2.6;fill:none}
+    .lg{font-size:12px;font-weight:600}
+    .zn{fill:#fefce8;opacity:.7}
+  </style>
+  <!-- axes -->
+  <line class="ax" x1="70" y1="180" x2="820" y2="180"/>
+  <line class="ax" x1="70" y1="30" x2="70" y2="330"/>
+  <text class="axt" x="445" y="316" text-anchor="middle">手腕偏航偏差 ψ_err（归一化）</text>
+  <text class="axt" x="30" y="180" text-anchor="middle" transform="rotate(-90 30 180)">光标 X（归一化）</text>
+  <!-- zones -->
+  <rect class="zn" x="70" y="30" width="150" height="300"/>
+  <rect class="zn" x="620" y="30" width="200" height="300"/>
+  <text class="axt" x="145" y="46" text-anchor="middle">边缘带（重锚）</text>
+  <text class="axt" x="720" y="46" text-anchor="middle">边缘带（重锚）</text>
+  <text class="axt" x="345" y="46" text-anchor="middle">内区·线性</text>
+  <text class="axt" x="520" y="46" text-anchor="middle">软墙</text>
+  <!-- rate line -->
+  <line class="l1" x1="70" y1="180" x2="820" y2="-60"/>
+  <text class="lg" x="700" y="80" fill="#64748b">纯速率式（无界，漂移）</text>
+  <!-- pure anchor -->
+  <path class="l2" d="M 70,180 C 200,60 260,40 350,38 L 490,38 C 580,40 640,60 760,180"/>
+  <text class="lg" x="445" y="26" text-anchor="middle" fill="#b91c1c">纯姿态锚定（饱和即顶墙）</text>
+  <!-- corridor -->
+  <path class="l3" d="M 70,180 L 290,66 C 360,50 420,44 445,44 C 470,44 530,50 600,66 L 820,180"/>
+  <text class="lg" x="445" y="62" text-anchor="middle" fill="#155e75">走廊式：内区高增益线性 + 软墙压缩 + 边缘带钉住并重锚</text>
+  <!-- edge markers -->
+  <line class="ax" x1="290" y1="170" x2="290" y2="190" stroke="#a16207" stroke-width="2"/>
+  <line class="ax" x1="600" y1="170" x2="600" y2="190" stroke="#a16207" stroke-width="2"/>
+  <text class="axt" x="290" y="205" text-anchor="middle">−Ψ_lin</text>
+  <text class="axt" x="600" y="205" text-anchor="middle">+Ψ_lin</text>
+</svg>
+<figcaption>图 2 · 三种控制律的光标-角度传递曲线。走廊式在内区与纯锚定重合（零漂 + 回中），
+在边缘带转化为速率语义（推墙续航），中段软墙平滑衔接。红色曲线在 ±1 处饱和后无路可走，
+这是纯锚定需要离合的原因；走廊式用重锚把"墙"变成"传送门"。</figcaption>
+</figure>
+<p><strong>边缘带重锚的动力学</strong>：光标钉在屏幕边缘的同时，锚点角向当前姿态连续追赶——
+ψ<sub>ref</sub> ← ψ<sub>ref</sub> + ρ·Δt·sign(ψ<sub>err</sub>)（ρ 即等效速率增益，典型 30~60°/s）。
+效果：持续推墙时 ψ<sub>err</sub> 被锚点追赶压缩回 Ψ<sub>max</sub> 以内，用户感知是"继续推、光标继续走"；
+手腕收回时 ψ<sub>err</sub> 反向减小、退出边缘带，重锚即刻停止，系统回到位置语义。
+<strong>推墙期间光标速度 = ρ × G<sub>pos</sub> × 屏宽比例</strong>，与手腕转多快无关——这正是速率控制的
+本征手感，且只在边缘带出现。可选增强：ρ 乘以 (1 + κ·ω̂) 使推墙速度随手腕角速度轻微加速，
+弥合位置控制缺失的"速率增益"直觉。</p>
+
+<!-- ================================================================ -->
+<h2 id="s4">4 · 锚点管理（回中的灵魂）</h2>
+<p>锚点 <span class="mvar">q</span><sub>ref</sub>（实现上只需 ψ<sub>ref</sub>, θ<sub>ref</sub> 两个标量）是整个方案的"家"。
+它的每一次变更都必须满足一条铁律：<strong>锚点变更不得造成光标跳变</strong>——锚点动，偏差角动，
+F 的输出必须保持连续（或经过显示层的一阶平滑）。</p>
+<figure>
+<svg viewBox="0 0 880 300" xmlns="http://www.w3.org/2000/svg">
+  <defs><marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#5b6672"/></marker></defs>
+  <style>
+    .st{fill:#ecfeff;stroke:#0e7490;stroke-width:1.8}
+    .stt{font-size:13px;font-weight:700;fill:#155e75}
+    .sd{font-size:10.5px;fill:#5b6672}
+    .no{fill:#fff;stroke:#cbd5e1;stroke-width:1.4}
+  </style>
+  <rect x="330" y="20" width="220" height="70" rx="10" class="st"/>
+  <text class="stt" x="440" y="46" text-anchor="middle">内区（位置语义）</text>
+  <text class="sd" x="440" y="66" text-anchor="middle">|ψ_err|&lt;Ψ_lin · 零漂 · 回中</text>
+  <rect x="60" y="150" width="190" height="70" rx="10" class="st"/>
+  <text class="stt" x="155" y="176" text-anchor="middle">软墙区</text>
+  <text class="sd" x="155" y="196" text-anchor="middle">增益递减 · 边界预感</text>
+  <rect x="300" y="150" width="280" height="70" rx="10" fill="#fefce8" stroke="#a16207" stroke-width="1.8"/>
+  <text class="stt" x="440" y="176" text-anchor="middle" fill="#713f12">边缘带（速率语义）</text>
+  <text class="sd" x="440" y="196" text-anchor="middle">光标钉边 · 锚点以 ρ 追赶 · 推墙续航</text>
+  <rect x="630" y="150" width="200" height="70" rx="10" class="no"/>
+  <text class="stt" x="730" y="172" text-anchor="middle" fill="#334155">离合（按住）</text>
+  <text class="sd" x="730" y="192" text-anchor="middle">光标冻结 · 松开时锚点←当前姿态</text>
+  <path d="M 360,90 L 200,148" stroke="#5b6672" stroke-width="1.6" marker-end="url(#a2)"/>
+  <text class="sd" x="255" y="115">越过 Ψ_lin</text>
+  <path d="M 250,185 L 298,185" stroke="#5b6672" stroke-width="1.6" marker-end="url(#a2)"/>
+  <text class="sd" x="272" y="178">继续外推</text>
+  <path d="M 520,90 L 460,148" stroke="#5b6672" stroke-width="1.6" marker-end="url(#a2)"/>
+  <path d="M 360,185 L 340,120 L 355,92" stroke="#5b6672" stroke-width="1.6" fill="none" marker-end="url(#a2)"/>
+  <text class="sd" x="330" y="128">反向收回（自动退出）</text>
+  <path d="M 440,90 L 560,60 L 700,148" stroke="#5b6672" stroke-width="1.6" fill="none" marker-end="url(#a2)"/>
+  <text class="sd" x="580" y="55">回中键 / 双击</text>
+  <path d="M 630,185 L 580,185" stroke="#5b6672" stroke-width="1.6" marker-end="url(#a2)"/>
+  <text class="sd" x="605" y="178">松开</text>
+</svg>
+<figcaption>图 3 · 锚点管理状态机。离合是纯机械式的"抬鼠标"等价物（v0.2.6 的编码器按键可直接复用）；
+边缘带重锚是自动的、连续的、双向退出的。</figcaption>
+</figure>
+<p>三种锚点操作与瞬态处理：</p>
+<table>
+  <tr><th>操作</th><th>触发</th><th>锚点动作</th><th>光标瞬态</th></tr>
+  <tr><td>手动回中</td><td>回中键 / 按键双击</td><td>ψ<sub>ref</sub>,θ<sub>ref</sub> ← 当前 ψ,θ</td><td>设计上应回屏心：一阶趋近（τ≈150ms）而非瞬跳</td></tr>
+  <tr><td>边缘带重锚</td><td>|ψ<sub>err</sub>|≥Ψ<sub>max</sub> 且同向外推</td><td>锚点以 ρ 连续追赶（非阶跃）</td><td>无跳变（光标本就钉在边缘）</td></tr>
+  <tr><td>离合</td><td>按住期间</td><td>松开时刻 ← 当前姿态</td><td>按住期间光标输出冻结，天然无跳变</td></tr>
+</table>
+<div class="callout c-warn">
+  <span class="ct">明确否决的两个"智能回中"</span>
+  <strong>静止超时自动回中</strong>（停手 N 秒把光标拉回屏心）：违反直接操纵（direct manipulation）
+  直觉——用户的"停"不等于"想要回中"，实测会引发不可预测的光标滑动。
+  <strong>静止超时自动重锚</strong>（停手时悄悄把锚点挪到手腕当前角）：看似无害，实则窃取回中语义——
+  停手后再转动，光标从新原点出发而非屏心。锚点变更只允许用户显式发起
+  （按键/离合/推墙），这是本方案交互安全性的底线。
+</div>
+
+<!-- ================================================================ -->
+<h2 id="s5">5 · 姿态滤波器接口与选型</h2>
+<p>本方案对滤波器的需求只有三项：<strong>q（水平系姿态）</strong>、<strong>b̂（零偏估计）</strong>、<strong>静止标志</strong>。
+现有 250Hz 融合率与 3–6ms 片内延迟预算完全容纳。选型对比：</p>
+<table>
+  <tr><th></th><th>Madgwick（现状）</th><th>Mahony E+I</th><th>7 态 EKF（WitMotion 式）</th></tr>
+  <tr><td>显式零偏状态</td><td class="c-warn" style="color:#b91c1c">无（β 硬扛，稳态误差角）</td><td style="color:#15803d">Ki 积分项即零偏估计</td><td style="color:#15803d">显式状态 + 静止分窗</td></tr>
+  <tr><td>磁航向融合</td><td>可（梯度含磁）</td><td>可（e 误差向量含磁）</td><td>一维观测 + 卡方门控</td></tr>
+  <tr><td>计算量 @250Hz (FPU)</td><td>低</td><td>低</td><td>中（7×7 矩阵，每 4 拍一次）</td></tr>
+  <tr><td>改造代价</td><td>—</td><td>与现有结构最接近，插拔式</td><td>重写融合层</td></tr>
+  <tr><td>对本方案</td><td>够显示，不够给光标（无 b̂）</td><td><b>推荐首选</b></td><td>性能上限最高，参数多</td></tr>
+</table>
+<p>关键缺口在第一行：现有 Madgwick 不输出矫正角速度（无零偏态），这正是"感觉理论上能拿到
+更准的角速度但实际拿不到"的原因。Mahony 的 Ki 项零偏估计是最低成本的补齐路径；
+若追求上限（门控、分窗零偏、静止重对准），WitMotion 式 EKF 的调度结构可直接参考
+（见姊妹研究 <a href="../witmotion-jy901-host-algorithms.html">WitMotion 姿态 EKF 逆向</a>——
+其 ZUPT 四档信任调度与磁门控的设计思想就是为"什么时候信谁"而生）。</p>
+<div class="callout c-gold">
+  <span class="ct">静止判据：一条现成的教训</span>
+  不要采用"窗口峰峰值 + 阈值突破时锚点重置"式静止检测——鼠标的典型动作恰好是<strong>慢速匀速转动</strong>，
+  该检测器会把匀速转动误判为静止（WitMotion 算法的实锤缺陷），后果是光标在匀速移动中冻结。
+  判据应使用瞬时量：<code>‖‖acc‖ − g‖ &lt; τ_a</code> 且 <code>‖ω‖ &lt; τ_g</code>（典型 τ_a=0.08 m/s²、τ_g=2°/s，
+  连续 3~5 拍确认）。零偏更新只在静止确认后进行，速率限幅防污染。
+</div>
+
+<!-- ================================================================ -->
+<h2 id="s6">6 · 磁锚定与降级阶梯</h2>
+<p>ICM-20948 内置磁力计，硬件零改动即可启用 9 轴。设计要点是<strong>磁是 yaw 的慢参考，不是硬约束</strong>：</p>
+<ol>
+  <li><strong>标定前置</strong>：硬磁/软磁标定（椭球拟合）是使用磁航向的前提，一次性的上电引导流程即可；</li>
+  <li><strong>门控融合</strong>：磁航向新息 ν = h(q) − D<sub>ec</sub>，卡方式门控 ν²/(γ²·S) ≤ 1 才融合，
+  否则本拍拒绝——桌面磁场被音箱/显示器/桌架扭曲时自动退化为 6 轴，而非输出鬼航向；</li>
+  <li><strong>降级阶梯</strong>（可观测性决定）：</li>
+</ol>
+<table>
+  <tr><th>档位</th><th>传感器</th><th>行为</th><th>残余漂移</th></tr>
+  <tr><td>9 轴（完整）</td><td>acc+gyro+mag</td><td>三轴全锚定，光标三轴有界</td><td>≈0（构造性）</td></tr>
+  <tr><td>6 轴（磁被门控/未标定）</td><td>acc+gyro</td><td>roll/pitch 锚定；yaw 退化为"零偏矫正后的积分"</td><td>yaw 慢漂（0.005°/s 级 ≈ 亚像素/分钟）</td></tr>
+  <tr><td>应急（加计异常）</td><td>gyro only</td><td>纯姿态积分 + 离合频繁回中</td><td>三轴慢漂，可用的降级体验</td></tr>
+</table>
+<p>降级是逐轴、平滑、自动的——磁质量决定的是"yaw 锚定的可用时长比例"，而不是"能不能用"。
+这一点比追求永远 9 轴更重要：桌面尺度的磁场不均匀性是物理现实，方案必须假设磁会周期性不可信。</p>
+
+<!-- ================================================================ -->
+<h2 id="s7">7 · 误差预算</h2>
+<table>
+  <tr><th>误差源</th><th>典型量级</th><th>对光标的表现</th><th>对策</th></tr>
+  <tr><td>姿态估计噪声 σ<sub>att</sub></td><td>0.1~0.3°（静止，取决于滤波器增益）</td><td>抖动：σ<sub>att</sub>×G<sub>pos</sub>×屏宽像素</td><td>死区 0.3~0.5° + 显示一阶滤波（τ≤20ms，避免可感延迟）</td></tr>
+  <tr><td>零偏残余（静止爬行）</td><td>0.005°/s（Ki 收敛后）</td><td>6 轴档位下 yaw 慢漂 ≈ 0.3px/min @1080p 满偏映射</td><td>静止判据下的零偏慢更新；9 轴下被磁锚定直接吸收</td></tr>
+  <tr><td>磁干扰（门控拦截上限）</td><td>γ×σ<sub>innov</sub>（设计量，如 5σ ≈ 3~5°）</td><td>被拒绝 → 不影响；漏网 → yaw 锚点偏移</td><td>收紧 γ；锚点异常检测（静止时航向漂移 &gt; 阈值 → 降级并提示重锚）</td></tr>
+  <tr><td>回中重复性</td><td>= 姿态返回精度 ≈ 0.2~0.5°（手腕生理极限为主）</td><td>回屏心的散布</td><td>非算法问题；死区半径略大于该值即可"感知为零"</td></tr>
+  <tr><td>延迟（端到端）</td><td>传感 LPF 2~4ms + 融合 ~0 + ESP-NOW 3~7ms + HID 1~8ms + OS</td><td>合计目标 &lt; 20ms（250Hz 融合已满足大半）</td><td>融合层不做额外平滑；显示滤波 τ 与链路预算合并核算</td></tr>
+</table>
+<p>预算的核心结论：<strong>位置噪声取代位置漂移成为主导误差</strong>——这是所有锚定式方案的共同命运，
+且噪声远比漂移好治理（死区/轻滤波），而漂移只能压制。这笔交换是本方案的根本收益。</p>
+
+<!-- ================================================================ -->
+<h2 id="s8">8 · 参数空间与默认建议</h2>
+<table>
+  <tr><th>参数</th><th>含义</th><th>默认建议</th><th>备注</th></tr>
+  <tr><td>G<sub>pos</sub>（Ψ<sub>max</sub>）</td><td>工作角域半宽（水平）</td><td>30°</td><td>手腕 yaw 工学约 ±35°，留裕量；灵敏度 = 屏宽/(2Ψ<sub>max</sub>)</td></tr>
+  <tr><td>Θ<sub>max</sub></td><td>工作角域半宽（垂直）</td><td>20°</td><td>手腕 pitch 工学更窄，非对称设计</td></tr>
+  <tr><td>Ψ<sub>lin</sub>/Ψ<sub>max</sub></td><td>走廊内区占比</td><td>0.6</td><td>内区够大才有"指哪打哪"感；软墙占 0.4</td></tr>
+  <tr><td>ρ</td><td>边缘带重锚速率</td><td>40°/s</td><td>等效推墙光标速度；可叠加 (1+κ·ω̂) 加速项</td></tr>
+  <tr><td>t<sub>edge</sub></td><td>边缘带进入确认时间</td><td>0（即时）或 2 拍</td><td>防抖：软墙压缩段本身已是缓冲</td></tr>
+  <tr><td>死区</td><td>偏差角死区</td><td>0.4°</td><td>略大于静止姿态噪声 2σ + 回中重复性</td></tr>
+  <tr><td>显示滤波 τ</td><td>光标输出一阶平滑</td><td>≤20ms</td><td>与死区二选一或叠加，注意延迟预算</td></tr>
+  <tr><td>回中趋近 τ</td><td>手动回中的目标轨迹</td><td>150ms</td><td>一阶趋近到屏心，避免瞬跳</td></tr>
+  <tr><td>γ（磁门限）</td><td>磁航向卡方门</td><td>3~5</td><td>越小越保守，降级越频繁</td></tr>
+</table>
+<p>v0.2.6 的灵敏度旋钮（编码器 1kHz 正交解码、停转 NVS 保存）在本方案中升级为
+<strong>Ψ<sub>max</sub>/Θ<sub>max</sub> 的在线调节</strong>——语义从"速率增益"变为"角域 ↔ 屏幕比例"，
+交互习惯完全兼容（旋一格放大/缩小工作角域 2°，量纲更直观）。</p>
+
+<!-- ================================================================ -->
+<h2 id="s9">9 · 实验验证方案</h2>
+<h4>9.1 离线（不动固件即可做）</h4>
+<ul>
+  <li><strong>滤波器对比</strong>：录制桌面静置 + 典型操作数据，跑 Madgwick vs Mahony(E+I) vs 7 态 EKF
+  三条离线管线，对比：零偏收敛曲线、静止 10 分钟姿态游走（分轴）、匀速旋转段的行为（防冻结）；</li>
+  <li><strong>磁质量普查</strong>：ICM-20948 磁力计在真实桌面工作空间内缓慢平移采样，
+  绘磁场方向/幅值分布——直接决定 γ 门限与 9 轴可用比例预期；</li>
+  <li><strong>真值对照</strong>：JY901（9 轴模块）同机固定，以其固件输出为参考，
+  量化自建滤波器的 yaw 误差与漂移。</li>
+</ul>
+<h4>9.2 在线 A/B（刷固件后）</h4>
+<table>
+  <tr><th>用例</th><th>指标</th><th>通过线（建议）</th></tr>
+  <tr><td>ISO 9241-9 多维点击任务</td><td>吞吐量（bps）、移动时间 MT、出错率</td><td>不低于现有速率式方案的 90%，主观偏好更优</td></tr>
+  <tr><td>长时静置</td><td>光标爬行（px/min）</td><td>&lt; 0.5 px/min（现有方案实测对比）</td></tr>
+  <tr><td>回中测试</td><td>手腕转回自然位后光标距屏心偏差</td><td>95 分位 &lt; 死区 + 回中重复性</td></tr>
+  <tr><td>匀速扫掠</td><td>光标速度连续性（无冻结/跳动）</td><td>无 &gt;1 帧的速度中断</td></tr>
+  <tr><td>磁干扰注入（移动音箱/手机靠近）</td><td>光标扰动幅度、恢复时间</td><td>门控拦截期光标位移 &lt; 5px，恢复 &lt; 1s</td></tr>
+</table>
+
+<!-- ================================================================ -->
+<h2 id="s10">10 · 对现有架构的演进映射</h2>
+<table>
+  <tr><th>现有组件</th><th>去向</th><th>说明</th></tr>
+  <tr><td>无限积分指针</td><td style="color:#b91c1c">替换</td><td>由"偏差角 → 走廊增益"取代，积分环节整体消失</td></tr>
+  <tr><td>影子模型 + 空气墙</td><td style="color:#a16207">迁移 + 保留</td><td>空气墙概念上移到姿态域（Ψ<sub>max</sub>）；影子模型退到 HID 桥接层（绝对光标 → 相对 Δ 协议），职责不变</td></tr>
+  <tr><td>Madgwick 6 轴融合</td><td style="color:#a16207">升级</td><td>换 Mahony E+I（+磁）或 7 态 EKF；接口增加 b̂ 与静止标志输出</td></tr>
+  <tr><td>灵敏度旋钮（v0.2.6）</td><td style="color:#15803d">复用</td><td>调节对象改为 Ψ<sub>max</sub>/Θ<sub>max</sub>，交互不变</td></tr>
+  <tr><td>编码器按键</td><td style="color:#15803d">复用</td><td>短按 = 回中，长按 = 离合</td></tr>
+  <tr><td>250Hz 融合 / 3–6ms 片内延迟</td><td style="color:#15803d">复用</td><td>预算充足，无需提速</td></tr>
+</table>
+
+<!-- ================================================================ -->
+<h2 id="s11">11 · 开放问题</h2>
+<ol>
+  <li><strong>大屏映射比冲突</strong>：4K 屏 + 手腕 30° 角域意味着灵敏度 ~64px/°，内区增益高放大姿态噪声——
+  参数空间第 8 节的死区/滤波是否够用，需 9.2 实测回答；不够则内区增益改两段（细动低增益/快动高增益）；</li>
+  <li><strong>磁锚点长期游移</strong>：桌面磁场缓变（季节性/桌面临时物件）导致锚点漂移的量化——
+  决定回中键的实际使用频率，影响"自动 vs 手动"回中的最终取舍；</li>
+  <li><strong>俯仰奇异性边界</strong>：Θ<sub>max</sub>=20° 距奇异尚远，但若未来支持"抬头看屏幕顶端"类大幅动作，
+  需切换到 q<sub>err</sub> 四元数域映射（本设计预留：偏差角仅是 q<sub>err</sub> 的一阶投影）；</li>
+  <li><strong>双手/左右手切换</strong>：锚点与角域的非对称参数（Ψ vs Θ、左右旋优势）是否需要用户档案化；</li>
+  <li><strong>与滚动/拖拽手势的正交性</strong>：边缘带推墙续航语义是否与"甩动滚动"手势冲突——
+  需要手势状态机层面的互斥设计（本篇范围外，留待交互设计篇）。</li>
+</ol>
+
+<footer>
+  姿态锚定式光标控制 · 设计研究 · 2026-10-12 · AirMouse 系列姊妹篇（无代码）·
+  姊妹篇：<a href="index.html">AirMouse 算法原理与实录</a> ·
+  算法参考：<a href="../witmotion-jy901-host-algorithms.html">WitMotion 姿态 EKF 逆向研究</a>
+</footer>
+
+</div>
+</body>
+</html>

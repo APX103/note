@@ -95,6 +95,10 @@
             <div class="card-title"><span class="arrow">&rarr;</span> AirMouse —— ESP32-S3 无线空中鼠标：算法原理与实录</div>
             <div class="card-desc"><span class="tag">2026-10-11 · 完整实录</span> 双板 ESP-NOW 链路 · Madgwick 六轴姿态融合 · 无限积分指针与空气墙剖析（影子模型钳制 + OS 光标偏移）· 八坑编年史 · v0.2.6 灵敏度旋钮（增量编码器 1kHz 正交解码、旋一格 fovH±2°、停转自动 NVS 保存）· 附核心代码 14 文件</div>
         </a>
+        <a class="card" data-date="2026-10-12" href="airmouse-esp32s3/attitude-anchored-cursor-control.html">
+            <div class="card-title"><span class="arrow">&rarr;</span> 姿态锚定式光标控制 · 设计研究（AirMouse 姊妹篇，无代码）</div>
+            <div class="card-desc"><span class="tag">2026-10-12 · 设计方案</span> 用姿态偏差直接驱动光标替换无限积分：走廊式混合映射（内区位置控制零漂回中 + 软墙压缩 + 边缘带锚点追赶=速率续航）· 锚点管理状态机（手动回中/自动重锚/离合，否决两种"智能回中"）· 滤波器选型（Madgwick 无零偏态缺口 → Mahony E+I / 7态EKF）· ICM-20948 磁门控降级阶梯（9轴→6轴→应急）· 误差预算（噪声取代漂移成为主导）· ISO 9241-9 验证用例 · 静止判据吸取 WitMotion 匀速误判教训</div>
+        </a>
         <a class="card" data-date="2026-10-10" href="stm32g431-jy901-gun-pointer.html">
             <div class="card-title"><span class="arrow">&rarr;</span> STM32G431 空中枪指针全记录：JY901L 指向鼠标、HID 与姿态算法踩坑史</div>
             <div class="card-desc"><span class="tag">2026-10-10 · 完整实录</span> Keil→GCC 工具链 · 无示波器 I2C 电气诊断（上拉下拉试探法）· ICM-20948 三算法融合失败教训（B 级芯片 21dps 零偏）· JY901L 寄存器全表与校准流程 · 绝对映射闭环算法 + 离合无限旋转 + 万向节锁极点保护 · 静止 60s 零漂移实测</div>
