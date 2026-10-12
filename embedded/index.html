@@ -83,6 +83,10 @@
     </div>
     <div class="section-title"><span class="dot" style="background:#f97316"></span> 项目与系列教程 <span class="count">(6)</span></div>
     <div class="grid">
+        <a class="card" data-date="2026-10-12" href="hi3322-sle-dongle-link-verification.html">
+            <div class="card-title"><span class="arrow">&rarr;</span> Hi3322 ↔ EB21duino 星闪链路验证：源码级实锤与唯一悬案</div>
+            <div class="card-desc"><span class="tag">2026-10-12 · 调研实锤</span> 商单技术路线（3322 替换 HH-M03 做鼠标端）逐环验证 · 3322 端 SLE Central/SSAP Client 全 API 链源码行号实锤（config.py:470 已编入出厂固件，AT 命令零代码可测，750000 波特率）· 确定性四级分级（跑通&gt;源码&gt;文档&gt;网文）· 网页级误判翻车记录（CP210x 乌龙）防再犯 · 唯一悬案：SLE 2.0↔1.0 空口互通的上板判据与兜底预案</div>
+        </a>
         <a class="card" data-date="2026-10-12" href="hh-m03-bs21e-complete-guide.html">
             <div class="card-title"><span class="arrow">&rarr;</span> HH-M03（BS21E 星闪模组）完全攻略：引脚、烧录与 SLE 启动</div>
             <div class="card-desc"><span class="tag">2026-10-12 · 完全攻略</span> 润和 BS21E 鼠标端 · 39针引脚表（I2C0=25/26、QDEC=29/30、LED=IO31、无nRESET引出）· 复位按键之谜（疑似没接，只拔插重启）· 烧录终局方案：猎手脚本盯端口+拔插抢flashboot窗口 · loader常驻下载模式续烧技巧 · SLE起不来的根因=protocol/Kconfig的choice空转（SUPPORT_SLE_PERIPHERAL）</div>
@@ -140,7 +144,7 @@
     <div class="grid">
         <a class="card" data-date="2026-10-12" href="witmotion-jy901-host-algorithms.html">
             <div class="card-title"><span class="arrow">&rarr;</span> WitMotion 上位机算法逆向：JY901 九轴姿态 EKF · 振动 · 磁标定全套实现</div>
-            <div class="card-desc"><span class="tag">2026-10-12 · 逆向研究</span> macOS 上拆 Windows 上位机（.NET 无混淆，ILSpy 全量反编译）· SinsEKF7.Core.dll = 7 状态全量 EKF（四元数+速度），ZUPT 四档自适应 R、磁航向一维观测、三级静止检测、静止分窗零偏、安装矩阵自标定 · 谱系锁定 PX4 早期 7 态 EKF · 挖出匀速旋转被误判静止的严重缺陷（yaw 冻结+零偏污染）· 附振动三模式算法族（Simulink 积分链/1024 点 FFT/20 项特征/0.25x–6x 倍频段）与 15 态 EKF 实时磁标定接口 · dotnet10 直接跑原厂 DLL 做黑盒差分：Python 复刻逐拍等价（最大差 5e-15，静止判别全同）</div>
+            <div class="card-desc"><span class="tag">2026-10-12 · 逆向研究</span> macOS 上拆 Windows 上位机（.NET 无混淆，ILSpy 全量反编译）· SinsEKF7.Core.dll = 7 状态全量 EKF（四元数+速度），ZUPT 四档自适应 R、磁航向一维观测、三级静止检测、静止分窗零偏、安装矩阵自标定 · 谱系锁定 PX4 早期 7 态 EKF · 挖出匀速旋转被误判静止的严重缺陷（yaw 冻结+零偏污染）· 附振动三模式算法族（Simulink 积分链/1024 点 FFT/20 项特征/0.25x–6x 倍频段）与 15 态 EKF 实时磁标定接口 · dotnet10 直接跑原厂 DLL 做黑盒差分：Python 复刻逐拍等价（5e-15）+ C99 移植（3.8e-10~3.2e-8，可直接进固件）· 固件考古：三层芯片双层架构（模块 MCU 姿态=正主，PC EKF=位移），评估板 hex=STM32F1 人格桥接固件（基因检测零命中，连 π/180 都没有），OTA 镜像=ESP8266 WiFi 桥，模块主 MCU 固件不随软件分发</div>
         </a>
         <a class="card" data-date="2026-10-08" href="weact-stm32h723-macos-dev-log.html">
             <div class="card-title"><span class="arrow">&rarr;</span> WeAct MiniSTM32H723 macOS 开发实录：GCC 工具链自救到 ST7735 五特效 Demo</div>

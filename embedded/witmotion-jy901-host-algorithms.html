@@ -108,6 +108,7 @@ footer{margin-top:64px; padding-top:20px; border-top:3px double var(--line); fon
   <a href="#s0">0 · 结论速览</a>
   <a href="#s1">1 · 研究方法与法律边界</a>
   <a href="#s2">2 · 上位机算法资产地图</a>
+  <a class="lv2" href="#s2b">2B · 固件考古与双层算法架构</a>
   <a href="#s3">3 · 姿态解算：七状态全量 EKF</a>
   <a class="lv2" href="#s3-1">3.1 坐标系与状态约定</a>
   <a class="lv2" href="#s3-2">3.2 信号预处理与自动标定</a>
@@ -120,6 +121,7 @@ footer{margin-top:64px; padding-top:20px; border-top:3px double var(--line); fon
   <a class="lv2" href="#s3-9">3.9 出厂调参全表</a>
   <a href="#s4">4 · 「准确的姿态」是如何获得的</a>
   <a href="#s5">5 · Python 复刻与双重验证</a>
+  <a class="lv2" href="#s5c">5.3 · C99 移植验证（可直接进固件）</a>
   <a href="#s6">6 · 谱系：它从哪里来</a>
   <a href="#s7">7 · 商用算法的七个弱点</a>
   <a href="#s8">8 · 振动算法族</a>
@@ -140,8 +142,9 @@ footer{margin-top:64px; padding-top:20px; border-top:3px double var(--line); fon
   <span class="ct">一个容易混淆的点</span>
   这套 PC 端算法的用途是上位机的「位移解算 / 3D 轨迹回放」功能（代码里挂的测试数据集是"手术刀推轨"等
   HWT605 录制集）。<strong>传感器模块本体固件里跑的那套融合算法并不在这套软件里</strong>——模块上电直接输出的
-  四元数是固件算的。想研究固件算法，路线是安装目录 <code>Plugins/Python/OTA/upgrade/user1.4096.new.6.bin</code>
-  （ESP 系 OTA 镜像），那是另一个课题。
+  四元数是固件算的。固件考古（§2B）确认：软件内能找到的两类固件——OTA 镜像与评估板 hex——
+  分别是 ESP8266 WiFi 桥与 STM32F1 UART 桥，<strong>均不含姿态算法</strong>；
+  模块主 MCU 固件不随软件分发（SWD dump 或行为指纹是仅剩的取证路径）。
 </div>
 
 <!-- ================================================================ -->
@@ -210,9 +213,9 @@ export DOTNET_ROOT=/opt/homebrew/Cellar/dotnet/10.0.400/libexec
   <text class="t2" x="595" y="376" text-anchor="middle">可当串口协议文档读</text>
   <!-- firmware note -->
   <rect class="bx" x="160" y="440" width="560" height="86" rx="10" stroke-dasharray="6 4"/>
-  <text class="t1" x="440" y="468" text-anchor="middle" fill="#a16207">未在本次范围：模块固件算法 / OTA 镜像</text>
-  <text class="t2" x="440" y="492" text-anchor="middle">Plugins/Python/OTA/upgrade/user1.4096.new.6.bin · user2.4096.new.6.bin</text>
-  <text class="t2" x="440" y="510" text-anchor="middle">ESP 系 OTA 分区命名 —— 固件级算法是另一条研究路线</text>
+  <text class="t1" x="440" y="468" text-anchor="middle" fill="#a16207">已考古（§2B）：周边固件均无算法</text>
+  <text class="t2" x="440" y="492" text-anchor="middle">OTA 镜像 = ESP8266 WiFi 桥 · 评估板 hex = STM32F1 UART 桥</text>
+  <text class="t2" x="440" y="510" text-anchor="middle">模块主 MCU 固件不随软件分发（SWD dump / 行为指纹可取证）</text>
   <!-- arrows -->
   <line x1="380" y1="72" x2="180" y2="118" stroke="#5b6672" stroke-width="1.5" marker-end="url(#ar)"/>
   <line x1="440" y1="72" x2="440" y2="118" stroke="#5b6672" stroke-width="1.5" marker-end="url(#ar)"/>
@@ -221,8 +224,86 @@ export DOTNET_ROOT=/opt/homebrew/Cellar/dotnet/10.0.400/libexec
   <line x1="595" y1="386" x2="590" y2="438" stroke="#5b6672" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#ar)"/>
   <text class="t2" x="612" y="416">⑤协议数据来源</text>
 </svg>
-<figcaption>图 1 · 上位机算法资产地图。实线框为本次完整提取的算法（①②③④），虚线框为未涉及部分。</figcaption>
+<figcaption>图 1 · 上位机算法资产地图。实线框为本次完整提取的算法（①②③④），虚线框为周边固件（已考古，均无算法，见 §2B）。</figcaption>
 </figure>
+
+<!-- ================================================================ -->
+<h2 id="s2b">2B · 固件考古与双层算法架构</h2>
+<p>把整套产品里的固件翻遍之后，整个系统的算法分工彻底清楚了——<strong>三层芯片、两套算法</strong>：</p>
+<table>
+  <tr><th>层</th><th>芯片</th><th>固件在软件里的位置</th><th>职责</th><th>算法</th></tr>
+  <tr><td>① 模块本体</td><td>未知 MCU（上位机二进制全搜无记载；疑 STM32F1 级，拆壳可查）</td>
+      <td><strong>不随软件分发</strong>（工厂烧录）</td><td><strong>姿态解算（产品主业）</strong></td>
+      <td>"动态卡尔曼"（官方口径）；0x24 AXIS6 寄存器可切六/九轴</td></tr>
+  <tr><td>② WiFi 版协处理器</td><td>ESP8266</td><td><code>Plugins/Python/OTA/upgrade/user*.bin</code></td>
+      <td>WiFi 桥（Web 配置页 + TCP/UDP 转发）</td><td>无</td></tr>
+  <tr><td>③ USB 评估板</td><td>STM32F1 兼容（外设地址判定）</td><td><code>Config/ConfigurationSpace/USB-Evaluation-Board/*.hex</code></td>
+      <td>UART 桥 + AT 版本查询（"人格"固件）</td><td>无</td></tr>
+</table>
+<figure>
+<svg viewBox="0 0 880 330" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .lyb{fill:#fff;stroke:#0e7490;stroke-width:1.7}
+    .lyt{font-size:13px;font-weight:700;fill:#155e75}
+    .lyd{font-size:11px;fill:#5b6672}
+    .lyg{fill:#fefce8;stroke:#a16207;stroke-width:1.7}
+    .lyo{fill:#ecfeff;stroke:#0e7490;stroke-width:2.2}
+  </style>
+  <defs><marker id="a5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#0e7490"/></marker></defs>
+  <rect class="lyb" x="30" y="16" width="360" height="52" rx="9"/>
+  <text class="lyt" x="210" y="38" text-anchor="middle">传感器芯片（IMU + 磁力计 + 气压）</text>
+  <text class="lyd" x="210" y="56" text-anchor="middle">体坐标系原始数据</text>
+  <rect class="lyo" x="30" y="100" width="360" height="72" rx="9"/>
+  <text class="lyt" x="210" y="126" text-anchor="middle">① 模块主 MCU · 姿态解算【正主】</text>
+  <text class="lyd" x="210" y="146" text-anchor="middle">"动态卡尔曼" · AXIS6 寄存器切换六/九轴</text>
+  <text class="lyd" x="210" y="162" text-anchor="middle">固件不随软件分发</text>
+  <rect class="lyb" x="30" y="216" width="360" height="52" rx="9"/>
+  <text class="lyt" x="210" y="238" text-anchor="middle">原始数据透传（0x51/0x52/0x54 帧）</text>
+  <text class="lyd" x="210" y="256" text-anchor="middle">模块同时把 raw 一并发上来</text>
+  <rect class="lyg" x="490" y="100" width="360" height="72" rx="9"/>
+  <text class="lyt" x="670" y="126" text-anchor="middle" fill="#713f12">PC 上位机 · SinsEKF7 七态 EKF【本文主角】</text>
+  <text class="lyd" x="670" y="146" text-anchor="middle">位移/速度解算（模块不做的活）</text>
+  <text class="lyd" x="670" y="162" text-anchor="middle">ZUPT · 磁航向 · 静止检测 · 自标定</text>
+  <rect class="lyb" x="490" y="16" width="360" height="52" rx="9"/>
+  <text class="lyt" x="670" y="38" text-anchor="middle">四元数/欧拉角 @200Hz（0x53/0x59 帧）</text>
+  <text class="lyd" x="670" y="56" text-anchor="middle">上位机直接显示/记录——买模块买的就是这个</text>
+  <rect class="lyb" x="490" y="216" width="360" height="52" rx="9"/>
+  <text class="lyt" x="670" y="238" text-anchor="middle">速度 / 位置输出</text>
+  <text class="lyd" x="670" y="256" text-anchor="middle">3D 轨迹回放（"手术刀推轨"数据集）</text>
+  <line x1="210" y1="68" x2="210" y2="98" stroke="#0e7490" stroke-width="2" marker-end="url(#a5)"/>
+  <line x1="390" y1="130" x2="488" y2="44" stroke="#0e7490" stroke-width="2" marker-end="url(#a5)"/>
+  <text class="lyd" x="430" y="76" style="font-size:10.5px">姿态结果上传</text>
+  <line x1="210" y1="172" x2="210" y2="214" stroke="#0e7490" stroke-width="2" marker-end="url(#a5)"/>
+  <line x1="390" y1="242" x2="488" y2="150" stroke="#a16207" stroke-width="2" marker-end="url(#a5)"/>
+  <text class="lyd" x="424" y="212" style="font-size:10.5px;fill:#713f12">raw 喂 EKF</text>
+  <line x1="670" y1="172" x2="670" y2="214" stroke="#0e7490" stroke-width="2" marker-end="url(#a5)"/>
+</svg>
+<figcaption>图 2 · 双层算法架构：姿态解算在模块（正主），PC 端 EKF 存在的理由是位移/速度——
+模块永远只给你姿态，速度和位置它不算，重活留给 PC。</figcaption>
+</figure>
+<p><strong>评估板固件"无算法"的证据链</strong>（都能复现）：</p>
+<ol>
+  <li><strong>"人格"固件</strong>：<code>JY901-UART.hex</code> 与 <code>JY61P-UART.hex</code> 整个二进制仅差 6 字节，
+      其中 3 字节即产品名（<code>'9','0','1'</code> vs <code>'6','1','P'</code>）——同一份代码换名字的 8 份拷贝；</li>
+  <li><strong>AT 命令桥</strong>：字符串区为 <code>AT+VERSION=</code>、<code>&lt;产品名&gt; V1.0</code>、<code>OK!</code>、<code>ERROR!</code>；</li>
+  <li><strong>基因检测零命中</strong>：参考算法全部特征常量（g₀=9.7955、静止阈值、四元数标度 32768、
+      连 π/180 与 180/π）一个都搜不到——<strong>连一度角度换算都不做</strong>，纯数据管道；</li>
+  <li><strong>MCU 判定 STM32F1 兼容</strong>：GPIO 0x40010800 / AFIO / RCC / FLASH 0x40022000 /
+      USART1+USART2 / DMA1 外设地址全套命中，<strong>无 USB 外设</strong>（USB 由板上独立转串口芯片承担）；
+      13KB 镜像、初始 SP 0x200006F0（小容量型）；</li>
+  <li><strong>中断结构</strong>：向量表绝大多数 IRQ 指向默认死循环，仅 4 个真实 handler 且均为
+      <code>ldr r0,[pc]; b.w 公共实现</code> 蹦床——与双 UART DMA 转发桥一致；</li>
+  <li><strong>上位机侧闭环</strong>：<code>UsbCore.Procesor</code> 从该目录加载 hex 并按模块名
+      <code>CheckHexName</code> 对比，不匹配提示"重刷评估板固件"——这是评估板换装机制，与传感器固件无关。</li>
+</ol>
+<div class="callout c-gold">
+  <span class="ct">算力经济学，以及对自研产品的启示</span>
+  这套双层架构是 2013 年代算力约束下的自然选择：模块 MCU 资源有限，跑轻量算法保 200Hz 实时输出；
+  位移解算又重又不需实时（录完回放），扔给 PC。今天情况反过来了——这套 7 态 EKF 的 C99 移植
+  在 Cortex-M4F 上只占约 1% 算力（§5.3），<strong>把"PC 级重算法"直接搬上 MCU、两层压一层</strong>
+  完全可行，这正是自研 HID 空鼠（姿态引擎 + 光标引擎单板直出）走的路线——比原厂的分层更激进，
+  因为算力允许了。
+</div>
 
 <!-- ================================================================ -->
 <h2 id="s3">3 · 姿态解算：七状态全量 EKF（SinsEKF7.Core）</h2>
@@ -553,6 +634,21 @@ roll 5.002° / pitch −3.002°（与数据真值一致）；ZUPT 末端 |v| = 0
   这正说明差分黑盒测试的价值：<strong>看代码逐行对照会漏的东西，逐拍比对抓得出来</strong>。
 </div>
 
+<h3 id="s5c">5.3 · C99 移植验证（可直接进固件）</h3>
+<p>为落地到 ESP32-S3 / STM32 固件，算法另有一份 C99 移植（开源库 <code>quat-zupt-ekf/c/</code>：
+零依赖、无动态分配、与 Python 包逐模块对应），用<strong>同一套差分方法</strong>验证：</p>
+<table>
+  <tr><th>场景</th><th>拍数</th><th>最大绝对差（全列）</th><th>静止判别序列</th></tr>
+  <tr><td>amode=9</td><td>1000</td><td>3.8 × 10⁻¹⁰</td><td>完全一致</td></tr>
+  <tr><td>amode=9</td><td>3000</td><td>1.1 × 10⁻⁸</td><td>完全一致</td></tr>
+  <tr><td>amode=6</td><td>3000</td><td>3.2 × 10⁻⁸</td><td>完全一致</td></tr>
+</table>
+<p>差异比 Python 版（10⁻¹⁵ 量级）略大，来源是 3×3 求逆改用伴随式与矩阵求和顺序不同——
+仍是同一算法的浮点噪声量级。C 移植同样被差分测试抓出一个教科书级 bug：
+<code>filter_reset</code> 的 <code>memset</code> 把嵌在结构体里的参数副本一并清零
+（自标定完成触发 reset 时参数全变 0 → NaN），修复后全绿。嵌入式集成注意（float 替换需重验、
+匀速误判怪癖的位置）见该库 <code>c/README.md</code>。</p>
+
 <!-- ================================================================ -->
 <h2 id="s6">6 · 谱系：它从哪里来</h2>
 <p>多处结构证据指向 <strong>PX4/Pixhawk 早期的七状态姿态-位置 EKF</strong>（<code>ekf_att_pos_estimator</code> / ecl 前身一支）：</p>
@@ -699,11 +795,16 @@ p ← clamp(p, ±2 m)                          // 硬限幅防漂</pre>
 ├── python/
 │   ├── sins_ekf7.py             逐行忠实移植（Filter+检测器+自标定+Pipeline）
 │   └── demo_synthetic.py        合成数据验证（numpy only）
-└── blackbox/                    黑盒差分测试（原厂 DLL vs 移植）
-    ├── gen_data.py              数据生成（1000/3000 拍）
-    ├── cs/SinsBlackbox.csproj   C# 参照驱动（加载原厂 SinsEKF7.Core.dll）
-    ├── run_py.py                Python 侧驱动
-    └── compare.py               逐拍比对器</code></pre>
+├── blackbox/                    黑盒差分测试（原厂 DLL vs 移植）
+│   ├── gen_data.py              数据生成（1000/3000 拍）
+│   ├── cs/SinsBlackbox.csproj   C# 参照驱动（加载原厂 SinsEKF7.Core.dll）
+│   ├── run_py.py                Python 侧驱动
+│   └── compare.py               逐拍比对器
+└── evalboard_firmware/          评估板 hex 反汇编与考古（STM32F1 桥接，无算法）
+
+衍生开源工程（本地，均不含第三方内容）：
+quat-zupt-ekf/           算法库：Python 包 + C99 移植（差分验证见 §5.3）
+attitude-cursor-engine/  光标引擎：姿态差分 → HID 增量（P0 四流对照实验）</code></pre>
 <h3>11.2 关键类速查</h3>
 <table>
   <tr><th>类（SinsEKF7.Core）</th><th>职责</th></tr>
