@@ -83,6 +83,10 @@
     </div>
     <div class="section-title"><span class="dot" style="background:#f97316"></span> 项目与系列教程 <span class="count">(6)</span></div>
     <div class="grid">
+        <a class="card" data-date="2026-10-13" href="hi3322-airmouse-vertical-slice.html">
+            <div class="card-title"><span class="arrow">&rarr;</span> 3322 空鼠垂直切片实录：从星闪链路到 IMU→EKF→鼠标流</div>
+            <div class="card-desc"><span class="tag">2026-10-13 · 实录+复现配方</span> 一天打穿 M0-M3：SLE 2.0↔1.0 互通实锤（"hello server" 双侧确认）· 100Hz 挂死根因结案（uuid 时序 bug+确认事件积压，反汇编定案，流控修复后 7 分钟零挂）· ICM20948 接线（J1901 排针官方核对版）到 whoami=0xEA · quat-zupt-ekf C99 上板：转板子姿态实时跟踪、1294 个真姿态鼠标包零失败 · 全链复现配方（编译/DFU 零断电烧录/oneshot 测试序列/判据/八条坑史）</div>
+        </a>
         <a class="card" data-date="2026-10-12" href="hi3322-sle-dongle-link-verification.html">
             <div class="card-title"><span class="arrow">&rarr;</span> Hi3322 ↔ EB21duino 星闪链路验证：源码级实锤与唯一悬案</div>
             <div class="card-desc"><span class="tag">2026-10-12 · 调研实锤</span> 商单技术路线（3322 替换 HH-M03 做鼠标端）逐环验证 · 3322 端 SLE Central/SSAP Client 全 API 链源码行号实锤（config.py:470 已编入出厂固件，AT 命令零代码可测，750000 波特率）· 确定性四级分级（跑通&gt;源码&gt;文档&gt;网文）· 网页级误判翻车记录（CP210x 乌龙）防再犯 · 唯一悬案：SLE 2.0↔1.0 空口互通的上板判据与兜底预案</div>

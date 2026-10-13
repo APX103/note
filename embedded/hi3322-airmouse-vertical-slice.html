@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3322 空鼠垂直切片实录 — 从星闪链路到 IMU→EKF→鼠标流（2026-10-13）</title>
+<style>
+    :root {
+        --bg: #fafbfc; --surface: #ffffff; --text: #1a1a2e; --text-secondary: #5a5a7a;
+        --accent: #6366f1; --border: #e8eaef; --code-bg: #f1f3f5; --tag-bg: #eef0ff; --tag-color: #6366f1;
+        --warn: #d97706; --ok: #059669; --danger: #dc2626; --shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif; line-height: 1.75; }
+    .container { max-width: 880px; margin: 0 auto; padding: 48px 24px 80px; }
+    h1 { font-size: 1.7em; margin-bottom: 8px; }
+    .subtitle { color: var(--text-secondary); font-size: 0.95em; margin-bottom: 32px; }
+    h2 { font-size: 1.25em; margin: 40px 0 14px; padding-left: 12px; border-left: 4px solid var(--accent); }
+    h3 { font-size: 1.05em; margin: 24px 0 10px; }
+    p { margin: 10px 0; }
+    table { width: 100%; border-collapse: collapse; margin: 14px 0; background: var(--surface); font-size: 0.92em; box-shadow: var(--shadow); }
+    th { background: var(--tag-bg); color: var(--tag-color); text-align: left; }
+    th, td { padding: 8px 12px; border: 1px solid var(--border); vertical-align: top; }
+    code { background: var(--code-bg); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; font-family: "SF Mono", Menlo, monospace; font-size: 0.88em; }
+    pre { background: #1e1e2e; color: #cdd6f4; border-radius: 10px; padding: 16px 18px; overflow-x: auto; margin: 14px 0; font-size: 0.85em; line-height: 1.6; }
+    pre code { background: none; border: none; color: inherit; padding: 0; }
+    .warn { border-left: 4px solid var(--warn); background: #fffbeb; padding: 10px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-size: 0.93em; }
+    .ok { border-left: 4px solid var(--ok); background: #ecfdf5; padding: 10px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-size: 0.93em; }
+    .danger { border-left: 4px solid var(--danger); background: #fef2f2; padding: 10px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-size: 0.93em; }
+    ul, ol { padding-left: 24px; margin: 10px 0; }
+    li { margin: 4px 0; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>3322 空鼠垂直切片实录</h1>
+<p class="subtitle">从星闪链路实锤 → 挂死结案 → IMU→EKF→鼠标流全链 &nbsp;·&nbsp; 2026-10-13 · 前篇：<a href="hi3322-sle-dongle-link-verification.html">Hi3322 ↔ EB21duino 星闪链路验证</a></p>
+
+<div class="ok">
+<strong>TL;DR：</strong>2026-10-13 一天打穿四个里程碑——SLE 2.0↔1.0 空口互通实锤（"hello server" 双侧确认）→ 100Hz 挂死根因结案（uuid 时序 bug + 确认事件积压，反汇编定案并修复验证）→ ICM20948 接线驱动（whoami=0xEA、重力 0.99g 校准）→ <strong>EKF 姿态解算上板：转动开发板，姿态三轴实时跟踪，1294 个真姿态驱动的鼠标包零失败发到 dongle</strong>。本文给出全链复现配方（命令、代码改动点、判据、坑史）。
+</div>
+
+<h2>1 · 系统架构（Central-Server）</h2>
+<pre><code>3322 谛听 V100 (SLE Central)                EB21duino/BS21 (SLE Server)
+┌────────────────────────────┐   星闪 P2P   ┌──────────────────────────┐
+│ ICM20948 ─I2C0→ EKF7 姿态解算│ ── write ──→ │ write 回调收 dx/dy 包      │
+│ → 姿态增量→dx/dy 打包        │  (上行流控)  │  → [M4] USB HID report    │──→ 电脑
+│ 100Hz · 窗口4确认流控        │              │ (当前: 聚合打印观察)       │
+└────────────────────────────┘              └──────────────────────────┘
+</code></pre>
+<p><strong>dongle=server 广播暴露连接点，3322=Central 扫描连接</strong>——连接发起权、重连策略在算力强的一端；上行 client→server write，下行 notify 二期。官方 air_mouse 样例的 mouse=server 是 BLE 惯例平移，弃用（用户拍板）。两端固件均 Mac 自产（3322 走 fbb 原生编译，dongle 走 Docker 容器）。</p>
+
+<h2>2 · 硬件与接线（官方文档核对版）</h2>
+<table>
+<tr><th>ICM20948（Waveshare 10DOF-D）</th><th>接谛听开发板</th><th>依据</th></tr>
+<tr><td>VCC 3.3V</td><td>J1902 PIN 17/18（丝印 VDD3V3）</td><td rowspan="4">开发板接口表（<code>vendor/Sunniwell_HiDiTing_Dev_Board/.../sunniwell-hiditing-dev-board.md</code>「1.8V/3.3V I2C 接口」「SPI/UART 接口」节）</td></tr>
+<tr><td>GND</td><td>J1901 PIN 9/10</td></tr>
+<tr><td>SDA</td><td>J1901 PIN 12（丝印 <code>C0_D</code> = I2C0_SDA / MGPIO_5）</td></tr>
+<tr><td>SCL</td><td>J1901 PIN 11（丝印 <code>C0_C</code> = I2C0_SCL / MGPIO_4）</td></tr>
+<tr><td>AD0 悬空</td><td>地址 0x68（AT 参数写十进制 104）</td><td>—</td></tr>
+</table>
+<ul>
+<li>拨码 <strong>SW1901-5 默认 OFF = I2C0/1 电平 3.3V</strong>，与模块 VCC 匹配，无需动。</li>
+<li><strong>勿用 J1901 PIN 7/8（I2C1）</strong>——板内已接屏 TP，文档明令勿复用。</li>
+<li>模组 IO 全 1.8V 域（模组管脚表），开发板排针经拨码做板级电平；模块内置 LSF0204 电平转换。UART2 恒 1.8V——串口适配器（CH347）必须供 1.8V。</li>
+</ul>
+
+<h2>3 · 3322 固件：sle_client.c 改动全集</h2>
+<p>基座 <code>work/hs-fbb</code>（gitcode master），改动全部集中在 <code>samples/native_samples/sle/sle_client.c</code>（搜 <code>[AIM]</code> 注释块定位），外加 <code>quat-zupt-ekf/c/</code> 五文件拷入同目录并挂 CMakeLists SOURCES。</p>
+
+<h3>3.1 模块清单</h3>
+<table>
+<tr><th>模块</th><th>要点</th></tr>
+<tr><td>IMU 驱动</td><td><code>uapi_i2c_master_writeread</code>（i2c.h:219）组合事务读寄存器；初始化序列：PWR_MGMT_1 软复位→0x01 唤醒→PWR_MGMT_2=0 六轴全开。<strong>量程写不进（bank2 回读 0x00），按默认 ±2g/±250dps 刻度：16384 LSB/g、131.072 LSB/dps</strong>（重力实测 0.99g 校准过）</td></tr>
+<tr><td>EKF</td><td><code>ekf7_pipeline_init(&ekf, 100.0, 1, 0)</code> + 每拍 <code>ekf7_pipeline_calculate(acc_mps2, gyro_rad_s, NULL, &out)</code>（输入单位与 test_runner CSV 一致）；静置 ~2s 完成对准（align 状态机 0→4）</td></tr>
+<tr><td>指针映射</td><td>Δyaw/Δpitch × 15 px/deg + 0.03° 死区 + motionless 冻结 + ±127 限幅；yaw→x，−pitch→y</td></tr>
+<tr><td>发送任务</td><td><code>osal_kthread_create_ext</code>（模板抄 dht22.c:435）100Hz；<strong>窗口式流控：在飞未确认 &lt;4 才发</strong>（write_cfm 回调递减 pending）</td></tr>
+<tr><td>回调注册</td><td>FIND 回调捕获句柄处，用 <code>service[s].service.uuid</code> 的 static 拷贝 + 回调参数 dev_id/client_id 注册——<strong>不能用 g_client_app_uuid（step8 才赋值，注册时全零 → 0x8000600a）</strong></td></tr>
+<tr><td>睡眠保活</td><td>任务启动时 <code>uapi_pm_add_sleep_veto_with_symmetry(PM_ID_NATIVE_SAMPLE)</code>（pm_veto.h；ID 枚举 pm_veto_porting.h:104）</td></tr>
+</table>
+
+<h3>3.2 关键架构红线</h3>
+<div class="danger"><strong>EKF 无条件每拍跑，绝不 gate 在 SLE 连接状态后面。</strong>曾因把 EKF 放在连接检查之后，链路一断姿态就"恒 0"，白查一轮。姿态解算独立于链路。</div>
+
+<h2>4 · 编译与烧录</h2>
+<h3>4.1 编译（Mac，~1 分钟增量）</h3>
+<pre><code>export PATH="$HOME/.hs-fbb/tools/bisheng/26.08.1/bin:$HOME/.hs-fbb/venv/bin:$PATH"
+cd /Volumes/ssd/main_link/work/hs-fbb/src
+python3 build.py diting-community        # 产物 output/3322/fwpkg/diting-community.fwpkg
+# 首次或缓存中毒时加 -c（CMakeCache 会存旧编译器路径）
+</code></pre>
+<p>验证：ELF 里 strings 搜 <code>[AIM]</code> 特征串 + <code>outer_samples_build/sle/.../sle_client.c.obj</code> 时间戳。</p>
+
+<h3>4.2 3322 烧录（两条路）</h3>
+<pre><code># 首选：USB DFU（零断电，97s。前提：板上固件能跑 AT 且已醒）
+# 先轰 AT+PM=0 到 OK（睡眠醒窗仅几秒），然后：
+cd /Volumes/ssd/main_link/work/hs-fbb/src
+fbb flash -f output/3322/fwpkg/diting-community.fwpkg --chip 3322 -d --json-summary
+# 自动探测 AT 口 → AT+USBDFUTRIGGER 软重启进 DFU(vid 3361:3322) → 烧完自动复位
+
+# 兜底：串口直烧（需断电重上电配合；fbb 包装层有假象坑，直接用 hsflash）
+cd ~/.hs-fbb/tools/hs-flash/26.09.1    # 必须在安装目录跑（burn.config）
+./hsflash write -c 3322 -p /dev/cu.usbmodem11401 -b 750000 -f &lt;fwpkg&gt;
+# ymodem 偶发 frame failed → 重跑即过
+</code></pre>
+
+<h3>4.3 dongle（EB21duino）固件与烧录</h3>
+<pre><code># Docker 容器编译（54s，git 里自带 Linux riscv gcc）
+docker run --rm --platform linux/amd64 \
+  -v /Volumes/ssd/main_link/work/fbb_bs2x:/sdk -w /sdk/src fbb-wsl:toolchain \
+  sh -c 'python3 build.py standard-bs21e-1100e -c'
+# 配置（setconfig）：SAMPLE_ENABLE=y ENABLE_PRODUCTS_SAMPLE=y SAMPLE_SUPPORT_SLE_UART=y
+#   SAMPLE_ENABLE_SLE_UART_SERVER=y SUPPORT_SLE_PERIPHERAL=y（切 choice 必须 clean）
+# 烧录：hsflash -c bs21e -p /dev/cu.usbserial-01C7FDE11 -b 115200 -f bs21e_all_in_one.fwpkg
+#   DE11=烧录+日志口（Windows COM10 等价）；复位=拔功耗跳帽 2s（RST_KEY 无效）
+</code></pre>
+
+<h2>5 · 测试序列与判据</h2>
+<p>工具：<code>work/sle-link-test/</code> 下 <code>at3322.py</code>（wake/send/mon/scan）、<code>oneshot.py</code>（单进程全序列：轰 PM=0→ENABLE→INIT→SCAN→PAIR=0,0,0,0,0,0→FIND）、<code>oneshot_i2c.py</code>（I2C 验线）。</p>
+<pre><code># ① I2C 验线（判据：i2c master send succ = 地址 ACK）
+python at3322.py wake  &lt;口&gt;          # 或直接 oneshot_i2c.py &lt;口&gt; 104 0
+
+# ② 全链（判据：[Connected] → Client Info success → captured handle:0x0011
+#    → register callbacks: 0x0 → rpy=[...] 非零 → 转板子 moved 增长 + sent 增长）
+python oneshot.py &lt;口&gt;
+
+# ③ dongle 侧观察（判据：DE11 日志口 rx# 计数持续增长）
+#    注意：dongle 半开连接会让 PAIR 失败(0x80006016/静默) → 拔 dongle 功耗跳帽清
+</code></pre>
+<div class="ok"><strong>2026-10-13 M3 终验实录</strong>（转板子 100 秒窗口）：
+静止 <code>rpy=[2.5 3.5 0.9]deg moved=0</code> → 转动中 <code>rpy=[-52.1 18.5 50.5]deg moved=34644px sent=1171</code> → 回正静止 <code>moved=38698px sent=1294</code>，全程 <code>imu_fail=0</code>，静止自动冻结。</div>
+
+<h2>6 · 坑史（现象 → 根因 → 修法）</h2>
+<table>
+<tr><th>现象</th><th>根因</th><th>修法</th></tr>
+<tr><td>100Hz 流跑 21~42s 后 3322 彻底静默（20Hz 观察窗内未见）</td><td>两层叠加：① sample 的 g_client_app_uuid 在 FIND 回调 step8 才赋值（且按 SLE_MOBILE_MAX 索引），回调注册传全零 uuid 恒失败 0x8000600a；② 带确认写的完成事件无人消费 → ~2000-4000 包后资源耗尽 → 芯片异常+电气扰动（CH347 USB 掉线重枚举为伴生）。反汇编 bs_sle_ssapc_write(0x266c0aec) 见内部同步 memcpy_s（悬垂指针已排除）+ btos_new 池分配</td><td>①用刚发现的服务 uuid 的 static 拷贝注册；②write_cfm 回调递减 pending + 4 包窗口流控。验证：sent=14575 fail=0 cfm=14571（差=在飞窗口），7.3 分钟零挂</td></tr>
+<tr><td>3322 AT 时灵时不灵，序列中途断</td><td>低功耗睡眠醒窗仅几秒；PM=0 会被栈 DISABLE/ENABLE 复位冲掉；跨进程命令间隔撞睡眠</td><td>oneshot 单进程连发（轰 PM=0 到 OK 再走序列）+ 固件内 sleep veto</td></tr>
+<tr><td>重复 PAIR 报 0x80006016</td><td>dongle 挂半开连接（3322 侧重启没断链通知）或栈状态残留</td><td>3322 先 DISABLE→ENABLE 复位栈；dongle 拔功耗跳帽复位</td></tr>
+<tr><td>"挂死"误报（SerialException: device disconnected）</td><td>macOS 两进程同开一个 cu 口（oneshot 与监听并行）</td><td><strong>串口独占</strong>：驱动与监听串行；流活性看 dongle 侧，最后才短探 3322</td></tr>
+<tr><td>EKF 输出 rpy 恒 0</td><td>EKF 被 gate 在连接检查后（连接失败陪葬）</td><td>EKF 无条件每拍跑（§3.2）</td></tr>
+<tr><td>编译错：packed member 取地址 / unused</td><td>-Werror 严格集</td><td>局部变量中转再赋值；(void) 参数</td></tr>
+<tr><td>量程寄存器写不进（回读 0x00）</td><td>未查（疑似 bank 切换时序）</td><td>按默认量程刻度用（已重力校准），不影响</td></tr>
+<tr><td>让用户"转板子"验证总扑空</td><td>消息与监听同时发出，人反应 &gt;40s</td><td>先发消息再挂 ≥100s 监听</td></tr>
+</table>
+
+<h2>7 · 遗留与下一步</h2>
+<ul>
+<li><strong>M4</strong>：dongle 端 write 回调解析 dx/dy → USB HID mouse report（改动点 = sle_uart.c 回调一行区；Kconfig SAMPLE_SUPPORT_USB_MOUSE 与 SLE_UART_SERVER 平级无互斥）→ 屏幕鼠标动，商单端到端闭环；</li>
+<li>调参：灵敏度（15px/deg）、方向反转、安装朝向标定（ESP32 版 mount 逻辑直接搬）；</li>
+<li>下行双工：特征加 notify + CCCD；</li>
+<li>bank2 量程写入、产量前换示例 UUID（星闪开发指南 :395）。</li>
+</ul>
+
+<h2>8 · 资产索引</h2>
+<table>
+<tr><th>资产</th><th>路径</th></tr>
+<tr><td>3322 SDK + 业务固件</td><td><code>work/hs-fbb</code>（改动都在 samples/native_samples/sle/sle_client.c，搜 [AIM]）</td></tr>
+<tr><td>EKF 源</td><td><code>work/quat-zupt-ekf/c/</code>（零依赖 C99，差分验证 1e-8）</td></tr>
+<tr><td>BS21 SDK</td><td><code>work/fbb_bs2x</code>（dongle 固件；Docker 镜像 fbb-wsl:toolchain）</td></tr>
+<tr><td>测试工具</td><td><code>work/sle-link-test/</code>（at3322.py / oneshot.py / oneshot_i2c.py / enum_usb.sh / 3322-airmouse-imu-plan.md 方案）</td></tr>
+<tr><td>烧录器</td><td><code>~/.hs-fbb/tools/hs-flash/26.09.1/</code>（3322+bs21e；须在安装目录跑）</td></tr>
+<tr><td>硬件文档</td><td><code>work/hs-fbb/vendor/Sunniwell_HiDiTing_Dev_Board/hardware/</code>（排针表/电平安检见本库记忆与并行笔记）</td></tr>
+</table>
+
+<p class="subtitle" style="margin-top:40px">2026-10-13 · ZCode 实录会话 · 前篇：hi3322-sle-dongle-link-verification / hh-m03-bs21e-complete-guide / eb21duino-complete-guide · 方案：work/sle-link-test/3322-airmouse-imu-plan.md</p>
+
+</div>
+</body>
+</html>
