@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hi3322 ↔ EB21duino 星闪链路验证 — 源码级实锤与唯一悬案（2026-10-12）</title>
+<style>
+    :root {
+        --bg: #fafbfc; --surface: #ffffff; --text: #1a1a2e; --text-secondary: #5a5a7a;
+        --accent: #6366f1; --border: #e8eaef; --code-bg: #f1f3f5; --tag-bg: #eef0ff; --tag-color: #6366f1;
+        --warn: #d97706; --ok: #059669; --danger: #dc2626; --shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif; line-height: 1.75; }
+    .container { max-width: 880px; margin: 0 auto; padding: 48px 24px 80px; }
+    h1 { font-size: 1.7em; margin-bottom: 8px; }
+    .subtitle { color: var(--text-secondary); font-size: 0.95em; margin-bottom: 32px; }
+    h2 { font-size: 1.25em; margin: 40px 0 14px; padding-left: 12px; border-left: 4px solid var(--accent); }
+    h3 { font-size: 1.05em; margin: 24px 0 10px; }
+    p { margin: 10px 0; }
+    table { width: 100%; border-collapse: collapse; margin: 14px 0; background: var(--surface); font-size: 0.92em; box-shadow: var(--shadow); }
+    th { background: var(--tag-bg); color: var(--tag-color); text-align: left; }
+    th, td { padding: 8px 12px; border: 1px solid var(--border); vertical-align: top; }
+    code { background: var(--code-bg); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; font-family: "SF Mono", Menlo, monospace; font-size: 0.88em; }
+    pre { background: #1e1e2e; color: #cdd6f4; border-radius: 10px; padding: 16px 18px; overflow-x: auto; margin: 14px 0; font-size: 0.85em; line-height: 1.6; }
+    pre code { background: none; border: none; color: inherit; padding: 0; }
+    .warn { border-left: 4px solid var(--warn); background: #fffbeb; padding: 10px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-size: 0.93em; }
+    .ok { border-left: 4px solid var(--ok); background: #ecfdf5; padding: 10px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-size: 0.93em; }
+    .danger { border-left: 4px solid var(--danger); background: #fef2f2; padding: 10px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-size: 0.93em; }
+    ul, ol { padding-left: 24px; margin: 10px 0; }
+    li { margin: 4px 0; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>Hi3322 ↔ EB21duino 星闪链路验证</h1>
+<p class="subtitle">源码级实锤与唯一悬案 &nbsp;·&nbsp; 2026-10-12 &nbsp;·&nbsp; 商单技术路线：3322 替换 HH-M03 做鼠标端</p>
+
+<div class="ok">
+<strong>TL;DR：</strong>3322 端的星闪 Central / SSAP Client 能力<strong>已经源码级实锤</strong>——示例代码真实存在、已编进 <code>diting-community</code> 出厂固件、出厂即可用串口 AT 命令零代码驱动。dongle 端（EB21duino = BS21）<strong>已在实机跑通</strong>（出厂固件就是 SLE 鼠标接收器）。<strong>整条链路只剩一个悬案：3322（SLE 2.0）与 BS21（SLE 1.0）的空口互通</strong>——这只能上板实测，任何文档替代不了，判据和步骤见 §6。
+</div>
+
+<h2>0 · 为什么要记这篇</h2>
+<p>本次调研（2026-10-12 下午，ZCode 会话）把能确定的东西全部钉到了<strong>源码行号</strong>和<strong>既有实测笔记</strong>上，不是网页摘要级。文中每一条结论都标注了确定性等级和证据出处；将来任何人（包括未来的 agent）再碰这条链路，<strong>先读这篇，不要重新 web 搜索一遍就下结论</strong>——本次会话已经证明过网页级调研会得出错误结论（见 §5 的翻车记录）。</p>
+
+<table>
+<tr><th>确定性等级</th><th>含义</th><th>本篇覆盖</th></tr>
+<tr><td><strong>✅ 源码实锤</strong></td><td>SDK 源码文件 + 行号，本机持久副本可复查</td><td>3322 端 SSAP Client 全链路（§3）</td></tr>
+<tr><td><strong>✅ 实测已通</strong></td><td>既有笔记记录的实机验证（用户家中 AirMouse-SLE 系统）</td><td>dongle 端 BS21 USB HID、HH-M03 鼠标端（§2）</td></tr>
+<tr><td><strong>✅ 官方文档/仓库声明</strong></td><td>SDK README、海思文档站，未逐条上板复核</td><td>编译环境、烧录流程、SLE 版本号（§2、§7）</td></tr>
+<tr><td><strong>⚠️ 悬案</strong></td><td>无任何证据，必须上板</td><td>SLE 2.0 ↔ SLE 1.0 空口互通（§6）</td></tr>
+</table>
+
+<h2>1 · 背景与目标架构</h2>
+<p><strong>现有可用系统（已在家中跑通）</strong>：AirMouse-SLE 项目（Windows 机 <code>D:\work\AirMouse-SLE</code>，SDK clone 自 fbb_bs2x）——鼠标端 HH-M03（润和 BS21E 模组）⇄（星闪 SLE 1.0）⇄ dongle 端 EB21duino（利尔达 BS21 板，出厂固件即 SLE 鼠标接收器，插电脑 USB 枚举为 HID）。</p>
+<p><strong>商单约束</strong>：产品必须用 Hi3322（谛听 HiDiTing V100）做主控。因此目标架构 = 把鼠标端从 HH-M03/BS21E 换成 3322，dongle 端不变：</p>
+<pre><code>3322 (HiDiTing V100, SLE 2.0)          EB21duino (BS21, SLE 1.0)
+┌─────────────────────────┐   星闪空口   ┌──────────────────────┐
+│ IMU 采样 → 姿态解算      │ ──────────→ │ SLE Central 接收      │
+│ → 光标增量打包           │  SSAP 写/通知 │ → 翻译成 USB HID report│──→ 电脑
+│ (SLE Central 角色)       │             │ (出厂固件已实现)       │
+└─────────────────────────┘             └──────────────────────┘
+</code></pre>
+<p>3322 拿到的增益：双 RISC-V（BCPU ≤64MHz + MCPU ≤266MHz）+ 50 GOPS NPU + 2.3MB SRAM + 16MB PSRAM（<a href="hispark-hi3322/index.md">hispark-hi3322/index.md</a>）——算力和内存远超 BS21E（单核 RISC-V 64MHz / 160KB RAM），跑 9 轴 EKF 姿态解算 + 姿态锚定光标控制（算法设计见 <a href="airmouse-esp32s3/attitude-anchored-cursor-control.html">姊妹篇</a>）绰绰有余。</p>
+
+<h2>2 · 链路分环验证状态（核心结论表）</h2>
+<table>
+<tr><th>#</th><th>环节</th><th>状态</th><th>证据</th></tr>
+<tr><td>1</td><td>3322 协议栈能做 SLE Central（扫描/配对/建链）</td><td>✅ 源码实锤</td><td><code>sle_com.c:354</code> <code>bs_sle_enable()</code>、<code>sle_com.c:100</code> <code>bs_sle_start_discovery(SLE_DISCOVERY_CENTRAL)</code>（§3）</td></tr>
+<tr><td>2</td><td>3322 SSAP Client 服务发现 + 读写 + 通知回调</td><td>✅ 源码实锤</td><td><code>sle_client.c:164/192/455/514/548/570</code>（§3）</td></tr>
+<tr><td>3</td><td>SLE 示例已编入出厂固件，AT 命令可零代码驱动</td><td>✅ 源码实锤 + README 声明</td><td><code>config.py:470</code> <code>CONFIG_ENABLE_SLE_SAMPLE</code>；sample README 原文"当前 diting-community 目标已启用该宏"（§3.3、§4）</td></tr>
+<tr><td>4</td><td>EB21duino：双 Type-C（丝印 UART/USB），USB 口为原生 USB，出厂即 SLE 鼠标接收器</td><td>✅ 实测已通 + 官方文档</td><td><a href="eb21duino-complete-guide.html">eb21duino-complete-guide.html</a>：Type-C2 直连原生 USB，出厂固件枚举 SLE_MOUSE HID，用户家中整套已跑通；<a href="https://lierda.feishu.cn/wiki/CyjuwBLZpi25IjkNg65cK0Z9nyc">利尔达飞书官方文档</a>实拍照片显示双 Type-C 丝印 UART/USB，正文载明"EB21 基于华为 2821 芯片"</td></tr>
+<tr><td>5</td><td>BS2X 侧 dongle 固件自研路径（如需改）</td><td>✅ 官方文档</td><td>海思 fbb_bs2x 文档站样例清单：USB Mouse/Keyboard Sample、USB HID 复合设备开发指南、SLE Mouse、air mouse、SLE UART（§7 链接）</td></tr>
+<tr><td>6</td><td><strong>3322 (SLE 2.0) ↔ BS21 (SLE 1.0) 空口互通</strong></td><td><strong>⚠️ 唯一悬案</strong></td><td>双方 SSAP version 常量都是 1（<code>sle_com.h:69</code>），版本协商语义未验证；上板判据见 §6</td></tr>
+</table>
+
+<h2>3 · 3322 端源码级证据（本次核心产出）</h2>
+<p>SDK 仓库 <code>~/work/hs-fbb</code>（GitCode HiSpark/hs-fbb，master；/tmp/hs-fbb 为本次临时 clone，内容一致）。以下行号全部在本机持久副本上核对过，可直接复查。</p>
+
+<h3>3.1 示例代码实体</h3>
+<p><code>samples/native_samples/sle/</code> 共 1869 行纯 C：</p>
+<table>
+<tr><th>文件</th><th>行数</th><th>角色</th></tr>
+<tr><td><code>sle_client.c</code></td><td>637</td><td><strong>Central</strong>：扫描、配对、服务发现、SSAP 读写、客户端回调</td></tr>
+<tr><td><code>sle_server.c</code></td><td>380</td><td>Peripheral：广播、SSAP 服务模板、读写处理、通知</td></tr>
+<tr><td><code>sle_com.c</code></td><td>369</td><td>协议栈生命周期、连接/配对公共回调、共享状态</td></tr>
+</table>
+<p>sample README 原文："在两块 HiDiTing V100 开发板之间建立 SLE Central/Peripheral 通信，覆盖协议栈使能、扫描与广播、配对建链、SSAP 服务发现、读写以及通知"。</p>
+
+<h3>3.2 SSAP Client 完整 API 调用链（grep 实证，行号可点）</h3>
+<pre><code># 协议栈启停（sle_com.c）
+bs_sle_enable()                                    # sle_com.c:354
+bs_sle_start_discovery(SLE_DISCOVERY_CENTRAL)      # sle_com.c:100  ← Central 扫描
+
+# SSAP Client 业务（sle_client.c）
+bs_sle_ssapc_register(&amp;app_uuid, &amp;g_client_id)                # :164  注册 client
+bs_sle_ssapc_exchange_info_req(dev_id, client_id, &amp;param)     # :192  MTU/版本协商
+bs_sle_ssapc_find_all_service(dev_id, client_id, cbk, ...)    # :455  服务发现
+bs_sle_ssapc_register_callbacks(..., &amp;g_sle_demo_ssap_cb)     # :514  挂读写/通知回调
+bs_sle_ssapc_write(dev_id, client_id, &amp;param)                 # :548  ★鼠标增量包走这里
+bs_sle_ssapc_read(dev_id, client_id, handle, type)            # :570  读特征值
+
+# 协商常量（sle_com.h）
+SLE_EXCHANGE_INFO_MTU_SIZE  512    # sle_com.h:67
+SLE_EXCHANGE_INFO_VERSION   1      # sle_com.h:69  ← SSAP 版本号，双方同为 1
+</code></pre>
+<div class="ok">这套调用链就是鼠标增量包从 3322 到 dongle 的完整通路。<strong>3322 端"能不能连、能不能发"在协议栈能力层面已经不存在疑问</strong>，剩下的只是业务封装。</div>
+
+<h3>3.3 已编入出厂固件（关键实锤）</h3>
+<ul>
+<li><code>src/build/config/target_config/3322/config.py:470</code>：diting-community target 的 DEFINES 列表里有 <code>'CONFIG_ENABLE_SLE_SAMPLE'</code>（同表还有 UART/SPI/SECURITY/FOTA/AT_COMMAND 等 sample 宏）；</li>
+<li><code>samples/native_samples/CMakeLists.txt:87</code>：该宏条件编译挂入构建；</li>
+<li>3322 二进制构建清单佐证：<code>src/interim_binary/3322/acore/build_hso_cfg/.../closed_comp/</code> 下有 <code>sle_srv_ssap_client.c.xml</code>、<code>sle_at_ssapc.c.xml</code> 等 SSAP client 组件条目；</li>
+<li>sample README 原文："当前 <code>diting-community</code> 目标已启用该宏，<code>AT_DITING_EXAMPLE_SLE</code> 会使 <code>at_adapter.c</code> 注册本示例的命令表"。</li>
+</ul>
+<p><strong>含义：手头的 3322 板只要烧的是 diting-community 固件（本机已编出过 9.3MB 的 fwpkg，见 <a href="hi3322-diting-env-setup.html">hi3322-diting-env-setup.html</a>），SLE Central 功能就在固件里，不需要改一行代码就能用 AT 命令测试。</strong></p>
+
+<h3>3.4 异步纪律（官方指南红线）</h3>
+<div class="warn">星闪开发指南（<code>docs/zh-CN/HiDiTingV100/samples/connect/星闪开发指南/README.md</code>，455 行）反复强调：<strong>接口返回成功 ≠ 异步流程完成</strong>。必须等连接状态回调报告 <code>SLE_CONNECT_CONNECTED</code> 后才能交换 MTU/版本；"pair request submitted"后超时，先查对端是否还在广播、地址是否取自扫描日志。排障表同文件 :453。</div>
+
+<h2>4 · 零代码上板验证序列（AT 命令）</h2>
+<p>来自 sample README，业务串口波特率 <strong>750000</strong>。对端（EB21duino）保持出厂 dongle 固件的广播/服务端状态：</p>
+<pre><code># Central 侧（3322）
+AT+SLECLIENTENABLE
+AT+SLECLIENTINIT
+AT+SLECLIENTSCAN=0            # 开扫描，从日志取对端 6 字节地址
+AT+SLECLIENTPAIR=&lt;地址字节1&gt;,...,&lt;地址字节6&gt;
+AT+SLECLIENTSCAN=1            # 停扫描
+AT+SLECLIENTFIND              # 服务发现：输出服务 UUID / 特征 UUID / 句柄
+AT+SLECLIENTCB                # 为已发现 UUID 注册读写/通知回调
+AT+SLECLIENTWRITE=&lt;特征句柄&gt;   # ★发数据（未来鼠标增量包的入口）
+</code></pre>
+<p>官方声明的业务扩展点（写代码时改哪里）：</p>
+<ul>
+<li>Central 发送的数据内容 → <code>sle_client.c</code> 的 <code>sle_ssapc_write()</code>；</li>
+<li>收到的读/写/通知/指示处理 → <code>g_sle_demo_ssap_cb</code> 回调簇；</li>
+<li>服务/特征 UUID、权限 → <code>sle_server.c</code> 的 <code>service_template</code>（给对端自研 BS2X 固件时用）；</li>
+<li>量产前必须换掉示例 UUID，地址/句柄不可固化为静态配置（指南 §395、§438）。</li>
+</ul>
+
+<h2>5 · 翻车记录与冲突排查（防再犯，重要）</h2>
+
+<h3>5.1 本次会话的网页级误判（已纠正，勿重蹈）</h3>
+<div class="danger">
+本次调研中段，agent 仅凭利尔达官网《EB21 吞吐测试》文章正文中"Type-C 经 CP210x 串口 115200 连电脑"的描述，得出"<strong>EB21duino 的 USB 是串口，当不了 HID dongle</strong>"的错误结论，随后又断言"公开网页搜不到 EB21duino 资料"。<br><br>
+<strong>事实：这些信息当时就公开在利尔达自己的官方资料里，是 agent 没看。</strong>复盘（2026-10-12 晚补查）：
+<ul>
+<li>官网吞吐文章页内就挂着<strong>利尔达飞书知识库链接</strong>：<a href="https://lierda.feishu.cn/wiki/CyjuwBLZpi25IjkNg65cK0Z9nyc">《Lierda EB21吞吐测试指南》</a>（游客可读，正文和图片直接内嵌在页面 payload 里）；</li>
+<li>该飞书文档的<strong>开发板实拍照片</strong>（图2.1/图2.3）明确显示：板底边<strong>两个 Type-C，丝印分别为 "UART" 与 "USB"</strong>——UART 口经 CP210x 桥接（照片可见芯片丝印），USB 口为模组原生 USB。与 <a href="eb21duino-complete-guide.html">eb21duino-complete-guide.html</a> 的原理图结论（C1=CP2105 双串口、C2=BS21 原生 USB，出厂固件枚举 SLE_MOUSE HID）完全一致；</li>
+<li>飞书文档正文原句：<strong>"Lierda EB21 是基于华为 2821 芯片研发的星闪透传模组"</strong>——官方明示芯片为 Hi2821（板上 flashboot 横幅自报 bs21e 1.0.19，两者为同族事实并存，此处不强行归一）；</li>
+<li>同库还有 <a href="https://lierda.feishu.cn/wiki/FJPQwlcIyiSECbkP3Bxc1uCRnOg">《Lierda EB21模组通信拉距测试报告_Rev1.0.pdf》</a> 等兄弟文档。</li>
+</ul>
+<strong>教训（三条，按发生顺序）</strong>：① 只读了文章正文没点开文章里的外链（飞书文档才是真资料库）；② 只提取了文字没看文档里的<strong>图片</strong>——硬件接口形态照片里一清二楚；③ 把"搜索引擎搜不到"当成"网上没有"，没去厂商自有渠道（官网下载中心 API、飞书知识库、产品页 /iot-module/&lt;id&gt;）里翻。对硬件能力的断言，必须以原理图/实测/官方文档原文为准；<strong>确定性标注的标准必须统一：跑通&gt;源码&gt;文档&gt;网文</strong>。
+</div>
+
+<h3>5.2 与既有笔记的交叉核对（无新增冲突，两处既有关系需知悉）</h3>
+<table>
+<tr><th>既有笔记</th><th>关系</th></tr>
+<tr><td><a href="eb21duino-complete-guide.html">eb21duino-complete-guide.html</a>（10-12）</td><td><strong>依赖/被纠正</strong>：dongle 端全部硬件事实来自它（BS21 芯片、双 Type-C、出厂 SLE_MOUSE、烧录配方）。无冲突。</td></tr>
+<tr><td><a href="hh-m03-bs21e-complete-guide.html">hh-m03-bs21e-complete-guide.html</a>（10-12）</td><td><strong>被替代</strong>：HH-M03 是上一代鼠标端，商单后由 3322 接替。其 BS21E 引脚/烧录/SLE 启动知识（SUPPORT_SLE_PERIPHERAL choice）仍有参考价值。无冲突。</td></tr>
+<tr><td><a href="hi3322-diting-env-setup.html">hi3322-diting-env-setup.html</a>（09-12）</td><td><strong>既有内部冲突的一方</strong>：它断言"Mac 原生编译被 SDK 构建系统堵死，只能 Docker amd64"。而 <a href="hispark-hi3322/index.md">hispark-hi3322/index.md</a> 的 09-18 更新声明 V26.08.1 起官方提供 darwin-arm64 毕昇 + darwin hs-flash，可原生编译烧录。<strong>后者更新、应视为现状</strong>；但 Docker 环境（~/work/hispark-3322-env）已搭好且可用，两条路都通。本次未重新验证编译，不裁决。</td></tr>
+<tr><td><a href="airmouse-esp32s3/index.html">airmouse-esp32s3/</a>（10-11~12）</td><td><strong>互补</strong>：光标控制律设计（姿态锚定）与算法层，本篇只管通信链路层。无冲突。</td></tr>
+<tr><td><a href="witmotion-jy901-host-algorithms.html">witmotion-jy901-host-algorithms.html</a>（10-12）</td><td><strong>姊妹课题</strong>：WitMotion 上位机算法逆向（SinsEKF7 七态 EKF 等），为 3322 上的姿态解算提供商用参考实现。无冲突。</td></tr>
+</table>
+
+<h2>6 · 唯一悬案：SLE 2.0 ↔ SLE 1.0 空口互通（上板判据）</h2>
+<div class="warn">
+<strong>为什么悬</strong>：3322 是 SLE 2.0 / 16Mbps（SDK README 原文），BS21 是 SLE 1.0（EB21duino 笔记实证）。用户家中跑通的链路是 BS21E ↔ BS21（同为 SLE 1.0，同版本）。跨版本空口行为（版本协商、PHY 能力交集）无任何公开文档或实测记录。唯一利好：SSAP 应用层版本常量双方同为 1（<code>sle_com.h:69</code>，BS2X 侧 SSAP 也是标准 ssap 协议）。
+</div>
+<p><strong>测试步骤</strong>（半天内出结论）：3322 烧 diting-community → 业务串口 750000 → 按 §4 序列操作，EB21duino 保持出厂 dongle 固件上电：</p>
+<ul>
+<li><strong>判据 A</strong>：<code>AT+SLECLIENTFIND</code> 能列出 EB21 的服务与特征句柄 → 协议层互通实锤；</li>
+<li><strong>判据 B</strong>：<code>AT+SLECLIENTWRITE=&lt;句柄&gt;</code> 发数字节后电脑鼠标动了 → 端到端实锤，商单技术风险清零；</li>
+<li><strong>失败排障</strong>：按星闪开发指南 :453 表——查广播是否在继续、地址是否取自扫描日志、是否等到了 CONNECTED 回调再 FIND；配对超时先重广播。</li>
+</ul>
+<p><strong>兜底预案</strong>（若跨版本不通）：dongle 端换用 fbb_bs2x SDK 自刷固件（USB Mouse + SLE Central 样例组合，§2 环节 5 已确认样例齐全），把版本协商的主动权拿到自己手里；3322 端逻辑不变。</p>
+<p><em>附：Mac 本机当前挂着一个 CH340 串口（/dev/cu.usbserial-2110，静默无数据）——疑似 HH-M03 载板（其载板即 CH340），未确认；上板测试时可复用。</em></p>
+
+<h2>7 · 本机资产与参考资料</h2>
+<table>
+<tr><th>资产</th><th>路径 / 链接</th><th>说明</th></tr>
+<tr><td>SDK 持久副本</td><td><code>~/work/hs-fbb</code></td><td>本篇全部行号基于它；已编出过 diting-community.fwpkg（9.3MB）</td></tr>
+<tr><td>编译环境</td><td><code>~/work/hispark-3322-env</code>（Docker amd64）</td><td>见 hi3322-diting-env-setup.html；原生编译路线见 hispark-hi3322 09-18 更新</td></tr>
+<tr><td>fbb CLI</td><td><code>~/.local/bin/fbb</code>（v1.2.0）</td><td>宿主机烧录/monitor</td></tr>
+<tr><td>临时 clone</td><td><code>/tmp/hs-fbb</code></td><td>本次调研用，可删</td></tr>
+<tr><td>SLE 示例源码</td><td><code>samples/native_samples/sle/</code></td><td>1869 行，含 README</td></tr>
+<tr><td>星闪开发指南</td><td><code>docs/zh-CN/HiDiTingV100/samples/connect/星闪开发指南/README.md</code></td><td>455 行，含接口时序与排障表</td></tr>
+<tr><td>SDK 在线文档</td><td><a href="https://docs.hisilicon.com/projects/hs-fbb/master/">docs.hisilicon.com/projects/hs-fbb</a></td><td>HiDiTing 开发者中心</td></tr>
+<tr><td>BS2X 文档（dongle 侧）</td><td><a href="https://docs.hisilicon.com/repos/fbb_bs2x/zh-CN/master/">docs.hisilicon.com/repos/fbb_bs2x</a></td><td>USB Mouse/Keyboard/HID 复合设备、SLE Mouse、air mouse 样例</td></tr>
+<tr><td>利尔达飞书知识库</td><td><a href="https://lierda.feishu.cn/wiki/CyjuwBLZpi25IjkNg65cK0Z9nyc">lierda.feishu.cn/wiki/Cyjuw…</a></td><td>EB21 官方文档（吞吐指南，含开发板实拍图）；同库有拉距测试报告；游客可读</td></tr>
+<tr><td>SDK 仓库</td><td><a href="https://gitcode.com/HiSpark/hs-fbb">gitcode.com/HiSpark/hs-fbb</a></td><td>GitCode，OpenHarmony 5.1 基线</td></tr>
+</table>
+
+<p class="subtitle" style="margin-top:40px">2026-10-12 · ZCode 调研会话 · 行号基于 ~/work/hs-fbb（master）· 相关：eb21duino / hh-m03 / hi3322-diting-env-setup / hispark-hi3322 / airmouse-esp32s3 / witmotion-jy901-host-algorithms</p>
+
+</div>
+</body>
+</html>

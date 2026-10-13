@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>吉他标准调弦频率对照表</title>
+<style>
+    :root {
+        --bg: #0f0f12; --surface: #1a1a1f; --surface-hover: #222228;
+        --text: #e8e8ec; --text-secondary: #9ca3af;
+        --accent: #6366f1; --accent-glow: rgba(99, 102, 241, 0.15); --accent-2: #8b5cf6;
+        --border: rgba(255,255,255,0.06);
+        --s6: #f59e0b; --s5: #10b981; --s4: #3b82f6; --s3: #8b5cf6; --s2: #ec4899; --s1: #ef4444;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+        background: var(--bg); color: var(--text); line-height: 1.7;
+        -webkit-font-smoothing: antialiased; min-height: 100vh;
+    }
+    .bg-glow { position: fixed; width: 500px; height: 500px; border-radius: 50%;
+        background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+        top: -150px; right: -150px; pointer-events: none; z-index: 0; }
+    .container { max-width: 760px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+    .hero { padding: 80px 0 40px; }
+    .hero h1 { font-size: 2.2em; font-weight: 700;
+        background: linear-gradient(135deg, var(--text) 0%, var(--accent) 50%, var(--accent-2) 100%);
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        margin-bottom: 12px; }
+    .hero p { color: var(--text-secondary); font-size: 1.05em; }
+    .back { display: inline-block; margin-top: 24px; color: var(--text-secondary);
+        text-decoration: none; font-size: 0.9em; transition: color 0.2s; }
+    .back:hover { color: var(--accent); }
+    .section-title { font-size: 1.1em; font-weight: 600; color: var(--text-secondary);
+        margin: 48px 0 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border);
+        display: flex; align-items: center; gap: 10px; }
+    .formula { background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+        padding: 20px 24px; margin-bottom: 32px; font-family: "SF Mono", Monaco, "Cascadia Code", monospace;
+        font-size: 1.05em; color: var(--accent); overflow-x: auto; }
+    .formula .desc { display: block; color: var(--text-secondary); font-family: inherit; font-size: 0.82em; margin-top: 8px; }
+    .open-strings { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 12px; margin-bottom: 32px; }
+    .open-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; text-align: center; }
+    .open-card .string-name { font-size: 0.8em; color: var(--text-secondary); margin-bottom: 4px; }
+    .open-card .note { font-size: 1.4em; font-weight: 700; margin-bottom: 2px; }
+    .open-card .freq { font-size: 0.9em; color: var(--accent); font-variant-numeric: tabular-nums; }
+    .controls { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+    .controls input {
+        flex: 1; min-width: 200px; background: var(--surface); border: 1px solid var(--border);
+        border-radius: 10px; padding: 10px 16px; color: var(--text); font-size: 0.95em;
+        outline: none; transition: border-color 0.2s;
+    }
+    .controls input:focus { border-color: var(--accent); }
+    .controls select {
+        background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+        padding: 10px 14px; color: var(--text); font-size: 0.95em; outline: none;
+    }
+    .stats { color: var(--text-secondary); font-size: 0.9em; margin-bottom: 14px; }
+    table { width: 100%; border-collapse: collapse; background: var(--surface);
+        border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 40px; }
+    th, td { padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+    th { background: rgba(99, 102, 241, 0.08); color: var(--text-secondary); font-weight: 600; font-size: 0.85em; }
+    td { font-size: 0.95em; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--surface-hover); }
+    .string-badge { display: inline-block; width: 22px; height: 22px; border-radius: 50%; text-align: center;
+        line-height: 22px; font-size: 0.72em; font-weight: 700; color: #fff; }
+    .fret { font-variant-numeric: tabular-nums; color: var(--text-secondary); }
+    .note { font-weight: 600; }
+    .freq { font-variant-numeric: tabular-nums; color: var(--accent); }
+    .midi { color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+    .mark { display: inline-block; font-size: 0.65em; padding: 1px 6px; border-radius: 4px;
+        background: rgba(99, 102, 241, 0.15); color: var(--accent); margin-left: 8px; font-weight: 500; }
+    .footer { padding: 30px 0; border-top: 1px solid var(--border); text-align: center;
+        color: var(--text-secondary); font-size: 0.82em; }
+    .footer a { color: var(--accent); text-decoration: none; }
+    @media (max-width: 600px) {
+        .hero { padding: 50px 0 30px; } .hero h1 { font-size: 1.6em; }
+        th, td { padding: 7px 8px; font-size: 0.88em; }
+    }
+</style>
+</head>
+<body>
+<div class="bg-glow"></div>
+
+<div class="container">
+    <div class="hero">
+        <h1>吉他标准调弦频率对照表</h1>
+        <p>标准调弦 E–A–D–G–B–E，每格一品升高半音，覆盖空弦到第 24 品</p>
+        <a class="back" href="index.html">&larr; 返回杂项</a>
+    </div>
+
+    <div class="formula">
+        f = f<sub>open</sub> × 2<sup>fret / 12</sup>
+        <span class="desc">fret 为品数（0 为空弦），每升高一品频率乘以 2<sup>1/12</sup></span>
+    </div>
+
+    <div class="section-title">空弦音</div>
+    <div class="open-strings" id="openStrings"></div>
+
+    <div class="section-title">筛选</div>
+    <div class="controls">
+        <input type="text" id="search" placeholder="搜索弦、品、音名或频率，如 E2 / 440 / 12">
+        <select id="stringFilter">
+            <option value="">全部琴弦</option>
+            <option value="1">①弦（E4）</option>
+            <option value="2">②弦（B3）</option>
+            <option value="3">③弦（G3）</option>
+            <option value="4">④弦（D3）</option>
+            <option value="5">⑤弦（A2）</option>
+            <option value="6">⑥弦（E2）</option>
+        </select>
+    </div>
+    <div class="stats" id="stats">共 150 条记录</div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>弦</th>
+                <th>品</th>
+                <th>音名</th>
+                <th>频率 (Hz)</th>
+                <th>MIDI</th>
+            </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+    </table>
+
+    <div class="footer">托管于 <a href="https://github.com/APX103/note">GitHub - APX103/note</a></div>
+</div>
+
+<script>
+const stringColors = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)', 'var(--s5)', 'var(--s6)'];
+const strings = [
+    { num: 1, openNote: 'E4', openFreq: 329.62755691287 },
+    { num: 2, openNote: 'B3', openFreq: 246.94165062806 },
+    { num: 3, openNote: 'G3', openFreq: 195.99771799087 },
+    { num: 4, openNote: 'D3', openFreq: 146.83238395870 },
+    { num: 5, openNote: 'A2', openFreq: 110.00000000000 },
+    { num: 6, openNote: 'E2', openFreq: 82.40688922822 }
+];
+const noteNames = ['C', 'C♯/D♭', 'D', 'D♯/E♭', 'E', 'F', 'F♯/G♭', 'G', 'G♯/A♭', 'A', 'A♯/B♭', 'B'];
+
+function midiToNote(midi) {
+    const noteIndex = ((midi - 12) % 12 + 12) % 12;
+    const octave = Math.floor((midi - 12) / 12);
+    return noteNames[noteIndex] + octave;
+}
+
+const rows = [];
+for (const s of strings) {
+    const openMidi = 21 + Math.round(12 * Math.log2(s.openFreq / 27.5));
+    for (let fret = 0; fret <= 24; fret++) {
+        const freq = s.openFreq * Math.pow(2, fret / 12);
+        const midi = openMidi + fret;
+        const note = midiToNote(midi);
+        const isOpen = fret === 0;
+        const is12th = fret === 12;
+        rows.push({
+            stringNum: s.num,
+            stringName: s.openNote,
+            fret,
+            note,
+            freq,
+            midi,
+            mark: isOpen ? '空弦' : is12th ? '12 品' : ''
+        });
+    }
+}
+
+const openContainer = document.getElementById('openStrings');
+for (const s of strings) {
+    const card = document.createElement('div');
+    card.className = 'open-card';
+    card.innerHTML = `
+        <div class="string-name">${s.num} 弦</div>
+        <div class="note">${s.openNote}</div>
+        <div class="freq">${s.openFreq.toFixed(2)} Hz</div>
+    `;
+    openContainer.appendChild(card);
+}
+
+const tbody = document.getElementById('tableBody');
+const searchInput = document.getElementById('search');
+const stringSelect = document.getElementById('stringFilter');
+const stats = document.getElementById('stats');
+
+function render() {
+    const q = searchInput.value.trim().toLowerCase();
+    const str = stringSelect.value;
+    tbody.innerHTML = '';
+    let count = 0;
+
+    for (const row of rows) {
+        if (str !== '' && String(row.stringNum) !== str) continue;
+        const match = !q ||
+            ('弦' + row.stringNum).includes(q) ||
+            row.stringName.toLowerCase().includes(q) ||
+            String(row.fret).includes(q) ||
+            row.note.toLowerCase().includes(q) ||
+            row.freq.toFixed(2).includes(q) ||
+            String(row.midi).includes(q);
+        if (!match) continue;
+        count++;
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><span class="string-badge" style="background:${stringColors[row.stringNum - 1]}">${row.stringNum}</span></td>
+            <td class="fret">${row.fret}</td>
+            <td class="note">${row.note}${row.mark ? `<span class="mark">${row.mark}</span>` : ''}</td>
+            <td class="freq">${row.freq.toFixed(2)}</td>
+            <td class="midi">${row.midi}</td>
+        `;
+        tbody.appendChild(tr);
+    }
+    stats.textContent = `共 ${count} 条记录`;
+}
+
+searchInput.addEventListener('input', render);
+stringSelect.addEventListener('change', render);
+render();
+</script>
+</body>
+</html>

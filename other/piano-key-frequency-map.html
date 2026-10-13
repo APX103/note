@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>钢琴 88 键频率对照表</title>
+<style>
+    :root {
+        --bg: #0f0f12; --surface: #1a1a1f; --surface-hover: #222228;
+        --text: #e8e8ec; --text-secondary: #9ca3af;
+        --accent: #6366f1; --accent-glow: rgba(99, 102, 241, 0.15); --accent-2: #8b5cf6;
+        --border: rgba(255,255,255,0.06);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+        background: var(--bg); color: var(--text); line-height: 1.7;
+        -webkit-font-smoothing: antialiased; min-height: 100vh;
+    }
+    .bg-glow { position: fixed; width: 500px; height: 500px; border-radius: 50%;
+        background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+        top: -150px; right: -150px; pointer-events: none; z-index: 0; }
+    .container { max-width: 720px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+    .hero { padding: 80px 0 40px; }
+    .hero h1 { font-size: 2.2em; font-weight: 700;
+        background: linear-gradient(135deg, var(--text) 0%, var(--accent) 50%, var(--accent-2) 100%);
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        margin-bottom: 12px; }
+    .hero p { color: var(--text-secondary); font-size: 1.05em; }
+    .back { display: inline-block; margin-top: 24px; color: var(--text-secondary);
+        text-decoration: none; font-size: 0.9em; transition: color 0.2s; }
+    .back:hover { color: var(--accent); }
+    .section-title { font-size: 1.1em; font-weight: 600; color: var(--text-secondary);
+        margin: 48px 0 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border);
+        display: flex; align-items: center; gap: 10px; }
+    .formula { background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+        padding: 20px 24px; margin-bottom: 32px; font-family: "SF Mono", Monaco, "Cascadia Code", monospace;
+        font-size: 1.05em; color: var(--accent); overflow-x: auto; }
+    .formula .desc { display: block; color: var(--text-secondary); font-family: inherit; font-size: 0.82em; margin-top: 8px; }
+    .controls { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+    .controls input {
+        flex: 1; min-width: 200px; background: var(--surface); border: 1px solid var(--border);
+        border-radius: 10px; padding: 10px 16px; color: var(--text); font-size: 0.95em;
+        outline: none; transition: border-color 0.2s;
+    }
+    .controls input:focus { border-color: var(--accent); }
+    .controls select {
+        background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+        padding: 10px 14px; color: var(--text); font-size: 0.95em; outline: none;
+    }
+    .stats { color: var(--text-secondary); font-size: 0.9em; margin-bottom: 14px; }
+    table { width: 100%; border-collapse: collapse; background: var(--surface);
+        border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 40px; }
+    th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+    th { background: rgba(99, 102, 241, 0.08); color: var(--text-secondary); font-weight: 600; font-size: 0.85em; }
+    td { font-size: 0.95em; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--surface-hover); }
+    .key-num { color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+    .note { font-weight: 600; }
+    .freq { font-variant-numeric: tabular-nums; color: var(--accent); }
+    .midi { color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+    .octave-row td { background: rgba(255,255,255,0.02); }
+    .octave-label { color: var(--text-secondary); font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.05em; }
+    .mark { display: inline-block; font-size: 0.65em; padding: 1px 6px; border-radius: 4px;
+        background: rgba(99, 102, 241, 0.15); color: var(--accent); margin-left: 8px; font-weight: 500; }
+    .footer { padding: 30px 0; border-top: 1px solid var(--border); text-align: center;
+        color: var(--text-secondary); font-size: 0.82em; }
+    .footer a { color: var(--accent); text-decoration: none; }
+    @media (max-width: 600px) {
+        .hero { padding: 50px 0 30px; } .hero h1 { font-size: 1.6em; }
+        th, td { padding: 8px 10px; font-size: 0.9em; }
+    }
+</style>
+</head>
+<body>
+<div class="bg-glow"></div>
+
+<div class="container">
+    <div class="hero">
+        <h1>钢琴 88 键频率对照表</h1>
+        <p>十二平均律，A4 = 440 Hz，覆盖 A0（27.50 Hz）到 C8（4186.01 Hz）</p>
+        <a class="back" href="index.html">&larr; 返回杂项</a>
+    </div>
+
+    <div class="formula">
+        f(n) = 440 × 2<sup>(n − 49) / 12</sup>
+        <span class="desc">n 为钢琴键序号（1–88），A4 是第 49 键</span>
+    </div>
+
+    <div class="section-title">筛选</div>
+    <div class="controls">
+        <input type="text" id="search" placeholder="搜索键号、音名或频率，如 A4 / 440 / 49">
+        <select id="octaveFilter">
+            <option value="">全部八度</option>
+            <option value="0">第 0 八度</option>
+            <option value="1">第 1 八度</option>
+            <option value="2">第 2 八度</option>
+            <option value="3">第 3 八度</option>
+            <option value="4">第 4 八度</option>
+            <option value="5">第 5 八度</option>
+            <option value="6">第 6 八度</option>
+            <option value="7">第 7 八度</option>
+            <option value="8">第 8 八度</option>
+        </select>
+    </div>
+    <div class="stats" id="stats">共 88 条记录</div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>键号</th>
+                <th>音名</th>
+                <th>频率 (Hz)</th>
+                <th>MIDI</th>
+            </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+    </table>
+
+    <div class="footer">托管于 <a href="https://github.com/APX103/note">GitHub - APX103/note</a></div>
+</div>
+
+<script>
+const noteNames = ['A', 'A♯/B♭', 'B', 'C', 'C♯/D♭', 'D', 'D♯/E♭', 'E', 'F', 'F♯/G♭', 'G', 'G♯/A♭'];
+const rows = [];
+for (let n = 1; n <= 88; n++) {
+    const semitones = n - 49;
+    const freq = 440 * Math.pow(2, semitones / 12);
+    const midi = 21 + (n - 1);
+    const noteIndex = ((semitones % 12) + 12) % 12;
+    const baseNote = noteNames[noteIndex];
+    const octave = Math.floor((n + 8) / 12);
+    const note = baseNote + octave;
+    const isA4 = n === 49;
+    const isC4 = n === 40;
+    rows.push({ n, note, freq, midi, octave, mark: isA4 ? '标准音 A4' : isC4 ? '中央 C' : '' });
+}
+
+const tbody = document.getElementById('tableBody');
+const searchInput = document.getElementById('search');
+const octaveSelect = document.getElementById('octaveFilter');
+const stats = document.getElementById('stats');
+
+let lastOctave = null;
+
+function render() {
+    const q = searchInput.value.trim().toLowerCase();
+    const oct = octaveSelect.value;
+    tbody.innerHTML = '';
+    let count = 0;
+    let currentOctaveHeader = null;
+
+    for (const row of rows) {
+        if (oct !== '' && String(row.octave) !== oct) continue;
+        const match = !q ||
+            String(row.n).includes(q) ||
+            row.note.toLowerCase().includes(q) ||
+            row.freq.toFixed(2).includes(q) ||
+            String(row.midi).includes(q);
+        if (!match) continue;
+        count++;
+
+        if (oct === '' && row.octave !== lastOctave) {
+            const tr = document.createElement('tr');
+            tr.className = 'octave-row';
+            tr.innerHTML = `<td colspan="4"><span class="octave-label">第 ${row.octave} 八度</span></td>`;
+            tbody.appendChild(tr);
+            lastOctave = row.octave;
+        }
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td class="key-num">${row.n}</td>
+            <td class="note">${row.note}${row.mark ? `<span class="mark">${row.mark}</span>` : ''}</td>
+            <td class="freq">${row.freq.toFixed(2)}</td>
+            <td class="midi">${row.midi}</td>
+        `;
+        tbody.appendChild(tr);
+    }
+    stats.textContent = `共 ${count} 条记录`;
+    lastOctave = null;
+}
+
+searchInput.addEventListener('input', render);
+octaveSelect.addEventListener('change', render);
+render();
+</script>
+</body>
+</html>

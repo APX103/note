@@ -144,15 +144,23 @@ python oneshot.py &lt;口&gt;
 <tr><td>让用户"转板子"验证总扑空</td><td>消息与监听同时发出，人反应 &gt;40s</td><td>先发消息再挂 ≥100s 监听</td></tr>
 </table>
 
-<h2>7 · 遗留与下一步</h2>
+<h2>7 · M4 现场快照（进行到一半，2026-10-13 深夜收工）</h2>
+<p><strong>已做（两端固件都已烧进板子，未完成验证）：</strong></p>
 <ul>
-<li><strong>M4</strong>：dongle 端 write 回调解析 dx/dy → USB HID mouse report（改动点 = sle_uart.c 回调一行区；Kconfig SAMPLE_SUPPORT_USB_MOUSE 与 SLE_UART_SERVER 平级无互斥）→ 屏幕鼠标动，商单端到端闭环；</li>
+<li><strong>dongle USB HID</strong>：借 usb_keyboard 样例的复合描述符（report_id=0x02 段即 boot mouse）；keyscan_init.c 的 <code>g_usb_keyscan_hid_index</code> 去 static 共享；sle_uart.c write 回调解析 0xA5 包 → 5B report <code>{0x02, keys&amp;7, dx8, dy8, 0}</code> → <code>fhid_send_data(idx, rpt, 5)</code>（应用层 API 在 f_hid.h:46；返回 size_t 有恒真比较陷阱）。Kconfig：<code>SAMPLE_SUPPORT_USB_KEYBOARD=y</code> 与 SLE_UART_SERVER 共存。</li>
+<li><strong>3322 自动连接状态机</strong>（产品形态"插电即连"）：aim_conn_fsm 挂在 demo 任务里——ENABLE→3s→INIT→PAIR 全零地址直连（bs_sle_start_pair 无需先扫描）→15s 超时重试→connected→FIND→回调捕获 handle→RUN；断线清 handle 自动回配对态。复用 AT 层实体函数（at_sle_client_enable / sle_demo_client_init / at_client_connect_to_peripheral / sle_ssapc_find_all_service），跨函数调用需补 errcode_t 前向原型。</li>
+</ul>
+<p><strong>翻车现场（未结案）</strong>：dongle 的 HID 只被识别一次后失联；随后 Mac 全部串口设备（CH347+CP2105）同时消失——USB 物理层事件（hub 过流/死锁头号嫌疑）。软件侧嫌疑：fhid_send_data 在 USB 未就绪时高频调用打崩 dongle（同 uapi_uart_write 坑）。</p>
+<p><strong>下次开工六步</strong>：①重插 hub/USB 恢复端口 + 3322 断电重启 ②纯监听验证 FSM（找 <code>[AIM][FSM] connected / run</code>，已不需要 oneshot）③dongle 回调加 <code>hid_is_running()</code> 门禁（f_hid.h:41）重烧 ④转板子看屏幕 = M4 判据 ⑤烧 dongle 免拔跳帽新路：UART 口发 <code>AT+REBOOT</code>（at_table.c:151 全芯片软复位，自编固件已编入）⑥环境约束：dongle 的 UART 观察窗与 USB HID 不能同时插（Mac 口不够）——调试期 dongle 优先插 USB 口，日志靠 3322 侧推断。</p>
+
+<h2>8 · 再往后</h2>
+<ul>
 <li>调参：灵敏度（15px/deg）、方向反转、安装朝向标定（ESP32 版 mount 逻辑直接搬）；</li>
 <li>下行双工：特征加 notify + CCCD；</li>
 <li>bank2 量程写入、产量前换示例 UUID（星闪开发指南 :395）。</li>
 </ul>
 
-<h2>8 · 资产索引</h2>
+<h2>9 · 资产索引</h2>
 <table>
 <tr><th>资产</th><th>路径</th></tr>
 <tr><td>3322 SDK + 业务固件</td><td><code>work/hs-fbb</code>（改动都在 samples/native_samples/sle/sle_client.c，搜 [AIM]）</td></tr>
