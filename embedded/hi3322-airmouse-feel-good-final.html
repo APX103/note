@@ -124,6 +124,643 @@ stable/m4-gain50                             ← EKF 姿态版备胎（锚定/�
 <li>产量项：换示例 UUID、开机自检、量产烧录流程。</li>
 </ul>
 
+<h2>附录 · 完整代码片段（与板上固件一字不差，Agent 可据此直接复现）</h2>
+<p>以下全部提取自 <code>work/hs-fbb/samples/native_samples/sle/</code> 与 <code>work/fbb_bs2x/src/application/samples/products/</code> 工作区（== airmouse-3322 tag v0.1-feel-good 补丁）。复现方式：官方 SDK 干净 checkout 上按 A/B 编号把片段放进对应位置（新增函数插入文件、钩子段插入指定函数尾部），ekf7 五文件从 <code>work/quat-zupt-ekf/c/</code> 原样拷入（直出版不跑 EKF，但补丁包含它——想极简可删），然后按 §5 完全指南的编译烧录流程走。两端 Kconfig 见 B4。</p>
+<h3>A1 · sle_client.c — include 与全部参数宏（文件头）</h3>
+<pre><code>#include &quot;sle_client.h&quot;
+#include &quot;securec.h&quot;
+#include &quot;soc_osal.h&quot;
+#include &quot;sle_com.h&quot;
+#include &quot;pm_veto.h&quot;
+#include &quot;i2c.h&quot;
+#include &quot;ekf7.h&quot;
+#include &lt;math.h&gt;
+#include &quot;app_init.h&quot;
+
+// 默认的中心设备MAC地址（用于配置本地地址）
+#define SLE_CONFIG_CONN_DEMO_CENTRAL_ADDR  \
+    {                                      \
+        0x11, 0x23, 0x34, 0x45, 0x44, 0x62 \
+    }
+
+// 外设广播名称（用于配置本地设备名称）
+static uint8_t g_peripheral_adv_name_value_central[] = {&#x27;s&#x27;, &#x27;l&#x27;, &#x27;e&#x27;, &#x27;_&#x27;, &#x27;c&#x27;, &#x27;l&#x27;, &#x27;i&#x27;, &#x27;e&#x27;, &#x27;n&#x27;, &#x27;t&#x27;, &#x27;\0&#x27;};
+
+// 应用UUID（用于SSAP注册）
+static bs_sle_uuid_t app_uuid = {UUID16_LEN, {0}};
+
+// 客户端ID（由SSAP注册时分配）
+static uint8_t g_client_id = 0;
+
+// 客户端设备ID（连接后分配）
+uint16_t g_client_device_id = 0;
+
+// ================= AirMouse 演示流：矩形 dx/dy 波（连接建立后自动发送） =================
+// 目的：IMU 接入前先验证 3322 业务固件 → SLE write 流 → dongle 串口的全链。
+// 行为：100Hz 构造 [magic=0xA5, dx, dy, keys] 包写往服务发现捕获的特征句柄，
+//       每 1s 切换方向段（右→下→左→上），每 500 包打一行汇总。
+#define AIM_DEMO_TICK_MS   10   // 100Hz（200Hz 实测打死板子：EKF软浮点超预算，回滚）
+#define AIM_DEMO_SEG_TICKS 100  // 每方向段 1s
+#define AIM_DEMO_STEP      10   // px/tick = 1000px/s
+#define AIM_DEMO_WINDOW    4    // 在飞未确认写上限（write_cfm 流控窗口）
+#define AIM_DEMO_STACK     0x2000
+#define AIM_DEMO_PRIO      28
+
+typedef struct __attribute__((packed)) {
+    uint8_t  magic; // 0xA5
+    int16_t  dx;
+    int16_t  dy;
+    uint8_t  keys;
+} aim_mouse_pkt_t;
+
+static volatile uint16_t g_aim_write_handle = 0;
+static volatile uint32_t g_aim_pending = 0; // （历史）在飞未确认包数，无确认写模式下不再使用
+static volatile uint32_t g_aim_cfm_cnt = 0; // （历史）累计确认数
+static uint32_t g_aim_fail_streak = 0;      // 连续写失败计数（无确认写背压）
+static uint32_t g_aim_backoff = 0;          // 退避剩余拍数
+
+// ================= ICM20948 最小驱动（M1/M2 验证版） =================
+// J1901-11/12 = I2C0_SCL/SDA(MGPIO_4/5)，电平 SW1901-5 默认 OFF=3.3V；地址 0x68（AD0 悬空）。
+#define AIM_IMU_BUS   0
+#define AIM_IMU_ADDR  0x68
+#define AIM_IMU_WHOAMI_REG 0x00 // bank0，期望 0xEA
+#define AIM_IMU_DATA_REG   0x2D // bank0 起 accel 6B + gyro 6B + temp 2B
+
+static bool g_aim_imu_ok = false;</code></pre>
+
+<h3>A2 · sle_client.c — IMU 驱动（init/read_regs/write_reg/bank/config）</h3>
+<pre><code>static errcode_t aim_imu_init(void)
+{
+    uapi_pin_set_mode(4, 0); // SCL=MGPIO_4 mode0（AT+STARTI2CMASTER=...,4,5,0,0 实测 succ）
+    uapi_pin_set_mode(5, 0); // SDA=MGPIO_5
+    return uapi_i2c_master_init(AIM_IMU_BUS, 400000, 0);
+}
+
+// 组合事务：写寄存器地址后读 len 字节
+static errcode_t aim_imu_read_regs(uint8_t reg, uint8_t *buf, uint16_t len)
+{
+    uint8_t addr = reg;
+    uint8_t dummy[1] = {0};
+    i2c_data_t d = {0};
+    d.send_buf = &amp;addr;
+    d.send_len = 1;
+    d.receive_buf = buf;
+    d.receive_len = len;
+    (void)dummy;
+    return uapi_i2c_master_writeread(AIM_IMU_BUS, AIM_IMU_ADDR, &amp;d);
+}
+
+// 纯写：寄寄存器
+static errcode_t aim_imu_write_reg(uint8_t reg, uint8_t val)
+{
+    uint8_t w[2] = {reg, val};
+    i2c_data_t d = {0};
+    d.send_buf = w;
+    d.send_len = 2;
+    d.receive_buf = NULL;
+    d.receive_len = 0;
+    return uapi_i2c_master_write(AIM_IMU_BUS, AIM_IMU_ADDR, &amp;d);
+}
+
+#define AIM_IMU_BANK_SEL 0x7F
+static void aim_imu_switch_bank(uint8_t bank)
+{
+    (void)aim_imu_write_reg(AIM_IMU_BANK_SEL, bank);
+}
+
+// ICM20948 初始化：软复位→唤醒→六轴全开→量程/ODR（±4g / ±500dps / ~225Hz）
+static errcode_t aim_imu_config(void)
+{
+    aim_imu_switch_bank(0);
+    (void)aim_imu_write_reg(0x06, 0x80 | 0x41); // PWR_MGMT_1: DEVICE_RESET + SLEEP
+    osal_msleep(60);                             // 复位后等待
+    (void)aim_imu_write_reg(0x06, 0x01);        // PWR_MGMT_1: CLK_PLL，唤醒
+    osal_msleep(5);
+    (void)aim_imu_write_reg(0x07, 0x00);        // PWR_MGMT_2: 加计+陀螺全开
+    aim_imu_switch_bank(2);
+    (void)aim_imu_write_reg(0x01, 0x02);        // GYRO_CONFIG_1: ±500dps, DLPF on
+    (void)aim_imu_write_reg(0x00, 0x04);        // GYRO_SMPLRT_DIV: 1125/(4+1)=225Hz
+    (void)aim_imu_write_reg(0x14, 0x02);        // ACCEL_CONFIG: ±4g, DLPF on
+    (void)aim_imu_write_reg(0x10, 0x00);        // ACCEL_SMPLRT_DIV_1
+    (void)aim_imu_write_reg(0x11, 0x04);        // ACCEL_SMPLRT_DIV_2: 225Hz
+    aim_imu_switch_bank(0);
+    return ERRCODE_SUCC;
+}
+
+static void aim_imu_report(void)
+{
+    uint8_t who = 0;</code></pre>
+
+<h3>A3 · sle_client.c — 陀螺直出映射 aim_ekf_step（终版核心，含 EKF 备胎分支）</h3>
+<pre><code>    if (aim_imu_read_regs(AIM_IMU_WHOAMI_REG, &amp;who, 1) != ERRCODE_SUCC) {
+        printf(&quot;[AIM][IMU] whoami read FAIL\n&quot;);
+        return;
+    }
+    if (aim_imu_read_regs(AIM_IMU_DATA_REG, raw, 14) != ERRCODE_SUCC) {
+        printf(&quot;[AIM][IMU] raw read FAIL\n&quot;);
+        return;
+    }
+    int16_t ax = (int16_t)((raw[0] &lt;&lt; 8) | raw[1]);
+    int16_t ay = (int16_t)((raw[2] &lt;&lt; 8) | raw[3]);
+    int16_t az = (int16_t)((raw[4] &lt;&lt; 8) | raw[5]);
+    int16_t gx = (int16_t)((raw[6] &lt;&lt; 8) | raw[7]);
+    int16_t gy = (int16_t)((raw[8] &lt;&lt; 8) | raw[9]);
+    int16_t gz = (int16_t)((raw[10] &lt;&lt; 8) | raw[11]);
+    printf(&quot;[AIM][IMU] whoami=0x%02X a[%d %d %d] g[%d %d %d]\n&quot;,
+        who, ax, ay, az, gx, gy, gz);
+    if (who == 0xEA) {
+        g_aim_imu_ok = true;
+    }
+}
+
+// ================= EKF 姿态解算 + 指针映射（M3） =================
+// quat-zupt-ekf C99 移植（work/quat-zupt-ekf/c，差分验证 1e-8）；输入单位 m/s² 与 rad/s。
+static ekf7_pipeline g_aim_ekf;
+static bool g_aim_ekf_init = false;
+static double g_aim_rpy_last[3] = {0};
+static uint32_t g_aim_moved_px = 0;
+#define AIM_EKF_FS        100.0                    // 采样率 Hz（与任务节拍一致，联动 AIM_DEMO_TICK_MS）
+#define AIM_RATE_GAIN     50.0                     // px/deg（用户指定 50）
+#define AIM_DEADBAND_DEG  0.03                     // 单拍姿态增量死区
+
+#define AIM_ACC_LSB_PER_G 16384.0                  // ±2g（配置寄存器未生效的默认量程，重力实测校准）
+#define AIM_GYRO_LSB_DPS  131.072                  // ±250dps 默认量程
+#define AIM_G                 9.80665
+#define AIM_D2R               (3.14159265358979 / 180.0)
+
+// ================== 映射模式开关 ==================
+// 1 = 陀螺速率直出（exp/gyro-direct 分支）：gyro−零偏 → 轻滤波 → ×gain×dt，延迟 ~1ms。
+//     EKF 加计观测会把姿态往重力方向拉（快速转动时永远慢半拍），速率直出绕开整个姿态链。
+// 0 = EKF 姿态差分（stable 分支）：绝对姿态语义，供锚定/混合模式用。
+#define AIM_USE_GYRO_DIRECT 1
+
+#if AIM_USE_GYRO_DIRECT
+static double g_aim_gyro_bias_rad[3] = {0}; // 零偏估计（静止时 EMA 跟踪）
+static double g_aim_gyro_lpf[3] = {0};      // 轻滤波后的角速度（k=0.8, τ≈1ms @100Hz）
+static double g_aim_still_time = 0;         // 静止累计时长
+static bool g_aim_gyro_lpf_init = false;
+#define AIM_STILL_DPS      1.0    // 静止判据：总角速度低于此（°/s）
+#define AIM_STILL_HOLD_S   0.3    // 持续此时长才判静止（防抖动间隙误判）
+#define AIM_BIAS_EMA       0.02   // 静止时零偏 EMA 系数（缓慢跟踪温漂）
+#define AIM_GYRO_LPF_K     0.8    // 轻滤波系数（τ≈1.25ms @100Hz）
+#endif
+
+// 一拍：读 IMU→(EKF|直出)→输出 dx,dy（返回 false = 传感器读失败）
+static bool aim_ekf_step(int16_t *dx_out, int16_t *dy_out)
+{
+    uint8_t raw[14] = {0};
+    *dx_out = 0;
+    *dy_out = 0;
+    if (aim_imu_read_regs(AIM_IMU_DATA_REG, raw, 14) != ERRCODE_SUCC) {
+        return false;
+    }
+    double acc[3], gyr[3];
+    for (int i = 0; i &lt; 3; i++) {
+        int16_t a = (int16_t)((raw[i * 2] &lt;&lt; 8) | raw[i * 2 + 1]);
+        int16_t g = (int16_t)((raw[6 + i * 2] &lt;&lt; 8) | raw[7 + i * 2 + 1]);
+        acc[i] = (double)a / AIM_ACC_LSB_PER_G * AIM_G;          // → m/s²
+        gyr[i] = (double)g / AIM_GYRO_LSB_DPS * AIM_D2R;         // → rad/s
+    }
+    double dx = 0;
+    double dy = 0;
+#if AIM_USE_GYRO_DIRECT
+    // ---- 速率直出：零偏补偿 → 轻滤波 → 静止门 ----
+    if (!g_aim_gyro_lpf_init) {
+        for (int i = 0; i &lt; 3; i++) {
+            g_aim_gyro_lpf[i] = gyr[i];
+        }
+        g_aim_gyro_lpf_init = true;
+    }
+    double corr[3];
+    for (int i = 0; i &lt; 3; i++) {
+        double c = gyr[i] - g_aim_gyro_bias_rad[i];
+        g_aim_gyro_lpf[i] += AIM_GYRO_LPF_K * (c - g_aim_gyro_lpf[i]);
+        corr[i] = g_aim_gyro_lpf[i];
+    }
+    double norm_dps = sqrt(corr[0] * corr[0] + corr[1] * corr[1] + corr[2] * corr[2]) / AIM_D2R;
+    if (norm_dps &lt; AIM_STILL_DPS) {
+        g_aim_still_time += 1.0 / AIM_EKF_FS;
+        if (g_aim_still_time &gt;= AIM_STILL_HOLD_S) {
+            // 静止：EMA 缓慢跟踪零偏，输出归零
+            for (int i = 0; i &lt; 3; i++) {
+                g_aim_gyro_bias_rad[i] += AIM_BIAS_EMA * (gyr[i] - g_aim_gyro_bias_rad[i]);
+            }
+            g_aim_moved_px += 0;
+            return true;
+        }
+    } else {
+        g_aim_still_time = 0;
+    }
+    // 延迟分段测量打点：甩动(&gt;150°/s)瞬间打印——对照甩动动作看 [SNAP] 出现延迟=传感器+固件段
+    static uint32_t snap_armed = 1;
+    if (snap_armed &amp;&amp; norm_dps &gt; 150.0) {
+        printf(&quot;[SNAP] %d dps\n&quot;, (int)norm_dps);
+        snap_armed = 0; // 单发：静止门重新充能后再武装
+    }
+    if (norm_dps &lt; 10.0) {
+        snap_armed = 1;
+    }
+    {
+        double dps_z = corr[2] / AIM_D2R; // 绕 Z（deg/s）
+        double dps_x = corr[0] / AIM_D2R; // 绕 X（deg/s）
+        double dt = 1.0 / AIM_EKF_FS;
+        dx = -dps_z * AIM_RATE_GAIN * dt; // 轴映射沿用实测定稿：绕Z→dx 反号
+        dy = dps_x * AIM_RATE_GAIN * dt;  // 绕X→dy 正号
+    }
+#else
+    ekf7_output o;
+    ekf7_pipeline_calculate(&amp;g_aim_ekf, acc, gyr, NULL, &amp;o);     // 六轴模式
+    // 轴映射（2026-10-14 用户实测校正）：绕 Z 轴转(偏航) → dx，绕 X 轴转(横滚) → dy，两轴均反号。
+    double dyaw = (o.euler_rad[2] - g_aim_rpy_last[2]) / AIM_D2R;   // 绕 Z，deg
+    double droll = (o.euler_rad[0] - g_aim_rpy_last[0]) / AIM_D2R;  // 绕 X，deg
+    for (int i = 0; i &lt; 3; i++) {
+        g_aim_rpy_last[i] = o.euler_rad[i];
+    }
+    // 注意：不用 o.motionless 冻结输出（导航级判据的小幅迟滞问题，详见 motionless 注释）
+    if (fabs(dyaw) &lt; AIM_DEADBAND_DEG) {
+        dyaw = 0;
+    }
+    if (fabs(droll) &lt; AIM_DEADBAND_DEG) {
+        droll = 0;
+    }
+    dx = -dyaw * AIM_RATE_GAIN;
+    dy = droll * AIM_RATE_GAIN;
+#endif
+    if (dx &gt; 127) { dx = 127; }
+    if (dx &lt; -127) { dx = -127; }
+    if (dy &gt; 127) { dy = 127; }
+    if (dy &lt; -127) { dy = -127; }
+    *dx_out = (int16_t)dx;
+    *dy_out = (int16_t)dy;
+    g_aim_moved_px += (uint32_t)(fabs(dx) + fabs(dy));
+    return true;
+}
+static osal_task *g_aim_task = NULL;
+
+// 带自定义数据的 SSAP 写（复用 sample 的写参数语义）
+static errcode_t sle_ssapc_write_buf(uint16_t dev_id, uint8_t client_id, uint16_t handle,
+    const uint8_t *data, uint16_t len)
+{
+    bs_sle_ssapc_write_param_t param = {0};
+    param.handle = handle;
+    param.type = SLE_WRITE_PARAM_TYPE;
+    // 无确认写（write command）：即发即走，延迟从确认RTT(~110ms)降到空口调度级；
+    // 背压靠返回值（栈队列满→失败→上层退避）。确认事件积压问题也随之消失。
+    param.is_need_confirm = false;
+    param.data_len = len;
+    param.data = (uint8_t *)data;
+    return bs_sle_ssapc_write(dev_id, client_id, &amp;param);
+}</code></pre>
+
+<h3>A4 · sle_client.c — 连接参数预设 + 自动连接状态机 aim_conn_fsm</h3>
+<pre><code>static void aim_preset_conn_params(void)
+{
+    bs_sle_opr_pre_set_conn_param_t opr = {0};
+    opr.type = BS_SLE_PRESET_OPR_TYPE_ADD;
+    opr.in_add_param.mode_id = 1;
+    opr.in_add_param.para.interval_min = 8;             // 10ms（单位1.25ms）
+    opr.in_add_param.para.interval_max = 16;            // 20ms
+    opr.in_add_param.para.max_latency = 0;
+    opr.in_add_param.para.supervision_timeout = 100;    // 1s（单位10ms）
+    errcode_t r = bs_sle_config(SLE_CONFIG_CONNECT_PRESET_PARAM, &amp;opr, sizeof(opr));
+    printf(&quot;[AIM][FSM] conn param preset ADD: 0x%x (10-20ms)\n&quot;, r);
+}
+
+// ================= 自动连接状态机（产品形态：上电自动连 dongle，断线重连） =================
+// 前向原型（定义在本文件后方）
+errcode_t sle_demo_client_init(void);
+errcode_t sle_ssapc_find_all_service(uint16_t dev_id, uint8_t client_id, bool is_remote);
+// 状态流：栈启用(一次) → SSAP注册(一次) → PAIR(全零地址直连，无需先扫) → 等连接 → FIND → RUN。
+// 断线回 PAIR 态重试；FIND 结果由回调捕获 g_aim_write_handle。任务节拍 100Hz（10ms/拍）。
+static void aim_conn_fsm(bool *need_delay)
+{
+    static uint8_t st = 0;
+    static uint32_t wait = 0;
+    static bool stack_inited = false;
+    static bool g_aim_param_set_done = false;
+    static bool ssap_inited = false;
+    *need_delay = false;
+
+    switch (st) {
+        case 0: // 栈启用（一次）
+            if (!stack_inited) {
+                (void)at_sle_client_enable();
+                aim_preset_conn_params(); // 仅 ADD preset；连接后由 case4 调 set（SET_DEFAULT 会破坏 PAIR）
+                stack_inited = true;
+            }
+            wait = 300; // 等 3s 栈起
+            st = 1;
+            break;
+        case 1:
+            if (--wait == 0) {
+                if (!ssap_inited) {
+                    (void)sle_demo_client_init(); // 注册 client + 拉起本任务(幂等)
+                    ssap_inited = true;
+                }
+                st = 2;
+            }
+            break;
+        case 2: { // 发起配对（全零地址直连广播中的 dongle）
+            if (bt_sle_is_connected()) {
+                st = 4;
+                break;
+            }
+            sle_pair addr = {0};
+            (void)at_client_connect_to_peripheral(&amp;addr);
+            wait = 1500; // 15s 超时
+            st = 3;
+            break;
+        }
+        case 3: // 等连接
+            if (bt_sle_is_connected()) {
+                printf(&quot;[AIM][FSM] connected\n&quot;);
+                st = 4;
+            } else if (--wait == 0) {
+                st = 2; // 超时重试
+            }
+            break;
+        case 4: // 已连接：压连接间隔 → 缺句柄则 FIND
+            if (!bt_sle_is_connected()) {
+                g_aim_write_handle = 0; // 断线：清句柄回配对态
+                g_aim_param_set_done = false;
+                st = 2;
+                break;
+            }
+            if (!g_aim_param_set_done) { // 连接后一次性压间隔（治传输抖动）
+                errcode_t pr = bs_sle_set_connect_param(g_client_device_id, 1);
+                printf(&quot;[AIM][FSM] set_connect_param: 0x%x\n&quot;, pr);
+                g_aim_param_set_done = true;
+            }
+            if (g_aim_write_handle == 0) {
+                (void)sle_ssapc_find_all_service(g_client_device_id, g_client_id, false);
+                wait = 300;
+                st = 5;
+            }
+            break;
+        case 5: // 等 FIND 回调捕获句柄
+            if (g_aim_write_handle != 0) {
+                printf(&quot;[AIM][FSM] run (handle=0x%04x)\n&quot;, g_aim_write_handle);
+                st = 4;
+            } else if (--wait == 0) {
+                st = 4; // 再触发一次 FIND
+            }
+            break;
+        default:
+            st = 0;
+            break;
+    }
+}</code></pre>
+
+<h3>A5 · sle_client.c — 主任务 aim_demo_task（100Hz：FSM+EKF无条件+退避发送）</h3>
+<pre><code>static int aim_demo_task(void *arg)
+{
+    uint32_t sent = 0;
+    uint32_t fail = 0;
+    uint32_t skipped = 0;
+    uint32_t imu_fail = 0;
+    uint32_t stat_div = 0;
+    (void)arg;
+    errcode_t imu_ret = aim_imu_init();
+    printf(&quot;[AIM] imu init: 0x%x\n&quot;, imu_ret);
+    aim_imu_config(); // 软复位+唤醒+量程/ODR
+    aim_imu_report(); // 开机即读一次
+    ekf7_pipeline_init(&amp;g_aim_ekf, AIM_EKF_FS, 1, 0); // work_mode=1（验证态一致），六轴
+    g_aim_ekf_init = true;
+    // 量程寄存器回读（判断 bank2 配置是否生效，决定刻度）
+    uint8_t gcfg = 0, acfg = 0;
+    aim_imu_switch_bank(2);
+    (void)aim_imu_read_regs(0x01, &amp;gcfg, 1);  // GYRO_CONFIG_1
+    (void)aim_imu_read_regs(0x14, &amp;acfg, 1);  // ACCEL_CONFIG
+    aim_imu_switch_bank(0);
+    printf(&quot;[AIM][IMU] gyro_cfg=0x%02X accel_cfg=0x%02X (FS bits: 0=±250/2g 2=±500/4g)\n&quot;, gcfg, acfg);
+    printf(&quot;[AIM] demo task ready (EKF dx/dy @%gHz, gain=%g px/deg, auto-connect)\n&quot;, AIM_EKF_FS, AIM_RATE_GAIN);
+    while (1) {
+        osal_msleep(AIM_DEMO_TICK_MS);
+        // 自动连接状态机（每拍推进）
+        bool dummy = false;
+        aim_conn_fsm(&amp;dummy);
+        // EKF 无条件每拍跑：姿态解算独立于 SLE 链路（调算法不被连接状态绑架）
+        int16_t dx_now = 0;
+        int16_t dy_now = 0;
+        if (!aim_ekf_step(&amp;dx_now, &amp;dy_now)) {
+            imu_fail++;
+        }
+        if (++stat_div &gt;= AIM_EKF_FS) { // 每秒打印姿态与统计
+            stat_div = 0;
+            double rpy[3];
+            ekf7_filter_euler(&amp;g_aim_ekf.filt, rpy);
+            printf(&quot;[AIM] rpy=[%.1f %.1f %.1f]deg moved=%upx sent=%u imu_fail=%u align=%.1f/%.0f conn=%d hdl=0x%x skip=%u\n&quot;,
+                rpy[0] / AIM_D2R, rpy[1] / AIM_D2R, rpy[2] / AIM_D2R,
+                g_aim_moved_px, sent, imu_fail,
+                g_aim_ekf.filt.init_max_time, g_aim_ekf.filt.flag_in,
+                (int)bt_sle_is_connected(), (unsigned)g_aim_write_handle, skipped);
+        }
+        if (!bt_sle_is_connected() || g_aim_write_handle == 0) {
+            continue; // 未连接/未发现服务时静默等待
+        }
+        // 退避背压（无确认写模式）：连续失败=栈队列压力，停 20 拍（200ms）再试
+        if (g_aim_backoff &gt; 0) {
+            g_aim_backoff--;
+            skipped++;
+            continue;
+        }
+        // 发送：直接用本拍 EKF 输出（零位移不发）
+        aim_mouse_pkt_t pkt;
+        pkt.magic = 0xA5;
+        pkt.keys = 0;
+        pkt.dx = dx_now;
+        pkt.dy = dy_now;
+        if (pkt.dx == 0 &amp;&amp; pkt.dy == 0) {
+            continue;
+        }
+        if (sle_ssapc_write_buf(g_client_device_id, g_client_id, g_aim_write_handle,
+            (const uint8_t *)&amp;pkt, sizeof(pkt)) == ERRCODE_BT_SUCCESS) {
+            sent++;
+            g_aim_fail_streak = 0;
+        } else {
+            fail++;
+            if (++g_aim_fail_streak &gt;= 8) { // 连续8败=队列满，退避
+                g_aim_backoff = 20;
+                g_aim_fail_streak = 0;
+            }
+        }
+        if ((sent + fail + skipped) % 500 == 0) {
+            printf(&quot;[AIM] stream: sent=%u fail=%u skip=%u bk=%u\n&quot;, sent, fail, skipped, g_aim_backoff);
+        }
+    }
+    return 0;
+}</code></pre>
+
+<h3>A6 · sle_client.c — 任务创建/开机自启 + write_cfm 回调</h3>
+<pre><code>static void aim_demo_start(void)
+{
+    if (g_aim_task != NULL) {
+        return;
+    }
+    // 业务保活：投睡眠否决票，防止低功耗吞任务节拍/断链（AT+PM=0 会被栈复位冲掉）
+    errcode_t pm_ret = uapi_pm_add_sleep_veto_with_symmetry(PM_ID_NATIVE_SAMPLE);
+    printf(&quot;[AIM] sleep veto: %s (0x%x)\n&quot;, pm_ret == ERRCODE_SUCC ? &quot;on&quot; : &quot;FAILED&quot;, pm_ret);
+    osal_kthread_init init = {
+        .handler = aim_demo_task,
+        .taskprio = AIM_DEMO_PRIO,
+        .stacksize = AIM_DEMO_STACK,
+        .taskname = &quot;aim_demo&quot;,
+        .data = NULL,
+        .policy = OSAL_THREAD_POLICY_DEFAULT,
+    };
+    g_aim_task = osal_kthread_create_ext(&amp;init);
+    printf(&quot;[AIM] demo task %s\n&quot;, g_aim_task != NULL ? &quot;created&quot; : &quot;create FAILED&quot;);
+}
+
+// 开机自启入口（由 sle_com.c 的 at_diting_sle_example_cmd_register 调用——AT 框架初始化是 3322 的可靠开机钩子；
+// app_run 的 initcall 在 3322 OpenHarmony 基线不被驱动，勿用）
+void aim_demo_boot(void)
+{
+    aim_demo_start();
+}
+
+// 客户端应用UUID（从服务发现结果中获取）
+static bs_sle_uuid_t g_client_app_uuid = {SLE_APP_UUID_LEN, {0}};
+
+// SSAP客户端读操作回调函数
+// 函数作用：处理从服务端读取数据的响应
+static void sle_ssap_client_read_cbk(uint16_t dev_id, uint8_t client_id, bs_sle_ssapc_handle_value_t *read_data,
+                                     errcode_t status)
+{
+    // step1: 打印设备ID、客户端ID和状态码
+    printf(&quot;[SLE Client] Read callback: dev_id=%d, client_id=%d, status=0x%x\n&quot;, dev_id, client_id, status);
+
+    // step2: 检查读取数据指针是否为空
+    if (read_data != NULL) {
+        // step3: 打印数据句柄和数据长度</code></pre>
+
+<h3>A7 · sle_client.c — FIND 回调：句柄捕获 + 正确 uuid 的回调注册（0x8000600a 修复）</h3>
+<pre><code>                    printf(&quot;    operate_indication: 0x%08X\n&quot;, service[s].property_list[i].operate_indication);
+                    printf(&quot;    uuid: &quot;);
+                    for (int j = 0; j &lt; SLE_APP_UUID_LEN; j++) {
+                        printf(&quot;%02X&quot;, service[s].property_list[i].uuid.uuid[j]);
+                    }
+                    printf(&quot;\n&quot;);
+                    // AirMouse 演示流：捕获第一个特征句柄作为写目标
+                    if (g_aim_write_handle == 0) {
+                        g_aim_write_handle = service[s].property_list[i].handle;
+                        printf(&quot;[AIM] captured write handle: 0x%04X\n&quot;, g_aim_write_handle);
+                        // 注册读写回调（write_cfm 流控信号）。注意：不能用 g_client_app_uuid——
+                        // 它在本回调 step8 才赋值且按 SLE_MOBILE_MAX 索引取值，此处仍是初始全零（0x8000600a 的根因）。
+                        // 用当前刚发现的这个服务的 uuid 的静态拷贝注册。
+                        static bs_sle_uuid_t s_aim_svc_uuid;
+                        s_aim_svc_uuid = service[s].service.uuid;
+                        errcode_t cb_ret = bs_sle_ssapc_register_callbacks(dev_id, client_id,
+                            &amp;s_aim_svc_uuid, &amp;g_sle_demo_ssap_cb);
+                        printf(&quot;[AIM] register callbacks: 0x%x\n&quot;, cb_ret);
+                    }
+                }</code></pre>
+
+<h3>A8 · sle_client.c — 无确认写 sle_ssapc_write_buf</h3>
+<pre><code>static errcode_t sle_ssapc_write_buf(uint16_t dev_id, uint8_t client_id, uint16_t handle,
+    const uint8_t *data, uint16_t len)
+{
+    bs_sle_ssapc_write_param_t param = {0};
+    param.handle = handle;
+    param.type = SLE_WRITE_PARAM_TYPE;
+    // 无确认写（write command）：即发即走，延迟从确认RTT(~110ms)降到空口调度级；
+    // 背压靠返回值（栈队列满→失败→上层退避）。确认事件积压问题也随之消失。
+    param.is_need_confirm = false;
+    param.data_len = len;
+    param.data = (uint8_t *)data;
+    return bs_sle_ssapc_write(dev_id, client_id, &amp;param);
+}
+
+static void aim_demo_next(aim_mouse_pkt_t *pkt, uint32_t tick)</code></pre>
+
+<h3>A9 · sle_client.c — write_cfm 轻量回调（历史遗留，直出版不触发）</h3>
+<pre><code>
+// SSAP客户端写操作回调函数
+// 函数作用：处理向服务端写入数据的响应（AirMouse: 兼做流控信号，逐包打印已去除）
+static void sle_ssap_client_write_cbk(uint16_t dev_id, uint8_t client_id, bs_sle_ssapc_handle_value_t *write_result,
+                                      errcode_t status)
+{
+    (void)dev_id;
+    (void)client_id;
+    (void)write_result;
+    if (g_aim_pending &gt; 0) {
+        g_aim_pending--;
+    }
+    if (++g_aim_cfm_cnt % 1000 == 0) {
+        printf(&quot;[AIM] cfm=%u status=0x%x\n&quot;, g_aim_cfm_cnt, status);
+    }
+}
+
+// SSAP客户端通知回调函数</code></pre>
+
+<h3>A10 · sle_com.c — 开机钩子（AT 框架注册尾部调 aim_demo_boot）</h3>
+<pre><code>void at_diting_sle_example_cmd_register(void)
+{
+    // step1: 注册客户端AT命令表，传入命令表、函数数量和最大命令长度
+    uapi_at_cmd_table_register(g_at_sle_client_cmd_parse_table, AT_SLE_CLIENT_FUN_NUM, EXT_AT_SLE_CLIENT_CMD_MAX_LEN);
+    // step2: 注册服务端AT命令表，传入命令表、函数数量和最大命令长度
+    uapi_at_cmd_table_register(g_at_sle_server_cmd_parse_table, AT_SLE_SERVER_FUN_NUM, EXT_AT_SLE_SERVER_CMD_MAX_LEN);
+    // step3: AirMouse 业务自启（3322 的 AT 框架初始化是可靠开机钩子——app_run 的 initcall 不被驱动）
+    // 任务内含自动连接状态机：ENABLE→INIT→PAIR→FIND→流（任务幂等，重复调用无害）
+    extern void aim_demo_boot(void);
+    aim_demo_boot();
+}
+
+// 全局角色变量（默认外设角色）</code></pre>
+
+<h3>A11 · sle/CMakeLists.txt — ekf7 挂载（直出版可删 ekf7 五行）</h3>
+<pre><code>
+set(SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/sle_com.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/sle_client.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/sle_server.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/ekf7_filter.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/ekf7_jacobian.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/ekf7_math.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/ekf7_motion.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/ekf7_pipeline.c
+)</code></pre>
+
+<h3>B1 · dongle sle_uart.c — write 回调（SLE→HID 转发 + [BURST] 测量标记 + 聚合统计）</h3>
+<pre><code>#define SLE_UART_SERVER_SEND_BUFF_MAX_LEN   250
+#else
+#define SLE_UART_SERVER_SEND_BUFF_MAX_LEN   40
+#endif
+unsigned long g_sle_uart_server_msgqueue_id;
+#define SLE_UART_SERVER_LOG                 &quot;[sle uart server]&quot;
+static void ssaps_server_read_request_cbk(uint8_t server_id, uint16_t conn_id, ssaps_req_read_cb_t *read_cb_para,
+    errcode_t status)
+{
+    osal_printk(&quot;%s ssaps read request cbk callback server_id:0x%x, conn_id:0x%x, handle:0x%x, status:0x%x\r\n&quot;,
+        SLE_UART_SERVER_LOG, server_id, conn_id, read_cb_para-&gt;handle, status);
+}
+static void ssaps_server_write_request_cbk(uint8_t server_id, uint16_t conn_id, ssaps_req_write_cb_t *write_cb_para,
+    errcode_t status)
+{
+    // AirMouse M4：解析 3322 的鼠标包（0xA5 + int16 dx + int16 dy + keys）→ USB HID report。
+    // 借 usb_keyboard 样例的复合描述符（report_id=0x02 段即 boot mouse：3 buttons + X/Y/wheel），
+    // 索引共享 keyscan_init.c 的 g_usb_keyscan_hid_index（已去 static）。低频聚合统计打印保留。
+    (void)server_id;
+    (void)conn_id;
+    (void)status;
+    static uint32_t s_rx_cnt = 0;
+    static uint32_t s_hid_ok = 0;
+    static uint64_t s_last_rx_ms = 0;
+    if ((write_cb_para-&gt;length &gt;= 6) &amp;&amp; write_cb_para-&gt;value) {
+        // 延迟测量标记：流量从静(&gt;200ms无包)到动的瞬间立即打印（对齐 SNAP，无聚合量化）
+        uint64_t now_ms = uapi_tcxo_get_ms();
+        if (s_last_rx_ms != 0 &amp;&amp; (now_ms - s_last_rx_ms) &gt; 200) {
+            osal_printk(&quot;[BURST] gap=%lu ms\r\n&quot;, (unsigned long)(now_ms - s_last_rx_ms));</code></pre>
+
+<h3>B3 · keyscan_init.c — 索引去 static（一行）</h3>
+<pre><code>int g_usb_keyscan_hid_index = -1; /* AirMouse: 去 static 供 sle_uart 共享 */</code></pre>
+<h3>B4 · Kconfig 配置命令（dongle 端，一次性）</h3>
+<pre><code>cd fbb_bs2x/src
+python3 build/script/usr_config.py --command setconfig --chip bs21e --target standard-bs21e-1100e \
+  SAMPLE_ENABLE=y ENABLE_PRODUCTS_SAMPLE=y SAMPLE_SUPPORT_SLE_UART=y \
+  SAMPLE_ENABLE_SLE_UART_SERVER=y SAMPLE_SUPPORT_USB_KEYBOARD=y SUPPORT_SLE_PERIPHERAL=y
+# 3322 端无需 Kconfig（SLE sample 宏出厂即有，config.py:470）</code></pre>
+
 <p class="subtitle" style="margin-top:40px">2026-10-14 · ZCode 实录 · 代码 tag v0.1-feel-good（work/airmouse-3322）· 测量工具：work/sle-link-test · 系列四篇闭环</p>
 
 </div>
