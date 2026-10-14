@@ -35,7 +35,7 @@
 <div class="container">
 
 <h1>3322 空鼠手感终版</h1>
-<p class="subtitle">陀螺直出架构 · 延迟大追凶全案 · 全部定稿参数 &nbsp;·&nbsp; 2026-10-14 · 系列第三篇（<a href="hi3322-sle-dongle-link-verification.html">调研</a> → <a href="hi3322-airmouse-vertical-slice.html">M0-M3</a> → <a href="hi3322-airmouse-complete-guide.html">M4完全指南</a> → 本篇·手感终版）· 代码：<code>work/airmouse-3322</code> tag <code>v0.1-feel-good</code></p>
+<p class="subtitle">陀螺直出架构 · 延迟大追凶全案 · 全部定稿参数 &nbsp;·&nbsp; 2026-10-14 · 系列第三篇（<a href="hi3322-sle-dongle-link-verification.html">调研</a> → <a href="hi3322-airmouse-vertical-slice.html">M0-M3</a> → <a href="hi3322-airmouse-complete-guide.html">M4完全指南</a> → 本篇·手感终版）· 代码仓库：<a href="https://github.com/APX103/airmouse-3322"><strong>github.com/APX103/airmouse-3322</strong></a>（本地 <code>work/airmouse-3322</code>）tag <code>v0.1-feel-good</code></p>
 
 <div class="ok">
 <strong>终态一句话：</strong>3322 + ICM20948 + EB21duino 三件套，上电即用，转手腕/摆臂屏幕光标实时跟随，拔插 dongle 自动重连，<strong>用户实测手感满意</strong>。信号链：<code>陀螺−零偏 → 一阶滤波(τ≈1ms) → 静止门 → ×50px/deg → SLE(双端压缩连接参数) → USB HID</code>——零姿态计算，CPU 5%，EKF 版留在备胎分支。
@@ -96,7 +96,7 @@ dy = +ωx(dps) × 50 px/deg × 10ms        // 绕X→dy（实测再反号定稿�
 <tr><td>连接参数</td><td>双端 runtime set/update</td><td>interval 8-16 slot, latency 0, timeout 1s</td></tr>
 </table>
 
-<h2>5 · 代码库（airmouse-3322，补丁集模型）</h2>
+<h2>5 · 代码库（<a href="https://github.com/APX103/airmouse-3322">github.com/APX103/airmouse-3322</a>，补丁集模型）</h2>
 <pre><code>main == exp/gyro-direct == v0.1-feel-good   ← 手感终版（陀螺直出）
 stable/m4-gain50                             ← EKF 姿态版备胎（锚定/混合模式演进用）
 结构：patches/(双端 git diff 补丁) + ekf7/ + tools/(at3322/oneshot/oneshot_i2c) + apply.sh + README
