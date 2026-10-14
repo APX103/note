@@ -83,6 +83,10 @@
     </div>
     <div class="section-title"><span class="dot" style="background:#f97316"></span> 项目与系列教程 <span class="count">(6)</span></div>
     <div class="grid">
+        <a class="card" data-date="2026-10-14" href="hi3322-airmouse-feel-good-final.html">
+            <div class="card-title"><span class="arrow">&rarr;</span> 3322 空鼠手感终版：陀螺直出架构与延迟大追凶全案</div>
+            <div class="card-desc"><span class="tag">2026-10-14 · 终版（v0.1-feel-good）</span> 用户实测满意 · 陀螺速率直出架构（零姿态计算 CPU 5%：gyro−零偏→τ1ms滤波→静止门→50px/deg）· 三轮滞后追凶（EKF加计观测/motionless导航级冻结5°/s迟滞/SLE连接参数）· 延迟测量尺子量化bug自纠（聚合打印0~1s误差伪装成链路延迟）· SLE连接参数正确姿势（SET_DEFAULT破坏PAIR踩坑→双端runtime set/update, slot单位）· 200Hz翻车（EKF double软浮点超预算）· 定稿参数总表 + 七条坑史速查 + 补丁集仓库三线模型</div>
+        </a>
         <a class="card" data-date="2026-10-14" href="hi3322-airmouse-complete-guide.html">
             <div class="card-title"><span class="arrow">&rarr;</span> 3322 空鼠调通实录与完全指南：代码全解·调参手册·复现流程</div>
             <div class="card-desc"><span class="tag">2026-10-14 · 终态文档</span> M4 端到端调通：开机全自动连接（AT钩子引导+FSM）· USB HID（借keyboard复合描述符）· 拔插dongle自动重连 · 手感调优五步史（轴映射实测校正→灵敏度200→无确认写砍110ms延迟→EKF低通0.5治滞后）· 六文件改动全解（每处为什么）· 调参旋钮表（增益/死区/轴方向/滤波系数位置）· 编译烧录日常操作卡 · Mac环境从零搭建 · 已知问题与roadmap</div>

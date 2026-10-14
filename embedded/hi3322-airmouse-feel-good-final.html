@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3322 空鼠手感终版 — 陀螺直出架构、延迟大追凶与全部定稿参数（2026-10-14）</title>
+<style>
+    :root {
+        --bg: #fafbfc; --surface: #ffffff; --text: #1a1a2e; --text-secondary: #5a5a7a;
+        --accent: #6366f1; --border: #e8eaef; --code-bg: #f1f3f5; --tag-bg: #eef0ff; --tag-color: #6366f1;
+        --warn: #d97706; --ok: #059669; --danger: #dc2626; --shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif; line-height: 1.75; }
+    .container { max-width: 880px; margin: 0 auto; padding: 48px 24px 80px; }
+    h1 { font-size: 1.7em; margin-bottom: 8px; }
+    .subtitle { color: var(--text-secondary); font-size: 0.95em; margin-bottom: 32px; }
+    h2 { font-size: 1.25em; margin: 40px 0 14px; padding-left: 12px; border-left: 4px solid var(--accent); }
+    h3 { font-size: 1.05em; margin: 24px 0 10px; }
+    p { margin: 10px 0; }
+    table { width: 100%; border-collapse: collapse; margin: 14px 0; background: var(--surface); font-size: 0.92em; box-shadow: var(--shadow); }
+    th { background: var(--tag-bg); color: var(--tag-color); text-align: left; }
+    th, td { padding: 8px 12px; border: 1px solid var(--border); vertical-align: top; }
+    code { background: var(--code-bg); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; font-family: "SF Mono", Menlo, monospace; font-size: 0.88em; }
+    pre { background: #1e1e2e; color: #cdd6f4; border-radius: 10px; padding: 16px 18px; overflow-x: auto; margin: 14px 0; font-size: 0.85em; line-height: 1.6; }
+    pre code { background: none; border: none; color: inherit; padding: 0; }
+    .warn { border-left: 4px solid var(--warn); background: #fffbeb; padding: 10px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-size: 0.93em; }
+    .ok { border-left: 4px solid var(--ok); background: #ecfdf5; padding: 10px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-size: 0.93em; }
+    .danger { border-left: 4px solid var(--danger); background: #fef2f2; padding: 10px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-size: 0.93em; }
+    ul, ol { padding-left: 24px; margin: 10px 0; }
+    li { margin: 4px 0; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>3322 空鼠手感终版</h1>
+<p class="subtitle">陀螺直出架构 · 延迟大追凶全案 · 全部定稿参数 &nbsp;·&nbsp; 2026-10-14 · 系列第三篇（<a href="hi3322-sle-dongle-link-verification.html">调研</a> → <a href="hi3322-airmouse-vertical-slice.html">M0-M3</a> → <a href="hi3322-airmouse-complete-guide.html">M4完全指南</a> → 本篇·手感终版）· 代码：<code>work/airmouse-3322</code> tag <code>v0.1-feel-good</code></p>
+
+<div class="ok">
+<strong>终态一句话：</strong>3322 + ICM20948 + EB21duino 三件套，上电即用，转手腕/摆臂屏幕光标实时跟随，拔插 dongle 自动重连，<strong>用户实测手感满意</strong>。信号链：<code>陀螺−零偏 → 一阶滤波(τ≈1ms) → 静止门 → ×50px/deg → SLE(双端压缩连接参数) → USB HID</code>——零姿态计算，CPU 5%，EKF 版留在备胎分支。
+</div>
+
+<h2>1 · 为什么放弃 EKF 姿态差分（三次滞后追凶的结果）</h2>
+<p>M3-M4 期间光标映射用的是"EKF 四元数→欧拉角→逐拍差分"。用户实测始终"非常不跟手"（0.5~1s 级滞后），追凶三轮：</p>
+<table>
+<tr><th>#</th><th>嫌疑</th><th>判决</th><th>依据</th></tr>
+<tr><td>1</td><td>EKF 加计观测滞后</td><td><strong>有罪（部分）</strong></td><td>快速转动时陀螺积分与低通后重力矢量"打架"，姿态输出永远慢半拍；叠加输入低通（0.1→0.5 后仍有 10ms+）与差分链</td></tr>
+<tr><td>2</td><td>motionless 冻结（导航级静止检测外泄到光标）</td><td><strong>有罪（大头之一）</strong></td><td>检测器的运动阈值 5°/s+迟滞窗口（为 ZUPT 设计）——小幅摆腕 2~3°/s 达不到解冻阈值，"摆了半秒才动"。修法：光标冻结交给死区（0.03°/拍≈3°/s 等效），motionless 只留给 EKF 内部</td></tr>
+<tr><td>3</td><td>SLE 传输慢</td><td><strong>无罪（但顺手修了）</strong></td><td>实测 100~1700ms"延迟"最终被证明是测量尺子的量化 bug（§3）；不过连接调度参数双端压缩后体感确实更好</td></tr>
+</table>
+<p><strong>结论（用户提出，实测验证）</strong>：空鼠不需要绝对姿态——陀螺角速度本身就是角位移的直接测量（∫ω·dt）。速率直出只欠一个零偏补偿，于是：</p>
+<pre><code>// 终版映射（sle_client.c，AIM_USE_GYRO_DIRECT=1）
+corr = gyro − gyro_bias                 // 零偏：静止(&lt;1°/s 持续0.3s)时 EMA(0.02) 缓慢跟踪
+lpf  += 0.8×(corr − lpf)                // 一阶滤波 τ≈1ms
+静止门内：输出 0 + 学零偏；否则：
+dx = −ωz(dps) × 50 px/deg × 10ms        // 绕Z→dx（实测定稿，反号）
+dy = +ωx(dps) × 50 px/deg × 10ms        // 绕X→dy（实测再反号定稿）
+</code></pre>
+<p>EKF（quat-zupt-ekf 七态）完整保留在固件里编译但不再驱动光标——<code>stable/m4-gain50</code> 分支可一键切回，未来做"姿态锚定/走廊混合"时再请它出山。</p>
+
+<h2>2 · 延迟大追凶全案（方法论教科书）</h2>
+<h3>2.1 分段测量法</h3>
+<p>固件内埋"甩动打点"（角速度&gt;150°/s 单发 <code>[SNAP]</code>），Mac 双端毫秒时间戳监听（3322 @750000 + dongle 日志口 @115200），拼时间线切三段：传感器+固件段 / SLE 空口段 / USB HID 段。甩动 5~12 次取分布。</p>
+<h3>2.2 三个反转</h3>
+<ol>
+<li>算法嫌疑：直出版一样"慢" → 算法洗清；</li>
+<li>连接参数嫌疑：实测 100~1700ms 随机抖动，像"包等连接事件窗口"→ 双端压参数（见 §2.3），但复测依旧 13~1600ms；</li>
+<li><strong>尺子反转</strong>：发现 dongle 统计打印每 100 包一行——我监听计数跳变的"量化粒度"恰好 0~1s，与"延迟"分布完全重合。<strong>之前量的全是打印聚合周期，链路本身是快的</strong>。用户插回 USB HID 实测手感好 = 终审判决。</li>
+</ol>
+<div class="warn"><strong>测量方法论铁律</strong>：聚合打印（每 N 包/行）做时间戳测量自带 0~N/rate 秒量化误差，必须用事件驱动的瞬时标记（ dongle 侧保留的 <code>[BURST]</code> 静→动首包瞬时打印就是修正后的尺子，零开销常驻）。另：两个瞬时标记必须<strong>语义对称</strong>（首包发送 ↔ 首包到达），错配（峰值时刻↔首包到达）会配对到下一次事件、秒级错位。</div>
+<h3>2.3 SLE 连接参数的正确姿势（踩坑实录）</h3>
+<table>
+<tr><th>做法</th><th>结果</th></tr>
+<tr><td><code>bs_sle_config(SLE_CONFIG_CONNECT_SET_DEFAULT_PARAM, ...)</code> 全局默认</td><td><strong>PAIR 直接 timeout 破坏配对</strong>（回退验证实锤）</td></tr>
+<tr><td>3322 侧：preset ADD（<code>SLE_CONFIG_CONNECT_PRESET_PARAM</code>，mode_id=1，interval 8-16 slot）+ 连接后 <code>bs_sle_set_connect_param(dev_id, 1)</code>（ssf_connection.h:860）</td><td>✅ 不破坏配对</td></tr>
+<tr><td>dongle 侧：连接回调 CONNECTED 分支 <code>sle_update_connect_param</code>（sle_connection_manager.h:979，server 主动发起，interval 8-16 slot）</td><td>✅ 双管齐下</td></tr>
+</table>
+<p>注意 SLE interval 单位是 <strong>slot</strong>（sle_connection_manager.h 注释），不是 BLE 的 1.25ms。</p>
+
+<h2>3 · 200Hz 实验（唯一一次算力翻车）</h2>
+<div class="danger">EKF 是 double 精度，RV32F 只有单精度硬件——200Hz 节拍下软浮点计算超 5ms/拍预算，CPU 饱和→看门狗复位循环（连心跳都没有），dongle 侧还叠半开连接致重连失败（0x80006016/0x8000600a）。回滚 100Hz 即愈。将来提速的正确路径：EKF 单精度 float 化（计算量降 5-10×，用 quat-zupt-ekf 差分框架重验证）——直出架构下已无此需求。</div>
+
+<h2>4 · 定稿参数总表（work/airmouse-3322 tag v0.1-feel-good）</h2>
+<table>
+<tr><th>参数</th><th>位置</th><th>值</th></tr>
+<tr><td>映射模式</td><td><code>AIM_USE_GYRO_DIRECT</code></td><td>1（陀螺直出）</td></tr>
+<tr><td>灵敏度</td><td><code>AIM_RATE_GAIN</code></td><td>50 px/deg（15→200→50 实测收敛）</td></tr>
+<tr><td>轴映射</td><td>aim_ekf_step 尾部</td><td>dx=−Δyaw(绕Z)、dy=+Δroll(绕X)；pitch 不参与（两轮实测定稿）</td></tr>
+<tr><td>直出滤波</td><td><code>AIM_GYRO_LPF_K</code></td><td>0.8（τ≈1ms @100Hz）</td></tr>
+<tr><td>静止门</td><td><code>AIM_STILL_DPS/HOLD_S</code></td><td>1.0°/s / 0.3s</td></tr>
+<tr><td>零偏学习</td><td><code>AIM_BIAS_EMA</code></td><td>0.02（静止时缓慢跟踪温漂）</td></tr>
+<tr><td>死区</td><td><code>AIM_DEADBAND_DEG</code></td><td>0.03°/拍</td></tr>
+<tr><td>节拍</td><td><code>AIM_DEMO_TICK_MS</code></td><td>10（100Hz；200Hz 会打死板子）</td></tr>
+<tr><td>发送</td><td>is_need_confirm</td><td>false（无确认写+连败退避；确认写有 110ms RTT 与事件积压挂死旧案）</td></tr>
+<tr><td>连接参数</td><td>双端 runtime set/update</td><td>interval 8-16 slot, latency 0, timeout 1s</td></tr>
+</table>
+
+<h2>5 · 代码库（airmouse-3322，补丁集模型）</h2>
+<pre><code>main == exp/gyro-direct == v0.1-feel-good   ← 手感终版（陀螺直出）
+stable/m4-gain50                             ← EKF 姿态版备胎（锚定/混合模式演进用）
+结构：patches/(双端 git diff 补丁) + ekf7/ + tools/(at3322/oneshot/oneshot_i2c) + apply.sh + README
+用法：官方 SDK checkout 上 ./apply.sh &lt;hs-fbb&gt; &lt;fbb_bs2x&gt; → 按仓库 README 编译烧录
+官方更新跟随：官方库 pull 后 git apply 重放补丁（改动面小冲突概率低）
+</code></pre>
+
+<h2>6 · 本次全部实测坑史（速查）</h2>
+<table>
+<tr><th>症状</th><th>根因</th><th>修法</th></tr>
+<tr><td>小幅摆动 0.5~1s 才动</td><td>motionless 导航级冻结（5°/s 迟滞）</td><td>冻结交给死区，motionless 不外泄</td></tr>
+<tr><td>始终"非常不跟手"</td><td>EKF 加计观测滞后 + 差分链</td><td>陀螺速率直出（用户方案）</td></tr>
+<tr><td>200Hz 全链挂死（无心跳）</td><td>EKF double 软浮点超预算→看门狗循环</td><td>回滚 100Hz；将来 float 化</td></tr>
+<tr><td>PAIR timeout（配不上）</td><td>SET_DEFAULT 连接参数破坏配对</td><td>preset ADD + 连接后 runtime set</td></tr>
+<tr><td>测量显示 100~1700ms 抖动</td><td>聚合打印量化误差（每100包一行）</td><td>事件瞬时标记（[BURST] 常驻 dongle）</td></tr>
+<tr><td>任务不自启（板睡死无日志）</td><td>app_run 在 3322 不被驱动 + 任务挂 INIT 死锁</td><td>AT 框架注册钩子引导（sle_com.c）</td></tr>
+<tr><td>拔插 dongle 后连不上</td><td>dongle 半开连接占线</td><td>拔功耗跳帽复位；FSM 自动重连已验证</td></tr>
+</table>
+
+<h2>7 · Roadmap</h2>
+<ul>
+<li>按键（左键/右键/回中）：3322 GPIO + 包 keys 字段（协议已预留）；</li>
+<li>走廊混合控制律：姿态锚定（EKF 备胎分支复活）+ 速率延伸；</li>
+<li>下行双工（notify+CCCD）；灵敏度在线调节（不重烧）；</li>
+<li>产量项：换示例 UUID、开机自检、量产烧录流程。</li>
+</ul>
+
+<p class="subtitle" style="margin-top:40px">2026-10-14 · ZCode 实录 · 代码 tag v0.1-feel-good（work/airmouse-3322）· 测量工具：work/sle-link-test · 系列四篇闭环</p>
+
+</div>
+</body>
+</html>
