@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3322 空鼠调通实录与完全指南 — 代码全解·调参手册·复现流程（2026-10-14）</title>
+<style>
+    :root {
+        --bg: #fafbfc; --surface: #ffffff; --text: #1a1a2e; --text-secondary: #5a5a7a;
+        --accent: #6366f1; --border: #e8eaef; --code-bg: #f1f3f5; --tag-bg: #eef0ff; --tag-color: #6366f1;
+        --warn: #d97706; --ok: #059669; --danger: #dc2626; --shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif; line-height: 1.75; }
+    .container { max-width: 880px; margin: 0 auto; padding: 48px 24px 80px; }
+    h1 { font-size: 1.7em; margin-bottom: 8px; }
+    .subtitle { color: var(--text-secondary); font-size: 0.95em; margin-bottom: 32px; }
+    h2 { font-size: 1.25em; margin: 40px 0 14px; padding-left: 12px; border-left: 4px solid var(--accent); }
+    h3 { font-size: 1.05em; margin: 24px 0 10px; }
+    p { margin: 10px 0; }
+    table { width: 100%; border-collapse: collapse; margin: 14px 0; background: var(--surface); font-size: 0.92em; box-shadow: var(--shadow); }
+    th { background: var(--tag-bg); color: var(--tag-color); text-align: left; }
+    th, td { padding: 8px 12px; border: 1px solid var(--border); vertical-align: top; }
+    code { background: var(--code-bg); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; font-family: "SF Mono", Menlo, monospace; font-size: 0.88em; }
+    pre { background: #1e1e2e; color: #cdd6f4; border-radius: 10px; padding: 16px 18px; overflow-x: auto; margin: 14px 0; font-size: 0.85em; line-height: 1.6; }
+    pre code { background: none; border: none; color: inherit; padding: 0; }
+    .warn { border-left: 4px solid var(--warn); background: #fffbeb; padding: 10px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-size: 0.93em; }
+    .ok { border-left: 4px solid var(--ok); background: #ecfdf5; padding: 10px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-size: 0.93em; }
+    .danger { border-left: 4px solid var(--danger); background: #fef2f2; padding: 10px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-size: 0.93em; }
+    ul, ol { padding-left: 24px; margin: 10px 0; }
+    li { margin: 4px 0; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>3322 空鼠调通实录与完全指南</h1>
+<p class="subtitle">代码全解 · 调参手册 · 环境搭建 · 复现流程 &nbsp;·&nbsp; 2026-10-14 · 前篇：<a href="hi3322-airmouse-vertical-slice.html">垂直切片实录</a>（M0-M3）· 本篇 = M4 端到端调通 + 终态文档</p>
+
+<div class="ok">
+<strong>系统终态：</strong>两块板上电即用——3322（谛听+ICM20948）开机自动连 dongle（EB21duino），EKF 姿态解算 → 转手腕/摆臂 → 电脑屏幕光标实时跟随；拔插 dongle 自动重连。当前手感参数：灵敏度 200 px/deg、陀螺低通 0.5（时间常数 20ms）、无确认写（链路延迟空口级）。本文覆盖：每一处代码改动的原因与位置、全部可调旋钮、从零搭环境到复现的完整流程。
+</div>
+
+<h2>1 · 系统与硬件</h2>
+<pre><code>3322 谛听 V100 (SLE Central)                EB21duino/BS21 (SLE Server + USB HID)
+┌────────────────────────────┐   星闪 P2P   ┌──────────────────────────────┐
+│ ICM20948 ─I2C0→ EKF7 姿态解算│ ── write ──→ │ write 回调解析 dx/dy          │
+│ → 姿态增量 → dx/dy → 100Hz 发送│  (无确认写)  │  → USB HID boot mouse report │──→ 电脑屏幕
+│ 开机自启: AT钩子→FSM→自动连接 │              │ (借 keyboard 复合描述符 id=2) │
+└────────────────────────────┘              └──────────────────────────────┘
+</code></pre>
+<table>
+<tr><th>ICM20948（Waveshare 10DOF-D）</th><th>接谛听开发板</th></tr>
+<tr><td>VCC 3.3V</td><td>J1902 PIN 17/18（丝印 VDD3V3）</td></tr>
+<tr><td>GND</td><td>J1901 PIN 9/10</td></tr>
+<tr><td>SDA</td><td>J1901 PIN 12（丝印 <code>C0_D</code> = I2C0_SDA/MGPIO_5）</td></tr>
+<tr><td>SCL</td><td>J1901 PIN 11（丝印 <code>C0_C</code> = I2C0_SCL/MGPIO_4）</td></tr>
+</table>
+<p>拨码 SW1901-5 默认 OFF=3.3V 无需动；J1901 PIN7/8（I2C1）板内接屏 TP 勿用；UART2 恒 1.8V——串口适配器（CH347）必须供 1.8V。dongle：调试用 Type-C1（UART，DE11=烧录+日志口），使用时 Type-C2（USB，HID）。</p>
+
+<h2>2 · 代码改动全解（两端六文件）</h2>
+<h3>2.1 3322 端（work/hs-fbb，改动全在 samples/native_samples/sle/）</h3>
+<table>
+<tr><th>文件</th><th>改动</th><th>为什么</th></tr>
+<tr><td><code>sle_client.c</code></td><td>① IMU 最小驱动：aim_imu_init/config/read_regs（uapi_i2c_master_writeread 组合事务；软复位+唤醒序列；±2g/±250dps 默认刻度 16384 LSB/g、131.072 LSB/dps——bank2 量程写不进，按默认刻度用，重力 0.99g 实测校准）<br>② EKF 集成：ekf7_pipeline_init(100Hz, work_mode=1, 六轴) + 每拍 calculate(acc m/s², gyro rad/s, NULL)<br>③ 指针映射：dx=-Δyaw(绕Z)×gain、dy=+Δroll(绕X)×gain（2026-10-14 两轮实测定稿：轴用 X/Z 不用 Y，dy 最终反号）+ 0.03° 死区 + motionless 冻结 + ±127 限幅<br>④ 发送任务（osal_kthread，100Hz）：无确认写 is_need_confirm=false（延迟从确认RTT~110ms 降到空口级；吞吐放开）+ 连续8败退避200ms（栈队列满的天然背压）<br>⑤ 自动连接状态机 aim_conn_fsm：ENABLE→3s→INIT→PAIR(全零地址直连，无需先扫)→15s超时重试→FIND→回调捕获句柄→RUN；断线清句柄自动回配对<br>⑥ 睡眠保活 uapi_pm_add_sleep_veto_with_symmetry(PM_ID_NATIVE_SAMPLE)（防低功耗吞节拍断链）<br>⑦ 回调注册修复：FIND 回调内用 service[s].service.uuid 的 static 拷贝注册（官方 g_client_app_uuid 赋值时序 bug 的绕开——0x8000600a 根因）</td><td>业务主体。每条都有实测教训支撑（详见 §6 手感调优史与前篇坑史）</td></tr>
+<tr><td><code>sle_com.c</code></td><td>at_diting_sle_example_cmd_register() 尾部追加 aim_demo_boot() 调用</td><td><strong>3322 唯一可靠的开机钩子</strong>是 AT 框架初始化（app_run 的 initcall 在 OpenHarmony 基线不被驱动——踩过：任务挂 INIT 里→FSM 挂任务里→鸡生蛋死锁，板子睡死没日志）</td></tr>
+<tr><td><code>CMakeLists.txt</code></td><td>SOURCES 挂入 ekf7 五文件</td><td>EKF 编入</td></tr>
+<tr><td><code>ekf7_*.c/h</code>（5 文件）</td><td>原样拷自 work/quat-zupt-ekf/c/（零依赖 C99 七态 EKF，差分验证 1e-8）+ 一处参数改动：gyro_filt_k 0.1→0.5、acc_filt_k 0.1→0.3（ekf7_filter.c:18-19）</td><td>0.1 的低通时间常数 100ms 是"不跟手"的主源（链路延迟砍掉后暴露）</td></tr>
+</table>
+<h3>2.2 dongle 端（work/fbb_bs2x，samples/products/）</h3>
+<table>
+<tr><th>文件</th><th>改动</th><th>为什么</th></tr>
+<tr><td><code>sle_uart/sle_uart.c</code></td><td>write 回调：解析 0xA5 包 → 5B report <code>{0x02, keys&amp;7, dx8, dy8, 0}</code> → fhid_send_data(idx, rpt, 5)；聚合统计打印（每100包一行 rx#/hid#）</td><td>M4 核心：SLE 数据 → USB HID</td></tr>
+<tr><td><code>usb_keyboard/keyboard_usb/keyscan_init.c</code></td><td>g_usb_keyscan_hid_index 去 static</td><td>共享复合描述符索引（keyboard 样例的描述符里 report_id=0x02 段就是 boot mouse——不用自己写描述符）</td></tr>
+<tr><td>Kconfig（setconfig）</td><td>SAMPLE_SUPPORT_USB_KEYBOARD=y + SLE_UART_SERVER + SUPPORT_SLE_PERIPHERAL</td><td>拉起 USB 栈与 SLE server 共存</td></tr>
+</table>
+
+<h2>3 · 调参手册（所有旋钮一张表）</h2>
+<table>
+<tr><th>旋钮</th><th>位置</th><th>当前值</th><th>效果/怎么调</th></tr>
+<tr><td><strong>灵敏度</strong></td><td>sle_client.c 宏 <code>AIM_RATE_GAIN</code></td><td>200 px/deg</td><td>转 1° 光标走的像素。感觉钝→调大；太猛/抖→调小</td></tr>
+<tr><td>死区</td><td><code>AIM_DEADBAND_DEG</code></td><td>0.03°</td><td>静止微漂→调大；小动作吃掉→调小</td></tr>
+<tr><td>轴方向</td><td>aim_ekf_step 尾部两行正负号</td><td>dx=-dyaw, dy=+droll</td><td>哪轴反了翻哪个负号</td></tr>
+<tr><td>跟手度</td><td>ekf7_filter.c:18-19 <code>gyro_filt_k</code>/<code>acc_filt_k</code></td><td>0.5 / 0.3</td><td>越大越跟手（时间常数=1/k/100Hz）但越抖；仍滞后→gyro 拉到 0.8</td></tr>
+<tr><td>发送频率上限</td><td>任务节拍 <code>AIM_DEMO_TICK_MS</code></td><td>10（100Hz）</td><td>一般不动</td></tr>
+</table>
+
+<h2>4 · 编译与烧录（日常操作）</h2>
+<h3>4.1 3322 端（改代码后 ~1 分钟编译）</h3>
+<pre><code># 编译
+export PATH="$HOME/.hs-fbb/tools/bisheng/26.08.1/bin:$HOME/.hs-fbb/venv/bin:$PATH"
+cd /Volumes/ssd/main_link/work/hs-fbb/src && python3 build.py diting-community
+# 产物 output/3322/fwpkg/diting-community.fwpkg；验证：strings application.elf | grep AIM
+
+# 烧录——DFU 自动（首选，~97s 零动手）
+cd /Volumes/ssd/main_link/work/hs-fbb/src
+fbb flash -f output/3322/fwpkg/diting-community.fwpkg --chip 3322 -d --json-summary
+# 前提：板子醒着。AT 无响应时先轰 AT+PM=0 到 OK（醒窗仅几秒）
+
+# 烧录——手动兜底（看到 Please reset 后断电 2s 再上电）
+cd /Users/apx103/.hs-fbb/tools/hs-flash/26.09.1
+./hsflash write -c 3322 -p /dev/cu.usbmodem11401 -b 750000 \
+  -f /Volumes/ssd/main_link/work/hs-fbb/src/output/3322/fwpkg/diting-community.fwpkg
+</code></pre>
+<h3>4.2 dongle 端（很少动；Docker 编译 ~1 分钟）</h3>
+<pre><code># 配置（一次性；切 choice 后必须 clean）
+cd /Volumes/ssd/main_link/work/fbb_bs2x/src && ~/.hs-fbb/venv/bin/python build/script/usr_config.py \
+  --command setconfig --chip bs21e --target standard-bs21e-1100e \
+  SAMPLE_ENABLE=y ENABLE_PRODUCTS_SAMPLE=y SAMPLE_SUPPORT_SLE_UART=y \
+  SAMPLE_ENABLE_SLE_UART_SERVER=y SAMPLE_SUPPORT_USB_KEYBOARD=y SUPPORT_SLE_PERIPHERAL=y
+
+# 编译（Linux 工具链在 git 里，Docker amd64 容器跑官方路径）
+docker run --rm --platform linux/amd64 -v /Volumes/ssd/main_link/work/fbb_bs2x:/sdk \
+  -w /sdk/src fbb-wsl:toolchain sh -c 'python3 build.py standard-bs21e-1100e -c'
+
+# 烧录（DE11 口；看到 Please reset 后拔功耗跳帽 2s 再插回；或 UART 口发 AT+REBOOT 软复位）
+cd /Users/apx103/.hs-fbb/tools/hs-flash/26.09.1
+./hsflash write -c bs21e -p /dev/cu.usbserial-01C7FDE11 -b 115200 \
+  -f /Volumes/ssd/main_link/work/fbb_bs2x/src/output/bs21e/fwpkg/standard-bs21e-1100e/bs21e_all_in_one.fwpkg
+</code></pre>
+
+<h2>5 · 开发环境从零搭建（Mac Apple Silicon）</h2>
+<ol>
+<li><strong>fbb CLI + 3322 工具链</strong>：fbb 1.2.1（uv tool 安装）+ <code>fbb setup</code> 托管环境 <code>~/.hs-fbb/</code>（bisheng darwin-arm64、hs-flash、venv）。坑：pip cmake wheel 会挂死，用 Kitware 官方版替换 shim；<code>fbb setup --force</code> 会复原坏 shim。</li>
+<li><strong>hsflash 26.09.1</strong>：从 manifest 直链下载（dl.hispark.hisilicon.com/fbb-tools/hs-flash/hs-flash-26.09.1-darwin-universal2.zip），解压到 <code>~/.hs-fbb/tools/hs-flash/26.09.1/</code>，必须带 config/ 和 ChipProperties/（burn.config 同目录才能跑）。</li>
+<li><strong>BS2X Docker 编译镜像</strong>：海思 WSL 包 import——<code>docker import --platform linux/amd64 fbb_ws63_wsl.tar fbb-wsl:toolchain</code>（tar 从 hispark-obs.obs.cn-east-3.myhuaweicloud.com 免登录下载；⚠️ 不带 --platform 会继承宿主 arm64 标签导致 run 找不到镜像）。</li>
+<li><strong>SDK</strong>：work/hs-fbb 与 work/fbb_bs2x（gitcode.com/HiSpark）。pyserial 用 ~/.hs-fbb/venv 的 python。</li>
+<li>3322 串口 = CH347（1.8V 供电！）750000 波特；dongle CP2105 双口，DE11=烧录+日志 115200（macOS 免驱）。</li>
+</ol>
+
+<h2>6 · 手感调优史（每步：现象→诊断→修法）</h2>
+<table>
+<tr><th>#</th><th>现象</th><th>诊断</th><th>修法</th></tr>
+<tr><td>1</td><td>左右摆/翻腕映射错乱</td><td>用了绕Y(pitch)作 dy</td><td>实测校正：绕Z→dx、绕X→dy</td></tr>
+<tr><td>2</td><td>X 轴方向反</td><td>符号错</td><td>dy 反号定稿（dy=+droll）</td></tr>
+<tr><td>3</td><td>灵敏度太低</td><td>15px/deg</td><td>用户指定 200 定稿</td></tr>
+<tr><td>4</td><td>残影感 + 不跟手</td><td>确认写流控：窗口4÷RTT110ms≈36Hz 刷新 + 每包等确认 110ms 延迟</td><td>无确认写（is_need_confirm=false）+ 连败退避；吞吐放开、延迟降空口级</td></tr>
+<tr><td>5</td><td>仍感觉滞后</td><td>统计 skip=0 fail=0 排除链路 → EKF 低通 0.1=时间常数 100ms 是主源</td><td>gyro_filt_k 0.1→0.5（20ms）、acc 0.1→0.3</td></tr>
+</table>
+
+<h2>7 · 测试与判据</h2>
+<ul>
+<li><strong>全自动验收</strong>：两端上电 → 3322 串口 15 秒内出现 <code>[AIM] rpy=[...] conn=1 hdl=0x11</code>；转板子 moved/sent 增长；dongle USB 口插电脑 → 屏幕光标动。</li>
+<li><strong>重连验收</strong>：拔 dongle → 插回 → 十几秒内 conn 回 1、流恢复。</li>
+<li>工具：<code>work/sle-link-test/at3322.py</code>（wake/mon/send）、<code>oneshot.py</code>（手动全序列，调试 FSM 用）。</li>
+</ul>
+
+<h2>8 · 已知问题与下一步</h2>
+<ul>
+<li>静止时 rpy 显示有缓慢漂移（motionless 冻结输出挡住了位移，不影响使用；六轴 yaw 漂移是可观测性固有）；</li>
+<li>ICM20948 bank2 量程写入不生效（按默认刻度用，已校准）；</li>
+<li>延迟若还要压：gyro_filt_k→0.8、死区→0.01°、AIM_DEMO_TICK_MS 降为 5（200Hz）；</li>
+<li>下行双工（参数/按键回传）：特征加 notify + CCCD；</li>
+<li>按键（左键/右键/回中）：3322 GPIO + 包 keys 字段（协议已预留）；</li>
+<li>代码抽离：独立 git 仓库（补丁集+EKF+工具+本文档）进行中；量产前换示例 UUID（星闪开发指南 :395）。</li>
+</ul>
+
+<p class="subtitle" style="margin-top:40px">2026-10-14 · ZCode 实录 · 系列：hi3322-sle-dongle-link-verification（调研）→ hi3322-airmouse-vertical-slice（M0-M3）→ 本篇（M4+终态）· 方案与工具：work/sle-link-test/</p>
+
+</div>
+</body>
+</html>
