@@ -52,50 +52,153 @@ GUITAR_STRINGS = {
     5: {"name": "A", "midi": 45},  # ⑤弦 A2
     6: {"name": "E", "midi": 40},  # ⑥弦 E2
 }
-MAX_FRET = 24
+DEFAULT_MAX_FRET = 24
 
 
-def possible_positions(pitch: int):
+def possible_positions(pitch: int, max_fret: int = DEFAULT_MAX_FRET):
     """返回某个音高在吉他上所有可行的（弦号，品）组合。"""
     candidates = []
     for string_num, info in GUITAR_STRINGS.items():
         fret = pitch - info["midi"]
-        if 0 <= fret <= MAX_FRET:
+        if 0 <= fret <= max_fret:
             candidates.append((string_num, fret))
     # 按弦号排序：高音弦在前，低音弦在后
     candidates.sort(key=lambda x: x[0])
     return candidates
 
 
-def choose_positions(notes, smoothing_weight: float = 2.0):
+def _event_cost(assignment, prev_avg_fret: float, max_fret: int):
+    """为一个和弦/事件内的弦/品分配打分。"""
+    frets = [fret for _, fret in assignment if fret > 0]
+    strings = [s for s, _ in assignment]
+    avg_fret = sum(frets) / len(frets) if frets else prev_avg_fret
+
+    # 1. 与上一个手型位置的跳变
+    jump = abs(avg_fret - prev_avg_fret)
+
+    # 2. 内部手型跨度（同一和弦内最大-最小品位）
+    span = max(frets) - min(frets) if len(frets) > 1 else 0
+    span_penalty = 0 if span <= 4 else (span - 4) ** 2
+
+    # 3. 品位高度（避免高把位）
+    height_penalty = sum(f ** 1.5 for f in frets) / max(len(frets), 1) * 0.3
+
+    # 4. 空弦惩罚（空弦音色与按弦不同，和弦里适度避免）
+    open_count = sum(1 for f in frets if f == 0)
+    open_penalty = open_count * 0.8
+
+    # 5. 弦号惩罚：低音优先用低音弦，高音优先用高音弦
+    string_penalty = sum((s - 1) * 0.15 for s in strings)
+
+    # 6. 超出 max_fret 的硬惩罚（理论上不会出现，因为 possible_positions 已过滤）
+    range_penalty = sum(max(0, f - max_fret) * 100 for f in frets)
+
+    return 2.0 * jump + span_penalty + height_penalty + open_penalty + string_penalty + range_penalty
+
+
+def _assign_event(notes_in_event, prev_avg_fret: float, max_fret: int):
+    """
+    为一个和弦（同时发声的音符列表）找到最佳弦/品分配。
+    返回 (assignment_list, avg_fret)。
+    assignment_list 元素为 (start, end, pitch, conf, string_num, fret)。
+    """
+    # 每个音符的所有可行位置
+    note_candidates = []
+    for start, end, pitch, conf in notes_in_event:
+        candidates = possible_positions(pitch, max_fret)
+        if not candidates:
+            # 该音超出吉他音域，保留音符但标记无弦/品
+            note_candidates.append([(start, end, pitch, conf, None, None, [])])
+        else:
+            note_candidates.append([
+                (start, end, pitch, conf, s, f, [(s, f)])
+                for s, f in candidates
+            ])
+
+    # 为每个音符选一个位置，且所有位置弦号不重复
+    # 用回溯搜索；吉他和弦音符数通常 <= 6，状态空间有限
+    best_assignment = None
+    best_cost = float("inf")
+
+    def backtrack(idx, used_strings, current, current_positions):
+        nonlocal best_assignment, best_cost
+        if idx == len(note_candidates):
+            cost = _event_cost(current_positions, prev_avg_fret, max_fret)
+            if cost < best_cost:
+                best_cost = cost
+                best_assignment = current[:]
+            return
+
+        for choice in note_candidates[idx]:
+            _, _, _, _, string_num, fret, positions = choice
+            if string_num is None:
+                # 超出音域的音符，不参与弦冲突
+                current.append(choice[:6])
+                backtrack(idx + 1, used_strings, current, current_positions)
+                current.pop()
+            elif string_num not in used_strings:
+                current.append(choice[:6])
+                backtrack(idx + 1, used_strings | {string_num}, current, current_positions + positions)
+                current.pop()
+
+    backtrack(0, set(), [], [])
+
+    if best_assignment is None:
+        #  fallback：按原顺序贪心分配，避免同弦冲突
+        used = set()
+        best_assignment = []
+        for choices in note_candidates:
+            chosen = None
+            for start, end, pitch, conf, s, f, _ in choices:
+                if s is None or s not in used:
+                    chosen = (start, end, pitch, conf, s, f)
+                    if s is not None:
+                        used.add(s)
+                    break
+            if chosen is None:
+                # 所有弦都被占用，该音无法在当前和弦内分配
+                start, end, pitch, conf = choices[0][0], choices[0][1], choices[0][2], choices[0][3]
+                chosen = (start, end, pitch, conf, None, None)
+            best_assignment.append(chosen)
+
+    # 计算本次事件平均品位（按弦音符）
+    pressed = [fret for _, _, _, _, _, fret in best_assignment if fret is not None and fret > 0]
+    avg_fret = sum(pressed) / len(pressed) if pressed else prev_avg_fret
+    return best_assignment, avg_fret
+
+
+def choose_positions(notes, max_fret: int = DEFAULT_MAX_FRET):
     """
     为每个 MIDI 音符选择（弦号，品）。
-    简单启发式：最小化相邻音符的品位跳变，同时避免过高品位。
+    改进策略：
+    - 同时发声的音符合并成和弦，整体优化弦/品分配。
+    - 最小化相邻和弦之间的手型跳变。
+    - 惩罚同一和弦内过大的品位跨度。
     """
     notes = sorted(notes, key=lambda x: x[0])
-    current_fret = 5  # 默认手型位置
+
+    # 按起始时间分组（容差 1ms）
+    events = []
+    current_event = []
+    current_start = None
+    tol = 1e-3
+    for n in notes:
+        start = n[0]
+        if current_start is None or abs(start - current_start) <= tol:
+            current_event.append(n)
+            current_start = start
+        else:
+            events.append(current_event)
+            current_event = [n]
+            current_start = start
+    if current_event:
+        events.append(current_event)
+
     results = []
-
-    for start, end, pitch, conf in notes:
-        candidates = possible_positions(pitch)
-        if not candidates:
-            # 超出吉他音域，仍保留音符但无法标出弦/品
-            results.append((start, end, pitch, conf, None, None))
-            continue
-
-        # 代价：品位跳变 + 品位高度 + 不偏好空弦（空弦音色突兀，轻度惩罚）
-        def cost(pos):
-            string_num, fret = pos
-            jump = abs(fret - current_fret)
-            height = fret * 0.4
-            open_penalty = 0 if fret != 0 else 0.5
-            # 高音弦上的低音弹起来不舒服，轻度惩罚
-            string_penalty = (string_num - 1) * 0.2
-            return smoothing_weight * jump + height + open_penalty + string_penalty
-
-        best_string, best_fret = min(candidates, key=cost)
-        current_fret = best_fret
-        results.append((start, end, pitch, conf, best_string, best_fret))
+    prev_avg_fret = 5.0
+    for event in events:
+        assignment, prev_avg_fret = _assign_event(event, prev_avg_fret, max_fret)
+        results.extend(assignment)
 
     return results
 
@@ -318,6 +421,8 @@ def main():
     parser.add_argument("--bpm", type=float, default=120.0, help="拍速，默认 120")
     parser.add_argument("--confidence", type=float, default=0.3,
                         help="basic-pitch 置信度阈值，低于此值的音符会被过滤")
+    parser.add_argument("--max-fret", type=int, default=DEFAULT_MAX_FRET,
+                        help="吉他最大品位数，默认 24；古典吉他可设 19")
     args = parser.parse_args()
 
     input_path = Path(args.input)
@@ -337,9 +442,12 @@ def main():
         sys.exit(1)
 
     print("[2/4] 为音符分配吉他弦/品位...")
-    positioned = choose_positions(note_events)
+    positioned = choose_positions(note_events, max_fret=args.max_fret)
     in_range = [n for n in positioned if n[4] is not None]
+    out_of_range = len(positioned) - len(in_range)
     print(f"      在吉他音域内可弹奏的音符：{len(in_range)}/{len(positioned)}")
+    if out_of_range > 0:
+        print(f"      超出 {args.max_fret} 品的音符：{out_of_range} 个（已过滤）")
 
     print("[3/4] 生成 MusicXML...")
     xml = build_musicxml(positioned, bpm=args.bpm)
