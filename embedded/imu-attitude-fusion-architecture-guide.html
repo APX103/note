@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IMU 姿态融合工程指南：Madgwick、EKF 与场景化选型</title>
+<style>
+    :root { --bg:#0f0f12; --surface:#1a1a1f; --text:#e8e8ec; --dim:#9ca3af;
+            --accent:#6366f1; --accent2:#8b5cf6; --green:#10b981; --orange:#f97316;
+            --red:#ef4444; --yellow:#f59e0b; --border:rgba(255,255,255,0.06); }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+           background:var(--bg); color:var(--text); line-height:1.75; -webkit-font-smoothing:antialiased; }
+    .container { max-width:820px; margin:0 auto; padding:60px 24px 80px; }
+    h1 { font-size:1.8em; margin:16px 0 8px;
+         background:linear-gradient(135deg,var(--text) 0%,var(--accent) 60%,var(--accent2) 100%);
+         -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    .sub { color:var(--dim); margin-bottom:8px; }
+    .back { display:inline-block; margin-bottom:8px; color:var(--dim); text-decoration:none; font-size:0.9em; }
+    .back:hover { color:var(--accent); }
+    h2 { font-size:1.25em; margin:44px 0 14px; padding-bottom:10px; border-bottom:1px solid var(--border); }
+    h3 { font-size:1.05em; margin:26px 0 10px; }
+    p { margin:10px 0; }
+    ul,ol { margin:10px 0 10px 22px; } li { margin:6px 0; }
+    a { color:#a5b4fc; text-decoration:none; }
+    a:hover { text-decoration:underline; }
+    code { background:rgba(99,102,241,0.12); color:#a5b4fc; padding:1px 6px; border-radius:5px; font-size:0.88em; }
+    pre { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:14px 18px;
+          overflow-x:auto; font-size:0.84em; line-height:1.7; margin:14px 0; }
+    pre code { background:none; padding:0; color:#c9d1e3; }
+    .table-wrap { overflow-x:auto; margin:14px 0; }
+    table { width:100%; border-collapse:collapse; margin:0; font-size:0.9em; }
+    th { text-align:left; color:var(--dim); font-weight:600; padding:8px 10px; border-bottom:1px solid var(--border); white-space:nowrap; }
+    td { padding:9px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+    .card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:18px 22px; margin:14px 0; }
+    .card.note { border-left:3px solid var(--accent); }
+    .card.note::before { content:'◆ 工程判断'; display:block; color:#a5b4fc; font-weight:600; font-size:0.85em; margin-bottom:6px; }
+    .card.good { border-left:3px solid var(--green); }
+    .card.good::before { content:'✓ 推荐'; display:block; color:var(--green); font-weight:600; font-size:0.85em; margin-bottom:6px; }
+    .card.bad { border-left:3px solid var(--red); }
+    .card.bad::before { content:'✕ 不推荐'; display:block; color:var(--red); font-weight:600; font-size:0.85em; margin-bottom:6px; }
+    .card.warn { border-left:3px solid var(--orange); }
+    .card.warn::before { content:'⚠ 容易踩的坑'; display:block; color:var(--orange); font-weight:600; font-size:0.85em; margin-bottom:6px; }
+    .dim { color:var(--dim); }
+    .small { font-size:0.86em; color:var(--dim); }
+    .pill { display:inline-block; padding:2px 8px; border-radius:999px; background:rgba(99,102,241,0.12);
+            color:#a5b4fc; font-size:0.78em; margin:2px 4px 2px 0; }
+    .pill.g { background:rgba(16,185,129,0.12); color:#6ee7b7; }
+    .pill.o { background:rgba(249,115,22,0.12); color:#fdba74; }
+    .pill.r { background:rgba(239,68,68,0.12); color:#fca5a5; }
+    .checklist { list-style:none; margin-left:0; }
+    .checklist li { margin:7px 0; padding-left:24px; position:relative; }
+    .checklist li::before { content:'☐'; position:absolute; left:0; color:var(--accent); }
+    figure { margin:22px 0; }
+    figure svg { width:100%; height:auto; display:block; background:var(--surface); border:1px solid var(--border); border-radius:12px; }
+    figcaption { color:var(--dim); font-size:0.82em; margin-top:8px; text-align:center; }
+    svg text { font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif; }
+    .footer { margin-top:60px; padding-top:20px; border-top:1px solid var(--border); color:var(--dim); font-size:0.82em; }
+    .footer a { color:var(--accent); }
+</style>
+</head>
+<body>
+<div class="container">
+    <a class="back" href="index.html">← 返回嵌入式分类</a>
+    <h1>IMU 姿态融合工程指南：Madgwick、EKF 与场景化选型</h1>
+    <p class="sub">从 x-IMU3 / ATOM-IMU 固件、工业实现与同台数据出发 · 2026-10-20 · 知识库版</p>
+
+    <div class="card good">
+        <b>一页结论</b>
+        <ul>
+            <li><b>精度上限由观测质量决定，不由滤波器类别决定。</b>重力给 2 个自由度、磁给 1 个自由度；
+                标定、温漂、磁干扰、时间戳才是长期误差的主因。</li>
+            <li><b>Madgwick → EKF 串联有论文，但不是一个好范式。</b>同一组 IMU 被用了两次，
+                信息重复、误差相关、延迟叠加，而且没有新增信息。</li>
+            <li><b>工业界的主流是“单估计器 + IMU 只做预测 + 多速率观测 + 延迟补偿”。</b>
+                PX4、ArduPilot、VectorNav、x-IMU3 都没有把 AHRS 输出再喂给 EKF。</li>
+            <li><b>M4F/M7 直接上单 ES-EKF；M0+ 用 Madgwick 快路 + 慢速零偏/温漂 EKF 反馈。</b>
+                算力不是 400 Hz–1 kHz 姿态融合的瓶颈。</li>
+            <li><b>场景决定选型：</b>无人机内环用原始陀螺 PID、姿态只做外环；机器人要 ZUPT/轮速；
+                空鼠/手柄是 6 轴相对指向，不需要绝对航向，也不需要 EKF。</li>
+        </ul>
+    </div>
+
+    <h2>§1 先画误差预算：姿态估计到底在估什么</h2>
+    <p>姿态融合不是“把两个算法拼起来”，而是一个观测问题。先把可观测性和误差源画清楚，
+    再决定用 Madgwick、EKF 还是混合结构，顺序不能反。</p>
+
+    <div class="card">
+        <b>连续时间模型（body → nav）</b>
+<pre><code>q̇ = ½ · q ⊗ (ω_m − b_g − n_g)
+a_m = R(q)ᵀ · (a_nav − g) + b_a + n_a
+m_m = R(q)ᵀ · m_nav + n_m</code></pre>
+        <p class="small" style="margin-bottom:0">陀螺提供姿态的“传播”，加计/磁提供“修正”；
+        零偏 b 和安装/标定误差是参数，不是观测量。</p>
+    </div>
+
+    <div class="table-wrap">
+    <table>
+        <thead><tr><th>误差源</th><th>能否直接观测</th><th>谁负责</th><th>典型后果</th></tr></thead>
+        <tbody>
+            <tr><td>陀螺零偏 / 温漂</td><td>否（只能通过姿态误差间接估计）</td><td>EKF 状态、P7 温补、ATOM 恒温</td><td>yaw 缓慢漂移；短时姿态跟踪滞后</td></tr>
+            <tr><td>加计零偏 / 线加速度</td><td>重力方向可观测，线加速度是干扰</td><td>门控、自适应 R、ZUPT、振动隔离</td><td>roll/pitch 被拉偏；动态时尤其明显</td></tr>
+            <tr><td>磁干扰</td><td>航向可观测，但可信度未知</td><td>幅值/方向门控、锚定航向、6 轴降级</td><td>yaw 跳变或缓慢爬行</td></tr>
+            <tr><td>轴灵敏度 / 安装失准</td><td>否（需要外部基准）</td><td>产线 12/15 参数标定、安装矩阵</td><td>系统性 tilt/heading 误差，滤波器修不掉</td></tr>
+            <tr><td>采样/传输延迟</td><td>可测（时间戳）</td><td>FIFO、延迟补偿、硬件时间戳</td><td>动态跟踪滞后；控制环路相位裕度下降</td></tr>
+            <tr><td>振动 / 混叠</td><td>部分可测</td><td>隔振、抗混叠、陷波</td><td>姿态抖动、加计观测被污染</td></tr>
+        </tbody>
+    </table>
+    </div>
+
+    <div class="card note">
+        <b>滤波器不能创造观测。</b>如果磁力计被电机电流干扰、加计被振动污染、零偏随温度漂移，
+        换一个“更高级”的滤波器只能改变权重，不能把误差源消掉。精度提升的优先级永远是：
+        <b>标定/安装 &gt; 温度治理 &gt; 观测门控 &gt; 滤波器结构 &gt; 调参</b>。
+    </div>
+
+    <h2>§2 三个实现给出的证据</h2>
+    <p>把两家商业固件和自研 EKF 放在同一张表里，能看到一个很明确的分工：
+    商业产品的差距主要在“输入误差”和“观测鲁棒性”，而不是姿态更新公式。</p>
+
+    <div class="table-wrap">
+    <table>
+        <thead><tr><th>实现</th><th>估计器</th><th>观测</th><th>零偏 / 温度</th><th>算力（400 Hz）</th></tr></thead>
+        <tbody>
+            <tr><td><b>x-IMU3</b></td><td>Madgwick 9 轴</td><td>加计 + 磁，每拍参与；抑制计数器</td><td>初始化窗口均值；温度只上报</td><td>≈0.1% @M4F</td></tr>
+            <tr><td><b>ATOM-IMU</b></td><td>Madgwick 6 轴</td><td>仅加计；无磁</td><td>专用零偏状态 + 恒温 + 4 姿态标定</td><td>与 Madgwick 同量级</td></tr>
+            <tr><td><b>自研 EKF7</b></td><td>7 状态全量 EKF</td><td>ZUPT + 磁航向；增强版加重力观测</td><td>静止分窗均值；增强版零偏进状态</td><td>≈2–5% @M4F</td></tr>
+        </tbody>
+    </table>
+    </div>
+
+    <p>同一份 70 s / 200 Hz 合成数据上的姿态误差（t ≥ 22 s，单位：度）：</p>
+    <div class="table-wrap">
+    <table>
+        <thead><tr><th>实现</th><th>roll</th><th>pitch</th><th>yaw</th><th>磁干扰段 yaw</th><th>尾段漂移</th></tr></thead>
+        <tbody>
+            <tr><td>EKF7 原始</td><td>0.175</td><td>0.150</td><td>1.700</td><td>0.961</td><td>−0.005 °/min</td></tr>
+            <tr><td>EKF7 增强（ES-EKF + 重力观测 + 门控）</td><td>0.172</td><td>0.149</td><td>1.005</td><td>1.252</td><td>+0.274 °/min</td></tr>
+            <tr><td>Madgwick 9 轴（x-IMU3）</td><td><b>0.124</b></td><td><b>0.113</b></td><td><b>0.340</b></td><td><b>0.439</b></td><td>−2.347 °/min</td></tr>
+            <tr><td>Madgwick 6 轴（ATOM）</td><td>0.147</td><td>0.146</td><td>0.900</td><td>0.906</td><td>−0.180 °/min</td></tr>
+        </tbody>
+    </table>
+    </div>
+
+    <div class="card note">
+        <b>怎么读这张表：</b>Madgwick9 的瞬态最好，EKF 的尾段漂移最好。
+        6 轴 Madgwick 的 0.9° yaw 是合成数据的“零偏恒定”红利——真机温漂会让它退化，
+        这正是 ATOM 要加恒温槽的原因。<b>没有哪个实现全面胜出，只有场景匹配。</b>
+    </div>
+
+    <h2>§3 学术界的混合方案：能串，但不划算</h2>
+    <p>“Madgwick 先出四元数，再喂给 EKF”确实有论文。Kong 等 2023 年的
+    <i>Attitude solving method based on fusion of Madgwick and EFK</i>
+    （YAC 2023，<a href="https://doi.org/10.1109/YAC59482.2023.10401414">DOI 10.1109/YAC59482.2023.10401414</a>）
+    做的就是这个：Madgwick 先融合 IMU 得到初始四元数，再把四元数作为 EKF 的观测量；
+    EKF 的状态方程仍由角速度和加速度建立。论文报告对加计突变/非重力加速度的抑制更好。</p>
+
+    <div class="card bad">
+        <b>问题在于“同源”。</b>EKF 的预测又用了 Madgwick 已经用过的同一组陀螺和加计，
+        两个估计器的误差相关，Kalman 的观测噪声独立性假设被破坏；论文没有做协方差一致性分析。
+        这类方案可以作为一个“平滑器”在特定数据上有效，但不是产品级的最佳实践。
+    </div>
+
+    <p>更根本的一点：Jensen 2011 的
+    <i>Generalized Nonlinear Complementary Attitude Filter</i>
+    （<a href="https://arxiv.org/abs/1110.0274">arXiv:1110.0274</a>）证明，
+    <b>无零偏、常增益的乘性 EKF 是广义非线性互补滤波器的特例</b>。
+    Madgwick/Mahony 与 EKF 不是两个独立传感器，而是同一观测器家族的不同参数化。
+    串联不会引入新的独立观测，只是把同一份信息换一种方式再算一遍。</p>
+
+    <div class="table-wrap">
+    <table>
+        <thead><tr><th>工作</th><th>做法</th><th>对我们的意义</th></tr></thead>
+        <tbody>
+            <tr><td>Kong 等, YAC 2023<br><a href="https://doi.org/10.1109/YAC59482.2023.10401414">DOI</a></td><td>串联 Madgwick → EKF，四元数当观测</td><td>证明“能跑”；但同源信息重复，未处理相关性</td></tr>
+            <tr><td>Jensen 2011<br><a href="https://arxiv.org/abs/1110.0274">arXiv:1110.0274</a></td><td>广义非线性互补滤波器</td><td>常增益 MEKF 是互补滤波特例：两者同源</td></tr>
+            <tr><td>Ludwig &amp; Burnham 2018<br><a href="https://doi.org/10.1109/ICUAS.2018.8453465">DOI</a></td><td>四旋翼飞行数据上对比 EKF / Madgwick / Mahony</td><td>同类问题的系统性对比</td></tr>
+            <tr><td>Teague 2016<br><a href="https://arxiv.org/abs/1602.07733">arXiv:1602.07733</a></td><td>推导互补滤波 / EKF / UKF 并对比</td><td>评估“更复杂的估计器是否值得”</td></tr>
+            <tr><td>Yamagishi &amp; Jing 2026<br><a href="https://arxiv.org/abs/2607.05451">arXiv:2607.05451</a></td><td>四元数平均的自适应互补滤波</td><td>低 RMSE、算力低于 Kalman；轻量滤波器仍有机会</td></tr>
+            <tr><td>Madyastha 2011<br><a href="https://doi.org/10.2514/6.2011-6615">DOI</a></td><td>EKF vs 误差状态 EKF</td><td>支持 ES-EKF 的选择</td></tr>
+            <tr><td>Feng 2024<br><a href="https://doi.org/10.23919/CCC63176.2024.10661750">DOI</a></td><td>多速率 Kalman 无人机姿态</td><td>多速率调度是低延迟的正解之一</td></tr>
+        </tbody>
+    </table>
+    </div>
+
+    <h3>为什么串联不划算：四条硬理由</h3>
+    <ol>
+        <li><b>信息重复：</b>Madgwick 已经用了 gyro + accel + mag；EKF 再用同一组数据，
+            两个估计误差相关，<code>R</code> 无法正确建模，滤波器会过度自信。</li>
+        <li><b>没有新增信息：</b>姿态可观测性来自重力（2 自由度）+ 磁航向（1 自由度），
+            两个滤波器用同一份观测，稳态精度下限相同；串联最多是平滑，不会降低噪声底。</li>
+        <li><b>延迟叠加：</b>Madgwick 的跟踪延迟约一个采样周期，EKF 再加一个；
+            串联后比任何单滤波器都慢。</li>
+        <li><b>理论同源：</b>常增益、无零偏的乘性 EKF 就是互补滤波的特例（Jensen 2011），
+            “融合”并没有引入第二个独立传感器。</li>
+    </ol>
+
+    <h2>§4 工业界：一个估计器，IMU 只做预测</h2>
+    <p>查一圈官方文档和源码，主流产品的结构高度一致：<b>一个估计器，IMU 负责预测，
+    辅助传感器负责修正，传感器延迟用时间戳/FIFO 补偿，而不是再串一个姿态滤波器。</b></p>
+
+    <div class="table-wrap">
+    <table>
+        <thead><tr><th>产品 / 项目</th><th>架构</th><th>关键事实</th><th>外部姿态？</th></tr></thead>
+        <tbody>
+            <tr><td><b>PX4 EKF2</b></td><td>24 状态 ES-EKF</td><td>IMU 只用于状态预测，不作为观测；磁力计最低 5 Hz；延迟融合时间轴 + 每传感器 FIFO + 前向传播</td><td>否；外部 vision 主要给高度/航向</td></tr>
+            <tr><td><b>ArduPilot EKF3</b></td><td>24 状态</td><td>四元数、速度、位置、陀螺零偏、加计零偏、地球/机体磁场、风速；多核并行做冗余</td><td>否</td></tr>
+            <tr><td><b>VectorNav VN-100</b></td><td>VPE 2.0</td><td>400 Hz 导航/姿态，800 Hz IMU；外部输入是磁力计/速度</td><td>否</td></tr>
+            <tr><td><b>x-IMU3</b></td><td>Madgwick</td><td>AHRS 400 Hz，磁力计仅 20 Hz；静态倾角 0.5° RMS、航向 1° RMS；温度只用于标定</td><td>否</td></tr>
+        </tbody>
+    </table>
+    </div>
+
+    <p class="small">来源：
+    <a href="https://docs.px4.io/main/en/advanced_config/tuning_the_ecl_ekf.html">PX4 EKF2 文档</a>、
+    <a href="https://raw.githubusercontent.com/ArduPilot/ardupilot/master/libraries/AP_NavEKF3/AP_NavEKF3_core.h">ArduPilot AP_NavEKF3_core.h</a>、
+    <a href="https://www.vectornav.com/products/detail/vn-100">VectorNav VN-100</a>、
+    <a href="https://x-io.co.uk/x-imu3/">x-io x-IMU3</a>。</p>
+
+    <div class="card note">
+        PX4 文档里有一句非常关键的话：<b>“IMU data is used for state prediction only and is not used as an observation.”</b>
+        这就是工业界避免“同源重复计数”的标准做法。ArduPilot 的 EKF3 状态表里也没有“外部 AHRS 姿态”这一项。
+    </div>
+
+    <h2>§5 四条正确路线</h2>
+    <div class="table-wrap">
+    <table>
+        <thead><tr><th>路线</th><th>结构</th><th>延迟</th><th>精度收益来源</th><th>适用</th></tr></thead>
+        <tbody>
+            <tr><td style="white-space:nowrap"><b>A · 单 ES-EKF</b></td><td>IMU 只做预测；重力/磁矢量/ZUPT 做观测；磁用 3D 矢量而不是 1D 航向；观测可顺序标量更新</td><td>≈1&nbsp;拍</td><td>协方差加权、零偏进状态、温漂斜率</td><td>M4F / M7，最推荐</td></tr>
+            <tr><td style="white-space:nowrap"><b>B · 快慢分工</b></td><td>Madgwick 在 IMU 速率跑快路；3–6 状态 EKF 在 1–10 Hz 估计零偏/温漂并反馈</td><td>≈1&nbsp;拍（快路）</td><td>长期零偏/温漂；快路延迟不变</td><td>M0+ / 低功耗</td></tr>
+            <tr><td style="white-space:nowrap"><b>C · 并行监督</b></td><td>Madgwick 与 EKF 并行，用姿态差/新息做磁干扰检测与故障切换；若要融合用协方差交叉</td><td>≈1 拍</td><td>鲁棒性/故障检测，不是降噪</td><td>安全关键、冗余</td></tr>
+            <tr><td style="white-space:nowrap"><b>D · 固定滞后平滑</b></td><td>保留最近 N 拍做固定滞后优化（VIO/LIO 常用）</td><td>10–50&nbsp;ms</td><td>重线性化 + 未来观测，精度最高</td><td>可接受滞后的高精度场景</td></tr>
+        </tbody>
+    </table>
+    </div>
+
+    <figure>
+    <svg viewBox="0 0 820 380" role="img" aria-label="串联与快慢分工对比">
+        <defs>
+            <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M0,0 L10,5 L0,10 z" fill="#9ca3af"/>
+            </marker>
+            <marker id="arg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M0,0 L10,5 L0,10 z" fill="#10b981"/>
+            </marker>
+        </defs>
+
+        <text x="24" y="28" font-size="13" font-weight="700" fill="#fca5a5">不推荐：同源串联</text>
+        <rect x="24" y="44" width="772" height="120" rx="10" fill="none" stroke="#ef4444" stroke-dasharray="5 4" opacity="0.55"/>
+        <rect x="44" y="70" width="150" height="58" rx="8" fill="#1a1a1f" stroke="#ef4444"/>
+        <text x="119" y="94" text-anchor="middle" font-size="12" font-weight="600" fill="#e8e8ec">IMU</text>
+        <text x="119" y="112" text-anchor="middle" font-size="10" fill="#9ca3af">gyro / accel / mag</text>
+        <line x1="194" y1="99" x2="236" y2="99" stroke="#9ca3af" stroke-width="1.4" marker-end="url(#ar)"/>
+        <rect x="240" y="70" width="150" height="58" rx="8" fill="#1a1a1f" stroke="#ef4444"/>
+        <text x="315" y="94" text-anchor="middle" font-size="12" font-weight="600" fill="#e8e8ec">Madgwick 9 轴</text>
+        <text x="315" y="112" text-anchor="middle" font-size="10" fill="#9ca3af">先算一遍 q</text>
+        <line x1="390" y1="99" x2="432" y2="99" stroke="#9ca3af" stroke-width="1.4" marker-end="url(#ar)"/>
+        <rect x="436" y="70" width="150" height="58" rx="8" fill="#1a1a1f" stroke="#ef4444"/>
+        <text x="511" y="94" text-anchor="middle" font-size="12" font-weight="600" fill="#e8e8ec">EKF</text>
+        <text x="511" y="112" text-anchor="middle" font-size="10" fill="#9ca3af">q 当观测，再用同一组 IMU</text>
+        <line x1="586" y1="99" x2="628" y2="99" stroke="#9ca3af" stroke-width="1.4" marker-end="url(#ar)"/>
+        <rect x="632" y="70" width="140" height="58" rx="8" fill="#1a1a1f" stroke="#ef4444"/>
+        <text x="702" y="94" text-anchor="middle" font-size="12" font-weight="600" fill="#e8e8ec">q_out</text>
+        <text x="702" y="112" text-anchor="middle" font-size="10" fill="#9ca3af">延迟叠加</text>
+        <text x="410" y="152" text-anchor="middle" font-size="10.5" fill="#fca5a5">同一组 IMU 被用两次 → 误差相关 → R 不可信 → 没有新增信息</text>
+
+        <text x="24" y="214" font-size="13" font-weight="700" fill="#6ee7b7">推荐：快慢分工</text>
+        <rect x="24" y="230" width="772" height="130" rx="10" fill="none" stroke="#10b981" stroke-dasharray="5 4" opacity="0.45"/>
+        <rect x="44" y="252" width="150" height="56" rx="8" fill="#1a1a1f" stroke="#10b981"/>
+        <text x="119" y="275" text-anchor="middle" font-size="12" font-weight="600" fill="#e8e8ec">IMU</text>
+        <text x="119" y="292" text-anchor="middle" font-size="10" fill="#9ca3af">原始数据</text>
+        <line x1="194" y1="280" x2="236" y2="280" stroke="#10b981" stroke-width="1.4" marker-end="url(#arg)"/>
+        <rect x="240" y="252" width="180" height="56" rx="8" fill="#1a1a1f" stroke="#10b981"/>
+        <text x="330" y="275" text-anchor="middle" font-size="12" font-weight="600" fill="#e8e8ec">Madgwick 快路</text>
+        <text x="330" y="292" text-anchor="middle" font-size="10" fill="#9ca3af">IMU 速率 · 延迟 ≈1 拍</text>
+        <line x1="420" y1="280" x2="462" y2="280" stroke="#10b981" stroke-width="1.4" marker-end="url(#arg)"/>
+        <rect x="466" y="252" width="150" height="56" rx="8" fill="#1a1a1f" stroke="#10b981"/>
+        <text x="541" y="275" text-anchor="middle" font-size="12" font-weight="600" fill="#e8e8ec">q_out</text>
+        <text x="541" y="292" text-anchor="middle" font-size="10" fill="#9ca3af">立即可用</text>
+
+        <line x1="119" y1="308" x2="119" y2="330" stroke="#9ca3af" stroke-width="1.3" stroke-dasharray="4 3"/>
+        <line x1="119" y1="330" x2="240" y2="330" stroke="#9ca3af" stroke-width="1.3" stroke-dasharray="4 3" marker-end="url(#ar)"/>
+        <rect x="244" y="308" width="180" height="40" rx="8" fill="#1a1a1f" stroke="#f59e0b"/>
+        <text x="334" y="326" text-anchor="middle" font-size="11" font-weight="600" fill="#fde68a">慢速 EKF · 1–10 Hz</text>
+        <text x="334" y="341" text-anchor="middle" font-size="9.5" fill="#9ca3af">估零偏 / 温漂</text>
+        <path d="M244 328 C210 328 210 280 236 280" fill="none" stroke="#f59e0b" stroke-width="1.3" stroke-dasharray="4 3" marker-end="url(#ar)"/>
+    </svg>
+    <figcaption>图 1 · 串联把同一份信息用两次；快慢分工把“姿态”和“零偏/温漂”拆到两个时间尺度上，慢速 EKF 估计的 b / k_T 反馈给快路，快路延迟不变。</figcaption>
+    </figure>
+
+    <div class="card good">
+        <b>路线 A 的关键细节：</b>磁观测尽量用 3D 矢量而不是 1D 航向；观测按轴顺序做标量更新，
+        避免大矩阵求逆；时间戳可变 <code>dt</code>；对磁/加计做幅值与方向双重门控。
+        这套结构在 M4F 上 400 Hz 只占约 5%，在 M7 上 1 kHz 仍有大量余量。
+    </div>
+
+    <h2>§6 场景化选型</h2>
+    <p>先问三个问题，再谈算法：<b>要不要绝对航向？要不要速度/位置？内环控制速率多高？</b>
+    这三个答案基本决定了传感器、MCU 和滤波器。</p>
+
+    <div class="table-wrap">
+    <table>
+        <thead><tr><th>场景</th><th>传感器</th><th>MCU</th><th>算法</th><th>延迟目标</th><th>关键点</th></tr></thead>
+        <tbody>
+            <tr><td><b>无人机</b><br><span class="small">穿越 / 航拍</span></td><td>ICM-42688-P / BMI088；磁 IST8310 / RM3100；气压 DPS310</td><td>STM32H743 / H723 / G4</td><td>内环 raw gyro PID + 姿态 ES-EKF6/9</td><td>速率环 &lt;1 ms；姿态 &lt;2.5 ms</td><td>振动/陷波/隔振；磁只在定位模式用</td></tr>
+            <tr><td><b>机器人</b><br><span class="small">轮式 / 足式 / 机械臂</span></td><td>BMI088 / ICM-42688；磁 RM3100；轮速 / GNSS</td><td>STM32F4 / H7</td><td>ES-EKF9/12 + ZUPT + 轮速</td><td>5–20 ms</td><td>室内磁干扰；温漂；6 轴 + 轮速航向</td></tr>
+            <tr><td><b>空鼠 / 遥控器</b></td><td>BMI270 / LSM6DSO / ICM-42688（6 轴）</td><td>nRF52840 / nRF5340 / STM32L4</td><td>Madgwick6 / 互补 + 零偏跟踪</td><td>&lt;10 ms</td><td>无磁；相对指向；静止回中；低功耗</td></tr>
+            <tr><td><b>游戏手柄</b></td><td>LSM6DSV / LSM6DSO / ICM-42688</td><td>nRF52 / STM32L4 / RP2040</td><td>互补 / Madgwick6 + 出厂校准</td><td>有线 &lt;5 ms；BLE &lt;10 ms</td><td>成本 / 功耗 / 体感；无绝对航向</td></tr>
+            <tr><td><b>AR/VR 手柄</b></td><td>6 轴 + 可选磁 / 光学</td><td>nRF52 / H7</td><td>Madgwick6 + 视觉融合</td><td>&lt;5 ms</td><td>低延迟；遮挡；漂移回中</td></tr>
+            <tr><td><b>可穿戴 / 行人</b></td><td>6 轴 + 磁</td><td>nRF52 / Apollo4</td><td>Madgwick9 + ZUPT</td><td>10–20 ms</td><td>功耗；磁干扰；步态</td></tr>
+        </tbody>
+    </table>
+    </div>
+
+    <h3>无人机：姿态不是内环</h3>
+    <p>飞控通常是串级结构：<b>角度误差 → 角速率设定 → PID（陀螺原始值）</b>。
+    最快的内环直接用扣除零偏/滤波后的陀螺，不经过姿态解算，所以 AHRS 的 1–2 拍延迟
+    <b>不进入速率环</b>。姿态只用于自稳、定高、定点的外环，以及导航。
+    这也意味着：无人机不需要为了“控制延迟”去把 Madgwick 和 EKF 串起来；
+    真正要保证的是 SPI/DMA、时间戳、中断优先级和振动治理。</p>
+
+    <h3>机器人：要长期稳定，不是极致瞬态</h3>
+    <p>ZUPT、轮速/里程计、GNSS/视觉通常比“更复杂的姿态滤波器”更值钱。
+    室内磁干扰严重时，航向优先用轮速/视觉，磁只做辅助；ES-EKF9/12 把零偏和温漂放进状态，
+    100–400 Hz、5–20 ms 延迟完全可以接受。</p>
+
+    <h3>空鼠：6 轴 + 相对指向</h3>
+    <p>室内磁场不可信，yaw 本来不可观测。正确做法是相对指向 + 静止/按键回中，
+    而不是硬上 9 轴或 EKF。Madgwick6 或互补滤波 + 零偏跟踪就够；100–200 Hz，
+    延迟主要来自 BLE 连接间隔，而不是算法。</p>
+
+    <h3>游戏手柄：成本、功耗、延迟</h3>
+    <p>体感/瞄准用陀螺，倾斜用加计；互补或 Madgwick6 足够，不做绝对航向。
+    关键在出厂零偏/灵敏度校准、静止零偏跟踪、低功耗待机，以及别在传感器端做重滤波。
+    有线目标 &lt;5 ms，BLE 目标 &lt;10 ms，报告率按游戏类型选 100–1000 Hz。</p>
+
+    <div class="card note">
+        <b>选型顺序：</b>观测量（绝对航向？速度/位置？）→ 内环速率 → MCU
+        （M0+ Madgwick / M4F ES-EKF6 / M7 ES-EKF9-12）→ IMU
+        （陀螺噪声密度/零偏稳定性优先于量程；动态选高 ODR/抗振；电池设备选低功耗）
+        → 温度方案（恒温 / P7 温补 / 产线标定）。
+    </div>
+
+    <h2>§7 延迟预算：算力通常不是瓶颈</h2>
+    <p>端到端延迟可以拆成五项：</p>
+    <pre><code>t_e2e = t_sample + t_bus + t_filter + t_schedule + t_transport</code></pre>
+    <ul>
+        <li><b>t_sample：</b>采样周期。400 Hz 是 2.5 ms；1 kHz 是 1 ms。</li>
+        <li><b>t_bus：</b>SPI/I2C 读取 + DMA，通常几十 µs 到几百 µs；I2C 是高速场景的真瓶颈。</li>
+        <li><b>t_filter：</b>姿态解算本身。Madgwick ≈2.7 µs、EKF7 float ≈53 µs、ES-EKF6 ≈126 µs（M4F @170 MHz）。</li>
+        <li><b>t_schedule：</b>任务调度/中断优先级；不要让矩阵运算阻塞速率环。</li>
+        <li><b>t_transport：</b>USB/BLE/无线。BLE 连接间隔 7.5–15 ms，往往比滤波大一个数量级。</li>
+    </ul>
+
+    <div class="table-wrap">
+    <table>
+        <thead><tr><th>链路</th><th>采样</th><th>滤波</th><th>传输</th><th>量级</th></tr></thead>
+        <tbody>
+            <tr><td>无人机速率环（1 kHz，raw gyro）</td><td>1 ms</td><td>&lt;10 µs</td><td>板内</td><td>≈1 ms</td></tr>
+            <tr><td>无人机姿态（400 Hz，ES-EKF6）</td><td>2.5 ms</td><td>≈126 µs</td><td>板内</td><td>≈2.6 ms</td></tr>
+            <tr><td>机器人（200 Hz，ES-EKF9）</td><td>5 ms</td><td>≈0.2–0.3 ms</td><td>CAN/UART 1–5 ms</td><td>6–10 ms</td></tr>
+            <tr><td>空鼠（200 Hz，Madgwick6）</td><td>5 ms</td><td>≈3 µs</td><td>BLE 7.5–15 ms</td><td>12–20 ms</td></tr>
+            <tr><td>游戏手柄（1 kHz 有线）</td><td>1 ms</td><td>≈3 µs</td><td>USB ≈1 ms</td><td>≈2 ms</td></tr>
+        </tbody>
+    </table>
+    </div>
+    <p class="small">以上是预算量级，不是实测值；落地时用 GPIO 翻转 + 逻辑分析仪/示波器测
+    “采样中断 → 输出更新”的真实端到端延迟。</p>
+
+    <div class="card warn">
+        <b>“低延迟”不等于“算力低”。</b>400 Hz 周期 2.5 ms，而 EKF 只要 53–126 µs；
+        真正的延迟通常来自采样周期、BLE 连接间隔、传感器内部滤波和任务调度。
+        先测链路，再优化算法。
+    </div>
+
+    <h2>§8 落地检查清单</h2>
+
+    <h3>观测与结构</h3>
+    <ul class="checklist">
+        <li>是否明确“绝对航向从哪来”（磁 / 视觉 / 双天线 GNSS / 轮速）？没有就接受相对航向并设计回中。</li>
+        <li>IMU 是否只用于预测、辅助传感器是否作为观测？有没有把 AHRS 输出再喂给 EKF？</li>
+        <li>磁观测是 3D 矢量还是 1D 航向？是否做了幅值 + 方向双重门控？</li>
+        <li>零偏/温漂是否在状态里，或由慢速观测器估计？</li>
+    </ul>
+
+    <h3>器件与标定</h3>
+    <ul class="checklist">
+        <li>陀螺噪声密度、零偏稳定性、ODR 是否满足动态与带宽需求？（量程不是第一指标）</li>
+        <li>是否做了轴灵敏度、零偏、轴间/封装失准的 12/15 参数标定？</li>
+        <li>磁力计是否远离电源/电机/扬声器？结构件是否可磁化？</li>
+        <li>IMU 是否靠近旋转中心、刚性安装、隔振？</li>
+    </ul>
+
+    <h3>时间与调度</h3>
+    <ul class="checklist">
+        <li>是否用硬件时间戳而不是固定 <code>1/fs</code>？丢包/抖动时 <code>dt</code> 是否可变？</li>
+        <li>SPI/I2C 是否用 DMA？姿态解算是否在低优先级任务，不阻塞速率环？</li>
+        <li>传感器内部滤波/平均是否引入了额外群延迟？</li>
+        <li>端到端延迟是否用 GPIO/时间戳实测过，而不是只算 CPU 周期？</li>
+    </ul>
+
+    <h3>温度与验证</h3>
+    <ul class="checklist">
+        <li>是否评估了自热/环境温度对零偏的影响？有功耗预算就上恒温，没有就上 P7 温补。</li>
+        <li>是否在同一份真机数据上比较了静态噪声、动态跟踪、磁干扰、温度斜坡四类场景？</li>
+        <li>是否记录了失败模式（发散、yaw 跳变、静止误判）而不只是平均 RMSE？</li>
+        <li>是否用合成数据做机制验证、用真机数据做最终定参？</li>
+    </ul>
+
+    <h3>常见误区</h3>
+    <ol>
+        <li><b>把 Madgwick 的 q 喂给 EKF</b>：同源信息重复，协方差不可信。</li>
+        <li><b>只看静态噪声</b>：动态跟踪、磁干扰、温漂才是产品差异所在。</li>
+        <li><b>固定 1/fs</b>：不处理丢包和时钟偏差，动态误差会被放大。</li>
+        <li><b>M4F 上用 double</b>：软件双精度，成本约为 float 的 3–4 倍。</li>
+        <li><b>用欧拉角做滤波状态</b>：pitch ±90° 万向锁，误差模型非线性。</li>
+        <li><b>把“低延迟”只理解成算力</b>：BLE 连接间隔和传感器滤波往往更大。</li>
+        <li><b>忽略安装矩阵</b>：IMU 与机体不重合时，旋转会引入虚假加速度。</li>
+        <li><b>用合成数据代替真机回归</b>：合成数据的恒定零偏会高估 6 轴算法的性能。</li>
+    </ol>
+
+    <h2>§9 参考资料与代码</h2>
+
+    <h3>代码与项目</h3>
+    <ul>
+        <li><b>本项目完整档案</b>：<a href="https://github.com/APX103/fusion-design-proposal">github.com/APX103/fusion-design-proposal</a>
+            —— 三套实现、固件反编译、伪代码、共享测试数据、基准与评测脚本。</li>
+        <li><b>ATOM-IMU 上游</b>：<a href="https://github.com/xrobot-org/atom-sdk">github.com/xrobot-org/atom-sdk</a>
+            —— 恒温、温态标定、6 轴 Madgwick 的固件与文档来源。</li>
+        <li><b>PX4</b>：<a href="https://github.com/PX4/PX4-Autopilot">github.com/PX4/PX4-Autopilot</a>
+            —— EKF2、延迟融合时间轴、传感器 FIFO。</li>
+        <li><b>ArduPilot</b>：<a href="https://github.com/ArduPilot/ardupilot">github.com/ArduPilot/ardupilot</a>
+            —— EKF3 的 24 状态实现。</li>
+        <li><b>robot_localization</b>：<a href="https://github.com/cra-ros-pkg/robot_localization">github.com/cra-ros-pkg/robot_localization</a>
+            —— ROS 里 IMU/里程计/姿态的松耦合融合实践。</li>
+        <li><b>imu_tools / imu_filter_madgwick</b>：<a href="https://github.com/CCNYRoboticsLab/imu_tools">github.com/CCNYRoboticsLab/imu_tools</a>
+            —— ROS 社区的 Madgwick 实现与使用方式。</li>
+    </ul>
+
+    <h3>论文</h3>
+    <ul>
+        <li>M. Kong, S. Li, Z. Lv, “Attitude solving method based on fusion of Madgwick and EFK,” YAC 2023.
+            <a href="https://doi.org/10.1109/YAC59482.2023.10401414">DOI</a></li>
+        <li>K. Jensen, “Generalized Nonlinear Complementary Attitude Filter,” JGCD 2011.
+            <a href="https://arxiv.org/abs/1110.0274">arXiv:1110.0274</a></li>
+        <li>S. A. Ludwig, K. D. Burnham, “Comparison of Euler Estimate using Extended Kalman Filter, Madgwick and Mahony on Quadcopter Flight Data,” ICUAS 2018.
+            <a href="https://doi.org/10.1109/ICUAS.2018.8453465">DOI</a></li>
+        <li>H. Teague, “Comparison of Attitude Estimation Techniques for Low-cost Unmanned Aerial Vehicles,” 2016.
+            <a href="https://arxiv.org/abs/1602.07733">arXiv:1602.07733</a></li>
+        <li>S. Yamagishi, L. Jing, “Quaternion-Averaging-Based Adaptive Complementary Filter for Pedestrian Dead Reckoning,” 2026.
+            <a href="https://arxiv.org/abs/2607.05451">arXiv:2607.05451</a></li>
+        <li>V. Madyastha, “Extended Kalman Filter vs. Error State Kalman Filter for Aircraft Attitude Estimation,” AIAA GNC 2011.
+            <a href="https://doi.org/10.2514/6.2011-6615">DOI</a></li>
+        <li>W. Feng, “Multi-Rate Kalman Filter for UAV Attitude Estimation Based on Adaptive Disturbance Model,” CCC 2024.
+            <a href="https://doi.org/10.23919/CCC63176.2024.10661750">DOI</a></li>
+    </ul>
+
+    <h3>厂商文档</h3>
+    <ul>
+        <li>PX4 EKF2：<a href="https://docs.px4.io/main/en/advanced_config/tuning_the_ecl_ekf.html">docs.px4.io</a></li>
+        <li>ArduPilot EKF3 状态定义：<a href="https://raw.githubusercontent.com/ArduPilot/ardupilot/master/libraries/AP_NavEKF3/AP_NavEKF3_core.h">AP_NavEKF3_core.h</a></li>
+        <li>VectorNav VN-100：<a href="https://www.vectornav.com/products/detail/vn-100">vectornav.com</a></li>
+        <li>x-io x-IMU3：<a href="https://x-io.co.uk/x-imu3/">x-io.co.uk</a></li>
+    </ul>
+
+    <div class="card note">
+        本文是 Note 知识库的独立整理版，重点放在“怎么选、怎么算延迟、怎么落地”；
+        项目内的完整对比文档（含逐函数反编译、基准原始数据、三算法同台评测）在
+        <a href="https://github.com/APX103/fusion-design-proposal">fusion-design-proposal</a>，
+        两边的组织方式不同，项目文档保持原样。
+    </div>
+
+    <div class="footer">
+        2026-10-20 · Note 知识库 · 嵌入式 / IMU 姿态融合 ·
+        数据来自本地源码、固件静态逆向、ARM 交叉编译基准、公开论文摘要与厂商文档；
+        型号为工程建议，最终选型需按功耗、封装、供货与 EMC 复核。
+    </div>
+</div>
+</body>
+</html>
