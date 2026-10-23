@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stack-chan × DGX Spark — 桌面伴侣机器人完整方案</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+            line-height: 1.7;
+            color: #e2e8f0;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #312e81 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            box-shadow: 0 25px 80px rgba(0,0,0,0.5);
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.06);
+        }
+        .header {
+            background: linear-gradient(135deg, #1e3a8a 0%, #4f46e5 50%, #7c3aed 100%);
+            color: white;
+            padding: 50px 40px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 60%);
+            animation: pulse 6s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.5; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+        .header h1 { font-size: 2.3em; margin-bottom: 12px; position: relative; z-index: 1; }
+        .header .subtitle { font-size: 1.12em; opacity: 0.88; position: relative; z-index: 1; }
+        .header .meta-line { margin-top: 16px; position: relative; z-index: 1; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+        .header .meta-line span {
+            font-size: 0.8em; padding: 4px 14px; border-radius: 20px;
+            background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2);
+        }
+        .nav {
+            background: rgba(30, 41, 59, 0.9);
+            padding: 16px 40px;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+        .nav a {
+            color: #94a3b8;
+            text-decoration: none;
+            padding: 8px 18px;
+            border-radius: 8px;
+            font-size: 0.9em;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+        .nav a:hover {
+            color: #e2e8f0;
+            background: rgba(79, 70, 229, 0.15);
+            border-color: rgba(79, 70, 229, 0.3);
+        }
+        .content { padding: 40px; }
+        .section { margin-bottom: 48px; padding-bottom: 32px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+        .section:last-child { border-bottom: none; }
+        h2 {
+            color: #818cf8;
+            font-size: 1.7em;
+            margin-bottom: 24px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid rgba(99, 102, 241, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        h2 .icon { font-size: 0.9em; }
+        h3 { color: #a5b4fc; font-size: 1.25em; margin: 28px 0 16px; }
+        h4 { color: #c7d2fe; font-size: 1.08em; margin: 20px 0 10px; }
+        p { margin-bottom: 14px; color: #cbd5e1; }
+        ul, ol { margin: 0 0 14px 24px; color: #cbd5e1; }
+        li { margin-bottom: 8px; }
+        a { color: #818cf8; }
+        a:hover { color: #a5b4fc; }
+        strong { color: #e0e7ff; }
+        .highlight-box {
+            background: linear-gradient(135deg, rgba(79, 70, 229, 0.12), rgba(124, 58, 237, 0.08));
+            border-left: 4px solid #6366f1;
+            padding: 20px 24px;
+            border-radius: 0 12px 12px 0;
+            margin: 20px 0;
+            font-size: 0.95em;
+        }
+        .highlight-box strong { color: #e0e7ff; }
+        .highlight-box.warn {
+            border-left-color: #f59e0b;
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(245, 158, 11, 0.04));
+        }
+        .highlight-box.good {
+            border-left-color: #10b981;
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.04));
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 0.92em;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        th {
+            background: linear-gradient(135deg, rgba(79, 70, 229, 0.2), rgba(124, 58, 237, 0.15));
+            color: #e0e7ff;
+            padding: 14px 16px;
+            text-align: left;
+            font-weight: 600;
+        }
+        td {
+            padding: 12px 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            color: #cbd5e1;
+            vertical-align: top;
+        }
+        tr:hover td { background: rgba(99, 102, 241, 0.04); }
+        code {
+            background: rgba(30, 41, 59, 0.8);
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-family: "SF Mono", Monaco, "Cascadia Code", monospace;
+            font-size: 0.88em;
+            color: #a5b4fc;
+            border: 1px solid rgba(99, 102, 241, 0.1);
+        }
+        pre {
+            background: #0b1120;
+            padding: 20px;
+            border-radius: 12px;
+            overflow-x: auto;
+            margin: 16px 0;
+            border: 1px solid rgba(255,255,255,0.04);
+            font-size: 0.84em;
+            line-height: 1.6;
+        }
+        pre code { background: transparent; padding: 0; border: none; color: #94a3b8; }
+        .badge {
+            display: inline-block;
+            font-size: 0.75em;
+            padding: 2px 10px;
+            border-radius: 20px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .badge.ready { background: rgba(16, 185, 129, 0.15); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.3); }
+        .badge.modify { background: rgba(245, 158, 11, 0.15); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.3); }
+        .badge.new { background: rgba(244, 63, 94, 0.15); color: #fda4af; border: 1px solid rgba(244, 63, 94, 0.3); }
+        .ref-group { margin: 18px 0; }
+        .ref-group h4 { color: #a5b4fc; border-left: 3px solid #6366f1; padding-left: 12px; }
+        .ref-group ul { list-style: none; margin-left: 0; }
+        .ref-group li { padding: 8px 0 8px 16px; border-bottom: 1px dashed rgba(255,255,255,0.05); }
+        .ref-group li::before { content: '▸ '; color: #6366f1; }
+        .ref-group .ref-desc { color: #94a3b8; font-size: 0.9em; }
+        .footer {
+            text-align: center;
+            padding: 32px 40px;
+            color: #64748b;
+            font-size: 0.85em;
+            border-top: 1px solid rgba(255,255,255,0.06);
+        }
+        @media (max-width: 768px) {
+            .content { padding: 24px; }
+            .header { padding: 36px 20px; }
+            .header h1 { font-size: 1.7em; }
+            .nav { padding: 12px 16px; }
+            table { font-size: 0.82em; }
+            td, th { padding: 8px 10px; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <div class="header">
+        <h1>🤖 Stack-chan × DGX Spark</h1>
+        <div class="subtitle">桌面伴侣机器人完整方案 —— 给桌面机器人装一个住在 DGX Spark 上的大脑，让它成为整个 Agent 生态的肉身化身 + 无唤醒词的桌面伴侣</div>
+        <div class="meta-line">
+            <span>📅 2026-10-23</span>
+            <span>🏷️ 方案 v2 · 硬件未到货，P0 可先行</span>
+            <span>🧩 原则：不造轮子，只拼装</span>
+        </div>
+    </div>
+
+    <div class="nav">
+        <a href="#summary">摘要</a>
+        <a href="#hardware">背景与硬件</a>
+        <a href="#philosophy">设计哲学</a>
+        <a href="#architecture">总体架构</a>
+        <a href="#components">组件清单</a>
+        <a href="#hermes">Hermes 大脑</a>
+        <a href="#flows">数据流</a>
+        <a href="#models">模型矩阵</a>
+        <a href="#interaction">交互设计</a>
+        <a href="#network">网络与隐私</a>
+        <a href="#roadmap">路线图</a>
+        <a href="#risks">风险</a>
+        <a href="#tradeoffs">取舍</a>
+        <a href="#refs">资料汇编</a>
+        <a href="#related">关联笔记</a>
+    </div>
+
+    <div class="content">
+
+        <!-- ============ 摘要 ============ -->
+        <div class="section" id="summary">
+            <h2><span class="icon">📌</span> 摘要</h2>
+            <div class="highlight-box">
+                <p><strong>一句话定义：</strong>买回来的 M5Stack Stack-chan 桌面机器人只是"身体"，大脑住在一台 DGX Spark 上。它同时扮演两个角色：① <strong>整个 Agent 生态的肉身化身</strong>——任何 agent（ZCode、Hermes、cron、任意 MCP 客户端）都能调用它的嘴、脸、舵机、摄像头；② <strong>无唤醒词的桌面伴侣</strong>——听得懂"你是不是在跟我说话"，有记忆、有情绪、会主动、不用语音指令管理 session。</p>
+            </div>
+            <h3>三条设计哲学（所有取舍由此推导）</h3>
+            <ol>
+                <li><strong>身体归机器人，大脑归 Spark，中间一条 WiFi。</strong>机器人是瘦客户端：麦克风/扬声器/舵机/灯/脸/触摸的执行器，零智能，永远插电。</li>
+                <li><strong>机器人的一切能力收敛为一扇门。</strong>所有 agent 地位平等，通过同一个入口控制它，谁也不许绕过仲裁者直碰硬件。</li>
+                <li><strong>像不像活的 &gt; 聪不聪明。</strong>80% 的打磨给 idle 状态和主动性；延迟靠 backchannel（"我看一眼哈~"）和梯度响应（拿不准就只是抬头看一眼）化解，不靠堆参数。</li>
+            </ol>
+            <div class="highlight-box good">
+                <p><strong>核心结论：</strong>大脑（Hermes Agent）、身体（stackchan-mcp）、嘴耳（Pipecat）、全部模型服务都是现成的。真正要写的只有<strong>三块胶水，合计约 500 行</strong>：Pipecat 自定义 Transport、Pipecat↔Hermes 桥、Ear 受话检测编排环。</p>
+            </div>
+        </div>
+
+        <!-- ============ 背景与硬件 ============ -->
+        <div class="section" id="hardware">
+            <h2><span class="icon">🔧</span> 背景与硬件盘点</h2>
+            <h3>Stack-chan（M5Stack 官方 Kawaii 版，CoreS3 底座）</h3>
+            <table>
+                <tr><th>能力</th><th>细节</th></tr>
+                <tr><td>主控</td><td>ESP32-S3，240MHz 双核，16MB Flash / 8MB PSRAM，WiFi + BLE</td></tr>
+                <tr><td>感知</td><td>0.3MP 摄像头、双麦克风、接近+环境光传感器、9 轴 IMU、三区触摸面板、红外收发、NFC</td></tr>
+                <tr><td>表达</td><td>2.0" 电容触摸屏（画脸）、1W 扬声器、2 个反馈舵机（<strong>水平 360° 连续旋转</strong> + 俯仰 90°）、12 颗 RGB LED</td></tr>
+                <tr><td>供电</td><td>USB-C，550mAh 电池（当 UPS）</td></tr>
+                <tr><td>固件生态</td><td>全开源（<code>firmware / remote / app / server</code> 四目录）；官方固件 1.3.1+ 支持把 AI 会话重定向到本地服务器（写 NVS key，音频 WebSocket URL 动态下发）——<strong>官方本身就是瘦客户端架构</strong></td></tr>
+            </table>
+            <h3>DGX Spark（GB10）</h3>
+            <ul>
+                <li>128GB LPDDR5x 统一内存，~1 PFLOP FP4，10GbE RJ45 + WiFi 7，跑 DGX OS</li>
+                <li><code>gpt-oss-120b</code>（MXFP4）官方适配，vLLM / SGLang / LM Studio 均可服务；社区实测 Qwen3.5-35B-A3B 稳定 ~102 tok/s</li>
+                <li>定位：本地跑"快脑 + 深脑 + 全套语音模型"，零云依赖、零 API 费、数据不出内网</li>
+            </ul>
+            <div class="highlight-box">
+                <p><strong>项目动机：</strong>机器人作为既有 Agent 生态的一个"端"。ZCode 的任务完成播报、Hermes 的定时关怀、任意 MCP 客户端的摄像头请求——全部汇聚到这个桌面上的小身体。</p>
+            </div>
+        </div>
+
+        <!-- ============ 总体架构 ============ -->
+        <div class="section" id="architecture">
+            <h2><span class="icon">🏗️</span> 总体架构：Spark 上的一个服务</h2>
+            <pre><code>外部 Agent（ZCode hook / Hermes / cron / 任意 MCP 客户端）
+        │  MCP streamable-http + bearer token，LAN-only
+        ▼
+┌───────────────────── Spark：stackchan-brain ─────────────────────┐
+│                                                                  │
+│   MCP Server ─────────┐                                          │
+│   Pipecat 实时环 ───────┼──►  BodyGateway  ← 唯一碰设备硬件的类      │
+│   Ear（受话检测） ──────┘        · 设备客户端（WS音频 + HTTP）        │
+│                                 · 注意力仲裁（忙？排队？插话？）        │
+│   Hermes（大脑，独立进程）          · 全局状态（说话中/情绪/presence）    │
+│        ▲  ask_butler 委托        │                               │
+│        └────────────────────────┘                                │
+│   模型矩阵：vLLM（Qwen3-8B 常驻 / gpt-oss-120b 按需）                │
+│             faster-whisper · CosyVoice2 · silero VAD · 人脸检测     │
+└────────────────────────┬─────────────────────────────────────────┘
+                         │ WiFi：双向 WS 音频流 + HTTP 控制命令
+                ┌────────┴─────────┐
+                │ Stack-chan 自维护固件│  纯执行器 + 传感器，零智能
+                └──────────────────┘</code></pre>
+            <h3>融合原则（三条铁律）</h3>
+            <ol>
+                <li><strong>MCP 工具和 Pipecat 的 function call 都是同一个 BodyGateway 的薄封装</strong>——不要让 Pipecat 去调 MCP 协议（多绕一层），对话内工具就是进程内直调。</li>
+                <li><strong><code>say</code> 一律走 Pipecat 的 TTS 管线</strong>（克隆声线、流式、打断逻辑都在那），任何工具不许直连设备音频端点——否则会出现两个不同声音的机器人。</li>
+                <li><strong><code>listen</code> 直接读 Pipecat 管线的实时转写</strong>——麦克风只有一条路，stackchan-mcp 的后台轮询 voice bridge 整个不需要了。</li>
+            </ol>
+            <p>为什么是一个服务：Pipecat 是库不是平台，本来就嵌在进程里跑 asyncio；共享状态（音频忙闲、当前表情、presence、最近转写）是仲裁的全部依据，拆两个服务就得造 IPC。拆分的那条缝已经留好——未来要把 BodyGateway 升级成独立 HTTP 服务时，胶水层不变。</p>
+        </div>
+
+        <!-- ============ 组件清单 ============ -->
+        <div class="section" id="components">
+            <h2><span class="icon">🧩</span> 组件清单：现成 / 改造 / 新增</h2>
+            <p>本方案的核心纪律：<strong>不造轮子，只拼装。</strong>下表是全部工程量的盘点。</p>
+
+            <h3><span class="badge ready">现成</span> 装好 + 配置，零代码</h3>
+            <table>
+                <tr><th style="width:22%">组件</th><th style="width:40%">在系统里的角色</th><th>需要做的配置</th></tr>
+                <tr><td><strong>Hermes Agent</strong>（Nous Research，MIT，2026-02 发布）</td><td><strong>大脑</strong>：人格载体、持久记忆（跨 session 召回 + 用户建模）、skills、内置 cron（主动性）、MCP 客户端、IM 网关、subagents</td><td>provider 指向本地 vLLM；建 companion Bot（独立模型/记忆/skills/routines）；写人设 prompt 和几个 skill</td></tr>
+                <tr><td><strong>stackchan-mcp</strong>（社区，MIT）</td><td><strong>身体</strong>：MCP server（say / listen / see / move / nod / shake / home / face×7 表情 / sense / status 全套）+ 设备固件 + 宿主端人脸追踪</td><td>fork 后小改（见改造表）；作为 MCP server 挂给 Hermes 和 ZCode</td></tr>
+                <tr><td><strong>Pipecat</strong>（BSD-2）</td><td><strong>嘴和耳的执行层</strong>：VAD、barge-in、分句流式 TTS、STT/LLM 服务集成、自定义 Transport 基类</td><td>写自定义 Transport（见新增①）</td></tr>
+                <tr><td><strong>vLLM</strong></td><td>模型服务：Qwen3-8B 常驻 + gpt-oss-120b 按需（同时是 Hermes 的 provider）</td><td>部署，OpenAI 兼容端点</td></tr>
+                <tr><td><strong>faster-whisper</strong> / <strong>sherpa-onnx 流式 zipformer</strong></td><td>对话 ASR / Ear 常驻 ASR（CPU 可跑）</td><td>部署</td></tr>
+                <tr><td><strong>CosyVoice2 → GPT-SoVITS 微调</strong>（情感可选 IndexTTS2）</td><td>克隆声线 TTS（CosyVoice2 原生流式，首包 200–400ms）</td><td>准备参考音频；包成 OpenAI 兼容 <code>/v1/audio/speech</code></td></tr>
+                <tr><td><strong>silero VAD + Qwen3-0.6B</strong></td><td>Ear 的判断件</td><td>部署</td></tr>
+                <tr><td><strong>ZCode</strong></td><td>外部 agent 生态（已在用）</td><td>MCP 配置 + Stop hook（纯配置）</td></tr>
+            </table>
+
+            <h3><span class="badge modify">改造</span> fork / 小改，不写新系统</h3>
+            <table>
+                <tr><th style="width:30%">对象</th><th>改动</th><th style="width:16%">规模</th></tr>
+                <tr><td>stackchan-mcp 固件</td><td>双向 WS 音频流。<strong>后置优化</strong>：P1 先用现成的 HTTP 缓冲音频跑通（硬件未到正好不急）；这是延迟上唯一值得做的固件改动</td><td>后置</td></tr>
+                <tr><td>stackchan-mcp 服务端</td><td>① TTS/STT 从云（Fish Audio / Groq）指到本地端点；② <code>say</code> 加忙/闲检查</td><td>几十行改动</td></tr>
+            </table>
+
+            <h3><span class="badge new">新增</span> 真正要写的，只有三块胶水</h3>
+            <table>
+                <tr><th style="width:6%">#</th><th style="width:28%">东西</th><th style="width:14%">规模</th><th>说明</th></tr>
+                <tr><td>①</td><td><strong>Pipecat 自定义 Transport</strong></td><td>~150 行</td><td>机器人音频对接（mic 上行 / TTS 下行），Pipecat 提供基类照着写</td></tr>
+                <tr><td>②</td><td><strong>Pipecat ↔ Hermes 桥</strong></td><td>~100–200 行</td><td>每回合：转写 → Hermes（CLI 非交互 / Bot 通道，构建时读深度文档定）→ 回复 → TTS。<strong>桥只做传输，不做任何逻辑</strong>——人格、记忆、工具调用全在 Hermes 侧</td></tr>
+                <tr><td>③</td><td><strong>Ear 编排环</strong></td><td>~200 行</td><td>VAD / 流式 ASR / 0.6B judge 全是现成件；新写的只是编排循环 + 三档输出 + 梯度响应的动作映射。<strong>全系统唯一没有现成品的部分</strong>（2026 年开源界尚无"语义受话"打包方案，最接近的是 arXiv 2609.27037 论文方向）</td></tr>
+            </table>
+        </div>
+
+        <!-- ============ Hermes 大脑 ============ -->
+        <div class="section" id="hermes">
+            <h2><span class="icon">🧠</span> Hermes 为什么能当大脑（查证过的事实）</h2>
+            <p>OpenClaw 出局是<strong>工程质量问题</strong>（设计烂、卡），不是品类问题——同类的 Hermes Agent 更快更好，并且<strong>就是本方案的大脑本体</strong>，不是备胎。以下能力均已从官方文档核实：</p>
+            <table>
+                <tr><th style="width:30%">能力</th><th>官方事实</th><th style="width:34%">在本方案中的用途</th></tr>
+                <tr><td><strong>MCP 客户端</strong></td><td>官方支持"connect to MCP servers, filter their tools"</td><td>直接吃 stackchan-mcp → 机器人外设即插即用，零代码</td></tr>
+                <tr><td><strong>跨 session 持久记忆</strong></td><td>agent-curated memory + FTS5 跨会话召回（LLM 摘要）+ Honcho 用户建模 + skills 即程序性记忆</td><td>伴侣的记忆层。<strong>原方案中"记忆三层 + 蒸馏管线"整体取消</strong></td></tr>
+                <tr><td><strong>内置 cron + 投递到任意平台</strong></td><td>无人值守定时任务，送达 Telegram/Slack/Email 等</td><td>主动性引擎 = 几条定时任务（内心独白、晚安、日程），<strong>取消自建引擎</strong></td></tr>
+                <tr><td><strong>Bot 机制</strong></td><td>独立模型 / 记忆 / skills / routines / chats</td><td>companion 就是一个 Hermes Bot</td></tr>
+                <tr><td><strong>provider = any endpoint</strong></td><td>任意 OpenAI 兼容端点</td><td>走本地 vLLM，零云依赖</td></tr>
+                <tr><td><strong>subagents + 沙箱</strong></td><td>隔离子 agent，Docker 等五种隔离后端</td><td>复杂任务（"看下家里乱不乱"）的多步执行</td></tr>
+            </table>
+            <h3>Session 问题的最终答案</h3>
+            <div class="highlight-box good">
+                <p><strong>session 是交互的边界，记忆是独立于 session 的持久层。</strong>对话按物理边界切 session（Ear 判定受话 → 回合开始；N 分钟无受话 / 人离开 → 回合结束），session 本身短命、用完即弃——<strong>连续性由 Hermes 的跨 session 记忆承担</strong>。既不需要"永恒 session + 自动 compact"（compact 本质是丢信息），也不需要"每句话一个新 session"，更不需要任何语音 session 指令——边界是推断出来的，不是命令出来的。</p>
+            </div>
+            <div class="highlight-box warn">
+                <p><strong>已知风险：</strong>Hermes 没有文档化的 OpenAI 兼容服务端端点，程序化调用最可行的入口是 CLI 非交互模式或 Bot 通道（构建时读深度文档确认）。所以桥【②】必须做成适配层——Hermes 接口形态就算变，也只改这一块。</p>
+            </div>
+        </div>
+
+        <!-- ============ 数据流 ============ -->
+        <div class="section" id="flows">
+            <h2><span class="icon">🔀</span> 四条关键数据流（标注谁干的）</h2>
+
+            <h3>1. "帮我看下家里乱不乱"</h3>
+            <pre><code>你说话 → Ear 判定受话【新增③】→ 转头 → 桥送 Hermes【新增②】
+      → Hermes 调 MCP stackchan_see 拍照【现成】
+      → 视觉判断（provider 用 VL 模型）→ 回复 → TTS 出声【现成】
+→ 全程 3–6s，开头有 backchannel（"我看看哈~"）不冷场</code></pre>
+
+            <h3>2. ZCode 任务完成播报（"Agent 的一个端"本体）</h3>
+            <pre><code>ZCode Stop hook → MCP say("测试全过了") + face(happy)【纯配置】
+→ 机器人转头 + 变脸 + 用克隆声线播报</code></pre>
+
+            <h3>3. 主动性（晚间关怀 / 内心独白）</h3>
+            <pre><code>Hermes 内置 cron 触发 skill → 把最近发生的事给它看，问它"有什么想说的吗"
+→ 大多数时候选择沉默（克制才可爱）→ 想说时调 MCP say/face/move【纯配置 + 写 prompt】
+→ 它打瞌睡动画时段 = Hermes 整理记忆的时段：它在睡，内存在长</code></pre>
+
+            <h3>4. 打游戏不被打扰（无唤醒词受话检测）</h3>
+            <pre><code>对队友喊话 / 骂游戏 / 自言自语
+→ Ear 持续转写【新增③ + 现成流式 ASR】→ 判定非受话 → 忽略（转写不落盘）
+→ 偶尔一句拿不准 → 只抬头看一眼 + "嗯?"表情，不出声
+→ "小塔，帮我看看…" → 秒应，进入对话</code></pre>
+        </div>
+
+        <!-- ============ 模型矩阵 ============ -->
+        <div class="section" id="models">
+            <h2><span class="icon">📊</span> 模型矩阵与延迟预算</h2>
+            <table>
+                <tr><th>角色</th><th>模型</th><th>常驻内存</th><th>说明</th></tr>
+                <tr><td>快脑（对话 LLM）</td><td>Qwen3-8B via vLLM</td><td>~10GB</td><td>Hermes 的 provider，实时环专用</td></tr>
+                <tr><td>深脑（复杂任务）</td><td>gpt-oss-120b（MXFP4）</td><td>~65GB 按需</td><td>官方适配 Spark，vLLM/SGLang</td></tr>
+                <tr><td>视觉 VLM</td><td>Qwen2.5/Qwen3-VL-8B</td><td>~10GB</td><td>看照片 / 判断"乱不乱"</td></tr>
+                <tr><td>对话 ASR</td><td>faster-whisper large-v3-turbo</td><td>~2GB</td><td>Pipecat 管线内</td></tr>
+                <tr><td>耳 ASR（常驻）</td><td>sherpa-onnx 中文流式 zipformer</td><td>&lt;1GB</td><td>24h 转写，CPU 可跑</td></tr>
+                <tr><td>受话判断</td><td>Qwen3-0.6B</td><td>~1GB</td><td>每句话一次，&lt;100ms</td></tr>
+                <tr><td>TTS</td><td>CosyVoice2 → GPT-SoVITS 微调</td><td>~4GB</td><td>流式；情感控制可选 IndexTTS2</td></tr>
+                <tr><td>VAD / 视觉</td><td>silero-vad / 人脸检测</td><td>忽略不计</td><td>每秒几帧</td></tr>
+            </table>
+            <p>常驻合计 <strong>&lt;30GB</strong>（128GB 统一内存余量充足），深脑随叫随到。路由：闲聊走快脑，重推理升级深脑，多步任务走 Hermes（其本身也挂在 vLLM 上）。</p>
+            <div class="highlight-box">
+                <p><strong>语音延迟预算（目标 ≤1s 出声）：</strong>VAD 判停 50ms → ASR partial 200ms → 首 token 300–500ms → TTS 首句 300ms。关键在<strong>分句流式</strong>：LLM 每吐一个完整句子就交给 TTS 开口，边生成边说，同时舵机做说话动画。Hermes 若整段返回，则按句切块喂 TTS，第一句先出声。</p>
+            </div>
+        </div>
+
+        <!-- ============ 交互设计 ============ -->
+        <div class="section" id="interaction">
+            <h2><span class="icon">🎭</span> 交互设计：状态机、Ear 与人格</h2>
+            <h3>五态状态机（脸和灯永远是状态的镜子）</h3>
+            <pre><code>idle（眨眼/东张西望/打瞌睡） → attentive（Ear 命中，转头注视）
+  → listening → thinking（眼神上飘） → speaking（嘴动 + 头摆）
+  → （N 分钟无受话 / 人离开）→ 回 idle</code></pre>
+            <h3>Ear：无唤醒词受话检测（永远在线的轻量层）</h3>
+            <table>
+                <tr><th style="width:12%">层</th><th style="width:30%">组件</th><th>作用</th></tr>
+                <tr><td>L0</td><td>silero VAD</td><td>有人声吗（毫秒级）</td></tr>
+                <tr><td>L1</td><td>sherpa-onnx 流式 zipformer</td><td>持续转写，不分对谁说</td></tr>
+                <tr><td>L2</td><td>Qwen3-0.6B 受话判断</td><td>"这句话是对我说的吗？"——特征：文本（称呼/祈使/疑问指向）+ 对话状态（最近交换/间隔多久）+ 视觉朝向 + 声学（是否长独白）</td></tr>
+                <tr><td>L3</td><td>摄像头人脸朝向</td><td>说话时是否正脸对着机器人——人类判断受话人一大半靠视线（Jibo 的 addressee detection 同思路），纯文本方案做不到</td></tr>
+            </table>
+            <div class="highlight-box">
+                <p><strong>梯度响应（"像人"的关键）：</strong>误触发（打游戏中途它突然接话）比漏听严重一个量级——漏听再说一遍就行，乱插话会让你想拔电。所以：高信心才开口；低信心忽略（不落盘）；<strong>中间带只做零成本社交动作——抬头看一眼、歪头、"嗯?"表情，但不出声</strong>。这等于无声地问"你叫我？"，你继续打游戏它就自己低头，你补一句它就进入对话。人类自己就是这么处理社交模糊的。</p>
+            </div>
+            <p><strong>算力账：</strong>VAD + 流式 ASR + 0.6B judge + 每秒几帧人脸检测 ≈ 5–10% 资源、几瓦——"理论上耗不了多少算力"的直觉成立。<strong>勿扰开关：</strong>触摸面板划一下 = 只应呼名模式（这是注意力策略，不是 session 指令）。</p>
+            <h3>情绪、触摸与主动性</h3>
+            <ul>
+                <li><strong>情绪</strong>：valence/arousal 状态 → 影响 TTS 情感参数（IndexTTS2）、动作幅度、表情选择。被摸头开心，被忽略蔫。</li>
+                <li><strong>触摸</strong>：三区 = 摸头/戳脸（喂情绪值）；长按 = 闭眼（物理断摄像头+麦克风采集）；划动 = 勿扰。</li>
+                <li><strong>主动性（双进程）</strong>：反射层（规则，毫秒级：人出现抬头、没人打瞌睡）+ 深思层（Hermes cron 每 ~30 分钟内心独白，<strong>大多数时候选择沉默</strong>）。</li>
+            </ul>
+            <h3>声线克隆（四步，一周内能听到）</h3>
+            <ol>
+                <li>准备 1–5 分钟干净参考音频：无 BGM、无混响、单人、情绪一致——<strong>参考质量决定一切</strong>，zero-shot 会连语速和情绪一起继承；</li>
+                <li>先用 CosyVoice2 zero-shot（3–10s 参考即可）把实时环跑通；</li>
+                <li>确定"这就是它的声音"后，GPT-SoVITS 用 1 分钟样本微调出专属稳定声线（V3 仅 ~407M 参数，中文少样本克隆公认最强）；想按情绪说话再换 IndexTTS2；</li>
+                <li>包成 OpenAI 兼容 <code>/v1/audio/speech</code>，Pipecat TTS 指过去。</li>
+            </ol>
+            <p style="color:#94a3b8;font-size:0.9em">只克隆有权使用的声音——自己玩的桌面玩具和对外发布是两回事。</p>
+        </div>
+
+        <!-- ============ 网络与隐私 ============ -->
+        <div class="section" id="network">
+            <h2><span class="icon">🔒</span> 网络与隐私</h2>
+            <ul>
+                <li><strong>供电</strong>：USB-C 常插电，电池当 UPS。<strong>不做有线数据</strong>——CoreS3 无以太网，串口带宽容不下双向流式音频，而 LAN 内 WiFi 延迟 &lt;2ms 与有线无感差别。</li>
+                <li><strong>组网</strong>：Spark 走 10GbE 有线接回交换机；双方路由器 DHCP 静态保留 + mDNS（<code>stackchan.local</code>），开机自动重连。</li>
+                <li><strong>边界</strong>：全部流量不出内网（本方案天然如此）；MCP 加 bearer token；语音模型全部本地，零云依赖零 API 费。</li>
+                <li><strong>隐私</strong>：非受话转写不落盘（24h 转写整个房间技术上成立，产品上要收敛）；"闭眼"手势物理断摄像头+麦克风采集；摄像头 presence 一律 opt-in。</li>
+            </ul>
+        </div>
+
+        <!-- ============ 路线图 ============ -->
+        <div class="section" id="roadmap">
+            <h2><span class="icon">🗺️</span> 分阶段路线（每阶段结束系统都完整可用）</h2>
+            <table>
+                <tr><th style="width:16%">阶段</th><th style="width:46%">内容</th><th style="width:10%">要硬件？</th><th>验收标准</th></tr>
+                <tr><td><strong>P0 大脑先行</strong><br>（现在，1–2 周）</td><td>Spark 装 Hermes + vLLM + Whisper + CosyVoice2；建 companion Bot，<strong>文字形态调教人格</strong>（记忆、skills、cron、人设先长起来）；克隆声线练手</td><td><span class="badge ready">❌ 不需要</span></td><td>Hermes 文字对话有记忆有性格；cron 会主动冒一句话（先发到 IM）</td></tr>
+                <tr><td><strong>P1 身体通电</strong><br>（到货当天）</td><td>刷 fork 固件（HTTP 音频版）；ZCode / Hermes 挂 stackchan-mcp</td><td>✅</td><td>ZCode 里调 <code>see</code>/<code>say</code>/<code>move</code> 通</td></tr>
+                <tr><td><strong>P2 会说话</strong></td><td>Pipecat Transport【①】+ Hermes 桥【②】+ 声线上身</td><td>✅</td><td>纯离线语音对话，有记忆有性格，能打断</td></tr>
+                <tr><td><strong>P3 会听</strong></td><td>Ear 编排环【③】+ 梯度响应 + 勿扰</td><td>✅</td><td>打游戏 10 分钟零插话，喊名字秒应</td></tr>
+                <tr><td><strong>P4 会主动</strong></td><td>Hermes cron 接机器人 + 人脸追踪 presence + WS 音频优化 + GPT-SoVITS 定版声线</td><td>✅</td><td>会主动说一句恰到好处的话；"看下家里乱不乱"全流程通</td></tr>
+            </table>
+            <div class="highlight-box good">
+                <p><strong>硬件未到 ≠ 停工。</strong>P0 让大脑先在文字世界里长大——人格、记忆、技能、定时任务全部可以先跑起来。机器人到货那天，只是给它装上身体。</p>
+            </div>
+        </div>
+
+        <!-- ============ 风险 ============ -->
+        <div class="section" id="risks">
+            <h2><span class="icon">⚠️</span> 风险与对策</h2>
+            <table>
+                <tr><th style="width:40%">风险</th><th>对策</th></tr>
+                <tr><td>Hermes 程序化调用形态未完全文档化（无 OpenAI 兼容服务端端点）</td><td>桥【②】做成适配层：首选 CLI 非交互，备选 Bot 通道 / execute_code RPC；接口变了只改桥</td></tr>
+                <tr><td>Hermes 回复非流式（整段返回）</td><td>按句切块喂 TTS（第一句先出声）；实测不满意再上"闲聊直连 vLLM"降级通道（新增④，仅优化用）</td></tr>
+                <tr><td>误触发（打断游戏）</td><td>高阈值 + 中间带无声注视 + 勿扰手势</td></tr>
+                <tr><td>打断时回声误触发</td><td>v1 用 VAD 阈值 + 触摸兜底；小扬声器 AEC 很难，后置</td></tr>
+                <tr><td>0.3MP 摄像头弱</td><td>够 presence 和"乱不乱"级判断；精细识别不在需求内</td></tr>
+                <tr><td>无人值守转写的隐私</td><td>非受话不落盘、闭眼物理断采集、全部本地</td></tr>
+            </table>
+        </div>
+
+        <!-- ============ 取舍 ============ -->
+        <div class="section" id="tradeoffs">
+            <h2><span class="icon">⚖️</span> 关键取舍备忘（为什么不是别的）</h2>
+            <table>
+                <tr><th style="width:34%">决策</th><th>理由</th></tr>
+                <tr><td>不用官方固件做主线</td><td>目标是 agent 控外设，stackchan-mcp 固件为此而生（自带设备 HTTP API + 全套工具）；官方固件开源随时刷回</td></tr>
+                <tr><td>不用 OpenClaw</td><td>工程质量问题（设计烂、卡），非品类问题——同类 Hermes 更快，且是大脑本体</td></tr>
+                <tr><td>Hermes 是大脑，不是备胎</td><td>记忆/cron/skills/MCP 客户端全部现成且跨 session；胶水桥只做传输不做逻辑</td></tr>
+                <tr><td>不做永恒 session + compact</td><td>compact 是丢信息；记忆靠 Hermes 写入时蒸馏 + 读取时跨 session 召回；session 边界交给传感器推断</td></tr>
+                <tr><td>不做固定唤醒词</td><td>语义受话 + 视觉朝向 + 梯度响应，成本一样低（~5–10% 资源）但体验是"人"</td></tr>
+                <tr><td>say 不直连设备</td><td>全局唯一声线与打断策略的保证</td></tr>
+                <tr><td>不做有线数据链路</td><td>CoreS3 无以太网、串口带宽不够；LAN WiFi &lt;2ms 无感差别；"有线"只用于供电和刷机</td></tr>
+            </table>
+        </div>
+
+        <!-- ============ 资料汇编 ============ -->
+        <div class="section" id="refs">
+            <h2><span class="icon">📚</span> 资料汇编（调研时确立关键事实的来源）</h2>
+
+            <div class="ref-group">
+                <h4>硬件与固件</h4>
+                <ul>
+                    <li><a href="https://github.com/m5stack/StackChan" target="_blank">m5stack/StackChan（GitHub）</a><span class="ref-desc"> — 官方开源仓库：firmware / remote / app / server 四目录；确认硬件配置（CoreS3、双舵机、12 LED、三区触摸）</span></li>
+                    <li><a href="https://docs.m5stack.com/en/uiflow2/stackchan/program" target="_blank">StackChan 固件烧录文档（M5Stack）</a><span class="ref-desc"> — 官方刷机与 UiFlow2 编程入口</span></li>
+                    <li><a href="https://www.reddit.com/r/StackChan/comments/1ta11ak/new_firmware_131/" target="_blank">固件 1.3.1 本地服务器重定向（r/StackChan）</a><span class="ref-desc"> — 确认官方固件可写 NVS key 把 AI 会话指到本地服务器、音频 WS URL 动态下发（"官方已是瘦客户端"的依据）</span></li>
+                    <li><a href="https://github.com/migratorywhale/stackchan-mcp" target="_blank">migratorywhale/stackchan-mcp</a><span class="ref-desc"> — "Give your AI a body"：MCP 工具全套（say/listen/see/move/face×7/sense）+ 自带 PlatformIO 固件 + 人脸追踪；本方案身体层的底子（fork 对象）</span></li>
+                    <li><a href="https://hackaday.io/project/181344-stack-chan-javascript-driven-super-kawaii-robot" target="_blank">Stack-chan 原始项目（Hackaday.io）</a><span class="ref-desc"> — 初代 Moddable SDK 固件背景</span></li>
+                    <li><a href="https://blog.rpine.net/en/posts/stackchan-setup" target="_blank">Kickstarter 版 StackChan 开箱设置（rpine lab）</a><span class="ref-desc"> — 开箱、配网、AI 对话与 avatar mode 实录</span></li>
+                </ul>
+            </div>
+
+            <div class="ref-group">
+                <h4>大脑：Hermes Agent</h4>
+                <ul>
+                    <li><a href="https://hermes-agent.nousresearch.com" target="_blank">Hermes Agent 官网（Nous Research）</a><span class="ref-desc"> — 确认持久记忆、skills、subagents、五种沙箱、七大 IM 网关、cron 无人值守任务</span></li>
+                    <li><a href="https://hermes-agent.nousresearch.com/docs" target="_blank">Hermes Agent 文档</a><span class="ref-desc"> — 确认 MCP 客户端支持（"connect to MCP servers"）、FTS5 跨会话召回、Honcho 用户建模、Bot 机制、provider = any endpoint</span></li>
+                    <li><a href="https://medium.com/@sathishkraju/i-switched-from-openclaw-to-hermes-agent-heres-what-nobody-told-me-5f33a746b6ca" target="_blank">从 OpenClaw 切换到 Hermes 的使用者报告（Medium）</a><span class="ref-desc"> — OpenClaw 出局是工程质量问题（卡），Hermes 更快；10 周 110k stars</span></li>
+                </ul>
+            </div>
+
+            <div class="ref-group">
+                <h4>语音实时管线</h4>
+                <ul>
+                    <li><a href="https://github.com/pipecat-ai/pipecat" target="_blank">Pipecat（GitHub）</a><span class="ref-desc"> — BSD-2 单进程 Python 语音框架：VAD/barge-in/分句 TTS/自定义 Transport，本方案嘴耳执行层</span></li>
+                    <li><a href="https://livekit.com/blog/best-open-source-voice-and-video-ai-agent-frameworks" target="_blank">开源语音 Agent 框架对比（LiveKit 官方）</a><span class="ref-desc"> — Pipecat vs LiveKit Agents 架构差异；确认单机器人场景 Pipecat 更简</span></li>
+                    <li><a href="https://meetrix.io/blogs/self-host-voice-ai-agent-stack" target="_blank">自托管语音 Agent 栈实践（Meetrix）</a><span class="ref-desc"> — Pipecat/LiveKit + Whisper + vLLM + Kokoro 全本地组合的可行性</span></li>
+                    <li><a href="https://cerebrium.ai/docs/v4/examples/realtime-voice-agents" target="_blank">Pipecat + 自托管 vLLM ~500ms 实时 Agent（Cerebrium）</a><span class="ref-desc"> — 低延迟预算的实测参照</span></li>
+                </ul>
+            </div>
+
+            <div class="ref-group">
+                <h4>记忆方案对比（最终采用 Hermes 内置，未自建）</h4>
+                <ul>
+                    <li><a href="https://forum.letta.com/t/agent-memory-letta-vs-mem0-vs-zep-vs-cognee/88" target="_blank">Agent memory: Letta vs Mem0 vs Zep vs Cognee（Letta Forum）</a><span class="ref-desc"> — 五种记忆方案的机制分类</span></li>
+                    <li><a href="https://www.digitalapplied.com/blog/open-source-agent-memory-mem0-letta-zep-compared" target="_blank">Open-Source Agent Memory 对比（DigitalApplied）</a><span class="ref-desc"> — 三家对"记住"的押注不同；跑分互有争议，不按跑分选</span></li>
+                    <li><a href="https://www.developersdigest.tech/blog/best-ai-agent-memory-providers-2026" target="_blank">Best AI Agent Memory Providers 2026（Developers Digest）</a><span class="ref-desc"> — 架构/价格/基准争议综述</span></li>
+                </ul>
+            </div>
+
+            <div class="ref-group">
+                <h4>唤醒与受话检测（Ear 的理论与空白验证）</h4>
+                <ul>
+                    <li><a href="https://arxiv.org/html/2609.27037v1" target="_blank">Intelligent Wakeup Framework（arXiv 2026）</a><span class="ref-desc"> — 语义激活/上下文唤醒方向；确认"无唤醒词受话判断"尚无打包开源方案，Ear 是唯一真新增</span></li>
+                    <li><a href="https://sensory.com/skipping-wake-words-conversational-ai" target="_blank">Why Skipping the Wake Word is a Big Mistake（Sensory）</a><span class="ref-desc"> — 放弃唤醒词的误触发代价 → 支撑"高阈值 + 梯度响应"结论</span></li>
+                    <li><a href="https://picovoice.ai/blog/complete-guide-to-wake-word" target="_blank">Complete Guide to Wake Word Detection（Picovoice）</a><span class="ref-desc"> — 端侧唤醒技术全景（对照项）</span></li>
+                    <li><a href="https://support.nabucasa.com/hc/en-us/articles/25775805328029" target="_blank">Home Assistant: Conversing without a wake word</a><span class="ref-desc"> — 消费级产品的无唤醒词尝试（按钮/上下文触发）</span></li>
+                </ul>
+            </div>
+
+            <div class="ref-group">
+                <h4>模型与推理（DGX Spark）</h4>
+                <ul>
+                    <li><a href="https://www.lmsys.org/blog/2025-11-03-gpt-oss-on-nvidia-dgx-spark" target="_blank">Optimizing GPT-OSS on DGX Spark（LMSYS）</a><span class="ref-desc"> — gpt-oss-120b MXFP4 装进 128GB 统一内存，vLLM/SGLang 调优</span></li>
+                    <li><a href="https://build.nvidia.com/spark/lm-studio" target="_blank">LM Studio on DGX Spark（NVIDIA 官方 playbook）</a><span class="ref-desc"> — gpt-oss / Qwen3 部署路径</span></li>
+                    <li><a href="https://github.com/RVC-Boss/GPT-SoVITS" target="_blank">GPT-SoVITS（GitHub）</a><span class="ref-desc"> — 5s 样本 zero-shot / 1 分钟微调，V3 ~407M 参数，中文少样本克隆公认最强</span></li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- ============ 关联笔记 ============ -->
+        <div class="section" id="related">
+            <h2><span class="icon">🔗</span> 库内关联笔记</h2>
+            <ul>
+                <li><a href="hermes_memory_skill_analysis.html">Hermes Agent 记忆系统与 Skill 机制 — 深度技术分析</a><span class="ref-desc"> — 本方案大脑侧的先期源码级调研</span></li>
+                <li><a href="../products/index.html">products/ — 产品全栈方案</a><span class="ref-desc"> — kids-voice-toy（上一个语音玩具产品，PRD→GTM 成套方法论可复用）、vibecoding-wand</span></li>
+            </ul>
+        </div>
+
+    </div>
+
+    <div class="footer">
+        Stack-chan × DGX Spark 桌面伴侣方案 v2 · 2026-10-23 整理 · 状态：方案阶段（硬件未到货，P0 文字形态先行）<br>
+        由 ZCode 会话调研整合生成 · 不造轮子，只拼装
+    </div>
+</div>
+</body>
+</html>
