@@ -1,0 +1,155 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="无音频视频读唇调研：视觉语音识别（VSR）能做到什么程度——英文 SOTA ~20% WER、中文句子级 ~30% CER、小词表命令词 95%+；Auto-AVSR / AV-HuBERT 开源生态、中文数据集 CMLR / LRW-1000、四条落地路线与拍板。"><title>无音频视频读唇调研 · 视觉语音识别（VSR）能做到吗</title>
+<style>
+:root{--bg:#f5f7fa;--paper:#fff;--ink:#1c293d;--muted:#52627a;--line:#dce3ec;--blue:#315cc5;--green:#067465;--amber:#925411;--code:#101d30}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:24px}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.85 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}a{color:var(--blue);text-underline-offset:3px}a:hover{text-decoration-thickness:2px}a:focus-visible,summary:focus-visible{outline:3px solid var(--blue);outline-offset:4px}p{margin:12px 0 18px}strong{font-weight:650}code,pre{font-family:ui-monospace,SFMono-Regular,Consolas,monospace}code{font-size:.86em;background:#edf1f7;padding:2px 5px;border-radius:4px;overflow-wrap:anywhere}pre{background:var(--code);color:#e5edf9;padding:22px;border-radius:12px;overflow:auto;font-size:13px;line-height:1.75}pre code{background:none;padding:0;font-size:inherit;overflow-wrap:normal}h1,h2,h3{line-height:1.35}h1{font-size:clamp(30px,4vw,46px);letter-spacing:-1.6px;margin:20px 0}h2{font-size:27px;letter-spacing:-.6px;margin:0 0 24px}h3{font-size:19px;margin:28px 0 12px}ul,ol{padding-left:24px}li{margin:6px 0}small,.muted{color:var(--muted)}.wrap{max-width:1260px;margin:auto;padding:0 36px}.top{padding:25px 0;font-size:14px}.top a{text-decoration:none}.hero{padding:26px 0 42px;border-bottom:1px solid var(--line)}.eyebrow{color:var(--green);font:600 12px/1.5 ui-monospace,monospace;letter-spacing:2px}.hero p{max-width:780px;font-size:18px;color:var(--muted)}.meta{display:flex;flex-wrap:wrap;gap:8px 20px;font-size:13px;color:var(--muted)}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:32px}.metric{padding:19px 20px;background:var(--paper);border:1px solid var(--line);border-radius:12px}.metric b{display:block;font-size:26px;line-height:1.4;letter-spacing:-.8px}.metric span{font-size:12px;color:var(--muted)}.layout{display:grid;grid-template-columns:205px minmax(0,1fr);gap:44px;padding:42px 0 60px}aside{position:sticky;top:24px;align-self:start}aside b{font-size:12px;color:var(--muted);letter-spacing:2px}nav{display:grid;gap:0;margin-top:14px}nav a{font-size:13px;text-decoration:none;color:var(--muted);padding:4px 10px;border-left:2px solid var(--line)}nav a:hover{color:var(--blue);border-color:var(--blue);background:#eaf0fb}main{min-width:0}section{padding:32px;background:var(--paper);border:1px solid var(--line);border-radius:15px;margin-bottom:24px}h2 .n{font-size:13px;display:block;letter-spacing:2px;color:var(--green);margin-bottom:7px}.table{overflow-x:auto;margin:20px 0;border:1px solid var(--line);border-radius:9px}table{border-collapse:collapse;width:100%;font-size:14px;min-width:570px}th,td{padding:13px 15px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{background:#edf2f8;font-size:12px;color:#3c506b}tr:last-child td{border-bottom:0}td:first-child{font-weight:550}.badge{display:inline-block;padding:2px 8px;border-radius:5px;font-size:12px;white-space:nowrap;background:#e9f1fe;color:#2854a8}.ok{background:#e3f4ee;color:#075e4b}.pending{background:#fff0dc;color:#825015}.removed{background:#f0edf5;color:#64566d}.callout{padding:17px 20px;border-left:4px solid var(--green);background:#eef8f5;border-radius:0 9px 9px 0;margin:22px 0}.callout.warn{border-color:#c08631;background:#fff7e9}.callout p{margin:4px 0}.source{font-size:12px;color:var(--muted)}.sources li{font-size:14px;padding-bottom:8px;overflow-wrap:anywhere}details{border:1px solid var(--line);border-radius:9px;padding:15px 18px;margin:16px 0}summary{cursor:pointer;font-weight:600}details p:last-child{margin-bottom:0}.foot{padding:4px 0 40px;color:var(--muted);font-size:13px}.skip{position:absolute;left:16px;top:-80px;background:white;padding:10px;z-index:2}.skip:focus{top:10px}
+@media(max-width:960px){.layout{grid-template-columns:1fr;gap:24px}aside{position:static}nav{grid-template-columns:repeat(3,1fr)}.wrap{padding:0 24px}h1{letter-spacing:-1px}.metrics{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){body{font-size:15px}.wrap{padding:0 16px}.hero{padding-top:10px}.hero p{font-size:16px}.metrics{grid-template-columns:1fr;gap:10px}.metric{padding:14px}.metric b{font-size:23px}nav{grid-template-columns:1fr 1fr}.layout{padding-top:26px}section{padding:22px 18px;border-radius:12px}h2{font-size:23px}.table{min-width:0}table{min-width:0;font-size:12px}pre{padding:16px;font-size:12px}.meta{font-size:12px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+@media print{body{background:white;font-size:11pt}.wrap{max-width:none;padding:0}.top,aside,.skip{display:none}.hero{padding:0 0 20px}.hero p{font-size:12pt}.layout{display:block;padding:20px 0}section{border:0;padding:18px 0;margin:0;border-radius:0}h2,h3{break-after:avoid}tr,.callout,.metric{break-inside:avoid}.table,pre{overflow:visible}table{min-width:0;font-size:9pt}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#edf1f7;color:#14243d}a{color:inherit}details{display:block}.foot{padding-top:20px}}
+</style></head><body><a class="skip" href="#tldr">跳到正文</a><div class="wrap"><div class="top"><a href="index.html">← Notes</a> / research</div><header class="hero"><div class="eyebrow">VISUAL SPEECH RECOGNITION / LIP READING · 2026-10</div><h1>视频没有音频，<br>机器能「看」出人说了什么吗？</h1><p class="lead">想从一个<strong>没有音轨</strong>的视频里识别出说话内容——不能走 ASR，只能靠画面。这个方向存在且活跃了十年，学名叫<strong>唇读 / 视觉语音识别（Visual Speech Recognition, VSR）</strong>。结论先行：<strong>能做到，但精度分场景差出一个数量级</strong>——英文开放句子最好 ~20% 词错率、中文句子级 ~30% 字错率、而把词表缩到几十条命令词则能做到 95%+ 准确率且可跑在端侧。本文核对了两套主流开源框架的官方数字、中文数据集现状，并给出四条落地路线的拍板。</p><div class="meta"><span>整理：2026-10-23</span><span>基线：Auto-AVSR / AV-HuBERT 官方仓库 + 论文实勘</span><span>结论：结题不立项 — 需求为零错误率「指哪打哪」，VSR 物理不可达；笔记留档备查</span></div><div class="metrics"><div class="metric"><b>~20.3% WER</b><span>英文无音频句子转写最好成绩（Auto-AVSR 视觉模型 · LRS3 · 3291h 训练）</span></div><div class="metric"><b>~30% CER</b><span>中文句子级基准量级（CMLR 新闻播报域，远未饱和）</span></div><div class="metric"><b>0.8~2% WER</b><span>同一任务、但带音频（音视频融合）的对照组——差距即唇形信息上限</span></div><div class="metric"><b>95%+ 可达</b><span>小词表命令词场景（LipNet 早在 2016 年于 51 词 GRID 上就做到 4.8% WER）</span></div></div></header><div class="layout"><aside><b>调研目录</b><nav aria-label="报告目录"><a href="#tldr">00 · 结论速览与拍板</a><a href="#what">01 · 这是什么：术语与物理上限</a><a href="#numbers">02 · 能做到什么程度：数字现实</a><a href="#how">03 · 技术原理：一条标准流水线</a><a href="#ecosystem">04 · 开源生态与中文数据集</a><a href="#routes">05 · 四条落地路线</a><a href="#risks">06 · 风险与坑清单</a><a href="#verdict">07 · 拍板与 MVP 建议</a><a href="#sources">08 · 信息来源</a></nav></aside><main>
+
+<section id="tldr"><h2><span class="n">00 / TL;DR</span>结论速览与拍板</h2>
+<p><strong>能做到。</strong>「看视频猜说了什么」是正经的研究领域（lip reading / VSR），从 2016 年 LipNet 端到端建模算起，深度学习路线已推进十年，开源世界有两套事实标准框架（Auto-AVSR、AV-HuBERT），模型已能在英文基准上<strong>超过专业人类唇读员</strong>。但它不是魔法——<strong>唇形只是语音的有损投影</strong>（很多音素口型相同、中文声调完全不可见），所以精度天花板由场景的「词表大小 + 语言先验强弱」决定。按场景拍板：</p>
+<div class="table"><table><thead><tr><th>你想要什么</th><th>可行性</th><th>推荐路线</th></tr></thead><tbody>
+<tr><td>英文短句转写（demo / 糊转写喂 LLM）</td><td><span class="badge ok">可行，糊但能用</span></td><td>Auto-AVSR 视觉 checkpoint（WER 20~25%）+ LLM 后处理纠错</td></tr>
+<tr><td>中文开放句子逐字转写</td><td><span class="badge pending">demo 可，产品勉强</span></td><td>无现成中文预训练模型——需在 CMLR/LRW-1000 上自炼；预期 CER ~30% 起，实况更差</td></tr>
+<tr><td>中文命令词交互（机器人 / 无障碍 / 安静场景）</td><td><span class="badge ok">可行，且能上端侧</span></td><td>自研：MediaPipe 唇部 468 关键点 → 轻量序列模型（GRU/TCN）→ N 类命令，预期 95%+</td></tr>
+<tr><td>其实有音频、只是环境嘈杂</td><td><span class="badge ok">强烈推荐换赛道</span></td><td>音视频融合（AVSR）：同一框架下 WER 直降一个数量级到 0.8~2%</td></tr>
+</tbody></table></div>
+<div class="callout warn"><p><strong>诚实的边界：</strong>「无差错逐字转写」不存在，这不是工程问题而是<strong>信息论问题</strong>——嘴唇可见信息量就那么多，剩下的全靠语言模型先验脑补。正确的产品姿势是把 VSR 输出当「模糊查询/意图候选」交给下游 LLM 消歧，而不是当精确字幕用。</p></div>
+<p class="source"><strong>结题记录（2026-10-23）：</strong>需求判定为「鼠标级指哪打哪、错误率≈0」的精确输入，与 VSR 的物理上限不匹配，<strong>不立项</strong>，本笔记留档备查。若未来仍需要「无声的精确输入」，正确方向是手势/指向（IMU 空鼠路线已验证指哪打哪）或按键类通道，而非读唇。</p>
+</section>
+
+<section id="what"><h2><span class="n">01 / DEFINITION</span>这是什么：术语澄清与物理上限</h2>
+<h3>术语：不是「面部识别」</h3>
+<p>需求口语里说的「通过面部识别看懂说的话」，对应的学术术语是<strong>唇读（lip reading）</strong>，也叫<strong>视觉语音识别（VSR）</strong>或 visual-only ASR。相邻概念先分清楚，调研时不至于串台：</p>
+<div class="table"><table><thead><tr><th>术语</th><th>输入</th><th>与本题关系</th></tr></thead><tbody>
+<tr><td>VSR / lip reading（唇读）</td><td>只有视频（唇部）</td><td><strong>就是本题</strong></td></tr>
+<tr><td>AVSR（音视频融合）</td><td>视频 + 音频</td><td>不是本题，但常被论文数字混淆——媒体常把 AV 成绩当「读唇突破」宣传</td></tr>
+<tr><td>Silent Speech Interface（无声语音接口）</td><td>表面肌电 EMG / 舌超声 / 脑电等</td><td>另一条技术路线，贴传感器读肌肉/舌头信号，精度更高但需要穿戴设备</td></tr>
+<tr><td>人脸识别 / 表情识别</td><td>图像</td><td>认人、认情绪，不认「说了什么」——与本题无关</td></tr>
+</tbody></table></div>
+<h3>为什么难：viseme 多对一 + 声调不可见</h3>
+<p>语音→口型的映射是<strong>多对一</strong>的：发声位置看不见，只看得见唇/颌的动作。经典的 viseme 研究结论是英语约 40+ 个音素只对应十几个可区分口型（viseme）——<code>/p/ /b/ /m/</code> 都是双唇闭合，<code>/t/ /d/ /n/</code> 唇形几乎一样。也就是说<strong>从口型反推音素本身就是一个欠定问题</strong>，模型必须靠语言统计先验（这个词后面更可能接什么）来消歧。这对中文是双重打击：</p>
+<ul>
+<li><strong>声调完全不可见</strong>——「十 / 时 / 是 / 事」口型一致，四声全靠猜；</li>
+<li><strong>同音字海量</strong>——音素级已经欠定，字级更是雪上加霜。</li>
+</ul>
+<p>人类对照：专业唇读员对连贯语料的理解率通常也就三到五成（还要靠上下文和重放）。机器在受控基准上已经超过这个水平——<strong>但基准是新闻播报域的正面清晰视频</strong>，落到实况（侧脸、逆光、胡子）会显著退化。</p>
+</section>
+
+<section id="numbers"><h2><span class="n">02 / NUMBERS</span>能做到什么程度：数字现实</h2>
+<h3>英文（句子级、真实场景基准 LRS3，纯视觉）</h3>
+<div class="table"><table><thead><tr><th>模型</th><th>年份</th><th>训练数据</th><th>visual-only WER</th></tr></thead><tbody>
+<tr><td>LipNet（开创端到端）</td><td>2016</td><td>GRID（51 词受限语法）</td><td>4.8%（受限词表场景）</td></tr>
+<tr><td>AV-HuBERT（Meta）</td><td>2022</td><td>LRS3 自监督预训练</td><td>~27%（large 档）</td></tr>
+<tr><td>Auto-AVSR 官方 checkpoint</td><td>2023</td><td>LRS3 438h</td><td>36.0%</td></tr>
+<tr><td>Auto-AVSR 官方 checkpoint</td><td>2023</td><td>LRS3+VoxCeleb2 1759h</td><td>24.6%</td></tr>
+<tr><td>Auto-AVSR 官方 checkpoint</td><td>2023</td><td>LRS2+LRS3+Vox2+AVSpeech 3291h</td><td><strong>20.3%</strong>（公开可复现最好之一）</td></tr>
+<tr><td>VALLR（LLM 化视觉 ASR）</td><td>2025</td><td>在上述基础上再降</td><td>LRS2/LRS3 再减 3.5~6.8 个绝对点</td></tr>
+<tr><td colspan="2">对照：同任务带音频（AV 融合）</td><td>—</td><td><strong>0.8~2.0%</strong></td></tr>
+<tr><td colspan="2">对照：纯音频 ASR（Whisper 时代）</td><td>—</td><td>1~2%</td></tr>
+</tbody></table></div>
+<p>两个读数陷阱要避开：① 搜「lip reading SOTA」常看到 <strong>0.8% WER</strong>——那是 Burchi &amp; Vielzeuf 2024（arXiv:2405.12983）的<strong>音视频融合</strong>成绩，不是纯视觉，本文已核对原文；② Auto-AVSR 仓库里有个 <code>vsr_trlrs3_23h</code> checkpoint 是 93% WER——那是「只用 23h 标签」的消融实验款，<strong>别下错</strong>，要用 <code>vsr_trlrs2lrs3vox2avsp</code>。</p>
+<h3>中文（比英文难一档，数据也少一档）</h3>
+<div class="table"><table><thead><tr><th>基准</th><th>规模</th><th>当前水平（参考点）</th></tr></thead><tbody>
+<tr><td>CMLR（浙大，句子级）</td><td>10.2 万句，央视新闻域</td><td>CER ~30% 量级（如知识蒸馏方法 31.27%）；「视频→拼音→汉字」两阶段（LipCH-Net）是主流解法之一</td></tr>
+<tr><td>LRW-1000 / CAS-VSR-W1k（中科院计算所，词级）</td><td>1000 词类、2000+ 说话人、~70 万段</td><td>中文词级最大公开基准，自然环境</td></tr>
+<tr><td>CCTVDS（软件学报工作）</td><td>1.5 万样本、20.95GB</td><td>为绕开数据缺失自建的半自动语料</td></tr>
+</tbody></table></div>
+<p>中文的现状一句话：<strong>基准存在、公开预训练模型基本缺失</strong>。英文能直接下载 20% WER 的 checkpoint，中文得自己在 CMLR/LRW-1000 上炼——而声调不可见 + 同音字意味着同样数据量下 CER 天然比英文 WER 高。</p>
+<h3>把词表缩小，世界立刻美好</h3>
+<p>VSR 的难度几乎全部来自开放词表。一旦任务收窄为「从 10~50 条命令里选一条」（口令、数字、确认/否认），欠定问题变成封闭分类问题，语言先验不再需要脑补开放文本：LipNet 2016 年就在 51 词的 GRID 上做到 4.8% WER；近十年的关键点 + 轻量序列模型方案在几十词命令集上普遍能到个位数错误率。<strong>这是嵌入式/机器人场景真正的甜点区。</strong></p>
+</section>
+
+<section id="how"><h2><span class="n">03 / PIPELINE</span>技术原理：一条标准流水线</h2>
+<p>所有主流 VSR 系统都可以拆成同一条链，差异只在每一环的选型：</p>
+<pre><code>视频帧流（25fps 是事实标准）
+   │  ① 人脸检测与跟踪（每帧）
+   ▼
+② 唇部表征：裁剪嘴部 ROI（96×96 灰度图，端到端派）
+              或 唇部关键点序列（MediaPipe FaceMesh 468 点中取嘴部 ~40 点，轻量派）
+   ▼
+③ 视觉前端：3D/2D 时序卷积（ResNet-18 变体）或直接吃关键点坐标
+   ▼
+④ 序列编码：Conformer / Transformer（自监督预训练是主流）
+   ▼
+⑤ 解码：CTC / RNN-T / 自回归注意力
+   ▼
+⑥ （可选）外部语言模型 / LLM 后处理：对口型歧义做消歧纠错</code></pre>
+<p>三个流派值得知道：</p>
+<ul>
+<li><strong>自监督表征派（AV-HuBERT）</strong>：掩码建模预训练音视频表征，唇读/AVSR/语音翻译一套表征通吃，Meta 2022，比之前最好成绩提升约 20%；</li>
+<li><strong>数据规模化派（Auto-AVSR）</strong>：用现成 ASR 自动标注海量网络视频（VoxCeleb2、AVSpeech），把训练数据从 438h 堆到 3291h，WER 从 36% 压到 20.3%——<strong>这行本质是数据生意</strong>；</li>
+<li><strong>LLM 化派（2024~）</strong>：VSP-LLM 把视觉语音编码器接进 Mistral 7B 做连续唇读和视觉语音翻译；VALLR（2025）把 Whisper 架构改造成视觉 ASR 语言模型；另有工作证明「把 Whisper 这类强 ASR 改造成唇读器」比从头训更强。趋势明确：<strong>唇读的下一步是把解码器换成语言模型</strong>——恰好对症 viseme 欠定这个老病根。</li>
+</ul>
+</section>
+
+<section id="ecosystem"><h2><span class="n">04 / ECOSYSTEM</span>开源生态与中文数据集</h2>
+<div class="table"><table><thead><tr><th>项目</th><th>许可证 / 规模</th><th>能拿到什么</th><th>坑</th></tr></thead><tbody>
+<tr><td><a href="https://github.com/mpc001/auto_avsr">Auto-AVSR</a>（UCL/Oxford）</td><td>代码 Apache 2.0 · 事实标准</td><td>英文 visual-only / audio-only / AV 全套 checkpoint（250M 参数），官方数字可复现</td><td>eval 流程面向数据集批量评测，<strong>单视频推理要走官方 notebook</strong>；无中文；训练默认 4 机 32 卡的配置吓人但推理单卡够</td></tr>
+<tr><td><a href="https://github.com/facebookresearch/av_hubert">AV-HuBERT</a>（Meta）</td><td>CC-BY-NC（禁商用）</td><td>自监督预训练模型，LRS3 上最强公开视觉编码器之一；有 mHuBERT 多语言变体</td><td>许可证限制商用；同样英文为中心</td></tr>
+<tr><td>VSP-LLM / VALLR / Whisper-唇读改造</td><td>研究代码</td><td>LLM 化路线的代表工作，跟踪前沿用</td><td>研究级工程质量，别指望开箱</td></tr>
+</tbody></table></div>
+<p><strong>中文侧只有数据集、没有能直接下载的句子级预训练模型</strong>（这是本次调研明确的最大缺口）：CMLR（浙大，10.2 万句新闻）、LRW-1000/CAS-VSR-W1k（计算所，1000 词类 × 2000 人 × 70 万段，中文词级最大）、CCTVDS（软件学报自建）。商用侧（公安场景的中文唇语识别公司、国外 Liopa 等）全部闭源、不可验证，按不存在处理。</p>
+<div class="callout"><p><strong>算力参考：</strong>推理一个 250M 的视觉模型，单张消费级 GPU（或 Apple Silicon MPS）绰绰有余；真正贵的是预训练（Auto-AVSR 默认 4 节点 × 8 GPU）。自采小数据微调 / 小词表自研模型，一张卡甚至 CPU 就能闭环。</p></div>
+</section>
+
+<section id="routes"><h2><span class="n">05 / ROUTES</span>四条落地路线</h2>
+<h3>路线 A：直接用 Auto-AVSR（英文转写）</h3>
+<p>拿 <code>vsr_trlrs2lrs3vox2avsp_base.pth</code>（20.3% WER）对视频推理，输出英文句子。适合英文 demo、或「糊转写 + LLM 纠错」的流水线——20% WER 的句子再交给 LLM 按上下文修，对「看懂大意」够用，对逐字精确不够。成本：一张 GPU + 官方 notebook 改造半天。</p>
+<h3>路线 B：VLM API 零样本读唇（10 分钟可证伪）</h3>
+<p>GPT-4o / Gemini 都收无声视频。拿 10 段自己录的清晰正面短句试一下：短词、数字、问候语大概率能蒙对不少，长句基本靠编。MLLM 语音能力评估的文献结论一致——<strong>通用多模态模型零样本唇读显著弱于专用 VSR 模型</strong>（VSP-LLM 的动机正在于此：给 MLLM 外挂视觉语音编码器）。这条路线的价值是「零成本验证需求」，不是生产。</p>
+<h3>路线 C：自研小词表命令识别（机器人/端侧场景，推荐）</h3>
+<p>需求收窄为「从 ≤20 条命令里分类」后，自研完全可行，且符合端侧约束：</p>
+<pre><code>摄像头 25fps → MediaPipe FaceMesh（手机/树莓派 ~30fps 无压力）
+   → 取唇部 ~40 个关键点，做平移/尺度/旋转归一化
+   → 滑窗 0.5~1.0s 片段 → 2 层 GRU 或小 TCN（参数量 &lt;1M）
+   → N 类命令 + 1 类「非命令」
+数据：每条命令自录 50 遍 × 2~3 个使用者 ≈ 半天采集
+预期：封闭词表错误率个位数；做说话人校准后 95%+ 常见</code></pre>
+<p>关键点路线不吃像素，对光照和背景天然鲁棒，量化后甚至能塞进 ESP32-S3 级别 MCU 的伴生算力（关键点检测跑在主机/协处理器上）。</p>
+<h3>路线 D：音频其实可得 → 音视频融合</h3>
+<p>如果「没音频」只是暂时约束（嘈杂、静音场景），AVSR 是收益最大的一步：同一框架下 WER 从 20.3% 直落到 0.8~2%，对噪声的鲁棒性也远好于纯音频。Auto-AVSR 提供 AV 模型可直接用。<strong>产品决策前先问一句：音频真的拿不到吗？</strong></p>
+</section>
+
+<section id="risks"><h2><span class="n">06 / RISKS</span>风险与坑清单</h2>
+<ul>
+<li><strong>拍摄条件敏感</strong>：正面 ±30° 以内、光照均匀、距离适中是基准前提；侧脸、逆光、大角度直接崩。胡子、口罩、麦克风遮挡嘴唇=直接出局；</li>
+<li><strong>说话人差异</strong>：每个人嘴唇形状和说话习惯不同，跨说话人泛化是主要掉分点；小词表方案强烈建议做「每人 5 分钟校准数据」；</li>
+<li><strong>静音段幻觉</strong>：CTC/自回归模型对着不动嘴也可能脑补出词，工程上需要 VAD 式的「说话活动检测」门控（唇部关键点幅度就能做）；</li>
+<li><strong>流式实时是研究前沿</strong>：主流模型按切段离线跑；真正的流式 VSR（边说边出）仍是论文区，产品上用滑窗切段绕过；</li>
+<li><strong>中文特别坑</strong>：声调不可见 + 同音字，直出汉字错误率难看；「视频→拼音→汉字两阶段 + LLM 消歧」是文献验证过的缓解路线；</li>
+<li><strong>数字引用坑</strong>：见到惊人好成绩先查是不是 AV 融合（0.8% 那种）或受限词表（GRID 4.8% 那种），再和自己的场景对号；</li>
+<li><strong>隐私与伦理</strong>：唇读等于「隔着距离偷听话」，面纹是生物特征——自研系统数据留在本地，别把用户口型视频传第三方 API（这也是路线 B 只适合验证、不适合生产的原因之一）。</li>
+</ul>
+</section>
+
+<section id="verdict"><h2><span class="n">07 / VERDICT</span>拍板与 MVP 建议</h2>
+<p><strong>总判定：技术上成立，产品上必须按场景收窄。</strong>建议的决策顺序：</p>
+<ol>
+<li><strong>先证伪需求（10 分钟）</strong>：录 10 段目标短语的无声视频，丢给 GPT-4o/Gemini 看蒙对率。蒙对率连大意都覆盖不了 → 说明目标场景对 VSR 太难，及时止损；</li>
+<li><strong>若目标是英文转写（1 天）</strong>：Auto-AVSR checkpoint + 官方 inference notebook 跑通，输出接 LLM 纠错；</li>
+<li><strong>若目标是中文命令词交互（1 周，推荐）</strong>：路线 C 自研。命令表 ≤20 条，MediaPipe 关键点 + GRU，自采数据半天、训练半天、端侧部署一天——错误率预期个位数，配合「非命令」类和确认机制可产品化。家庭机器人这类「看口型确认唤醒/静音下发指令」的场景，这条路线的性价比最高；</li>
+<li><strong>任何时候拿得到音频</strong>：立刻切 AV 融合，别硬啃纯视觉。</li>
+</ol>
+<div class="callout warn"><p><strong>再强调一次定位：</strong>VSR 输出是「候选意图」不是「精确转写」。系统设计上永远给一条兜底通道（按钮/语音/重试），唇读作为增强而非唯一输入，用户的体验预期就立得住。</p></div>
+</section>
+
+<section id="sources"><h2><span class="n">08 / SOURCES</span>信息来源</h2>
+<ul class="sources">
+<li><a href="https://github.com/mpc001/auto_avsr">Auto-AVSR 官方仓库</a>（checkpoint 与 WER 数字、许可证、推理说明，2026-10 实勘）</li>
+<li><a href="https://github.com/facebookresearch/av_hubert">AV-HuBERT 官方仓库</a> · <a href="https://ai.meta.com/blog/ai-that-understands-speech-by-looking-as-well-as-hearing">Meta 官方博客</a></li>
+<li><a href="https://arxiv.org/abs/2405.12983">Burchi &amp; Vielzeuf 2024：多语言 AVSR Fast Conformer</a>（0.8% WER 为 AV 融合成绩，已核对摘要）</li>
+<li><a href="https://arxiv.org/abs/2503.21408">VALLR：视觉 ASR 语言模型（2025）</a> · <a href="https://arxiv.org/abs/2402.15151">VSP-LLM</a></li>
+<li><a href="https://arxiv.org/html/2507.19037v1">MLLM-based Speech Recognition: When and How（2025）</a> — 通用多模态模型视觉语音能力评估</li>
+<li><a href="https://ora.ox.ac.uk/objects/uuid:176ddc51-6a08-4497-b63c-8f9bb38329a5">Speech Recognition Models are Strong Lip-readers（Oxford，Whisper 改造路线）</a></li>
+<li><a href="https://arxiv.org/abs/1611.01599">LipNet（2016，GRID 4.8% WER）</a></li>
+<li><a href="https://www.vipazoo.cn/CMLR.html">CMLR 中文唇读数据集（浙大）</a></li>
+<li><a href="https://iip.ict.ac.cn/xwdt/kydt/tnull_27082.html">中科院计算所 LRW-1000 发布页</a> · <a href="https://arxiv.org/abs/1810.06990">LRW-1000 论文</a></li>
+<li><a href="https://www.jos.org.cn/jos/article/html/5709">端到端句子级中文唇语识别（软件学报，CCTVDS）</a> · <a href="http://manu46.magtech.com.cn/Jweb_prai/article/2022/1003-6059-35-12-1111.html">LipCH-Net</a> · <a href="https://patents.google.com/patent/CN111223483A/zh">CMLR CER 31.27% 参考点</a></li>
+<li><a href="https://www.aas.net.cn/cn/article/doi/10.16383/j.aas.c190531?viewType=HTML">唇读研究进展与展望（自动化学报综述）</a> · <a href="https://www.emergentmind.com/topics/mandarin-lip-reading-performance">Mandarin Lip-Reading Performance 专题</a></li>
+</ul>
+</section>
+
+</main></div><div class="foot">调研笔记 · 2026-10-23 · 数字以官方仓库/论文为准，引用请注明来源</div></div></body></html>
