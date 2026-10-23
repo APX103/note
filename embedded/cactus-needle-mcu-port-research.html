@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>把 Cactus（Needle/Whistle）塞进 STM32H743？——引擎移植调研</title>
+<style>
+  :root{--bg:#0a0e14;--card:#0f1720;--line:#1e2b3a;--tx:#c9d7e4;--mut:#7c93a8;--cyan:#4cc9f0;--green:#34d399;--red:#f87171;--orange:#fb923c;--gold:#fbbf24}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.8 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
+  .wrap{max-width:900px;margin:0 auto;padding:30px 20px 70px}
+  header h1{font-size:24px;margin:0 0 8px}
+  header .sub{color:var(--mut);font-size:13.5px;margin:0}
+  h2{font-size:18px;margin:32px 0 10px;color:#e8f2fa;border-left:4px solid var(--cyan);padding-left:10px}
+  h3{font-size:15.5px;margin:18px 0 6px;color:#ffd28a}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 18px;margin:12px 0}
+  .verdict{border:1px solid var(--green);background:rgba(52,211,153,.07);border-radius:12px;padding:14px 18px;margin:14px 0}
+  .no{border-color:var(--red);background:rgba(248,113,113,.06)}
+  .warn{border-color:var(--orange);background:rgba(251,146,60,.06)}
+  code{background:#16212c;border-radius:5px;padding:1px 6px;font-size:13px}
+  pre{background:#0d141d;border:1px solid var(--line);border-radius:10px;padding:12px 14px;overflow-x:auto;font-size:12.5px;line-height:1.6}
+  table{border-collapse:collapse;width:100%;font-size:13.5px;margin:10px 0}
+  th,td{border:1px solid var(--line);padding:6px 10px;text-align:left}
+  th{background:#131e29;color:#e8f2fa}
+  .k{color:var(--cyan)} .g{color:var(--green)} .r{color:var(--red)} .o{color:var(--orange)} .gold{color:var(--gold)}
+  ul{margin:6px 0;padding-left:22px}
+  footer{margin-top:40px;color:#5c7186;font-size:12.5px}
+  .tag{display:inline-block;background:#16212c;border:1px solid var(--line);border-radius:6px;padding:0 8px;font-size:12px;color:var(--mut);margin-right:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>把 Cactus（Needle / Whistle）塞进 STM32H743？——引擎移植调研</h1>
+  <p class="sub">2026-10-22 · 调研对象：cactus-compute/needle（本地已克隆 work/needle，v3.2.8）· Cactus-Compute/needle3+whistle（HuggingFace）· 官方博客 Porting Needle / cact-format / supported-devices · 社区 needle-rs</p>
+</header>
+
+<div class="verdict">
+<b class="g">一句话结论：</b>你的直觉「它肯定有引擎」<b>完全正确</b>——引擎真实存在，&lt;1MB、C ABI、13 个平台、连静态库带头文件都发了；而且官方把「自己写移植」变成了有格式文档、有验收测试的一等公民路径（社区已有人纯靠 .cact 文件用 Rust 写出了新运行时）。<br>
+<b>但 H743 仍然不是它的家</b>：官方 13 个平台全是有 OS 的（连 MIPS 相机 SoC 都有，就是没有裸机 Cortex-M）；自写移植到 H743 的性能天花板实测账算出来是「一次工具调用 5~30 秒」——<b class="g">炫技可以，当机器人大脑不行</b>。真正的一步好棋藏在官方列表里：<span class="k">linux-armv7</span> 文件夹意味着任何小 Linux 板（包括带麦克风阵列的 Luckfox Lyra，¥100 级）<b>零移植</b>直接跑。
+</div>
+
+<h2>1 · 引擎的真相：闭源二进制 + 开放容器</h2>
+<div class="card">
+<p><b>引擎本体：</b>每个平台文件夹发一个 <b>&lt;1MB 的引擎</b>（CLI runner + <b>静态库 + 头文件</b>），Python 包经 cffi 走 C ABI 调它（本地引擎可用 <code>NEEDLE3_LIB_PATH</code> 指定）。引擎不带权重，启动时加载 <code>needle3.cact</code>/<code>whistle.cact</code>。<b>Whistle 和 Needle 共用同一个引擎、同一个容器、同一套量化</b>——"one runtime"。</p>
+<p><b>13 个官方平台：</b>macos-arm64 · linux-x86_64 / <span class="k">arm64</span> / <span class="k">armv7</span> / riscv64 / mipsel · windows ×2 · android ×3 · ios ×2 · watchos · tvos · wasm · wasm-component。<b>没有裸机 Cortex-M</b>。官网宣传语里的 "microcontrollers" 实际指的是 Ingenic 相机 SoC 这类跑 Linux 的便宜芯片（他们专门发了 mipsel 包）——他们心中的"MCU 级"比我们的 H743 高一档。</p>
+<p><b>.cact 容器格式完全公开</b>（官方博客给了 ~20 行 Python 解析器，本地包里 <code>needle/model/export.py</code> 的 <code>read_export</code> 就是权威参考）：</p>
+<ul>
+  <li>196 字节头 = 49 个 int32 字段：格式标签（Needle3 = <code>0x05E12A84</code>）+ 全部架构几何（vocab 8192、宽 768、20 层、上下文 8192、kv_bits…）——<b>一个引擎吃整个层深阶梯，靠的就是头里自带几何</b>；</li>
+  <li>112 字节码本（Lloyd-Max 2/3/4-bit）+ 每张量 44 字节目录 + 权重 + 内嵌 SentencePiece BPE tokenizer；</li>
+  <li>量化是自研 <b>Cactus Quants（CQ-W2A8）</b>：每 128 个权重一组做归一化 Walsh-Hadamard 旋转 → 存 fp16 组范数 + Lloyd-Max 坐标，<b>2.125 bit/权重</b>；kernel <b>不解量化</b>——对 int8 激活做同样的 Hadamard 旋转，旋转相消，"答案精确到量化本身"。这就是移植要写的那个核心 kernel。</li>
+</ul>
+<p><b>层深阶梯</b>（同一份权重可切档，<code>needle build --layers N</code>）：20L=121M 参数/29MB · 16L=98M · 8L=52M · 4L=29M · <b>2L=25M≈8MB 文件</b>。Whistle 解码器同样阶梯（<code>--audio-depth N</code>，默认 8）。</p>
+</div>
+
+<h2>2 · 官方的「移植合同」——这条路是被设计出来的</h2>
+<div class="card">
+<p>《Porting Needle 3》博客直接给了第三方运行时的<b>验收标准</b>（社区第一个移植在发布几天内就出现，纯 Rust、只对着 .cact 文件 + Python 参考实现写的，就是 <a href="https://github.com/Geekgineer/needle-rs">Geekgineer/needle-rs</a>，还编出了 ~600KB 的 WASM）：</p>
+<ul>
+  <li><b>对标对象</b>：fp32 + 模拟量化的参考输出（不是 bf16 checkpoint），余弦相似度要求 <b>&gt; 0.999</b>；</li>
+  <li><b>三道验收</b>：tokenizer 输出逐字节一致 / 所有测试 prompt 的 top-token 一致 / 生成 JSON 与 <code>needle_complete</code> 沙盒一致；</li>
+  <li><b>加载时必须</b>断言张量数（20 层 = 581 条）与 dtype 图样，遇到 Needle2 标签报错而不是猜；</li>
+  <li><b>分级移植</b>：先贪心解码（"贪心就已是正确模型"），语法约束解码和置信度头第二步再补；</li>
+  <li>打包机制天生支持 DIY 引擎：<code>needle build --platform &lt;你的文件夹&gt;</code> 会把<b>你的引擎+头文件+权重</b>打成发行目录——自写引擎是官方工作流的一等公民。</li>
+</ul>
+<p>另有官方 <a href="https://docs.cactuscompute.com/v1.14/rust">Rust SDK</a>（bindgen/CMake 包 C API）。<b>"从哪儿写"的答案：① needle-rs（Rust，最接近裸机可编目标）；② needle/model/ 里的 JAX 参考实现（architecture.py / export.py / tokenizer.py / quantize.py 全在本地）；③ 官方静态库的头文件反推 C ABI。</b></p>
+</div>
+
+<h2>3 · H743 上的数字账（为什么"能跑"≠"能用"）</h2>
+<div class="card">
+<table>
+<tr><th>项目</th><th>数字</th><th>来源/算法</th></tr>
+<tr><td>官方性能锚点（Pi 5）</td><td>解码 4000 tok/s @2L → 400 @20L；预填 10000→1000 tok/s</td><td>官方 supported-devices</td></tr>
+<tr><td>Whistle 锚点（M4 Pro）</td><td>解码 1182~2557 tok/s（8L→2L），10s 音频</td><td>官方博客</td></tr>
+<tr><td>H743 相对 Pi5 的算力</td><td>≈ 1/100 ~ 1/200（M7@550MHz 无 int8 点积指令，~0.4-1 GOPS vs Pi5 数十 GOPS）</td><td>推算</td></tr>
+<tr><td>H743 SDRAM 带宽</td><td>16-bit FMC 实际 ~100-150 MB/s</td><td>推算</td></tr>
+<tr><td>2L 档每 token 权重流量</td><td>≈8MB → <b>≥80ms/token 的总线地板</b>（引擎设计为 mmap 原地读，正合 SDRAM 直挂）</td><td>推算</td></tr>
+<tr><td>一次工具调用（~300 token 提示 + 30 token 输出）</td><td><b class="r">乐观 5s，现实 10~30s</b>（预填算力 1.8 GMAC ≈ 2-5s @0.4-1 GOPS + 解码 30×80ms 起）</td><td>推算，需实测校准</td></tr>
+</table>
+<p>结论：<b class="r">H743 自写移植 = 3~6 周工程（CQ2 Hadamard kernel + Monarch MLP/GQA+因果卷积/engram gather/超连接等自研算子 + BPE 分词器），换来的是按一次灯等 5~30 秒</b>。作为"我把 AI 塞进了裸机"的技术验证极酷，作为家庭机器人的离线大脑不成立。</p>
+<p class="o"><b>ONNX 路线死因确认：</b>官方没有任何 ONNX 导出（本地仓库 grep 零命中）；safetensors 是 bf16 训练 checkpoint，架构是 JAX 自定义算子，要走 ONNX 得先重写成 PyTorch 再导出，之后 Cube.AI 还要过动态 KV-cache 这关——比自写运行时还绕。</p>
+</div>
+
+<h2>4 · 拍板：三条路</h2>
+<div class="verdict">
+<b class="g">路 1（推荐）：零移植官方小板当大脑。</b><br>
+官方 <code>linux-armv7/arm64</code> 文件夹覆盖所有小 Linux 板。最有意思的是 <b>Luckfox Lyra</b>（RV1106 单核 A7@1.2GHz，armv7，<b>板载麦克风阵列 + 音频 codec + speaker</b>，¥100 级）——一块板就是机器人脑袋；跑不动就用 Radxa Zero 3W / Pi Zero 2W（¥150 级）。Pi5 数据外推：单 A7 估 Needle 2L 解码 ~100 tok/s、一次调用 1~2s <b class="g">（可用线）</b>；Whistle 估 1~3s 出短语 <b class="o">（边缘线，须实测）</b>。API 自带 <code>ttft_ms / decode_tps / peak_ram_mb</code> 字段，上板十分钟就能量出真数字。H743 留在它最强的位置：常供电唤醒词（自研 wakenet）+ 音频前端 + 外设控制，GPIO 唤醒大脑板。在线态照旧：Whistle 本地转写 → 云 LLM + MCP。
+</div>
+<div class="warn verdict">
+<b class="o">路 2（炫技线，可选）：H743 自写 CQ2 运行时。</b><br>
+起点 needle-rs（Rust → no_std Cortex-M 是真路径）或照 JAX 参考手写 C。范围锁死 Needle 2L/4L 档 + 贪心解码，验收用官方三道测试。产出是"裸机 STM32 上跑 foundation model"的硬核 demo（+一篇能吹的笔记），不是产品功能。预估 3~6 周业余时间。做之前先把 §3 的账拍在桌上：5~30s/次。
+</div>
+<div class="no verdict">
+<b class="r">路 3（放弃）：ONNX / Cube.AI / 编译官方静态库到裸机。</b>官方静态库是 Linux 目标（libc/syscalls），ONNX 导出不存在， safetensors→ONNX 需重写全套自研算子且丢掉 CQ2 的 2.125bit 压缩红利（int8 后权重×4）。三条都绕远。
+</div>
+
+<h2>5 · 行动清单（每步带验收）</h2>
+<div class="card">
+<table>
+<tr><th>#</th><th>动作</th><th>验收</th><th>耗时</th></tr>
+<tr><td>P0</td><td>Mac 上 <code>needle whistle compare</code> + 3 个工具的 <code>agent.run</code> demo（本地已装 3.2.8）</td><td>英文指令 → 正确 JSON call，误报为空列表</td><td>半天</td></tr>
+<tr><td>P1</td><td> Luckfox Lyra / Radxa Zero 3W 上装 <code>cactus-needle</code>（armv7/arm64 官方包）</td><td>记录 <code>ttft_ms / decode_tps / peak_ram_mb</code>；通过/不通过线：Needle&lt;3s/次、Whistle&lt;4s/句</td><td>1 天</td></tr>
+<tr><td>P2</td><td>H743 音频前端固件：I2S mic → USB-CDC 16kHz 流 + 自研唤醒词常驻 + 串口回执协议</td><td>Mac 侧 <code>needle.stream()</code> 实时字幕不丢帧</td><td>2~3 天</td></tr>
+<tr><td>P3</td><td>双板合体：唤醒→Whistle→Needle（离线）/ 云 LLM+MCP（在线）三态状态机，灯/空调接 HA</td><td>拔网线演示：仍能开关灯；插回自动升级</td><td>2~3 天</td></tr>
+<tr><td>P4</td><td>（可选炫技）needle-rs → H743 no_std 移植，2L 档贪心解码</td><td>官方三道验收 + 实测 tok/s 写成笔记</td><td>3~6 周</td></tr>
+</table>
+</div>
+
+<h2>6 · 本次调研直接引用的来源</h2>
+<div class="card" style="font-size:13px;color:var(--mut)">
+<ul>
+<li>官方博客：<a href="https://cactuscompute.com/blog/porting-needle">Porting Needle 3</a>（移植合同/验收标准）、<a href="https://cactuscompute.com/blog/cact-format">.cact format</a>（容器与 CQ2 量化）、<a href="https://cactuscompute.com/blog/needle-supported-devices">supported devices</a>（13 平台、Pi5 数字、层深阶梯）、<a href="https://cactuscompute.com/blog/whistle-best-practices">Whistle best practices</a></li>
+<li>仓库：<a href="https://github.com/cactus-compute/needle">cactus-compute/needle</a>（本地 work/needle，含 JAX 参考实现与微调/导出全链）、<a href="https://huggingface.co/Cactus-Compute/needle3">HF needle3</a>、<a href="https://huggingface.co/Cactus-Compute/whistle">HF whistle</a>（.cact + safetensors checkpoint，Apache-2.0）</li>
+<li>社区：<a href="https://github.com/Geekgineer/needle-rs">Geekgineer/needle-rs</a>（纯 Rust 运行时 + WASM 600KB）、<a href="https://afshinm.github.io/cactus-needle/">cactus-needle JS/WASM</a>、官方 <a href="https://docs.cactuscompute.com/v1.14/rust">Rust SDK</a></li>
+<li>硬件：<a href="https://www.mouser.com/datasheet/2/389/stm32h723ve-1893301.pdf">STM32H723 datasheet</a>（FMC 支持 SDRAM——上一轮已核）、H743 SDRAM 带宽为公开手册推算值</li>
+</ul>
+</div>
+
+<footer>2026-10-22 · 单文件自包含 · 本地未提交 · 上一轮结论（唤醒词+Whistle+Needle 家庭机器人架构）仍然成立，本文补齐"引擎从哪儿来"的最后一块</footer>
+</div>
+</body>
+</html>
