@@ -1,0 +1,170 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="AI 画 PCB 开源工具链调研：Flux.ai/Protoflow/Quilter 出局理由；circuit-synth + kicad-mcp-pro + kicad-happy + freerouting 组合链——自带模型、免费开源、产物原生 KiCad。"><title>AI 画 PCB 开源工具链调研 · 自带模型 + 可导 KiCad</title>
+<style>
+:root{--bg:#f5f7fa;--paper:#fff;--ink:#1c293d;--muted:#52627a;--line:#dce3ec;--blue:#315cc5;--green:#067465;--amber:#925411;--code:#101d30}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:24px}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.85 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}a{color:var(--blue);text-underline-offset:3px}a:hover{text-decoration-thickness:2px}a:focus-visible,summary:focus-visible{outline:3px solid var(--blue);outline-offset:4px}p{margin:12px 0 18px}strong{font-weight:650}code,pre{font-family:ui-monospace,SFMono-Regular,Consolas,monospace}code{font-size:.86em;background:#edf1f7;padding:2px 5px;border-radius:4px;overflow-wrap:anywhere}pre{background:var(--code);color:#e5edf9;padding:22px;border-radius:12px;overflow:auto;font-size:13px;line-height:1.75}pre code{background:none;padding:0;font-size:inherit;overflow-wrap:normal}h1,h2,h3{line-height:1.35}h1{font-size:clamp(30px,4vw,46px);letter-spacing:-1.6px;margin:20px 0}h2{font-size:27px;letter-spacing:-.6px;margin:0 0 24px}h3{font-size:19px;margin:28px 0 12px}ul,ol{padding-left:24px}li{margin:6px 0}small,.muted{color:var(--muted)}.wrap{max-width:1260px;margin:auto;padding:0 36px}.top{padding:25px 0;font-size:14px}.top a{text-decoration:none}.hero{padding:26px 0 42px;border-bottom:1px solid var(--line)}.eyebrow{color:var(--green);font:600 12px/1.5 ui-monospace,monospace;letter-spacing:2px}.hero p{max-width:780px;font-size:18px;color:var(--muted)}.meta{display:flex;flex-wrap:wrap;gap:8px 20px;font-size:13px;color:var(--muted)}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:32px}.metric{padding:19px 20px;background:var(--paper);border:1px solid var(--line);border-radius:12px}.metric b{display:block;font-size:26px;line-height:1.4;letter-spacing:-.8px}.metric span{font-size:12px;color:var(--muted)}.layout{display:grid;grid-template-columns:205px minmax(0,1fr);gap:44px;padding:42px 0 60px}aside{position:sticky;top:24px;align-self:start}aside b{font-size:12px;color:var(--muted);letter-spacing:2px}nav{display:grid;gap:0;margin-top:14px}nav a{font-size:13px;text-decoration:none;color:var(--muted);padding:4px 10px;border-left:2px solid var(--line)}nav a:hover{color:var(--blue);border-color:var(--blue);background:#eaf0fb}main{min-width:0}section{padding:32px;background:var(--paper);border:1px solid var(--line);border-radius:15px;margin-bottom:24px}h2 .n{font-size:13px;display:block;letter-spacing:2px;color:var(--green);margin-bottom:7px}.table{overflow-x:auto;margin:20px 0;border:1px solid var(--line);border-radius:9px}table{border-collapse:collapse;width:100%;font-size:14px;min-width:570px}th,td{padding:13px 15px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{background:#edf2f8;font-size:12px;color:#3c506b}tr:last-child td{border-bottom:0}td:first-child{font-weight:550}.badge{display:inline-block;padding:2px 8px;border-radius:5px;font-size:12px;white-space:nowrap;background:#e9f1fe;color:#2854a8}.ok{background:#e3f4ee;color:#075e4b}.pending{background:#fff0dc;color:#825015}.removed{background:#f0edf5;color:#64566d}.callout{padding:17px 20px;border-left:4px solid var(--green);background:#eef8f5;border-radius:0 9px 9px 0;margin:22px 0}.callout.warn{border-color:#c08631;background:#fff7e9}.callout p{margin:4px 0}.source{font-size:12px;color:var(--muted)}.sources li{font-size:14px;padding-bottom:8px;overflow-wrap:anywhere}details{border:1px solid var(--line);border-radius:9px;padding:15px 18px;margin:16px 0}summary{cursor:pointer;font-weight:600}details p:last-child{margin-bottom:0}.foot{padding:4px 0 40px;color:var(--muted);font-size:13px}.skip{position:absolute;left:16px;top:-80px;background:white;padding:10px;z-index:2}.skip:focus{top:10px}
+@media(max-width:960px){.layout{grid-template-columns:1fr;gap:24px}aside{position:static}nav{grid-template-columns:repeat(3,1fr)}.wrap{padding:0 24px}h1{letter-spacing:-1px}.metrics{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){body{font-size:15px}.wrap{padding:0 16px}.hero{padding-top:10px}.hero p{font-size:16px}.metrics{grid-template-columns:1fr;gap:10px}.metric{padding:14px}.metric b{font-size:23px}nav{grid-template-columns:1fr 1fr}.layout{padding-top:26px}section{padding:22px 18px;border-radius:12px}h2{font-size:23px}.table{min-width:0}table{min-width:0;font-size:12px}pre{padding:16px;font-size:12px}.meta{font-size:12px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+@media print{body{background:white;font-size:11pt}.wrap{max-width:none;padding:0}.top,aside,.skip{display:none}.hero{padding:0 0 20px}.hero p{font-size:12pt}.layout{display:block;padding:20px 0}section{border:0;padding:18px 0;margin:0;border-radius:0}h2,h3{break-after:avoid}tr,.callout,.metric{break-inside:avoid}.table,pre{overflow:visible}table{min-width:0;font-size:9pt}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#edf1f7;color:#14243d}a{color:inherit}details{display:block}.foot{padding-top:20px}}
+</style></head><body><a class="skip" href="#tldr">跳到正文</a><div class="wrap"><div class="top"><a href="index.html">← Notes</a> / research</div><header class="hero"><div class="eyebrow">AI PCB / OPEN-SOURCE EDA · 2026-10</div><h1>自带模型画 PCB：<br>开源 AI 工具链调研</h1><p class="lead">想用 AI 画 PCB，但 Flux.ai 是付费云服务、Protoflow 是本地 App 却<strong>锁死自家模型不许换</strong>——本文调研开源世界里「自带模型（BYO）+ 免费开源 + 产物可回 KiCad 手改」的现实路线。结论：别等产品，<strong>用一条组合链</strong>，2026 年的 KiCad 生态刚好把零件凑齐了。</p><div class="meta"><span>整理：2026-10-20</span><span>基线：GitHub 实勘 + KiCad 10（2026-03）生态</span><span>结论：circuit-synth + MCP 系 + freerouting 组合链</span></div><div class="metrics"><div class="metric"><b>MIT ×4</b><span>circuit-synth / tscircuit / atopile / kicad-happy 主候选全 MIT</span></div><div class="metric"><b>原生 KiCad 工程直出</b><span>circuit-synth 生成 .kicad_pro / .kicad_sch / .kicad_pcb</span></div><div class="metric"><b>MCP = 模型无关</b><span>kicad-mcp-pro 接什么模型由你定（ZCode/GLM、Claude、Codex 都行）</span></div><div class="metric"><b>1.5k★</b><span>kicad-happy，审查向最热，纯脚本也能跑</span></div></div></header><div class="layout"><aside><b>调研目录</b><nav aria-label="报告目录"><a href="#tldr">00 · 结论速览与拍板</a><a href="#criteria">01 · 需求判定：四个硬指标</a><a href="#out">02 · 出局名单：Flux / Protoflow 们</a><a href="#circuitsynth">03 · 路线 A：circuit-synth</a><a href="#mcp">04 · 路线 B：MCP 直控 KiCad</a><a href="#codeeda">05 · 路线 C：tscircuit / atopile</a><a href="#stack">06 · 配套底座与研究前沿</a><a href="#verdict">07 · 落地拍板与工作流</a><a href="#sources">08 · 信息来源</a></nav></aside><main>
+
+<section id="tldr"><h2><span class="n">00 / TL;DR</span>结论速览与拍板</h2>
+<p><strong>开源世界里不存在「一个开箱即用、还让你自带模型的 Flux.ai」</strong>——闭源 SaaS 的商业逻辑就是模型即护城河（Flux 卖 Copilot 订阅、Protoflow 卖自家推理、Quilter 卖云端布局），指望它们开放 BYO 不现实。但把「AI 画 PCB」拆开看——<strong>原理图生成、设计审查、布局布线、制造导出</strong>四层——开源生态在 2026 年刚好每一层都有可用件，拼起来就是一条全开源、零费用、模型随便换、产物是原生 KiCad 的链路。</p>
+<p><strong>拍板主链：</strong></p>
+<div class="table"><table><thead><tr><th>环节</th><th>工具</th><th>AI 角色</th></tr></thead><tbody>
+<tr><td>原理图生成</td><td><strong>circuit-synth</strong>（Python → 直出 .kicad 工程）</td><td>你的 agent 写 Python，工具本身不碰模型</td></tr>
+<tr><td>Agent 接入 KiCad</td><td><strong>kicad-mcp-pro</strong>（MCP 服务器：ERC/DRC/DFM/BOM/Gerber）</td><td>模型无关协议，ZCode / Claude Code / Codex 随便接</td></tr>
+<tr><td>设计审查</td><td><strong>kicad-happy</strong>（EMC / SPICE / DFM / 选料，1.5k★）</td><td>skills + 纯 Python 脚本，任何 agent 可用</td></tr>
+<tr><td>布局</td><td>KiCad 本体</td><td>人工主场（AI 全自动布局开源界尚无等价物）</td></tr>
+<tr><td>自动布线</td><td><strong>freerouting</strong>（DSN 进出 KiCad）</td><td>传统算法非 AI，但开源免费能打</td></tr>
+<tr><td>校验闭环</td><td><code>kicad-cli</code> ERC / DRC</td><td>agent 的反馈信号，改完自动复验</td></tr>
+</tbody></table></div>
+<div class="callout warn"><p><strong>诚实的边界：</strong>「一句话出整板、AI 全自动布局布线」这种 Flux/Quilter 式体验，开源界<strong>没有</strong>等价物。开源现实是「AI 管原理图生成、审查迭代、BOM 选料；人管布局」。如果接受这个分工，下面整条链今天就能跑。</p></div>
+</section>
+
+<section id="criteria"><h2><span class="n">01 / CRITERIA</span>需求判定：四个硬指标</h2>
+<p>从需求出发定了四个硬指标，外加两个软指标：</p>
+<ul>
+<li><strong>开源</strong>：许可证宽松（MIT 最佳），代码可审计、可自救；</li>
+<li><strong>免费</strong>：核心能力不按板收费、不限次数；</li>
+<li><strong>自带模型（BYO）</strong>：AI 推理不在厂商云端，或至少模型完全可替换；</li>
+<li><strong>可导出 KiCad</strong>：产物是 .kicad 工程/网表，随时回 KiCad 手改——这是「AI 生成的玩意必须能被人接管」的底线；</li>
+<li>软指标①：<strong>分层覆盖</strong>——原理图、PCB、审查、布线各自覆盖到什么程度；</li>
+<li>软指标②：<strong>macOS Apple Silicon</strong>——日常开发机，全链 Python/Node 均无障碍。</li>
+</ul>
+<p>「自带模型」在开源世界有两种实现形态，都成立：</p>
+<div class="table"><table><thead><tr><th>形态</th><th>原理</th><th>代表</th></tr></thead><tbody>
+<tr><td>MCP（模型无关协议）</td><td>服务器只暴露工具（读改 KiCad 文件、跑 DRC），<strong>用什么模型是客户端的事</strong>——ZCode、Claude Code、Codex CLI、Copilot 各自带着自己的模型来连</td><td>kicad-mcp-pro、mcp-kicad-sch-api</td></tr>
+<tr><td>代码生成（工具不含 AI）</td><td>工具本身是个编译器/生成器，AI 的角色由外部 coding agent 写代码来完成；换 agent = 换模型，零耦合</td><td>circuit-synth、tscircuit、atopile</td></tr>
+</tbody></table></div>
+<p>注意一个关键区别：Protoflow 式的「App 内置 AI 面板但锁模型」两头不占——既没有云端服务的规模，又剥夺了 BYO 的自由。而 MCP / 代码生成这两条路，模型永远是你的。</p>
+</section>
+
+<section id="out"><h2><span class="n">02 / THE OUT LIST</span>出局名单：Flux / Protoflow 们为什么不行</h2>
+<div class="table"><table><thead><tr><th>工具</th><th>形态</th><th>出局理由</th></tr></thead><tbody>
+<tr><td>Flux.ai</td><td>云端 SaaS</td><td>Copilot 绑自家云；免费档额度极小，正式用必付费；不开源</td></tr>
+<tr><td>Protoflow</td><td>本地 App</td><td><strong>锁死模型，只能用官方推荐的</strong>（本次调研的起因，实测确认）；免费与否已无关紧要——BYO 是硬指标</td></tr>
+<tr><td>Quilter</td><td>云端 AI 布局</td><td>闭源，按板收费；「AI 全自动布局」确实是它最强，但模型和引擎都在别人云上</td></tr>
+<tr><td>DeepPCB（InstaDeep）</td><td>云端 AI 布线</td><td>有免费档、Gerber 进出对 KiCad 友好，但闭源、不碰模型；自称 27,721 块板 95.6% 达到 95%+ 完成率</td></tr>
+<tr><td>CELUS / JITX</td><td>商业代码式 EDA</td><td>代码生成电路的先驱，但都是企业级收费闭源产品</td></tr>
+</tbody></table></div>
+<p>顺带一个有意思的事实：Protoflow 官网自己的对比文章也承认 <strong>KiCad 10 是 2026 年最好的免费开源 EDA</strong>，自家卖点是「导出到 KiCad」——也就是说连闭源玩家都把 KiCad 当作事实底座。那我们直接把 AI 接到 KiCad 上，跳过中间商。</p>
+</section>
+
+<section id="circuitsynth"><h2><span class="n">03 / ROUTE A</span>路线 A：circuit-synth —— Python 写电路，产物是原生 KiCad 工程</h2>
+<p><strong>circuit-synth</strong>（<a href="https://github.com/circuit-synth/circuit-synth">github.com/circuit-synth/circuit-synth</a>，MIT，287★ / 1,207 commits，活跃）是本次调研最贴合需求的单件：用 Python 代码定义电路，一键生成<strong>原生 KiCad 工程</strong>。要 Python 3.12+ 和 KiCad 8+（BOM/PDF/Gerber 走 kicad-cli）。</p>
+<h3>核心机制</h3>
+<pre><code># pip install circuit-synth   →   uv run cs-new-project my_board（自带 ESP32-C6 示例）
+from circuit_synth import *
+
+@circuit(name="regulator_3v3")
+def regulator():
+    vbus  = Net("VBUS")
+    v3v3  = Net("3V3")
+    gnd   = Net("GND")
+    ic = Component(symbol="Regulator_Linear:AMS1117-3.3", ref="U", value="AMS1117-3.3")
+    c1 = Component(symbol="Device:C", ref="C", value="10uF")
+    ic["VI"] += vbus;  ic["VO"] += v3v3;  ic["GND"] += gnd   # 引脚连网络
+    c1[1]    += v3v3;  c1[2]      += gnd
+
+regulator().generate_kicad_project("my_board")   # ← 直出 .kicad_pro/.kicad_sch/.kicad_pcb</code></pre>
+<ul>
+<li><strong>产物就是标准 KiCad 工程</strong>：生成后直接在 KiCad 里打开布局，手改、版本控制、发厂全按既有习惯——「可回 KiCad 手改」满分；</li>
+<li><strong>双向同步</strong>：可导入已有 .kicad_sch 修改再导出；生成时自动重写 ref（C → C1/C2），Python 与 KiCad 两侧不漂移；</li>
+<li>附赠 <code>generate_bom()</code> / <code>generate_pdf_schematic()</code> / <code>generate_gerbers()</code>（依赖 kicad-cli），还有 FMEA 可靠性分析与 SPICE 仿真接口；</li>
+<li>内置 7 个制造级电路模式（buck/boost、LiPo 充电、RS485 等）可抄作业，元件搜索接 JLCPCB / DigiKey。</li>
+</ul>
+<h3>AI 层：官方 Claude Code 集成，但不锁 Claude</h3>
+<p>官方为 Claude Code 准备了整套配置（circuit-architect / simulation-expert 等 subagent、<code>/generate-validated-circuit</code> 等斜杠命令、skills），但<strong>核心生成器不含任何 LLM</strong>——它就是个 Python 库。任何能写 Python 的 coding agent（ZCode/GLM、Codex、Copilot……）都能驱动它，模型完全是你自己的。这是「BYO + 导出 KiCad」两个硬指标的双满分。</p>
+<div class="callout"><p><strong>定位边界：</strong>circuit-synth 解决的是<strong>原理图/网表层</strong>（哪颗芯片、怎么连），布局布线仍回 KiCad 做——恰好匹配「AI 生成 + 人手改」的分工预期。</p></div>
+</section>
+
+<section id="mcp"><h2><span class="n">04 / ROUTE B</span>路线 B：MCP 直控 KiCad —— 让你自己的 Agent 操控真 KiCad</h2>
+<p>MCP（Model Context Protocol）是 BYO 的正解：<strong>服务器只负责暴露工具（读写 KiCad 文件、跑 ERC/DRC、导 Gerber），模型由客户端自带</strong>。换模型 = 换个客户端接进来，服务器一行不改。2026 年 KiCad 的 MCP 生态已经从玩具变成了正经工具：</p>
+<div class="table"><table><thead><tr><th>项目</th><th>规模 / 许可</th><th>能力</th><th>状态</th></tr></thead><tbody>
+<tr><td><a href="https://github.com/oaslananka/kicad-mcp-pro">kicad-mcp-pro</a></td><td>MIT · 141★ · 1,287 commits · v4.3.0</td><td>原理图/PCB 审查、ERC/DRC（KiCad 原生引擎）、DFM、BOM 分析、Gerber 导出、发布流程；信号完整性/EMC/热为一阶闭式估算（~5–10% 精度，非签核级）</td><td><span class="badge ok">活跃，主推</span></td></tr>
+<tr><td><a href="https://github.com/circuit-synth/mcp-kicad-sch-api">mcp-kicad-sch-api</a></td><td>circuit-synth 同门</td><td>把 kicad-sch-api 库暴露成 MCP 工具：agent 创建/修改/分析原理图</td><td><span class="badge ok">活跃</span></td></tr>
+<tr><td><a href="https://github.com/mixelpixx/KiCAD-MCP-Server">mixelpixx/KiCAD-MCP-Server</a></td><td>小项目</td><td>Claude 辅助 KiCad PCB 自动化的基础 MCP</td><td><span class="badge pending">较小</span></td></tr>
+<tr><td>实时布线 MCP（r/KiCad）</td><td>社区新出</td><td>agent 在<strong>活体 KiCad 会话</strong>里用 Push &amp; Shove 布线，已有走线自动避让</td><td><span class="badge pending">方向确认中</span></td></tr>
+</tbody></table></div>
+<p>kicad-mcp-pro 的工程化程度值得单独说：默认启动为<strong>受限只读 profile</strong>（24 个审查工具），写文件/制造输出/专家模式要显式开启——对「AI 别乱动我的板子」是正确的设计；传输支持 stdio 和 Streamable HTTP；安装一条命令 <code>uvx kicad-mcp-pro</code>；官方给了 Claude Code / Codex CLI / VS Code Copilot / OpenCode 四家客户端的配置示例，任何 MCP 客户端（含 ZCode）同理可接；正在开发 KiCad 10 的 IPC 插件。接入配置长这样（各家客户端通用结构）：</p>
+<pre><code>{
+  "mcpServers": {
+    "kicad": {
+      "command": "uvx",
+      "args": ["kicad-mcp-pro", "--transport", "stdio"]
+    }
+  }
+}</code></pre>
+<h3>搭档：kicad-happy（审查层）</h3>
+<p><a href="https://github.com/aklofas/kicad-happy">kicad-happy</a>（MIT，<strong>1.5k★</strong>，813 commits，v2.3.1）是这批项目里热度最高的：11 个 skills 覆盖 <strong>kicad 解析审查 / SPICE 自动测试台（ngspice/LTspice/Xyce，含蒙特卡洛）/ EMC 预合规（44 条规则，FCC/CISPR）/ 数据手册提取 / BOM 全周期 / DigiKey·Mouser·LCSC 选料 / JLCPCB·PCBWay 下单准备</strong>。关键卖点：它既是 Claude Code / Codex / Copilot CLI / Gemini / opencode 的 skills，<strong>也能当独立 Python 脚本跑</strong>（纯 Python 3.10+，零强制依赖，甚至不用装 KiCad），还配了 5,800+ 开源 KiCad 项目的回归语料。定位是「下单前抓真 bug」，与生成类工具完美互补。</p>
+</section>
+
+<section id="codeeda"><h2><span class="n">05 / ROUTE C</span>路线 C：tscircuit / atopile —— 代码式 EDA 新势力</h2>
+<p>两条「代码生成电路」的新势力路线，都不含内置 AI、但都对 coding agent 极度友好（官方口号就是让 agent 写它们的代码）：</p>
+<div class="table"><table><thead><tr><th>维度</th><th>tscircuit</th><th>atopile</th></tr></thead><tbody>
+<tr><td>仓库 / 许可</td><td><a href="https://github.com/tscircuit/tscircuit">tscircuit/tscircuit</a> · MIT · <strong>2.9k★</strong> · 5,880 commits</td><td><a href="https://github.com/atopile/atopile">atopile/atopile</a> · MIT · <strong>4.0k★</strong> · 2,843 commits</td></tr>
+<tr><td>语言形态</td><td>TypeScript/React JSX：<code>&lt;resistor&gt;</code>、<code>&lt;chip&gt;</code>、<code>&lt;trace&gt;</code>，React Fiber 渲染成电路/PCB/3D</td><td>声明式 <code>.ato</code> 语言：模块、接口、单位、公差、断言（assertions）</td></tr>
+<tr><td>KiCad 关系</td><td>导出 Gerbers/PnP/BOM + <strong>KiCad 库导出</strong>（符号/封装/3D）；<code>circuit-json-to-kicad</code> 官方库可转 <code>.kicad_pcb</code>——可行但属转换路径，非一等公民</td><td><strong>原生协作</strong>：编译器直接生成/更新 <code>.kicad_pcb</code>，place &amp; route 就在 KiCad 里做（KiCad 可后装，不装只影响预览）</td></tr>
+<tr><td>AI 角色</td><td>CLI 完全本地（<code>tsci dev</code> → localhost:3020 预览）；README 明说「tell your agent to use tscircuit」；云端 playground/AI 是独立可选服务</td><td>仓库自带 CLAUDE.md / AGENTS.md / .cursor 配置，明确为 coding agent 优化；无内置 AI 接口——agent 写 .ato 即 AI</td></tr>
+<tr><td>成熟度提醒</td><td>目前需手写元件坐标（类 CSS Grid 自动布局在开发中，见 autorouting.com）；适合快速原型/小板</td><td>更偏资深硬件工程师的「硬件代码化」长期路线；有模块注册表 packages.atopile.io</td></tr>
+</tbody></table></div>
+<p>另有老牌 <strong>SKiDL</strong>（Python 写电路 → KiCad 网表，MIT）：思路是 circuit-synth 的前辈，如今直接用 circuit-synth 即可，不单独推荐。</p>
+<div class="callout"><p><strong>怎么选：</strong>要「AI 生成 + 回 KiCad 手改」就 A（circuit-synth）；写惯前端/想快速原型小板可以试 tscircuit；想长期把硬件当代码管理选 atopile。三者不互斥——B（MCP + kicad-happy）是所有路线共享的 agent 接入层和审查层。</p></div>
+</section>
+
+<section id="stack"><h2><span class="n">06 / FOUNDATION</span>配套底座与研究前沿</h2>
+<ul>
+<li><strong>freerouting（自动布线）</strong>：<a href="https://github.com/freerouting/freerouting">github.com/freerouting/freerouting</a>，开源 autorouter，与 KiCad 的官方配合流程成熟（DSN 导出 → 布线 → 回导 → 人工修铜），也支持 Fusion/Target3001。KiCad 至今没有内置 autorouter，它是开源默认答案。注意它是传统算法不是 AI——但开源免费、本地可跑。</li>
+<li><strong>KiCad 10（2026-03 发布，10.0.1 于 04-15）</strong>：新增高高速信号调谐、设计变体、pin/gate 交换、图形化 DRC 规则编辑器；更关键的是 <strong>IPC API 取代老 SWIG Python 绑定</strong>（<a href="https://gitlab.com/kicad/code/kicad-python">kicad-python</a> 已上 PyPI，语言无关、可连活体会话）——这是「agent 直控 KiCad」的地基，上面的 MCP 们正是踩着它建的。坑：IPC API 的出图/导出要 KiCad 11 才补齐，眼下导出统一走 <code>kicad-cli</code>。</li>
+<li><strong>KiCadRoutingTools</strong>：KiCad 社区 2026-02 冒出的自动布线插件（alpha），保持关注。</li>
+<li><strong>研究前沿</strong>：<a href="https://github.com/rjwalters/kicad-tools">PCBWorld</a>（BSD-3）把 KiCad 自家的 Push&amp;Shove 布线器包成 Gymnasium 强化学习环境、用 KiCad DRC 打分（arXiv:2607.05915）——「RL 学布线」在开源侧刚起步；另有 KiClaude（浏览器原生 AI KiCad，早期 roadmap）。</li>
+<li><strong>macOS Apple Silicon</strong>：整条链（circuit-synth / kicad-mcp-pro / kicad-happy / tscircuit / KiCad 10 / freerouting jar）全是 Python/Node/Java 生态，arm64 无障碍。</li>
+</ul>
+</section>
+
+<section id="verdict"><h2><span class="n">07 / VERDICT</span>落地拍板：推荐工作流</h2>
+<p>把零件串成一条「你的 agent 全程参与、关键处人来拍板」的流水线：</p>
+<pre><code>需求描述（自然语言）
+   │  你的 agent（ZCode/GLM 或 Claude Code——模型随你换）
+   ▼
+① circuit-synth 写 Python → .kicad_sch          ……生成层（AI 主场）
+   │  kicad-cli sch erc
+   ▼
+② KiCad 里人工布局                                ……人工主场（AI 全自动布局尚无开源等价物）
+   │  导出 DSN
+   ▼
+③ freerouting 自动布线 → 回导 KiCad 修铜          ……布线层
+   │  kicad-cli pcb drc
+   ▼
+④ kicad-happy 终审：EMC / DFM / SPICE / LCSC 选料 ……审查层（AI 第二主场）
+   ▼
+Gerber + PnP + BOM → JLCPCB 下单</code></pre>
+<p><strong>上手路径（约两小时）：</strong></p>
+<ol>
+<li><code>pip install circuit-synth</code> → <code>cs-new-project demo</code> → 跑通 ESP32-C6 示例，在 KiCad 里打开生成的工程，感受「Python → 原生 KiCad」；</li>
+<li>agent 接入：给 ZCode / Claude Code 的 MCP 配置加一条 <code>uvx kicad-mcp-pro</code>（§4 有配置片段），再 clone kicad-happy 的 skills 装进 agent；</li>
+<li>拿一块真实小板（比如下一块星闪/ESP32 载板）走完 ①→④ 全流程，验证分工手感；</li>
+<li>若主攻快速原型，试 tscircuit 的 <code>tsci dev</code>；若走硬件代码化长线，试 atopile。</li>
+</ol>
+<div class="callout warn"><p><strong>再强调一次别指望的：</strong>一句话全自动出整板。Quilter/Flux 收费收的正是这个能力，开源侧 freerouting 只解决布线、布局仍归人。但反过来，「AI 生成原理图 + AI 审查 + AI 选料 + 人布局」这条链，<strong>每一环都比纯手工快，而且每一环的模型都是你自己的</strong>。</p></div>
+</section>
+
+<section id="sources"><h2><span class="n">08 / SOURCES</span>信息来源</h2>
+<ul class="sources">
+<li><a href="https://github.com/circuit-synth/circuit-synth">circuit-synth（GitHub）</a> · <a href="https://circuit-synth.readthedocs.io">文档</a> · <a href="https://forum.kicad.info/t/circuit-synth-professional-circuit-design-python-kicad-ai/63035">KiCad 论坛发布帖（2025-08）</a></li>
+<li><a href="https://github.com/oaslananka/kicad-mcp-pro">kicad-mcp-pro（GitHub）</a> · <a href="https://forum.kicad.info/t/i-built-an-open-source-mcp-server-for-ai-assisted-kicad-workflows/68678">KiCad 论坛发布帖</a> · <a href="https://www.eevblog.com/forum/chatgptai/open-source-mcp-server-for-ai-assisted-kicad-workflows">EEVblog 讨论</a></li>
+<li><a href="https://github.com/aklofas/kicad-happy">kicad-happy（GitHub）</a></li>
+<li><a href="https://github.com/tscircuit/tscircuit">tscircuit（GitHub）</a> · <a href="https://docs.tscircuit.com/command-line/tsci-export">tsci export 文档</a> · <a href="https://github.com/tscircuit/circuit-json-to-kicad">circuit-json-to-kicad</a></li>
+<li><a href="https://github.com/atopile/atopile">atopile（GitHub）</a> · <a href="https://atopile.io">atopile.io</a></li>
+<li><a href="https://github.com/circuit-synth/mcp-kicad-sch-api">mcp-kicad-sch-api（GitHub）</a> · <a href="https://github.com/mixelpixx/KiCAD-MCP-Server">mixelpixx/KiCAD-MCP-Server</a></li>
+<li><a href="https://www.reddit.com/r/KiCad/comments/1v984s6/i_opensourced_an_mcp_server_that_lets_ai_agents">实时布线 MCP（r/KiCad 帖）</a></li>
+<li><a href="https://github.com/freerouting/freerouting">freerouting（GitHub）</a> · <a href="https://freerouting.org/freerouting/using-with-kicad">与 KiCad 配合官方文档</a></li>
+<li><a href="https://www.kicad.org/blog/2026/04/KiCad-10.0.1-Release">KiCad 10.0.1 发布公告</a> · <a href="https://gitlab.com/kicad/code/kicad-python">kicad-python（IPC API 绑定）</a> · <a href="https://dev-docs.kicad.org/en/apis-and-binding/ipc-api/for-addon-developers/index.html">IPC API 开发者文档</a></li>
+<li><a href="https://github.com/rjwalters/kicad-tools">PCBWorld（RL 布线研究，kicad-tools 仓库）</a> · <a href="https://github.com/LayerDynamics/KiClaude">KiClaude</a></li>
+<li>反面参照：<a href="https://www.protoflow.ai/compare/best-ai-pcb-design-software-2026">Protoflow 官方 2026 对比文（承认 KiCad 10 为最强免费开源 EDA）</a> · <a href="https://deeppcb.ai/kicad-autorouter-alternative">DeepPCB 自述数据</a> · <a href="https://www.quilter.ai/blog/analyzing-the-best-free-pcb-tools-in-2026-quilter-vs-kicad-vs-circuitmaker">Quilter 2026 免费工具对比</a></li>
+</ul>
+<p class="source">快照时间：2026-10-20。star/commit 数为当日 GitHub 页面实勘值，会随时间变化。</p>
+</section>
+
+</main></div><div class="foot">调研笔记 · 2026-10-20 · <a href="index.html">← 嵌入式与硬件</a></div></div></body></html>
