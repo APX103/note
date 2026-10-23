@@ -154,6 +154,18 @@
     </div>
     <div class="section-title"><span class="dot" style="background:#f97316"></span> 开发实录与调研 <span class="count">(12)</span></div>
     <div class="grid">
+        <a class="card" data-date="2026-10-22" href="kws-sliding-window-demo.html">
+            <div class="card-title"><span class="arrow">&rarr;</span> 流式语音唤醒：滑动窗口原理交互动画</div>
+            <div class="card-desc"><span class="tag">2026-10-22 · 可交互动画</span> KWS 运行时机制动画：波形→分帧→特征 FIFO→概率曲线四泳道时间对齐 · 可暂停/0.5× 慢放/10ms 步进看窗口一格一格滑 · 判决四件套（阈值 0.8+连续 3 拍+上升沿+冷却）真实仿真：t≈2.2s 触发、t≈5.1s 噪声尖峰被滤 · 配套自研 wakenet 教程</div>
+        </a>
+        <a class="card" data-date="2026-10-22" href="kws-sliding-window-explained.html">
+            <div class="card-title"><span class="arrow">&rarr;</span> 语音唤醒滑窗图解：9 帧静态画面看懂动态过程</div>
+            <div class="card-desc"><span class="tag">2026-10-22 · 静态图解</span> 同一时间轴 7 帧胶片：1 秒窗口逐帧右滑、FIFO 换血、概率 0.05→0.85→触发→冷却 · 对照帧讲透「连续 k 拍」为何能滤噪声尖峰 · 三层滑窗标尺 + 判决状态机 · 数值与动画版同源</div>
+        </a>
+        <a class="card" data-date="2026-10-22" href="cactus-needle-mcu-port-research.html">
+            <div class="card-title"><span class="arrow">&rarr;</span> 把 Cactus（Needle/Whistle）塞进 STM32H743？引擎移植调研</div>
+            <div class="card-desc"><span class="tag">2026-10-22 · 移植调研</span> 引擎真相：闭源 &lt;1MB×13 平台（连静态库带头文件都发）但无裸机 Cortex-M · .cact 容器格式全开放（CQ2 2.125bit/权重）+ 官方移植验收合同 + 社区 needle-rs 起点 · H743 实测账：一次工具调用 5~30s——炫技可以当大脑不行 · 零移植好棋：Luckfox Lyra/Radxa（官方 linux-armv7）· 行动清单 P0~P4</div>
+        </a>
         <a class="card" data-date="2026-10-20" href="ai-pcb-tools-research.html">
             <div class="card-title"><span class="arrow">&rarr;</span> AI 画 PCB 开源工具链调研：自带模型 + 可导 KiCad 的现实路线</div>
             <div class="card-desc"><span class="tag">2026-10-20 · 工具调研</span> Flux/Protoflow/Quilter 出局理由（锁模型即商业护城河）· 主推组合链：circuit-synth（Python 直出原生 .kicad 工程）+ kicad-mcp-pro/kicad-happy（任何自带 Agent 经 MCP 操控 KiCad，1.5k★）+ freerouting 自动布线 + kicad-cli DRC 闭环 · tscircuit/atopile 备选 · 全 MIT 开源免费 · 边界诚实：AI 全自动布局开源界尚无等价物，AI 管原理图与审查、人管布局</div>
