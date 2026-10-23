@@ -87,11 +87,11 @@
             <div class="card-desc">Agent 架构、多智能体协作、框架源码分析（Claude Code / Kimi / ADK）、A2A 协议、沙箱与 MCP 调研</div>
         </a>
         <a class="card" href="llm/" style="--accent:#8b5cf6;--accent-2:#8b5cf6">
-            <div class="card-title"><span class="arrow">&rarr;</span> <span style="width:10px;height:10px;border-radius:50%;background:#8b5cf6;display:inline-block"></span> LLM 模型与推理 <span class="cat-num" data-unit="篇">4 篇</span></div>
+            <div class="card-title"><span class="arrow">&rarr;</span> <span style="width:10px;height:10px;border-radius:50%;background:#8b5cf6;display:inline-block"></span> LLM 模型与推理 <span class="cat-num" data-unit="篇">5 篇</span></div>
             <div class="card-desc">注意力机制、MoE 架构、推理优化 — 模型侧技术解析</div>
         </a>
         <a class="card" href="embedded/" style="--accent:#f97316;--accent-2:#f97316">
-            <div class="card-title"><span class="arrow">&rarr;</span> <span style="width:10px;height:10px;border-radius:50%;background:#f97316;display:inline-block"></span> 嵌入式与硬件 <span class="cat-num" data-unit="篇">18 篇</span></div>
+            <div class="card-title"><span class="arrow">&rarr;</span> <span style="width:10px;height:10px;border-radius:50%;background:#f97316;display:inline-block"></span> 嵌入式与硬件 <span class="cat-num" data-unit="篇">22 篇</span></div>
             <div class="card-desc">ESP32 / M5StickS3 / STM32 / HiSpark 开发实录、语音唤醒、摄像头驱动、仿真与游戏引擎调研</div>
         </a>
         <a class="card" href="products/" style="--accent:#10b981;--accent-2:#10b981">
@@ -113,6 +113,26 @@
     </div>
     <div class="section-title"><span class="dot" style="background:#f97316"></span> 最新记录 <span class="count">(按最后修改时间自动排序)</span></div>
     <div class="grid" id="latest-grid">
+        <a class="card" data-date="2026-10-23" href="llm/lip-reading-vsr-research.html">
+            <div class="card-title"><span class="arrow">&rarr;</span> 无音频视频读唇调研（视觉语音识别 VSR）</div>
+            <div class="card-desc"><span class="tag">2026-10-23 · 多模态</span> 只靠画面能看懂说了什么吗 — 英文 SOTA ~20% WER·中文 ~30% CER·小词表命令词 95%+ 可端侧；Auto-AVSR / AV-HuBERT 开源生态、中文数据集实勘；结题不立项留档</div>
+        </a>
+        <a class="card" data-date="2026-10-22" href="embedded/kws-sliding-window-demo.html">
+            <div class="card-title"><span class="arrow">&rarr;</span> 流式语音唤醒：滑动窗口原理交互动画</div>
+            <div class="card-desc"><span class="tag">2026-10-22 · 可交互动画</span> 波形→分帧→特征 FIFO→概率曲线四泳道时间对齐 · 可暂停/慢放/10ms 步进看窗口一格一格滑 · 判决四件套真实仿真：t≈2.2s 触发、噪声尖峰被连续 k 拍滤除</div>
+        </a>
+        <a class="card" data-date="2026-10-22" href="embedded/kws-sliding-window-explained.html">
+            <div class="card-title"><span class="arrow">&rarr;</span> 语音唤醒滑窗图解：9 帧静态画面看懂动态过程</div>
+            <div class="card-desc"><span class="tag">2026-10-22 · 静态图解</span> 同一时间轴 7 帧胶片：1 秒窗口逐帧右滑、FIFO 换血、概率过线到触发冷却 · 对照帧讲透「连续 k 拍」为何能滤噪声 · 三层滑窗标尺+判决状态机 · 与动画版数值同源</div>
+        </a>
+        <a class="card" data-date="2026-10-22" href="embedded/cactus-needle-mcu-port-research.html">
+            <div class="card-title"><span class="arrow">&rarr;</span> 把 Cactus（Needle/Whistle）塞进 STM32H743？引擎移植调研</div>
+            <div class="card-desc"><span class="tag">2026-10-22 · 移植调研</span> 引擎闭源 &lt;1MB×13 平台无裸机 Cortex-M · .cact 格式全开放+官方移植合同+needle-rs 起点 · H743 实测账一次调用 5~30s：炫技可以当大脑不行 · 零移植推 Luckfox Lyra/Radxa</div>
+        </a>
+        <a class="card" data-date="2026-10-20" href="embedded/ai-pcb-tools-research.html">
+            <div class="card-title"><span class="arrow">&rarr;</span> AI 画 PCB 开源工具链调研：自带模型 + 可导 KiCad 的现实路线</div>
+            <div class="card-desc"><span class="tag">2026-10-20 · 工具调研</span> Flux/Protoflow/Quilter 出局理由（锁模型即商业护城河）· 主推组合链：circuit-synth（Python 直出原生 .kicad 工程）+ kicad-mcp-pro/kicad-happy（任何自带 Agent 经 MCP 操控 KiCad，1.5k★）+ freerouting 自动布线 + kicad-cli DRC 闭环 · tscircuit/atopile 备选 · 全 MIT 开源免费 · 边界诚实：AI 全自动布局开源界尚无等价物，AI 管原理图与审查、人管布局</div>
+        </a>
         <a class="card" data-date="2026-10-20" href="embedded/imu-attitude-fusion-architecture-guide.html">
             <div class="card-title"><span class="arrow">&rarr;</span> IMU 姿态融合工程指南：Madgwick、EKF 与场景化选型</div>
             <div class="card-desc"><span class="tag">2026-10-20 · 架构选型</span> 串联 Madgwick→EKF 为何不划算（信息重复 / 延迟叠加 / Jensen 同源证明）· 单 ES-EKF / 快慢分工 / 并行监督 / 固定滞后四条路线 · 无人机 / 机器人 / 空鼠 / 手柄的 IMU·MCU·算法·延迟矩阵 · 延迟预算与落地检查清单 · GitHub 代码与论文链接</div>
@@ -124,30 +144,6 @@
         <a class="card" data-date="2026-09-22" href="embedded/esp-mosaico-research.html">
             <div class="card-title"><span class="arrow">&rarr;</span> ESP-Mosaico 调研：乐鑫 ESP32-S31 磁吸拼接开发套件</div>
             <div class="card-desc"><span class="tag">2026-09-22 · 调研报告</span> 新芯片 S31 实勘（RISC-V 双核·Wi-Fi 6·PRELIMINARY v0.5）· CoreBoard+BaseBoard 硬件全景与引脚速查 · 双磁力计磁吸拼接 + EEPROM 模块槽 · esp-mosaico 组织四仓库（BSP 9 组件 17 例程/Vibe/Claw）· ¥379 淘宝限量 · 对讲机/AMOLED/语音玩具抄作业指南</div>
-        </a>
-        <a class="card" data-date="2026-09-22" href="embedded/micropixel-gravity-balls-research.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> MicroPixel gravity-balls 拆解：MCU 上的三维小球 Demo</div>
-            <div class="card-desc"><span class="tag">2026-09-22 · 调研报告</span> 138 行物理 + 890 行渲染的教科书实现 — 加速度计取反即盒内重力（不做姿态融合）· INDEX8 预光照球体图集 × 24 行调色板 · 加法光晕先画不透明球后画 · 三缓冲脏矩形 · 240Hz 固定步长丢弃不追赶 · 显示记录架构与 Host/Guest 分工全图</div>
-        </a>
-        <a class="card" data-date="2026-09-21" href="embedded/m5sticks3-dev-and-community-guide.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> M5StickS3 开发与烧录调研</div>
-            <div class="card-desc"><span class="tag">开发实录</span> arduino-cli 工作流 + 社区固件（AirMouse）调研</div>
-        </a>
-        <a class="card" data-date="2026-09-21" href="embedded/sticks3-amoled-espnow-intercom-design.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> 双板 ESP-NOW 对讲机：需求与技术设计</div>
-            <div class="card-desc"><span class="tag">方案设计</span> StickS3 × AMOLED-1.8 双板对讲 — 需求、链路选型与完整技术设计</div>
-        </a>
-        <a class="card" data-date="2026-09-21" href="embedded/hi3322-diting-env-setup.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> Hi3322 谛听开发板环境搭建记录</div>
-            <div class="card-desc"><span class="tag">嵌入式</span> Mac 上 Docker 编译海思谛听固件 — 方案选型、踩坑、磁盘占用清算与回收命令</div>
-        </a>
-        <a class="card" data-date="2026-09-20" href="embedded/stm32h743-openmv-camera/index.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> STM32H743 摄像头驱动完全教程：WeAct OpenMV Plus 从零到取景上屏</div>
-            <div class="card-desc"><span class="tag">2026-09-20 · 完整教程</span> 原理图逆向出引脚表 · macOS GCC+OpenOCD 工具链 · OV5640 自动识别 · DCMI 采集与 ST7735 显示 · 五个大坑复盘（找不到Camera/黑屏A·B对照/红蓝反字节相位/暗光曝光余量/IR极性）· 无示波器远程验证方法学 · 10 章含完整代码路径</div>
-        </a>
-        <a class="card" data-date="2026-09-19" href="embedded/magic-wand/index.html">
-            <div class="card-title"><span class="arrow">&rarr;</span> Lumos 魔杖玩具 Demo 方案</div>
-            <div class="card-desc"><span class="tag">2026-09-19 · 方案设计</span> 唤醒词点灯 · IMU 手势施法 · ESP-NOW 远程控灯 — M5StickS3 + AMOLED 板零新增硬件 · 状态机/无线协议/里程碑/风险全拍板 · 自研唤醒词引擎已落地（见教程）</div>
         </a>
     </div>
 
