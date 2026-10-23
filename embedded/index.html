@@ -154,6 +154,10 @@
     </div>
     <div class="section-title"><span class="dot" style="background:#f97316"></span> 开发实录与调研 <span class="count">(12)</span></div>
     <div class="grid">
+        <a class="card" data-date="2026-10-23" href="dual-gyro-differencing.html">
+            <div class="card-title"><span class="arrow">&rarr;</span> 双陀螺相减：刚性冗余里的零偏可观测性</div>
+            <div class="card-desc"><span class="tag">2026-10-23 · 概念深潜</span> 由 ATOM-IMU（BMI088+BMI270）引出 — 差值通道 ω 代数消失，零偏之差运动中连续可观 · 和差几何：Δb 实时可见、Σb 需静止锚定+地球自转 15·sinφ 补偿（北京 9.7°/h 比指标还大）· 降噪反账：反方差加权仅 0.42→0.38°/√h（BMI088 噪声是 BMI270 两倍，平均是伪卖点）· 工程四坑定量：失准 1°@100dps 淹没信号 600 倍、FSYNC 10µs×1000dps²、温漂 0.015dps/K=54°/h·K、恒温 45°C 单向加热 · χ² 故障检测 · 双通道蓝图伪代码 · 四路线家族图谱（9 轴 AHRS / 双陀螺 / N 阵列）</div>
+        </a>
         <a class="card" data-date="2026-10-22" href="kws-sliding-window-demo.html">
             <div class="card-title"><span class="arrow">&rarr;</span> 流式语音唤醒：滑动窗口原理交互动画</div>
             <div class="card-desc"><span class="tag">2026-10-22 · 可交互动画</span> KWS 运行时机制动画：波形→分帧→特征 FIFO→概率曲线四泳道时间对齐 · 可暂停/0.5× 慢放/10ms 步进看窗口一格一格滑 · 判决四件套（阈值 0.8+连续 3 拍+上升沿+冷却）真实仿真：t≈2.2s 触发、t≈5.1s 噪声尖峰被滤 · 配套自研 wakenet 教程</div>
