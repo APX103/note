@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>寻路算法可视化:BFS / Dijkstra / A* — 为什么机器人都在用 A*</title>
+<style>
+    :root {
+        --bg: #0f0f12; --surface: #1a1a1f; --surface-hover: #222228;
+        --text: #e8e8ec; --text-secondary: #9ca3af;
+        --accent: #6366f1; --accent-glow: rgba(99, 102, 241, 0.15); --accent-2: #8b5cf6;
+        --border: rgba(255,255,255,0.06);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+        background: var(--bg); color: var(--text); line-height: 1.75;
+        -webkit-font-smoothing: antialiased; min-height: 100vh;
+    }
+    .bg-glow { position: fixed; width: 500px; height: 500px; border-radius: 50%;
+        background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+        top: -150px; right: -150px; pointer-events: none; z-index: 0; }
+    .container { max-width: 860px; margin: 0 auto; padding: 0 22px; position: relative; z-index: 1; }
+    .hero { padding: 56px 0 8px; }
+    .hero h1 { font-size: 1.75em; font-weight: 700;
+        background: linear-gradient(135deg, var(--text) 0%, var(--accent) 50%, var(--accent-2) 100%);
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        margin-bottom: 10px; }
+    .hero p { color: var(--text-secondary); font-size: 0.98em; }
+    .back { display: inline-block; margin-top: 18px; color: var(--text-secondary);
+        text-decoration: none; font-size: 0.88em; transition: color 0.2s; }
+    .back:hover { color: var(--accent); }
+
+    .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+        padding: 18px; margin: 26px 0; }
+    .controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 14px; }
+    .controls label { color: var(--text-secondary); font-size: 0.85em; }
+    select, .btn, .toggle {
+        background: #222228; border: 1px solid var(--border); color: var(--text);
+        border-radius: 8px; padding: 6px 12px; font-size: 0.86em; cursor: pointer;
+        font-family: inherit; transition: all 0.15s ease;
+    }
+    select:hover, .btn:hover { border-color: rgba(99,102,241,0.45); }
+    .btn.primary { background: var(--accent); border-color: transparent; color: #fff; font-weight: 600; }
+    .btn.primary:hover { filter: brightness(1.12); }
+    .toggle.active { background: rgba(99,102,241,0.22); border-color: rgba(99,102,241,0.55); color: #c7d2fe; }
+    input[type=range] { accent-color: var(--accent); width: 130px; }
+    input[type=checkbox] { accent-color: var(--accent); }
+    .canvas-wrap { border-radius: 10px; overflow: hidden; border: 1px solid var(--border); }
+    canvas { display: block; width: 100%; height: auto; touch-action: none; cursor: crosshair; }
+    .stats { display: flex; flex-wrap: wrap; gap: 8px 22px; margin-top: 12px;
+        color: var(--text-secondary); font-size: 0.85em; }
+    .stats b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+    .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 10px;
+        color: var(--text-secondary); font-size: 0.8em; align-items: center; }
+    .chip { display: inline-block; width: 11px; height: 11px; border-radius: 3px;
+        margin-right: 5px; vertical-align: -1px; }
+    .hint { color: var(--text-secondary); font-size: 0.83em; margin-top: 10px; }
+
+    .section-title { font-size: 1.08em; font-weight: 600; color: var(--text);
+        margin: 44px 0 14px; padding-bottom: 10px; border-bottom: 1px solid var(--border);
+        display: flex; align-items: center; gap: 10px; }
+    .section-title .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex: none; }
+    .prose p { margin: 10px 0; color: #cfcfd6; font-size: 0.95em; }
+    .prose p b, .prose li b { color: var(--text); }
+    .prose ul { margin: 8px 0 8px 22px; color: #cfcfd6; font-size: 0.95em; }
+    .prose li { margin: 6px 0; }
+    .prose code { background: rgba(99,102,241,0.12); color: #c7d2fe; border-radius: 5px;
+        padding: 1px 6px; font-size: 0.88em;
+        font-family: "SF Mono", Menlo, Consolas, monospace; }
+    table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.88em; }
+    th, td { padding: 8px 12px; border: 1px solid var(--border); text-align: left; }
+    th { background: rgba(99,102,241,0.1); color: var(--text); font-weight: 600; white-space: nowrap; }
+    td { color: #cfcfd6; }
+    td code { white-space: nowrap; }
+    .footer { padding: 30px 0; border-top: 1px solid var(--border); text-align: center;
+        color: var(--text-secondary); font-size: 0.82em; }
+    .footer a { color: var(--accent); text-decoration: none; }
+    @media (max-width: 600px) {
+        .hero { padding: 40px 0 4px; } .hero h1 { font-size: 1.35em; } .panel { padding: 12px; }
+    }
+</style>
+</head>
+<body>
+<div class="bg-glow"></div>
+
+<div class="container">
+    <div class="hero">
+        <h1>寻路算法可视化:BFS / Dijkstra / A* 动画对撞</h1>
+        <p>同一张栅格地图,五种"优先队列搜索"逐格动画——看懂 Dijkstra 的圆形波前怎么被一个启发函数拉成 A* 的椭圆,以及为什么机器人寻路的世界里只剩 A*。</p>
+        <a class="back" href="index.html">&larr; 返回嵌入式与硬件</a>
+    </div>
+
+    <div class="panel">
+        <div class="controls">
+            <label>算法</label>
+            <select id="modeSel">
+                <option value="astar">A*(f = g + h,最优)</option>
+                <option value="dijkstra">Dijkstra(f = g,最优)</option>
+                <option value="bfs">BFS(队列,无视代价)</option>
+                <option value="greedy">贪心最佳优先(f = h,不保证最优)</option>
+                <option value="wastar">加权 A*(f = g + 3h,拿最优换快)</option>
+            </select>
+            <label>笔刷</label>
+            <button class="toggle active" data-brush="wall" id="brushWall">墙</button>
+            <button class="toggle" data-brush="swamp" id="brushSwamp">沼泽 ×5</button>
+            <button class="toggle" data-brush="plain" id="brushPlain">平地</button>
+            <label><input type="checkbox" id="diagChk"> 允许对角(代价 ×√2,不穿墙角)</label>
+        </div>
+        <div class="controls">
+            <button class="btn primary" id="runBtn">▶ 开始</button>
+            <button class="btn" id="stepBtn">单步</button>
+            <label>速度 <input type="range" id="speedRange" min="1" max="400" value="60"></label>
+            <button class="btn" id="mazeBtn">生成迷宫</button>
+            <button class="btn" id="randomBtn">随机地图</button>
+            <button class="btn" id="clearBtn">清空地图</button>
+            <button class="btn" id="resetBtn">重置结果</button>
+        </div>
+        <div class="canvas-wrap"><canvas id="grid"></canvas></div>
+        <div class="stats">
+            <span>状态 <b id="stStatus">待运行</b></span>
+            <span>访问节点 <b id="stVisited">0</b></span>
+            <span>路径代价 <b id="stCost">—</b></span>
+            <span>路径步数 <b id="stSteps">—</b></span>
+            <span>纯计算耗时 <b id="stMs">0 ms</b></span>
+        </div>
+        <div class="legend">
+            <span><span class="chip" style="background:#22c55e"></span>起点</span>
+            <span><span class="chip" style="background:#ef4444"></span>终点</span>
+            <span><span class="chip" style="background:#3f3f4a"></span>墙</span>
+            <span><span class="chip" style="background:#1d3226"></span>沼泽(进入代价 ×5)</span>
+            <span><span class="chip" style="background:hsla(160,60%,50%,0.6)"></span>已探索(颜色=离起点的代价)</span>
+            <span><span class="chip" style="background:rgba(56,189,248,0.7)"></span>搜索边界</span>
+            <span><span class="chip" style="background:#fbbf24"></span>最短路径</span>
+        </div>
+        <div class="hint">操作:拖动绿点/红点改起终点;选中笔刷后在地图上涂画(画墙、铺沼泽、还原平地);先「生成迷宫」,再用 A* 跑一遍记下访问节点数,切到 Dijkstra 重置结果再跑——对比两者的探索面积,这就是机器人选 A* 的全部理由。</div>
+    </div>
+
+    <div class="section-title"><span class="dot"></span> 这五个算法其实是同一个算法</div>
+    <div class="prose">
+        <p>把 BFS、Dijkstra、贪心最佳优先、A* 摆在一起会发现,它们共享同一副骨架:维护一个<b>优先队列</b>,反复「取出当前最好的点,松弛它的邻居」。全部区别只在一句问答——<b>什么叫"最好"</b>,也就是优先级函数 f:</p>
+        <table>
+            <tr><th>算法</th><th>优先级</th><th>最短路径?</th><th>行为特征</th></tr>
+            <tr><td>BFS</td><td><code>先进先出</code></td><td>仅在无权图</td><td>只数格子,完全无视边权,踩着沼泽也照走</td></tr>
+            <tr><td>Dijkstra</td><td><code>f = g</code>(已走代价)</td><td>✔(非负权)</td><td>不知道目标在哪,向四面八方均匀扩散成圆形波前</td></tr>
+            <tr><td>贪心最佳优先</td><td><code>f = h</code>(离目标估计)</td><td>✘</td><td>一头冲向目标,撞进沼泽或死胡同就绕大弯</td></tr>
+            <tr><td>A*</td><td><code>f = g + h</code></td><td>✔(h 不高估时)</td><td>有方向感的 Dijkstra,波前是被目标拉长的椭圆</td></tr>
+            <tr><td>加权 A*</td><td><code>f = g + ε·h</code>(ε&gt;1)</td><td>✘(代价 ≤ 最优 ×ε)</td><td>拿最优性换速度,工程里调 ε 的常规操作</td></tr>
+        </table>
+        <p>其中 <code>g</code> 是从起点走到这里的真实代价,<code>h</code> 是到目标的估计(启发函数)。由此有一个关键推论:<b>A* 是超集</b>——把 h 恒置 0,A* 就退化成 Dijkstra;边权全为 1 时,它又和 BFS 等价。所以工程上只需要实现 A* 一个,后两者都是它的特例。这也是「为什么我只见过 A*」的第一层答案:<b>Dijkstra 没有消失,它被合并进 A* 里了</b>。</p>
+        <p>动画里盯住三件事:Dijkstra 的已探索区域是以起点为圆心的<b>同心圆</b>(每个方向都同样有希望,适合"一站算出到所有地方的距离");A* 的探索区域是朝目标拉长的<b>椭圆</b>(启发函数像指南针,把算力花在有用的方向上);贪心的探索区域是一根<b>细长的线</b>(快,但路径经常不是最短,铺开沼泽试一试就现形)。</p>
+    </div>
+
+    <div class="section-title"><span class="dot"></span> 为什么机器人寻路的世界里只剩 A*</div>
+    <div class="prose">
+        <ul>
+            <li><b>代价地图天然非负。</b>占据栅格 / costmap 里,边的代价 = 距离 × 地形系数,永远是正数。Bellman-Ford 和 Floyd-Warshall 存在的理由(负权边、全源最短路)在物理世界里根本不出现,自然一辈子碰不到。</li>
+            <li><b>任务是点到点。</b>机器人导航几乎总是"从这里到那个目标",而不是"到所有地方"。Dijkstra 的全向扩散在这个任务里就是纯粹的浪费——同样的地图,A* 访问的格子常常少一个数量级。</li>
+            <li><b>启发函数是白送的。</b>栅格分辨率已知,欧氏 / 曼哈顿距离就是一个绝不高估(admissible)的 h,最优性自动保住;换算成物理距离即可,零成本。</li>
+            <li><b>嵌入式算力是刚需约束。</b>访问节点少一个数量级 = 重规划频率高一个数量级,对动态避障是硬指标。</li>
+        </ul>
+        <p>而且你在机器人代码里实际遇到的大多是 <b>A* 的变体家族</b>,认出它们就够了:</p>
+        <ul>
+            <li><b>Hybrid A*</b>:状态带上连续坐标和朝向,考虑车辆运动学(车不能原地转),DARPA 城市挑战赛经典,泊车规划标配;</li>
+            <li><b>D* / D* Lite</b>:环境变化时增量重规划而不是从头再搜——火星车路径规划用的就是它;</li>
+            <li><b>JPS(Jump Point Search)</b>:均匀网格上剪掉对称路径,同结果快一个数量级;</li>
+            <li><b>Theta*</b>:路径点之间做视线检查,走出任意角直线而不是锯齿;</li>
+            <li><b>RRT / RRT* / PRM</b>:机械臂那种几十维的位形空间,栅格会维度爆炸,改用随机采样建树/建图。注意 PRM 建好 roadmap 图之后,图上查询最短路用的<b>仍然是 Dijkstra / A*</b>——Dijkstra 没退场,它躲在这些算法的底层;</li>
+            <li><b>ROS 2 Nav2</b> 的默认规划器 Smac Planner(A* 家族)就是上面这套工程化落地的例子。</li>
+        </ul>
+    </div>
+
+    <div class="section-title"><span class="dot"></span> 负权边:一条机器人工程师可以不背的冷知识</div>
+    <div class="prose">
+        <p>Dijkstra「取出即敲定」的贪心前提依赖非负权:一旦出现负权边,绕远路可能更便宜,先敲定的距离就是错的(而且是<b>悄悄错掉,不报错</b>)。这时要换 Bellman-Ford(O(V·E),还能检测负环)或先做 Johnson 重标记。复杂度速查:</p>
+        <table>
+            <tr><th>算法</th><th>复杂度</th><th>适用</th></tr>
+            <tr><td>BFS</td><td><code>O(V+E)</code></td><td>无权图单源</td></tr>
+            <tr><td>Dijkstra(二叉堆)</td><td><code>O((V+E)·log V)</code></td><td>非负权单源;稠密图用朴素 O(V²) 反而快</td></tr>
+            <tr><td>A*</td><td>≤ Dijkstra,取决于 h 的质量</td><td>非负权 + 单目标 + 可用的启发函数</td></tr>
+            <tr><td>Bellman-Ford</td><td><code>O(V·E)</code></td><td>有负权边,可检测负环</td></tr>
+            <tr><td>Floyd-Warshall</td><td><code>O(V³)</code></td><td>全源最短路(所有点对)</td></tr>
+        </table>
+    </div>
+
+    <div class="footer">托管于 <a href="https://github.com/APX103/note">GitHub - APX103/note</a></div>
+</div>
+
+<script>
+/*__ALGO_START__*/
+// ---- 算法核心(纯函数,无 DOM 依赖)----
+class MinHeap {
+    constructor() { this.a = []; }
+    get size() { return this.a.length; }
+    less(i, j) { const a = this.a; return a[i].p < a[j].p || (a[i].p === a[j].p && a[i].t < a[j].t); }
+    swap(i, j) { const a = this.a; const t = a[i]; a[i] = a[j]; a[j] = t; }
+    push(n) {
+        const a = this.a; a.push(n);
+        let i = a.length - 1;
+        while (i > 0) {
+            const p = (i - 1) >> 1;
+            if (this.less(i, p)) { this.swap(i, p); i = p; } else break;
+        }
+    }
+    pop() {
+        const a = this.a; const top = a[0]; const last = a.pop();
+        if (a.length > 0) {
+            a[0] = last;
+            let i = 0;
+            for (;;) {
+                const l = 2 * i + 1, r = l + 1; let m = i;
+                if (l < a.length && this.less(l, m)) m = l;
+                if (r < a.length && this.less(r, m)) m = r;
+                if (m === i) break;
+                this.swap(i, m); i = m;
+            }
+        }
+        return top;
+    }
+}
+
+// 启发函数:4 邻接用曼哈顿,8 邻接用 octile;都基于最小格代价 1,保证不高估
+function makeHeuristic(goal, cols, diagonal) {
+    const gx = goal % cols, gy = (goal / cols) | 0;
+    if (!diagonal) {
+        return function (v) {
+            const x = v % cols, y = (v / cols) | 0;
+            return Math.abs(x - gx) + Math.abs(y - gy);
+        };
+    }
+    const D2 = Math.SQRT2, K = D2 - 2;
+    return function (v) {
+        const x = v % cols, y = (v / cols) | 0;
+        const dx = Math.abs(x - gx), dy = Math.abs(y - gy);
+        return dx + dy + K * Math.min(dx, dy);
+    };
+}
+
+// cost: 每格进入代价,0 = 墙。生成器:每展开一个点 yield 一次,便于动画逐帧推进
+function* graphSearch(cols, rows, cost, start, goal, opts) {
+    const N = cols * rows;
+    const dist = new Float64Array(N).fill(Infinity);
+    const prev = new Int32Array(N).fill(-1);
+    const closed = new Uint8Array(N);
+    const h = makeHeuristic(goal, cols, !!opts.diagonal);
+    const mode = opts.mode, eps = opts.eps || 3;
+    let counter = 0;
+    const heap = new MinHeap();
+
+    function push(v, g) {
+        dist[v] = g;
+        const t = counter++;
+        let p;
+        if (mode === 'bfs') p = t;
+        else if (mode === 'dijkstra') p = g;
+        else if (mode === 'greedy') p = h(v);
+        else if (mode === 'wastar') p = g + eps * h(v);
+        else p = g + h(v);
+        heap.push({ p: p, t: t, v: v, g: g });
+    }
+
+    push(start, 0);
+    let visitedCount = 0;
+    while (heap.size > 0) {
+        const node = heap.pop();
+        const u = node.v;
+        if (closed[u]) continue; // lazy deletion 的过期条目
+        closed[u] = 1; visitedCount++;
+        if (u === goal) {
+            const path = [];
+            for (let c = goal; c !== -1; c = prev[c]) path.push(c);
+            path.reverse();
+            // 展示用代价:一律按真实边权沿路径累加(BFS 的 dist 是步数,不能直接报)
+            let pathCost = 0;
+            for (let i = 1; i < path.length; i++) {
+                const a = path[i - 1], b = path[i];
+                const ddx = Math.abs((a % cols) - (b % cols));
+                const ddy = Math.abs(((a / cols) | 0) - ((b / cols) | 0));
+                pathCost += cost[b] * ((ddx === 1 && ddy === 1) ? Math.SQRT2 : 1);
+            }
+            return { found: true, cost: pathCost, path: path, visitedCount: visitedCount, dist: dist };
+        }
+        const ux = u % cols, uy = (u / cols) | 0;
+        for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+                if (dx === 0 && dy === 0) continue;
+                if (!opts.diagonal && dx !== 0 && dy !== 0) continue;
+                const nx = ux + dx, ny = uy + dy;
+                if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) continue;
+                const v = ny * cols + nx;
+                if (cost[v] === 0) continue;
+                if (dx !== 0 && dy !== 0) {
+                    // 禁止穿墙角:两个正交邻格都必须可走
+                    if (cost[uy * cols + nx] === 0 || cost[ny * cols + ux] === 0) continue;
+                }
+                // BFS 语义:只数步数(每步代价 1),对沼泽视而不见——这正是它的教学点
+                const stepW = (mode === 'bfs' ? 1 : cost[v]) * ((dx !== 0 && dy !== 0) ? Math.SQRT2 : 1);
+                const nd = node.g + stepW;
+                if (nd < dist[v]) {
+                    prev[v] = u;
+                    push(v, nd);
+                }
+            }
+        }
+        yield { u: u, dist: dist, visitedCount: visitedCount };
+    }
+    return { found: false, cost: Infinity, path: [], visitedCount: visitedCount, dist: dist };
+}
+/*__ALGO_END__*/
+
+// ---- UI 与动画 ----
+(function () {
+    const CELL = 24, COLS = 45, ROWS = 25, N = COLS * ROWS;
+    const canvas = document.getElementById('grid');
+    const ctx = canvas.getContext('2d');
+    canvas.width = COLS * CELL;
+    canvas.height = ROWS * CELL;
+
+    const cost = new Float32Array(N).fill(1);
+    let start = 11 * COLS + 1, goal = 13 * COLS + (COLS - 2); // 奇奇坐标,配合迷宫的奇走廊
+
+    const modeSel = document.getElementById('modeSel');
+    const diagChk = document.getElementById('diagChk');
+    const speedRange = document.getElementById('speedRange');
+    const runBtn = document.getElementById('runBtn');
+    const stepBtn = document.getElementById('stepBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const mazeBtn = document.getElementById('mazeBtn');
+    const randomBtn = document.getElementById('randomBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const stStatus = document.getElementById('stStatus'), stVisited = document.getElementById('stVisited'),
+          stCost = document.getElementById('stCost'), stSteps = document.getElementById('stSteps'),
+          stMs = document.getElementById('stMs');
+
+    let brush = 'wall';
+    document.querySelectorAll('.toggle').forEach(function (b) {
+        b.addEventListener('click', function () {
+            document.querySelectorAll('.toggle').forEach(function (x) { x.classList.remove('active'); });
+            b.classList.add('active');
+            brush = b.dataset.brush;
+        });
+    });
+
+    // 搜索/动画状态
+    let gen = null, stepping = false, rafOn = false;
+    let closedUI = new Uint8Array(N), order = [], distUI = null, result = null;
+    let pathProg = 0, computeMs = 0;
+
+    function resetSearch() {
+        gen = null; stepping = false; result = null; distUI = null; pathProg = 0; computeMs = 0;
+        closedUI = new Uint8Array(N); order = [];
+        runBtn.textContent = '▶ 开始';
+        updateStats();
+    }
+
+    function ensureGen() {
+        if (!gen) {
+            closedUI = new Uint8Array(N); order = []; distUI = null; result = null;
+            pathProg = 0; computeMs = 0;
+            gen = graphSearch(COLS, ROWS, cost, start, goal,
+                { mode: modeSel.value, diagonal: diagChk.checked, eps: 3 });
+        }
+    }
+
+    function tick() {
+        if (stepping && gen) {
+            const n = +speedRange.value;
+            for (let i = 0; i < n; i++) {
+                const t0 = performance.now();
+                const r = gen.next();
+                computeMs += performance.now() - t0;
+                if (r.done) {
+                    result = r.value; distUI = result.dist; stepping = false;
+                    if (result.found && pathProg === 0) pathProg = 1;
+                    runBtn.textContent = '▶ 开始';
+                    break;
+                }
+                distUI = r.value.dist;
+                closedUI[r.value.u] = 1;
+                order.push(r.value.u);
+            }
+            updateStats();
+        }
+        if (result && result.found && pathProg < result.path.length) {
+            pathProg = Math.min(result.path.length, pathProg + 3);
+        }
+        draw();
+        if (stepping || (result && result.found && pathProg < result.path.length)) {
+            requestAnimationFrame(tick);
+        } else {
+            rafOn = false;
+        }
+    }
+    function ensureLoop() {
+        if (!rafOn) { rafOn = true; requestAnimationFrame(tick); }
+    }
+
+    runBtn.addEventListener('click', function () {
+        if (!gen || (!stepping && (!result || pathProg >= (result.found ? result.path.length : 1)))) {
+            if (!gen || result) resetSearch();
+            ensureGen();
+            stepping = true;
+        } else {
+            stepping = !stepping;
+        }
+        runBtn.textContent = stepping ? '⏸ 暂停' : '▶ 继续';
+        if (stepping) ensureLoop();
+    });
+    stepBtn.addEventListener('click', function () {
+        if (result) resetSearch();
+        ensureGen();
+        stepping = false;
+        const t0 = performance.now();
+        const r = gen.next();
+        computeMs += performance.now() - t0;
+        if (r.done) {
+            result = r.value; distUI = result.dist;
+            if (result.found && pathProg === 0) pathProg = 1;
+        } else {
+            distUI = r.value.dist;
+            closedUI[r.value.u] = 1;
+            order.push(r.value.u);
+        }
+        updateStats();
+        ensureLoop();
+    });
+    resetBtn.addEventListener('click', resetSearch);
+    modeSel.addEventListener('change', resetSearch);
+    diagChk.addEventListener('change', resetSearch);
+
+    // ---- 地图编辑 ----
+    let dragMode = null;
+    function cellAt(e) {
+        const r = canvas.getBoundingClientRect();
+        const x = Math.floor((e.clientX - r.left) * (canvas.width / r.width) / CELL);
+        const y = Math.floor((e.clientY - r.top) * (canvas.height / r.height) / CELL);
+        if (x < 0 || y < 0 || x >= COLS || y >= ROWS) return -1;
+        return y * COLS + x;
+    }
+    function paintCell(c) {
+        if (c === start || c === goal) return;
+        const v = brush === 'wall' ? 0 : brush === 'swamp' ? 5 : 1;
+        if (cost[c] !== v) { cost[c] = v; }
+    }
+    canvas.addEventListener('pointerdown', function (e) {
+        const c = cellAt(e);
+        if (c < 0) return;
+        canvas.setPointerCapture(e.pointerId);
+        if (c === start) dragMode = 'start';
+        else if (c === goal) dragMode = 'goal';
+        else { dragMode = 'paint'; paintCell(c); }
+        if (gen || result) resetSearch();
+        draw();
+    });
+    canvas.addEventListener('pointermove', function (e) {
+        if (!dragMode) return;
+        const c = cellAt(e);
+        if (c < 0) return;
+        if (dragMode === 'paint') paintCell(c);
+        else if (dragMode === 'start' && cost[c] > 0 && c !== goal) start = c;
+        else if (dragMode === 'goal' && cost[c] > 0 && c !== start) goal = c;
+        draw();
+    });
+    canvas.addEventListener('pointerup', function () { dragMode = null; });
+    canvas.addEventListener('pointercancel', function () { dragMode = null; });
+
+    // ---- 地图生成 ----
+    function genMaze() {
+        cost.fill(1);
+        // 递归分割:墙放偶数线,洞留奇数格,保证奇奇坐标永远是通路
+        (function divide(x0, y0, x1, y1) {
+            const w = x1 - x0, h = y1 - y0;
+            if (w < 2 || h < 2) return;
+            const horizontal = h > w || (h === w && Math.random() < 0.5);
+            if (horizontal) {
+                const cands = [];
+                for (let y = y0 + 1; y < y1; y++) if (y % 2 === 0) cands.push(y);
+                if (!cands.length) return;
+                const wy = cands[(Math.random() * cands.length) | 0];
+                const hx = x0 + 2 * ((Math.random() * ((x1 - x0) / 2 + 1)) | 0);
+                for (let x = x0; x <= x1; x++) if (x !== hx) cost[wy * COLS + x] = 0;
+                divide(x0, y0, x1, wy - 1);
+                divide(x0, wy + 1, x1, y1);
+            } else {
+                const cands = [];
+                for (let x = x0 + 1; x < x1; x++) if (x % 2 === 0) cands.push(x);
+                if (!cands.length) return;
+                const wx = cands[(Math.random() * cands.length) | 0];
+                const hy = y0 + 2 * ((Math.random() * ((y1 - y0) / 2 + 1)) | 0);
+                for (let y = y0; y <= y1; y++) if (y !== hy) cost[y * COLS + wx] = 0;
+                divide(x0, y0, wx - 1, y1);
+                divide(wx + 1, y0, x1, y1);
+            }
+        })(1, 1, COLS - 2, ROWS - 2);
+        cost[start] = 1; cost[goal] = 1;
+        resetSearch(); draw();
+    }
+    function genRandom() {
+        cost.fill(1);
+        for (let i = 0; i < N; i++) if (Math.random() < 0.28) cost[i] = 0;
+        for (let b = 0; b < 6; b++) {
+            const cx = 3 + (Math.random() * (COLS - 6)) | 0, cy = 2 + (Math.random() * (ROWS - 4)) | 0;
+            const r = 2 + (Math.random() * 3) | 0;
+            for (let y = cy - r; y <= cy + r; y++) for (let x = cx - r; x <= cx + r; x++) {
+                if (x < 0 || y < 0 || x >= COLS || y >= ROWS) continue;
+                if ((x - cx) * (x - cx) + (y - cy) * (y - cy) <= r * r && cost[y * COLS + x] > 0) cost[y * COLS + x] = 5;
+            }
+        }
+        clearAround(start); clearAround(goal);
+        resetSearch(); draw();
+    }
+    function clearAround(c) {
+        const x = c % COLS, y = (c / COLS) | 0;
+        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+            const nx = x + dx, ny = y + dy;
+            if (nx >= 0 && ny >= 0 && nx < COLS && ny < ROWS) cost[ny * COLS + nx] = 1;
+        }
+    }
+    mazeBtn.addEventListener('click', genMaze);
+    randomBtn.addEventListener('click', genRandom);
+    clearBtn.addEventListener('click', function () { cost.fill(1); resetSearch(); draw(); });
+
+    // ---- 默认地图:两道带缺口的墙 + 两块沼泽,首屏就能看出算法差异 ----
+    (function defaultMap() {
+        for (let y = 0; y < ROWS; y++) {
+            if (y < 4 || y > 7) cost[y * COLS + 20] = 0;   // 墙 1,缺口在 4~7 行
+            if (y < 16 || y > 19) cost[y * COLS + 28] = 0; // 墙 2,缺口在 16~19 行
+        }
+        for (let y = 8; y <= 14; y++) for (let x = 23; x <= 26; x++) cost[y * COLS + x] = 5;
+        for (let y = 15; y <= 20; y++) for (let x = 33; x <= 36; x++) cost[y * COLS + x] = 5;
+    })();
+
+    // ---- 渲染 ----
+    function updateStats() {
+        stStatus.textContent = gen === null ? '待运行' :
+            stepping ? '搜索中…' :
+            result ? (result.found ? '✓ 找到路径' : '✗ 无路可达') : '已暂停(可继续)';
+        stVisited.textContent = order.length;
+        stCost.textContent = result ? (result.found ? result.cost.toFixed(1) : '—') : '—';
+        stSteps.textContent = result && result.found ? result.path.length - 1 : '—';
+        stMs.textContent = computeMs.toFixed(1) + ' ms';
+    }
+
+    function roundRect(x, y, w, h, r) {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + w, y, x + w, y + h, r);
+        ctx.arcTo(x + w, y + h, x, y + h, r);
+        ctx.arcTo(x, y + h, x, y, r);
+        ctx.arcTo(x, y, x + w, y, r);
+        ctx.closePath();
+    }
+
+    function draw() {
+        ctx.fillStyle = '#101014';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // 地形
+        for (let y = 0; y < ROWS; y++) {
+            for (let x = 0; x < COLS; x++) {
+                const c = cost[y * COLS + x];
+                if (c === 0) {
+                    ctx.fillStyle = '#3f3f4a';
+                    roundRect(x * CELL + 1.5, y * CELL + 1.5, CELL - 3, CELL - 3, 5);
+                    ctx.fill();
+                } else if (c > 1) {
+                    ctx.fillStyle = '#1d3226';
+                    ctx.fillRect(x * CELL, y * CELL, CELL, CELL);
+                    if ((x * 31 + y * 17) % 3 === 0) {
+                        ctx.fillStyle = '#274a34';
+                        ctx.fillRect(x * CELL + CELL * 0.3, y * CELL + CELL * 0.3, 4, 4);
+                        ctx.fillRect(x * CELL + CELL * 0.58, y * CELL + CELL * 0.55, 3, 3);
+                    }
+                }
+            }
+        }
+        // 网格线
+        ctx.strokeStyle = 'rgba(255,255,255,0.035)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (let x = 0; x <= COLS; x++) { ctx.moveTo(x * CELL + 0.5, 0); ctx.lineTo(x * CELL + 0.5, canvas.height); }
+        for (let y = 0; y <= ROWS; y++) { ctx.moveTo(0, y * CELL + 0.5); ctx.lineTo(canvas.width, y * CELL + 0.5); }
+        ctx.stroke();
+
+        // 已探索:颜色按离起点的代价从蓝到橙
+        if (distUI && order.length) {
+            let maxD = 0;
+            for (let i = 0; i < order.length; i++) if (distUI[order[i]] > maxD) maxD = distUI[order[i]];
+            if (maxD === 0) maxD = 1;
+            for (let i = 0; i < order.length; i++) {
+                const u = order[i];
+                const t = distUI[u] / maxD;
+                ctx.fillStyle = 'hsla(' + (208 - 178 * t) + ', 68%, 47%, 0.55)';
+                ctx.fillRect((u % COLS) * CELL + 1, ((u / COLS) | 0) * CELL + 1, CELL - 2, CELL - 2);
+            }
+            // 搜索边界:已发现(dist 有限)但还没展开
+            ctx.fillStyle = 'rgba(56,189,248,0.55)';
+            for (let v = 0; v < N; v++) {
+                if (!closedUI[v] && distUI[v] < Infinity && cost[v] > 0) {
+                    const s = CELL * 0.42;
+                    ctx.fillRect((v % COLS) * CELL + (CELL - s) / 2, ((v / COLS) | 0) * CELL + (CELL - s) / 2, s, s);
+                }
+            }
+        }
+
+        // 路径(逐格揭示)
+        if (result && result.found && pathProg >= 1) {
+            const p = result.path;
+            ctx.strokeStyle = '#fbbf24';
+            ctx.lineWidth = CELL * 0.32;
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+            ctx.shadowColor = 'rgba(251,191,36,0.55)';
+            ctx.shadowBlur = 10;
+            ctx.beginPath();
+            ctx.moveTo((p[0] % COLS) * CELL + CELL / 2, ((p[0] / COLS) | 0) * CELL + CELL / 2);
+            for (let i = 1; i < Math.min(pathProg, p.length); i++) {
+                ctx.lineTo((p[i] % COLS) * CELL + CELL / 2, ((p[i] / COLS) | 0) * CELL + CELL / 2);
+            }
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+        }
+
+        // 起点 / 终点
+        const sx = (start % COLS) * CELL + CELL / 2, sy = ((start / COLS) | 0) * CELL + CELL / 2;
+        ctx.fillStyle = '#22c55e';
+        ctx.beginPath(); ctx.arc(sx, sy, CELL * 0.34, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(sx, sy, CELL * 0.34, 0, Math.PI * 2); ctx.stroke();
+        const gx = (goal % COLS) * CELL + CELL / 2, gy = ((goal / COLS) | 0) * CELL + CELL / 2;
+        ctx.fillStyle = '#ef4444';
+        ctx.beginPath(); ctx.arc(gx, gy, CELL * 0.34, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+        ctx.beginPath(); ctx.arc(gx, gy, CELL * 0.46, 0, Math.PI * 2); ctx.stroke();
+    }
+
+    updateStats();
+    draw();
+})();
+</script>
+</body>
+</html>
