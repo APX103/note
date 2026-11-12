@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="基于反编译源码逐行梳理 Claude Code 的 Agent Loop、流式工具调度、Subagent 同步与异步调用、Fork、权限和上下文边界。">
+<title>Claude Code Agent Loop 与 Subagent 源码全链路</title>
+<style>
+    :root {
+        --bg: #0f0f12; --surface: #18181e; --surface-2: #202028;
+        --text: #e8e8ec; --muted: #a3a3af; --faint: #747484;
+        --accent: #818cf8; --accent-2: #a78bfa; --cyan: #67e8f9;
+        --green: #34d399; --amber: #fbbf24; --red: #fb7185;
+        --border: rgba(255,255,255,.08); --code: #121218;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; scroll-padding-top: 24px; }
+    body {
+        background: var(--bg); color: var(--text); line-height: 1.82;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+        -webkit-font-smoothing: antialiased;
+    }
+    .glow { position: fixed; width: 560px; height: 560px; right: -180px; top: -220px; pointer-events: none;
+        background: radial-gradient(circle, rgba(99,102,241,.14), transparent 68%); }
+    .container { max-width: 960px; margin: 0 auto; padding: 0 28px; position: relative; }
+    .hero { padding: 72px 0 38px; border-bottom: 1px solid var(--border); }
+    .eyebrow { color: var(--accent); font: 600 .76rem/1.4 "SF Mono", Monaco, monospace; letter-spacing: .14em; text-transform: uppercase; }
+    h1 { font-size: clamp(1.85rem, 5vw, 2.75rem); line-height: 1.25; letter-spacing: -.035em; margin: 14px 0 18px; max-width: 830px; }
+    .subtitle { color: var(--muted); font-size: 1.04rem; max-width: 800px; }
+    .meta { display: flex; flex-wrap: wrap; gap: 8px 18px; color: var(--faint); font-size: .82rem; margin-top: 22px; }
+    .back { display: inline-block; margin-top: 24px; color: var(--muted); text-decoration: none; font-size: .88rem; }
+    .back:hover { color: var(--accent); }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    h2 { font-size: 1.48rem; line-height: 1.4; margin: 58px 0 20px; padding-bottom: 12px; border-bottom: 1px solid var(--border); letter-spacing: -.015em; }
+    h2 .num { color: var(--accent); font: 500 .85rem "SF Mono", Monaco, monospace; margin-right: 10px; vertical-align: .18em; }
+    h3 { color: #c7d2fe; font-size: 1.08rem; margin: 32px 0 12px; }
+    h4 { font-size: .96rem; margin: 22px 0 8px; }
+    p { color: var(--muted); margin: 0 0 16px; }
+    strong { color: var(--text); font-weight: 600; }
+    ul, ol { color: var(--muted); padding-left: 23px; margin: 12px 0 18px; }
+    li { margin: 6px 0; }
+    li::marker { color: var(--accent); }
+    code { font-family: "SF Mono", Monaco, "Cascadia Code", monospace; font-size: .86em; color: #c9cbff;
+        background: var(--code); border: 1px solid var(--border); border-radius: 4px; padding: 2px 5px; }
+    pre { background: var(--code); border: 1px solid var(--border); border-radius: 12px; padding: 20px;
+        overflow-x: auto; margin: 18px 0 24px; font-size: .81rem; line-height: 1.68; tab-size: 2; }
+    pre code { padding: 0; border: 0; background: none; color: #b7bdf9; }
+    .comment { color: #71717a; } .hl { color: var(--cyan); } .ok { color: var(--green); } .warn { color: var(--amber); }
+    .summary { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin: 30px 0 0; }
+    .summary div { background: linear-gradient(145deg, rgba(129,140,248,.07), rgba(24,24,30,.8)); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
+    .summary b { display: block; font-size: .91rem; margin-bottom: 5px; color: var(--text); }
+    .summary span { color: var(--muted); font-size: .85rem; line-height: 1.65; }
+    .note, .key, .warning { border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 8px;
+        background: var(--surface); padding: 16px 19px; margin: 20px 0; color: var(--muted); font-size: .91rem; }
+    .key { border-left-color: var(--cyan); background: rgba(103,232,249,.035); }
+    .warning { border-left-color: var(--amber); background: rgba(251,191,36,.035); }
+    .note p:last-child, .key p:last-child, .warning p:last-child { margin-bottom: 0; }
+    .toc { margin: 34px 0 0; padding: 22px 24px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; }
+    .toc-title { font-size: .78rem; color: var(--faint); letter-spacing: .12em; margin-bottom: 10px; }
+    .toc ol { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 28px; margin: 0; font-size: .87rem; }
+    .toc a { color: var(--muted); } .toc a:hover { color: var(--accent); }
+    .tag { display: inline-block; border-radius: 5px; padding: 1px 7px; margin: 0 4px 3px 0; font-size: .7rem; font-weight: 600;
+        color: var(--accent); background: rgba(129,140,248,.1); border: 1px solid rgba(129,140,248,.16); }
+    .tag.green { color: var(--green); background: rgba(52,211,153,.08); border-color: rgba(52,211,153,.16); }
+    .tag.amber { color: var(--amber); background: rgba(251,191,36,.08); border-color: rgba(251,191,36,.16); }
+    .tag.cyan { color: var(--cyan); background: rgba(103,232,249,.07); border-color: rgba(103,232,249,.15); }
+    .table-wrap { overflow-x: auto; margin: 18px 0 24px; border: 1px solid var(--border); border-radius: 10px; }
+    table { border-collapse: collapse; width: 100%; min-width: 660px; font-size: .85rem; }
+    th { text-align: left; color: var(--text); background: var(--surface-2); font-weight: 600; }
+    th, td { padding: 12px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    tr:last-child td { border-bottom: 0; } td { color: var(--muted); }
+    td code { white-space: nowrap; }
+    .flow { background: linear-gradient(180deg, rgba(129,140,248,.035), transparent); border: 1px solid var(--border); border-radius: 12px; padding: 8px 12px; margin: 18px 0 24px; }
+    .flow pre { border: 0; background: transparent; margin: 0; padding: 14px 4px; }
+    .src { font-size: .75rem; color: var(--faint); margin: -10px 0 22px; }
+    .src a { color: #9399db; }
+    .steps { counter-reset: step; margin: 20px 0; }
+    .step { position: relative; padding: 0 0 24px 46px; border-left: 1px solid var(--border); margin-left: 15px; }
+    .step:last-child { padding-bottom: 4px; }
+    .step:before { counter-increment: step; content: counter(step); position: absolute; left: -16px; top: 0;
+        width: 31px; height: 31px; display: grid; place-items: center; border-radius: 50%; color: var(--accent);
+        background: var(--bg); border: 1px solid rgba(129,140,248,.35); font: 600 .78rem "SF Mono", Monaco, monospace; }
+    .step h3 { margin: 0 0 8px; color: var(--text); font-size: 1rem; }
+    .step p { font-size: .91rem; }
+    .pill { display: inline-block; font-size: .7rem; padding: 1px 7px; border-radius: 99px; background: var(--surface-2); color: var(--muted); margin-left: 5px; }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 18px 0; }
+    .panel { border: 1px solid var(--border); border-radius: 10px; background: var(--surface); padding: 18px; }
+    .panel h3 { margin-top: 0; }
+    .panel p:last-child, .panel ul:last-child { margin-bottom: 0; }
+    .footer { border-top: 1px solid var(--border); margin-top: 60px; padding: 28px 0 45px; color: var(--faint); font-size: .8rem; }
+    .small { font-size: .82rem; color: var(--faint); }
+    @media (max-width: 700px) {
+        .container { padding: 0 18px; } .hero { padding-top: 48px; }
+        .summary, .two-col, .toc ol { grid-template-columns: 1fr; }
+        pre { padding: 15px; font-size: .73rem; } h2 { margin-top: 46px; }
+        .step { padding-left: 37px; } th, td { padding: 10px; }
+    }
+    @media print { .glow, .toc { display: none; } body { background: white; } }
+</style>
+</head>
+<body>
+<div class="glow"></div>
+<div class="container">
+<header class="hero">
+    <div class="eyebrow">Source Reading / Claude Code</div>
+    <h1>Claude Code Agent Loop<br>与 Subagent 源码全链路</h1>
+    <p class="subtitle">从一次回车开始，追到模型流式响应、工具权限与并发、上下文压缩，再进入 <code>AgentTool → runAgent → query()</code> 的完整 Subagent 生命周期。</p>
+    <div class="meta">
+        <span>源码快照：<code>cc@3a45406</code></span>
+        <span>整理日期：2026-11-12</span>
+        <span>阅读约 25 分钟</span>
+    </div>
+    <a class="back" href="index.html">← 返回 Agent 与多智能体</a>
+</header>
+
+<div class="summary">
+    <div><b>核心循环是一个 async generator</b><span><code>query()</code> 用 <code>while (true)</code> 驱动“模型 → 工具 → 模型”，一边执行一边向外 <code>yield</code> 消息，UI/SDK 不需要等待整轮结束。</span></div>
+    <div><b>循环不依赖 stop_reason</b><span>只要 assistant 内容里出现 <code>tool_use</code> 就继续；没有工具调用时才进入 Stop Hook 与正常结束路径。</span></div>
+    <div><b>Subagent 就是一次特殊工具调用</b><span><code>Agent</code> 与 Read/Bash 走同一套校验、Hook、权限和结果映射流程；它内部再次运行同一个 <code>query()</code>。</span></div>
+    <div><b>隔离的是上下文，不是电脑</b><span>普通 Subagent 默认不继承父对话，但与父 Agent 同进程、访问同一文件系统；Worktree 才是可选的代码工作区隔离。</span></div>
+</div>
+
+<div class="note">
+    <strong>范围与可信度。</strong>本文依据本地反编译还原仓库 <a href="https://github.com/APX103/cc/tree/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61">APX103/cc 的固定 commit</a>，不是 Anthropic 官方原始源码，也不声称代表此后版本。文中把“源码直接证明的行为”与“功能开关下的可选路径”分开；文件名和行号均链接到该快照。为突出控制流，伪代码省略了遥测、UI 和部分错误处理。
+</div>
+
+<nav class="toc">
+    <div class="toc-title">CONTENTS</div>
+    <ol>
+        <li><a href="#architecture">先建立整体地图</a></li>
+        <li><a href="#input">入口：用户输入如何进入 Loop</a></li>
+        <li><a href="#query-loop">核心 queryLoop 的九个阶段</a></li>
+        <li><a href="#tools">工具执行、权限与并发</a></li>
+        <li><a href="#termination">结束、恢复与中断</a></li>
+        <li><a href="#subagent">Subagent 完整调用链</a></li>
+        <li><a href="#run-agent">runAgent 如何创建子运行时</a></li>
+        <li><a href="#sync-async">同步、异步与并行回收</a></li>
+        <li><a href="#fork">普通 Subagent、Fork 与 Team</a></li>
+        <li><a href="#trace">一次完整消息轨迹</a></li>
+        <li><a href="#boundaries">上下文与状态边界</a></li>
+        <li><a href="#takeaways">设计结论与源码索引</a></li>
+    </ol>
+</nav>
+
+<section>
+<h2 id="architecture"><span class="num">01</span>先建立整体地图</h2>
+<p>Claude Code 的 Agent Loop 可以拆成四层。<strong>入口层</strong>处理文本、图片、Slash Command 和 Hook；<strong>核心层</strong>维护消息状态并决定继续还是结束；<strong>工具层</strong>把模型生成的 <code>tool_use</code> 变成真实副作用和 <code>tool_result</code>；<strong>适配层</strong>把流式事件显示到 REPL，或转换成 SDK 消息。</p>
+
+<div class="flow"><pre><code>交互式 REPL                                      Headless / SDK
+─────────────                                      ───────────────
+handlePromptSubmit                                 ask()
+  → processUserInput                                 → QueryEngine.submitMessage()
+  → REPL.onQueryImpl                                   → processUserInput
+  → query(...)                                         → query(...)
+       │                                                    │
+       └──────────────────────┬─────────────────────────────┘
+                              ▼
+                    queryLoop（while true）
+                      1. 准备上下文 / 压缩
+                      2. callModel 流式采样
+                      3. 收集 tool_use
+                      4. 执行工具 / Stop Hook
+                      5. 合并消息并进入下一轮
+                              │
+                    ┌─────────┴─────────┐
+                    ▼                   ▼
+             普通工具 tool.call      AgentTool.call
+             Read / Bash / Edit           │
+                                          ├─ runAgent(...)
+                                          │    └─ query(...)  ← 同一个核心循环
+                                          ├─ 同步：最终文本 → tool_result
+                                          └─ 异步：task-notification → 后续输入</code></pre></div>
+<div class="src">入口证据：<a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/screens/REPL.tsx#L2661-L2803">screens/REPL.tsx:2661–2803</a> · <a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/QueryEngine.ts#L1180-L1294">QueryEngine.ts:1180–1294</a> · <a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/query.ts#L219-L239">query.ts:219–239</a></div>
+
+<div class="key"><strong>最重要的复用：</strong>Subagent 没有“子进程专属 Agent Loop”。<code>runAgent()</code> 只是构造一套新的消息、工具、权限上下文，然后调用与主 Agent 相同的 <code>query()</code>。所以理解了主循环，就理解了子 Agent 90% 的运行机制。</div>
+
+<h3>三个容易混淆的“轮次”</h3>
+<ul>
+    <li><strong>用户轮次（user turn）</strong>：一次用户提交到最终答复，内部可能发生很多次 API 请求。</li>
+    <li><strong>Loop iteration</strong>：<code>queryLoop</code> 的一次 <code>while</code> 迭代。工具结果产生后，<code>turnCount + 1</code>，再次请求模型。</li>
+    <li><strong>Subagent 运行</strong>：由一次 <code>Agent</code> 工具调用启动，内部拥有自己的一整个用户轮次和多次 Loop iteration。</li>
+</ul>
+</section>
+
+<section>
+<h2 id="input"><span class="num">02</span>入口：用户输入如何进入 Loop</h2>
+<h3>2.1 REPL：先规范化，不是直接请求模型</h3>
+<p>REPL 的 <code>handlePromptSubmit()</code> 先处理粘贴文本、图片引用、退出命令和立即执行的本地命令。如果当前已有查询，新的 prompt/bash 输入会进入统一队列；否则封装成 <code>QueuedCommand</code>，交给 <code>executeUserInput()</code>。</p>
+<p><code>processUserInput()</code> 再按输入类型分流：</p>
+<ul>
+    <li>普通文本经 <code>processTextPrompt()</code> 形成 user message，并附带 IDE 选择、文件、Todo、Skill 等上下文。</li>
+    <li>Slash Command 可以只在本地执行；当 <code>shouldQuery=false</code> 时，不进入模型 Loop。</li>
+    <li>图片会存储、缩放并转成 Content Block；<code>UserPromptSubmit</code> Hook 可以阻止提交或附加上下文。</li>
+</ul>
+<div class="src"><a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/utils/handlePromptSubmit.ts#L120-L170">handlePromptSubmit.ts:120–170</a> · <a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/utils/handlePromptSubmit.ts#L396-L496">handlePromptSubmit.ts:396–496</a> · <a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/utils/processUserInput/processUserInput.ts#L85-L269">processUserInput.ts:85–269</a></div>
+
+<h3>2.2 两个入口，共用同一个核心</h3>
+<div class="table-wrap"><table>
+<thead><tr><th>入口</th><th>准备工作</th><th>消费 query() 事件的方式</th></tr></thead>
+<tbody>
+<tr><td><code>REPL.onQueryImpl</code></td><td>构建 System Prompt、User/System Context、工具上下文与 AbortController。</td><td><code>onQueryEvent</code> 更新 React 消息列表、流式文本、Tool UI 和 transcript。</td></tr>
+<tr><td><code>QueryEngine.submitMessage</code></td><td>除上述内容外，还维护跨提交的消息数组、usage、权限拒绝和文件读取缓存。</td><td>归一化为 SDK Message，写会话记录，最终生成 <code>result</code>；<code>ask()</code> 是其一次性便捷封装。</td></tr>
+</tbody></table></div>
+<p>因此本文后续只追 <code>query()</code>：它是两条路径真正的汇合点。启动时的认证、MCP 初始化和终端渲染不属于核心 Loop，不在本文展开。</p>
+</section>
+
+<section>
+<h2 id="query-loop"><span class="num">03</span>核心 queryLoop 的九个阶段</h2>
+<p><code>query()</code> 是很薄的生命周期包装，真正逻辑在 <code>queryLoop()</code>。状态对象包含 <code>messages</code>、<code>toolUseContext</code>、压缩跟踪、输出截断恢复次数、Stop Hook 状态和 <code>turnCount</code>。每轮末尾用一个新的 <code>State</code> 替换旧状态。</p>
+<pre><code>state = {
+  messages, toolUseContext, turnCount: 1,
+  autoCompactTracking, maxOutputTokensRecoveryCount,
+  stopHookActive, transition, ...
+}
+
+<span class="hl">while (true)</span> {
+  messagesForQuery = prepareContext(state.messages)
+  assistantMessages, toolResults, toolUseBlocks = [], [], []
+
+  <span class="hl">for await (message of callModel(...))</span> {
+    yield message
+    collect assistantMessages and toolUseBlocks
+  }
+
+  <span class="hl">if (toolUseBlocks.length === 0)</span> {
+    if (recoverableError) { state = recoveredState; continue }
+    if (stopHookSaysContinue) { state = withHookMessage; continue }
+    return completed
+  }
+
+  <span class="hl">for await (update of executeTools(toolUseBlocks))</span> {
+    yield update.message
+    toolResults.push(normalizeForAPI(update.message))
+  }
+
+  attachments = drainQueuedCommandsAndContext(...)
+  if (aborted || hookStopped || maxTurnsExceeded) return ...
+
+  <span class="ok">state.messages = [...messagesForQuery, ...assistantMessages,
+                    ...toolResults, ...attachments]</span>
+  state.turnCount += 1
+}</code></pre>
+<div class="src">主状态机：<a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/query.ts#L241-L321">query.ts:241–321</a>、<a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/query.ts#L307-L337">while 入口</a>、<a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/query.ts#L1714-L1728">下一轮状态提交</a>。源码中的 <code>query_recursive_call</code> 只是 profiler 的历史命名，当前实现是迭代，不是递归调用自身。</div>
+
+<div class="steps">
+<div class="step"><h3>准备本轮消息视图</h3><p>先取最近一次 compact boundary 之后的消息，再按顺序应用工具结果预算、可选 Snip、Microcompact、Context Collapse 和 Autocompact。System Context 被追加到 System Prompt，User Context 在调用模型前注入消息。</p></div>
+<div class="step"><h3>建立本轮执行器</h3><p>初始化 <code>assistantMessages</code>、<code>toolResults</code>、<code>toolUseBlocks</code>，并根据 <code>tengu_streaming_tool_execution2</code> 选择是否创建 <code>StreamingToolExecutor</code>。</p></div>
+<div class="step"><h3>流式请求模型</h3><p><code>deps.callModel</code> 在生产环境是 <code>queryModelWithStreaming</code>。参数包括消息、System Prompt、工具、模型、Thinking 配置、AbortSignal、Agent 定义和权限上下文等。</p></div>
+<div class="step"><h3>收集 assistant 与 tool_use</h3><p>每个 assistant 消息既向外 <code>yield</code>，也加入本轮数组。内容中的 <code>tool_use</code> block 被单独收集，并令 <code>needsFollowUp=true</code>。</p></div>
+<div class="step"><h3>无工具调用：尝试恢复或结束</h3><p>没有工具调用时，依次处理 Context Overflow、媒体过大、max output tokens、Stop Hook 和 Token Budget；都不需要继续时返回 <code>completed</code>。</p></div>
+<div class="step"><h3>有工具调用：执行并回收结果</h3><p>流式执行器收取剩余结果；否则调用 <code>runTools()</code>。每个工具结果经 API 归一化后成为 user-role 的 <code>tool_result</code> 消息。</p></div>
+<div class="step"><h3>加入队列消息与动态附件</h3><p>工具全部完成后才插入普通用户消息，避免与 tool_result 交错。此处也领取后台任务通知、文件变化、记忆与 Skill 发现附件，并刷新新连接的 MCP 工具。</p></div>
+<div class="step"><h3>检查中断、Hook 与 maxTurns</h3><p>Abort、阻止继续的 Hook、超过 <code>maxTurns</code> 都会终止。否则本轮消息被拼接到状态中，<code>turnCount</code> 加一。</p></div>
+<div class="step"><h3>回到 while 顶部</h3><p>新的模型请求现在能看到“原历史 + assistant 的工具请求 + 工具真实结果 + 新附件”，这就是 ReAct 闭环。</p></div>
+</div>
+
+<div class="key"><strong>继续循环的真实条件：</strong>源码明确说 <code>stop_reason === 'tool_use'</code> 不可靠。它不以这个字段决定循环，而是以实际 assistant 内容中是否出现 <code>tool_use</code> block 为准。<a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/query.ts#L551-L558">query.ts:551–558</a></div>
+</section>
+
+<section>
+<h2 id="tools"><span class="num">04</span>工具执行、权限与并发</h2>
+<h3>4.1 每个工具都经过同一条流水线</h3>
+<div class="flow"><pre><code>tool_use block
+   │
+   ▼
+findToolByName（含旧 alias 回退）
+   → inputSchema.safeParse（Zod）
+   → tool.validateInput?（工具自定义校验）
+   → PreToolUse Hooks
+   → 权限决策（规则 / 模式 / 用户 / classifier）
+   → tool.call(...)
+   → mapToolResultToToolResultBlockParam(...)
+   → PostToolUse Hooks
+   → user message { tool_result, tool_use_id, is_error? }</code></pre></div>
+<p>工具不存在、参数错误、权限拒绝和执行异常都会尽量转成与原始 <code>tool_use_id</code> 对应的错误结果，而不是直接让整个 Agent Loop 崩溃。这保证下一轮模型能够观察失败并修正动作。</p>
+<div class="src"><a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/services/tools/toolExecution.ts#L337-L489">toolExecution.ts:337–489</a> · <a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/services/tools/toolExecution.ts#L599-L733">输入校验</a> · <a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/services/tools/toolExecution.ts#L916-L1104">权限</a> · <a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/services/tools/toolExecution.ts#L1206-L1295">调用与结果映射</a></div>
+
+<h3>4.2 两条调度路径</h3>
+<div class="table-wrap"><table>
+<thead><tr><th>路径</th><th>何时启动工具</th><th>并发规则</th><th>结果顺序</th></tr></thead>
+<tbody>
+<tr><td><code>runTools</code><br><span class="tag">非流式</span></td><td>整次模型响应结束后。</td><td>连续的 <code>isConcurrencySafe</code> 工具组成并行批次；不安全工具独占串行。默认最大并发 10，可由 <code>CLAUDE_CODE_MAX_TOOL_USE_CONCURRENCY</code> 覆盖。</td><td>按工具调用批次推进。</td></tr>
+<tr><td><code>StreamingToolExecutor</code><br><span class="tag cyan">功能开关</span></td><td>模型仍在流式输出时，收到完整 tool block 就可启动。</td><td>安全工具可并行；任何不安全工具必须独占执行。</td><td>进度可立即输出；结果完成后释放，仍在执行的非并发工具会阻塞后续结果。</td></tr>
+</tbody></table></div>
+<p>流式执行器还处理两个重要故障场景：Bash 错误会中止同批兄弟工具/子进程；Abort 或模型 fallback 时，为未完成的 tool_use 生成合成的错误 tool_result，避免历史里留下没有结果的“孤儿调用”。</p>
+<div class="src"><a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/services/tools/toolOrchestration.ts#L19-L116">toolOrchestration.ts:19–116</a> · <a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/services/tools/StreamingToolExecutor.ts#L34-L151">StreamingToolExecutor.ts:34–151</a> · <a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/services/tools/StreamingToolExecutor.ts#L407-L490">结果释放</a></div>
+</section>
+
+<section>
+<h2 id="termination"><span class="num">05</span>结束、恢复与中断</h2>
+<p>“模型不再调用工具”只是最常见的结束条件，不是唯一出口。核心 Loop 和外围 SDK 各自承担一部分限制。</p>
+<div class="table-wrap"><table>
+<thead><tr><th>出口 / 转移</th><th>触发条件</th><th>结果</th></tr></thead>
+<tbody>
+<tr><td><code>completed</code></td><td>没有 tool_use，Stop Hook 没有 blocking error，Token Budget 也不要求继续。</td><td>正常结束当前用户轮次。</td></tr>
+<tr><td><code>max_turns</code></td><td>工具结果产生后，<code>turnCount + 1 &gt; maxTurns</code>。</td><td>产生 <code>max_turns_reached</code> 附件；SDK 转成 <code>error_max_turns</code>。</td></tr>
+<tr><td><code>aborted_streaming</code><br><code>aborted_tools</code></td><td>用户在模型流式输出或工具执行期间中断。</td><td>补齐必要的错误 tool_result，释放资源并返回。</td></tr>
+<tr><td><code>stop_hook_blocking</code></td><td>Stop Hook 返回 blocking error。</td><td>把 Hook 反馈作为 meta user message 加回历史，再请求模型，而不是结束。</td></tr>
+<tr><td><code>hook_stopped</code> / <code>stop_hook_prevented</code></td><td>工具 Hook 或 Stop Hook 明确禁止继续。</td><td>按 Hook 要求退出。</td></tr>
+<tr><td><code>reactive_compact_retry</code></td><td>Prompt Too Long / 媒体错误且可恢复。</td><td>先尝试 Collapse drain，再 Reactive Compact；用压缩后的消息重试。</td></tr>
+<tr><td><code>max_output_tokens_recovery</code></td><td>输出被 token 上限截断。</td><td>必要时提高输出上限；否则注入“从截断处继续”的 meta 消息，最多恢复 3 次。</td></tr>
+<tr><td><code>blocking_limit</code> / 模型错误</td><td>上下文硬限制、图片错误、不可恢复 API/运行时错误。</td><td>返回错误；已经出现的 tool_use 会尽量补齐错误结果。</td></tr>
+<tr><td>SDK 预算限制</td><td><code>getTotalCost() &gt;= maxBudgetUsd</code>。</td><td>由 <code>QueryEngine</code> 在消费事件时检查，输出 <code>error_max_budget_usd</code>，不在核心 while 内。</td></tr>
+</tbody></table></div>
+<div class="src"><a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/query.ts#L1011-L1052">流式中断</a> · <a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/query.ts#L1062-L1357">无工具时的恢复与结束</a> · <a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/query.ts#L1484-L1521">工具中断与 Hook 停止</a> · <a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/QueryEngine.ts#L971-L1002">SDK 预算</a></div>
+</section>
+
+<section>
+<h2 id="subagent"><span class="num">06</span>Subagent 完整调用链</h2>
+<h3>6.1 谁决定调用 Subagent？</h3>
+<p><strong>是模型自己，不是外部路由器。</strong><code>AgentTool.prompt()</code> 把可用的 Agent 类型、用途和工具范围写进工具描述；在可选路径中，动态列表也可通过 <code>agent_listing_delta</code> 附件注入，以避免工具 Schema 变化破坏 Prompt Cache。模型根据这些说明生成 <code>name: "Agent"</code> 的 tool_use。</p>
+<p>基础输入为 <code>description</code>、<code>prompt</code>、<code>subagent_type</code>、<code>model</code>、<code>run_in_background</code>；完整 Schema 还包含 Team 名称、权限模式、<code>isolation</code> 和 <code>cwd</code>。<code>Task</code> 是兼容旧会话的别名，当前工具名是 <code>Agent</code>。</p>
+<div class="src"><a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/tools/AgentTool/AgentTool.tsx#L81-L155">AgentTool.tsx:81–155</a> · <a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/tools/AgentTool/prompt.ts#L66-L113">prompt.ts:66–113</a> · <a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/tools/AgentTool/constants.ts#L1-L12">constants.ts:1–12</a></div>
+
+<h3>6.2 从父 Loop 到子 Loop</h3>
+<div class="flow"><pre><code>父 queryLoop
+  │ assistant: tool_use { name: Agent, input: {...} }
+  ▼
+runToolUse / StreamingToolExecutor
+  │ 通用参数校验 + PreToolUse + 权限
+  ▼
+AgentTool.call(input, parentToolUseContext, canUseTool, ...)
+  │
+  ├─ 1. 选择 AgentDefinition（权限过滤、MCP 前置条件、模型）
+  ├─ 2. 构造 System Prompt 与初始 promptMessages
+  ├─ 3. 组装 workerTools，决定 sync / async / worktree
+  ▼
+runAgent(params)
+  │ 创建 agentId、子 ToolUseContext、Hooks、Skills、MCP、sidechain
+  ▼
+query({ messages: initialMessages, toolUseContext: agentToolUseContext, ... })
+  │ 子 Agent 独立执行“模型 → 工具 → 模型”
+  ▼
+finalizeAgentTool(agentMessages)
+  │ 取最终 assistant 文本 + agentId + 使用量
+  ▼
+AgentTool.mapToolResultToToolResultBlockParam(...)
+  │
+  ▼
+父 queryLoop 收到 tool_result → 再请求父模型</code></pre></div>
+
+<div class="steps">
+<div class="step"><h3>AgentTool.call 接管</h3><p>它先处理 Team 路由；普通路径按 <code>subagent_type</code> 查找经过权限过滤的 AgentDefinition。未指定类型时，默认是 <code>general-purpose</code>；Fork 开关打开时是另一条规定路径。</p></div>
+<div class="step"><h3>构造子 Agent 的任务与提示词</h3><p>普通路径使用所选 Agent 自己的 System Prompt，初始对话只有一条包含任务 <code>prompt</code> 的 user message。父对话内容不会自动塞进去。</p></div>
+<div class="step"><h3>组装工具与隔离参数</h3><p>先用 worker 的权限上下文调用 <code>assembleToolPool</code>，再由 <code>runAgent</code> 根据 Agent 的 allow/deny 列表、内置/自定义身份和同步/后台属性过滤。可选 Worktree 会创建独立 Git 工作区并覆盖 cwd。</p></div>
+<div class="step"><h3>运行 runAgent</h3><p>它完成子上下文初始化后调用同一个 <code>query()</code>。子 Agent 可以使用工具、触发压缩、遇到 maxTurns，逻辑与主 Agent 一致。</p></div>
+<div class="step"><h3>只提炼最终报告</h3><p><code>finalizeAgentTool()</code> 取最后一个 assistant 的文本；如果最后一个消息只有 tool_use，则向前找最近有文本的 assistant。父 Agent 默认不接收子 Agent 的全部中间工具输出。</p></div>
+<div class="step"><h3>映射为普通 tool_result</h3><p>同步结果包含报告、agentId 和使用量；一次性 Explore/Plan 省略续聊提示。父 Loop 把它加入消息历史，下一次模型请求再综合成用户可见答案。</p></div>
+</div>
+<div class="src">核心实现：<a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/tools/AgentTool/AgentTool.tsx#L239-L356">AgentTool.tsx:239–356</a> · <a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/tools/AgentTool/AgentTool.tsx#L483-L636">提示词、工具与运行参数</a> · <a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/tools/AgentTool/agentToolUtils.ts#L276-L357">finalizeAgentTool</a> · <a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/tools/AgentTool/AgentTool.tsx#L1298-L1379">结果映射</a></div>
+
+<div class="warning"><strong>“AgentTool.isReadOnly() === true”不代表子 Agent 只能读。</strong>这个标记只是把权限判断委托给它内部实际调用的工具。普通 general-purpose Agent 可以拥有写文件和 Bash 工具；真正的限制来自 AgentDefinition 的工具列表、权限模式和每次内部工具的权限检查。另外，尽管工具提示词使用了“subprocesses”一词，这里的本地普通路径是直接调用 <code>runAgent()</code>，并没有启动独立 OS 子进程。</div>
+</section>
+
+<section>
+<h2 id="run-agent"><span class="num">07</span>runAgent 如何创建子运行时</h2>
+<p><code>runAgent()</code> 是 Subagent 的“运行时组装函数”。按源码顺序，关键动作如下：</p>
+<ol>
+    <li><strong>解析模型与 agentId</strong>：模型优先级由 <code>getAgentModel</code> 统一处理；注册追踪层级，准备独立 sidechain transcript。</li>
+    <li><strong>构造 initialMessages</strong>：普通 Agent 只有任务消息；Fork 还会拼接过滤过未完成工具调用的父上下文。</li>
+    <li><strong>准备上下文</strong>：读取 User/System Context；Explore/Plan 可省略 CLAUDE.md 和旧 gitStatus，以减少无效 token。</li>
+    <li><strong>解析工具和权限</strong>：普通子 Agent 默认关闭 Thinking 以控制成本；同步 Agent 与父 Agent 共享 AbortController，后台 Agent 使用独立控制器。</li>
+    <li><strong>执行 SubagentStart Hooks</strong>：把 additional context 加入初始消息，并注册 Agent frontmatter 中生命周期 scoped hooks。</li>
+    <li><strong>预加载 Skills、连接专属 MCP</strong>：Agent 可以增加自己的 MCP Server；新建的内联连接在结束时清理，引用父级已有连接不会被误关。</li>
+    <li><strong>createSubagentContext</strong>：替换 messages、options、agentId、文件缓存和各类状态回调，形成新的 <code>ToolUseContext</code>。</li>
+    <li><strong>写初始 sidechain 与 metadata</strong>，随后进入 <code>for await (const message of query(...))</code>。</li>
+    <li><strong>finally 清理</strong>：关闭专属 MCP、清理 Hooks/缓存/Todo、停止该 Agent 遗留的后台 Bash 和监控任务。</li>
+</ol>
+<div class="src"><a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/tools/AgentTool/runAgent.ts#L248-L378">runAgent.ts:248–378</a> · <a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/tools/AgentTool/runAgent.ts#L412-L528">权限、工具与 Abort</a> · <a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/tools/AgentTool/runAgent.ts#L530-L714">Hooks、Skills、MCP 与子上下文</a> · <a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/tools/AgentTool/runAgent.ts#L732-L859">调用 query 与清理</a></div>
+
+<h3>子上下文不是简单复制，也不是完全隔离</h3>
+<div class="table-wrap"><table>
+<thead><tr><th>状态</th><th>普通同步 Subagent</th><th>后台 Subagent</th></tr></thead>
+<tbody>
+<tr><td>对话消息</td><td>新数组；默认只有任务 prompt。</td><td>同左。</td></tr>
+<tr><td>Read 文件缓存</td><td>新建有容量限制的缓存。</td><td>同左；Fork 则 clone 父缓存。</td></tr>
+<tr><td><code>setAppState</code></td><td>与父共享，支持交互状态更新。</td><td>默认为 no-op，避免后台任务相互覆盖。</td></tr>
+<tr><td><code>setAppStateForTasks</code></td><td colspan="2">始终尽可能指向 root store，保证后台任务注册与清理不会丢失。</td></tr>
+<tr><td>AbortController</td><td>默认共享父控制器，父中断会终止子 Agent。</td><td>独立控制器；主线程按 Esc 不会顺带杀掉它，需显式 TaskStop。</td></tr>
+<tr><td>UI 回调</td><td>通过 AgentTool 的 <code>onProgress</code> 有选择地冒泡，而不是任意控制父 UI。</td><td>进度写入 Task 状态与 transcript。</td></tr>
+<tr><td>文件系统</td><td colspan="2">默认相同 cwd、相同真实文件系统；只有显式 <code>isolation: "worktree"</code> 才改到独立工作区。</td></tr>
+</tbody></table></div>
+<div class="src"><a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/utils/forkedAgent.ts#L252-L461">utils/forkedAgent.ts:252–461</a></div>
+</section>
+
+<section>
+<h2 id="sync-async"><span class="num">08</span>同步、异步与并行回收</h2>
+<div class="two-col">
+<div class="panel"><h3>同步：父工具调用等待子 Loop</h3><p><code>AgentTool.call</code> 持续消费 <code>runAgent</code> 的 async iterator，收集消息并向 UI 转发 tool_use/tool_result 进度。完成后返回 <code>status: "completed"</code>，父工具层将其映射为最终报告的 tool_result。</p><p><strong>父 Loop 此时仍停在这一个工具调用里。</strong></p></div>
+<div class="panel"><h3>异步：先返回句柄，后送通知</h3><p>先注册 <code>LocalAgentTask</code>，再用 detached closure 启动 <code>runAsyncAgentLifecycle</code>。父 Agent 立即得到 <code>status: "async_launched"</code> 和 output_file，继续自己的工作。</p><p><strong>最终结果通过后续 task-notification 回到模型，不是父 Agent 主动轮询得到。</strong></p></div>
+</div>
+
+<h3>8.1 同步结果的精确边界</h3>
+<pre><code>子 Agent 完整历史：
+  user(task) → assistant → tool_use → tool_result → ... → assistant(final report)
+       │                         │
+       │                         └─ AgentTool.onProgress：供 UI 展示
+       └─ recordSidechainTranscript：完整落盘
+
+父 Agent 历史：
+  assistant(tool_use: Agent)
+  user(tool_result: final report + agentId + usage)  ← 不包含所有中间工具输出</code></pre>
+
+<h3>8.2 后台结果如何重新进入父 Loop</h3>
+<ol>
+    <li><code>runAsyncAgentLifecycle</code> 消费子 Loop，持续更新 Task 进度。</li>
+    <li>完成后先 <code>completeAgentTask</code>，让等待 TaskOutput 的调用立即解除阻塞，再整理报告和 Worktree 信息。</li>
+    <li><code>enqueueAgentNotification</code> 生成包含 taskId、状态、result、usage、output_file 的 <code>&lt;task-notification&gt;</code>，以 <code>mode: "task-notification"</code> 入队；<code>notified</code> 标志避免重复通知。</li>
+    <li>若父 Loop 正在运行，通知在工具完成后的附件阶段被领取，进入下一次模型请求；若父 Loop 已空闲，<code>useQueueProcessor</code> 在队列变化时启动一个新的输入轮次。</li>
+</ol>
+<div class="src"><a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/tools/AgentTool/AgentTool.tsx#L686-L764">异步启动</a> · <a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/tools/AgentTool/AgentTool.tsx#L765-L858">同步启动</a> · <a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/tools/AgentTool/agentToolUtils.ts#L508-L685">后台生命周期</a> · <a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/tasks/LocalAgentTask/LocalAgentTask.tsx#L194-L262">通知入队</a> · <a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/hooks/useQueueProcessor.ts#L16-L67">空闲时处理队列</a></div>
+
+<h3>8.3 并行 Subagent 不需要另一个 Scheduler</h3>
+<p><code>AgentTool.isConcurrencySafe()</code> 返回 true。因此模型在<strong>同一条 assistant 消息</strong>里发出多个 Agent tool_use 时，通用工具调度器就可以并行运行它们。同步并行意味着父工具批次等待这些调用全部产出结果；后台并行则每次调用很快返回 agentId。</p>
+<p>同步前台 Agent 也已注册成 Task，因此可以中途转后台；开启自动后台化时，默认阈值为 120 秒。转后台后，原调用返回 <code>async_launched</code>，后续仍走同一通知机制。</p>
+</section>
+
+<section>
+<h2 id="fork"><span class="num">09</span>普通 Subagent、Fork 与 Team</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>路径</th><th>初始上下文</th><th>工具 / Prompt Cache</th><th>返回方式</th></tr></thead>
+<tbody>
+<tr><td><strong>普通 Subagent</strong><br><code>subagent_type</code></td><td>所选 Agent 的 System Prompt + 一条任务 prompt；不继承父对话。</td><td>独立组装并过滤工具；普通路径关闭 Thinking。</td><td>默认同步最终报告；可后台通知。</td></tr>
+<tr><td><strong>Fork Subagent</strong><br><span class="tag amber">FORK_SUBAGENT 开关</span></td><td>继承父 System Prompt 与对话；省略 <code>subagent_type</code> 时触发。</td><td>复用父 tools、model、Thinking 和上下文前缀，目标是命中同一 Prompt Cache。</td><td>该实验路径统一后台执行，以 task-notification 回收。</td></tr>
+<tr><td><strong>Agent Team / Teammate</strong><br><code>team_name + name</code></td><td>独立成员身份和团队上下文。</td><td>走 <code>spawnTeammate</code>，不是本文的普通 runAgent 路径。</td><td><code>teammate_spawned</code>，之后通过 Mailbox / SendMessage 协作。</td></tr>
+<tr><td><strong>Remote</strong><br><span class="tag amber">内部构建</span></td><td>任务被 teleport 到远程 CCR 会话。</td><td>不是本地子 Loop。</td><td><code>remote_launched</code> + taskId/sessionUrl。</td></tr>
+</tbody></table></div>
+
+<h3>Fork 为什么要有 placeholder tool_result？</h3>
+<p>Fork 调用发生在父 assistant 已生成 tool_use、但真实工具结果尚未完成的时刻。子历史既要保留父 assistant 的完整 tool_use，又必须满足 API 的 tool_use/tool_result 配对要求。<code>buildForkedMessages()</code> 因此克隆父 assistant，并为每个 tool_use 填统一占位结果，最后追加子 Agent 专属 directive。</p>
+<p>这样多个 Fork 的 API 前缀可以保持一致，只在最后的任务指令处分叉。它还会用 <code>querySource</code> 和 Fork 标记阻止 Fork 内再次 Fork，避免递归失控。</p>
+<div class="src"><a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/tools/AgentTool/forkSubagent.ts#L18-L71">Fork 开关与定义</a> · <a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/tools/AgentTool/forkSubagent.ts#L91-L169">placeholder 与消息构造</a> · <a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/tools/AgentTool/AgentTool.tsx#L318-L335">递归保护</a></div>
+
+<h3>Worktree 的回收策略</h3>
+<p>Subagent 在临时 Worktree 中完成后：没有变化就删除 Worktree；有变化则保留，并把 <code>worktreePath</code> 和 <code>worktreeBranch</code> 放进结果。它解决代码工作区冲突，但不等于安全沙箱，也不是独立 OS 进程权限边界。</p>
+</section>
+
+<section>
+<h2 id="trace"><span class="num">10</span>一次完整消息轨迹</h2>
+<p>把“请调查模块 A，同时检查测试”抽象成一次同步 Agent 调用，消息流如下：</p>
+<div class="flow"><pre><code>U0  用户：调查模块 A，并检查测试
+
+P1  父 assistant：tool_use Agent({
+      description: "调查模块 A",
+      subagent_type: "Explore",
+      prompt: "只读调查 A 的入口、依赖与测试，返回关键文件和结论"
+    })
+        │
+        │  AgentTool 创建 C0 = [user(任务 prompt)]
+        ▼
+C1  子 assistant：tool_use Glob / Grep
+C2  子 user：tool_result（搜索匹配）
+C3  子 assistant：tool_use Read
+C4  子 user：tool_result（文件内容）
+C5  子 assistant：最终调查报告，不再调用工具
+        │  子 queryLoop 返回 completed
+        │  finalizeAgentTool 提取 C5 文本
+        ▼
+P2  父 user：tool_result {
+      tool_use_id: P1 的 Agent 调用 ID,
+      content: 调查报告
+    }
+
+P3  父 assistant：基于报告回答用户，或继续调用测试工具
+P4  父 user：测试工具结果（如果 P3 有 tool_use）
+P5  父 assistant：最终答复，没有 tool_use → Stop Hooks → completed</code></pre></div>
+<p>这里有两条独立的消息链：<strong>C 链是子 Agent 的完整执行轨迹，P 链是父 Agent 的决策轨迹。</strong>两条链通过 P1 的调用和 P2 的报告连接，而不是把 C1–C4 全量复制进 P 链。</p>
+</section>
+
+<section>
+<h2 id="boundaries"><span class="num">11</span>上下文与状态边界</h2>
+<h3>11.1 AgentDefinition 从哪里来</h3>
+<p>内置 Agent、插件 Agent、用户/项目/策略配置中的 Markdown 或 JSON Agent 会合并为定义列表。定义可声明 <code>tools</code>、<code>disallowedTools</code>、<code>model</code>、<code>effort</code>、<code>permissionMode</code>、<code>maxTurns</code>、<code>skills</code>、<code>mcpServers</code>、<code>background</code>、<code>memory</code> 和 <code>isolation</code> 等。</p>
+<p>该快照中的内置定义包含 general-purpose、状态线配置、Claude Code Guide，以及受开关控制的 Explore、Plan、verification。Explore 明确禁用 Agent 和文件编辑工具。外部构建默认从子 Agent 工具池排除 Agent，内部 ant 构建则允许嵌套委派；后台 Agent 通常还会受到更严格的工具白名单限制，不能据此假设任意递归都可用。</p>
+<div class="src"><a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/tools/AgentTool/loadAgentsDir.ts#L56-L190">AgentDefinition Schema</a> · <a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/tools/AgentTool/loadAgentsDir.ts#L296-L393">加载与合并</a> · <a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/tools/AgentTool/builtInAgents.ts#L22-L72">内置列表</a></div>
+
+<h3>11.2 数据到底共享什么</h3>
+<div class="table-wrap"><table>
+<thead><tr><th>资源</th><th>默认普通 Subagent</th><th>设计意义</th></tr></thead>
+<tbody>
+<tr><td>父对话全文</td><td>不共享；调用者必须在 prompt 中交代任务背景。</td><td>控制上下文成本，避免工具噪声污染父历史。</td></tr>
+<tr><td>最终文本报告</td><td>共享，作为 Agent 工具的 tool_result。</td><td>父 Agent 负责综合，而不是机械转发子日志。</td></tr>
+<tr><td>完整子对话</td><td>写入 sidechain transcript，可用于查看和恢复。</td><td>审计与续聊不依赖把全文塞回父上下文。</td></tr>
+<tr><td>文件系统与进程</td><td>默认同进程、同 cwd、同文件系统。</td><td>便于真实编码，但并行写同一文件仍有竞争风险。</td></tr>
+<tr><td>工具权限</td><td>继承 canUseTool 入口，但应用子 Agent 的工具集合、模式与避免弹窗规则。</td><td>委派不会绕过内部工具的权限检查。</td></tr>
+<tr><td>后台 Task 根状态</td><td>通过 <code>setAppStateForTasks</code> 写 root store。</td><td>即使异步子 Agent 的普通 setAppState 被隔离，任务系统仍统一可观测。</td></tr>
+<tr><td>Worktree</td><td>可选；有改动时保留路径与分支。</td><td>用 Git 工作区解决写冲突，而不是虚构“默认沙箱”。</td></tr>
+</tbody></table></div>
+</section>
+
+<section>
+<h2 id="takeaways"><span class="num">12</span>设计结论与源码索引</h2>
+<h3>可以提炼出的六个设计结论</h3>
+<ol>
+    <li><strong>Agent Loop 是消息状态机，不只是 while + API。</strong>它还要保证 tool_use/tool_result 配对、消息顺序、Abort 清理和上下文可恢复。</li>
+    <li><strong>流式输出与流式工具执行是两件事。</strong>前者让 UI 更快看到 token；后者让安全工具在模型还没说完时就开始执行。</li>
+    <li><strong>Subagent 是工具化委派。</strong>父 Agent 不需要知道子 Loop 细节，只面对一个符合工具协议的任务原语。</li>
+    <li><strong>同步与异步是两种结果回传协议。</strong>同步返回最终 tool_result；异步先返回启动句柄，再以通知形成新的模型输入。</li>
+    <li><strong>上下文隔离和执行隔离必须分开讨论。</strong>Fresh context、Fork cache 共享、Worktree、Remote 是不同维度，不能都叫“独立 Agent”。</li>
+    <li><strong>并发安全是工具自己的声明。</strong>AgentTool 标记可并发，通用调度器便复用同一套并行机制，无需为 Subagent 特制一套平行调度系统。</li>
+</ol>
+
+<h3>最短源码阅读路线</h3>
+<div class="table-wrap"><table>
+<thead><tr><th>顺序</th><th>文件</th><th>重点</th></tr></thead>
+<tbody>
+<tr><td>1</td><td><a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/query.ts">query.ts</a></td><td><code>query → queryLoop</code> 的状态、流式请求、工具结果合并与所有出口。</td></tr>
+<tr><td>2</td><td><a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/services/tools/toolExecution.ts">services/tools/toolExecution.ts</a></td><td>单个工具从校验、Hook、权限到结果映射的完整链路。</td></tr>
+<tr><td>3</td><td><a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/services/tools/toolOrchestration.ts">toolOrchestration.ts</a> 与 <a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/services/tools/StreamingToolExecutor.ts">StreamingToolExecutor.ts</a></td><td>串并行分组、流式提前执行与结果顺序。</td></tr>
+<tr><td>4</td><td><a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/tools/AgentTool/AgentTool.tsx">tools/AgentTool/AgentTool.tsx</a></td><td>类型选择、运行参数、同步/异步、结果映射。</td></tr>
+<tr><td>5</td><td><a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/tools/AgentTool/runAgent.ts">tools/AgentTool/runAgent.ts</a></td><td>子上下文、Hooks、Skills、MCP、transcript、调用同一个 query。</td></tr>
+<tr><td>6</td><td><a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/utils/forkedAgent.ts">utils/forkedAgent.ts</a> 与 <a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/tools/AgentTool/forkSubagent.ts">forkSubagent.ts</a></td><td>状态隔离与 Fork 的 Prompt Cache 共享。</td></tr>
+<tr><td>7</td><td><a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/tasks/LocalAgentTask/LocalAgentTask.tsx">LocalAgentTask.tsx</a> 与 <a href="https://github.com/APX103/cc/blob/3a45406c76b045e87cf4ecb70eacc1f57c6e9e61/tools/AgentTool/agentToolUtils.ts">agentToolUtils.ts</a></td><td>后台任务状态、通知和最终结果提炼。</td></tr>
+</tbody></table></div>
+
+<div class="key"><strong>一句话记住全链路：</strong>主 Agent 生成 <code>tool_use(Agent)</code> → 通用工具框架调用 <code>AgentTool</code> → <code>runAgent</code> 用新上下文再次运行 <code>query()</code> → 子 Agent 最终报告被映射成 <code>tool_result</code>（同步）或 <code>task-notification</code>（异步）→ 父 Agent 继续自己的 Loop。</div>
+
+<p class="small">延伸阅读：本站已有的 <a href="claude_code_subagent_architecture.html">Subagent 调用流程深度解析</a>、<a href="claude_code_context_compaction.html">上下文压缩实现</a> 与 <a href="claude_code_agent_team_architecture.html">Agent Team 系统解析</a>。本文侧重主 Loop 与 Subagent 的连接处，三篇可互相补充。</p>
+</section>
+
+<footer class="footer">基于固定反编译源码快照整理 · 页面自包含，无外部脚本或样式依赖 · 托管于 <a href="https://github.com/APX103/note">APX103/note</a></footer>
+</div>
+</body>
+</html>
