@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent-Native SDLC 研究笔记</title>
+    <style>
+        :root {
+            --bg: #fafafa;
+            --fg: #1a1a1a;
+            --muted: #666;
+            --accent: #2563eb;
+            --border: #e5e5e5;
+            --code: #f4f4f5;
+            --warn: #fef3c7;
+            --warn-border: #f59e0b;
+        }
+        * { box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans SC", sans-serif;
+            line-height: 1.7;
+            max-width: 820px;
+            margin: 0 auto;
+            padding: 40px 24px;
+            background: var(--bg);
+            color: var(--fg);
+        }
+        h1 { font-size: 2rem; margin-bottom: 0.5rem; }
+        h2 { font-size: 1.4rem; margin-top: 2.5rem; border-bottom: 2px solid var(--border); padding-bottom: 0.4rem; }
+        h3 { font-size: 1.15rem; margin-top: 1.8rem; color: var(--accent); }
+        p { margin: 0.8rem 0; }
+        ul, ol { padding-left: 1.6rem; }
+        li { margin: 0.5rem 0; }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .meta { color: var(--muted); font-size: 0.9rem; margin-bottom: 2rem; }
+        .source-list { background: var(--code); padding: 1rem 1.5rem; border-radius: 8px; }
+        .source-list li { margin: 0.4rem 0; }
+        .highlight { background: var(--warn); border-left: 4px solid var(--warn-border); padding: 1rem 1.2rem; margin: 1.2rem 0; border-radius: 0 8px 8px 0; }
+        .tag {
+            display: inline-block;
+            background: #e0e7ff;
+            color: #3730a3;
+            padding: 0.15rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            margin-right: 0.4rem;
+            font-weight: 500;
+        }
+        code {
+            font-family: "SF Mono", Menlo, Consolas, monospace;
+            background: var(--code);
+            padding: 0.15rem 0.35rem;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        .section-note {
+            color: var(--muted);
+            font-size: 0.95rem;
+            font-style: italic;
+            margin-top: -0.4rem;
+        }
+        hr { border: none; border-top: 1px solid var(--border); margin: 2.5rem 0; }
+    </style>
+</head>
+<body>
+
+<h1>Agent-Native SDLC 研究笔记</h1>
+<div class="meta">
+    整理自 OpenAI、Anthropic 官方博客及第三方深度访谈。<br>
+    聚焦一个问题：当 AI Agent 一天产出上万次变更时，代码质量、合并、冲突、一致性如何保障？
+</div>
+
+<h2>一、核心来源</h2>
+<ul class="source-list">
+    <li><a href="https://openai.com/index/harness-engineering" target="_blank">OpenAI — Harness engineering: leveraging Codex in an agent-first world</a>（官方，2026-02）</li>
+    <li><a href="https://anthropic.com/engineering/redesigning-source-control" target="_blank">Anthropic — Redesigning source control at Anthropic</a>（官方，2026-10）</li>
+    <li><a href="https://claude.com/resources/articles/agentic-coding-is-straining-ci-heres-how-we-scaled-test-impact-analysis-at-anthropic" target="_blank">Anthropic — Agentic coding is straining CI</a>（官方）</li>
+    <li><a href="https://claude.dev/blog/solving-code-review-at-anthropic/" target="_blank">Anthropic — How the Claude Code team does code review</a>（官方）</li>
+    <li><a href="https://newsletter.pragmaticengineer.com/p/how-codex-is-built" target="_blank">Pragmatic Engineer — How Codex is built</a>（访谈 Tibo Sottiaux）</li>
+    <li><a href="https://newsletter.pragmaticengineer.com/p/how-claude-code-is-built" target="_blank">Pragmatic Engineer — How Claude Code is built</a>（访谈 Claude Code 团队）</li>
+</ul>
+
+<h2>二、一些核心数字</h2>
+<p class="section-note">这些数字部分是官方披露，部分是团队访谈自述，引用时需区分。</p>
+<ul>
+    <li><strong>Anthropic monorepo：</strong>2026 年 5 月日均 2,500 次合并，9 月超过 <strong>30,000 次/天</strong>。</li>
+    <li><strong>Scion：</strong>7 人团队 5 个月自研并迁移完成，同时日均合并量增长 10 倍。</li>
+    <li><strong>Claude Code 团队：</strong>十几人，~60–100 内部发布/天，每个工程师 ~5 发布/天，1 外部发布/天。</li>
+    <li><strong>Codex 团队：</strong>内部一天 3–4 版，典型工程师同时跑 4–8 个并行 agent。</li>
+    <li><strong>AI 生成代码占比：</strong>Codex 和 Claude Code 都声称约 90% 代码由 AI 生成（团队估算，非第三方审计）。</li>
+</ul>
+
+<div class="highlight">
+    <strong>关键结论：</strong>速度不是来自人写代码更快，而是来自<strong>人类设计环境、定义验证规则、管理 agent 舰队</strong>；代码本身大量由 agent 生成。
+</div>
+
+<h2>三、代码质量怎么做</h2>
+
+<h3>3.1 不是审每一行，而是建分层验证</h3>
+<p>Anthropic 把它叫做 <strong>Swiss Cheese Model</strong>，多层叠加，每层抓不同类别的错误：</p>
+<ol>
+    <li><strong>AI 自验证：</strong>在 PR 出现前，agent 先跑测试、build、截图对比，给出可运行的证据。</li>
+    <li><strong>CI 自动 evals：</strong>把配置变更（CLAUDE.md、skills、hooks）当作代码一样做回归测试。</li>
+    <li><strong>自动 security review：</strong>每个 diff 过安全扫描。</li>
+    <li><strong>选择性人工 review：</strong>只关注架构决策和 novel risk，常规改动由 agent 处理。</li>
+    <li><strong>活的 institutional memory：</strong>把 AI 常犯的错误、过去事故编码成 eval 和规则。</li>
+</ol>
+
+<h3>3.2 用机械规则（invariants）代替人工品味</h3>
+<p>OpenAI 在仓库里直接编码 <strong>golden principles</strong>：</p>
+<ul>
+    <li>偏好 shared utility packages，不鼓励手搓 helper。</li>
+    <li>不 YOLO-style probe 数据，必须在边界 parse/validate，或用 typed SDK。</li>
+    <li>严格架构分层：Types → Config → Repo → Service → Runtime → UI，依赖方向机械 enforced。</li>
+    <li>自定义 linter，错误信息里直接注入修复指导，让 agent 自纠正。</li>
+</ul>
+
+<h3>3.3 把事故变成 eval</h3>
+<p>Claude Code 团队的做法：</p>
+<ul>
+    <li>每次生产事故的 PR 被收集起来，由熟悉代码的人确认 bug 和位置。</li>
+    <li>reviewer agent 每天跑这个 eval set。</li>
+    <li>reviewer 的 prompt、工具、模型变更后，要重新打分。</li>
+</ul>
+
+<h3>3.4 噪声控制</h3>
+<p>Agent reviewer 如果太吵，会导致 agent author 无限修复。Claude Code 的做法：</p>
+<ul>
+    <li>多个 agent 同时找 bug，然后投票，只有足够多 agent 同意才报。</li>
+    <li>只关于 style、diagnostics、cleanup 的 finding 直接丢掉。</li>
+    <li>inline comment 按 severity 排序。</li>
+</ul>
+
+<div class="highlight">
+    <strong>对普通团队的启示：</strong>不要指望人工 review 每一行 agent 代码。要把团队品味变成<strong>可执行、可自动修复的规则</strong>。
+</div>
+
+<h2>四、合并与冲突怎么解决</h2>
+
+<h3>4.1 Anthropic 的解法：放弃全局锁，靠事后修复</h3>
+<p>当一天 30,000 次合并时，传统 merge queue 全局锁不可行：</p>
+<ul>
+    <li><strong>Scion 架构：</strong>changeset 服务器端创建，无需 push；ref 移动是独立的 compare-and-swap。</li>
+    <li><strong>文本冲突不允许：</strong>Scion 会阻止纯文本层面的冲突。</li>
+    <li><strong>语义冲突承认不可避免：</strong>比如 A 改函数逻辑，B 同时新增调用点。</li>
+    <li><strong>策略：</strong>放弃"测试通过才能合并"的全局锁，改为 <strong>post-merge + pre-deploy 自动化测试</strong>。</li>
+    <li><strong>修复机制：</strong>Claude 自动修复冲突，配合自动 bisect 和 revert pipeline。</li>
+</ul>
+
+<h3>4.2 代码 review 工具 Antique 的语义审批</h3>
+<ul>
+    <li>区分 comment-only change 和敏感逻辑变更。</li>
+    <li>对敏感路径要求人工审 intent，不读每一行。</li>
+    <li>人类角色变成"告诉 Claude no"，阻止 agent 为迎合局部模式破坏系统约束。</li>
+</ul>
+
+<h3>4.3 OpenAI 的合并哲学</h3>
+<p>OpenAI 的实验仓库采用：</p>
+<ul>
+    <li><strong>最小化阻塞合并门：</strong>PR 短生命周期，测试 flake 重跑而不是无限阻塞。</li>
+    <li><strong>Agent-to-agent review：</strong>Codex 自己 review 自己，人类只在需要判断时介入。</li>
+    <li><strong>自动化修复循环：</strong>agent 拉取 review 反馈、回复、push 更新、merge。</li>
+</ul>
+
+<div class="highlight">
+    <strong>关键认知：</strong>当 agent 吞吐量远超人类注意力时，<strong>等待比修复更贵</strong>。他们的选择是快速合并、快速检测、快速回滚。
+</div>
+
+<h2>五、不同 Agent / Prompt 产出不一样怎么办</h2>
+
+<p>这是你最关心的问题。他们的答案不是"统一 prompt"，而是<strong>用强制约束把结果收敛</strong>。</p>
+
+<h3>5.1 架构约束优先于 prompt</h3>
+<ul>
+    <li>固定模块分层和依赖方向，用 custom linter / 结构测试机械执行。</li>
+    <li>跨领域 concern（auth、telemetry、feature flags）只能通过单一 Provider 接口进入。</li>
+    <li>agent 不需要"记住"规则，规则由工具强制执行。</li>
+</ul>
+
+<h3>5.2 共享抽象抑制发散</h3>
+<ul>
+    <li>优先 shared utility packages，把不变量集中。</li>
+    <li>用 typed SDK / frozen dataclass / Pydantic extra="forbid" 让 agent 无法乱猜形状。</li>
+    <li>parse at boundary，不要 validate later。</li>
+</ul>
+
+<h3>5.3 定期垃圾回收（entropy control）</h3>
+<p>OpenAI 早期每周五 20% 时间清理 "AI slop"，后来改成：</p>
+<ul>
+    <li>把 golden principles 编码进仓库。</li>
+    <li>后台 agent 定期扫描偏差，更新质量评分。</li>
+    <li>自动开 targeted refactoring PR，大部分 1 分钟内可 review 并 auto-merge。</li>
+</ul>
+
+<h3>5.4 把 drift 变成可测量的问题</h3>
+<p>Claude Code 团队：</p>
+<ul>
+    <li>测量 revert rate 和 incident rate，作为速度 guardrail。</li>
+    <li>从 6 月到 9 月，合并 PR 数翻倍，revert 比例下降 40%+。</li>
+    <li>目标是<strong>最小化人类 review 时间，同时不提高 revert/incident</strong>。</li>
+</ul>
+
+<h3>5.5 人类工程师的新角色</h3>
+<ul>
+    <li>不是写代码，而是<strong>设计环境、定义成功标准、验证结果</strong>。</li>
+    <li>看到 agent 挣扎时，问："缺什么能力、工具、guardrail、文档？"</li>
+    <li>让 agent 自己写修复，而不是人类动手修。</li>
+</ul>
+
+<h2>六、对普通团队的启示</h2>
+
+<p>50 人团队不要照搬 Anthropic 的 Scion 或 OpenAI 的"无手写代码"。但可以 borrow 思想：</p>
+
+<ol>
+    <li><strong>先把发布从事件变成按钮：</strong>trunk-based + feature flags，让 main 始终可发布。</li>
+    <li><strong>把规范变成工具：</strong>custom linter、dependency rules、architectural tests，而不是靠人记。</li>
+    <li><strong>用 agent 做第一层 review：</strong>在人工看之前，先让 Claude/Codex 过一遍，抓常规问题。</li>
+    <li><strong>事故必须变成回归：</strong>每个线上问题写入 eval 或测试，防止复发。</li>
+    <li><strong>测量正确指标：</strong>不要只看速度，要看 revert rate、incident rate、human review time。</li>
+    <li><strong>减少阻塞点：</strong>如果 merge queue 是瓶颈，考虑更小的 batch、path-based CI、或把部分测试移到 post-merge。</li>
+</ol>
+
+<div class="highlight">
+    <strong>一句话：</strong>敏捷没有死，但它从"人的流程"变成了"agent 的流程"。人类的职责从"写代码"转向"设计约束和验证系统"。
+</div>
+
+<hr>
+<p class="meta">整理时间：2026-10-28。后续有新来源可继续补充。</p>
+
+</body>
+</html>

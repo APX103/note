@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="从源码结构理解 DeepSeek Harness Subagent：委派分层、Session 与 Activation、spawn 与 fork、并行与嵌套调用树、Agent Team，以及消息和冷恢复。">
+<title>DSH Subagent 架构与多智能体调用树</title>
+<style>
+  :root {
+    --bg: #f4f6fb; --paper: #ffffff; --ink: #172033; --muted: #5d687c;
+    --line: #dfe5ef; --primary: #5b5bd6; --primary-soft: #ededff;
+    --cyan: #087e8b; --cyan-soft: #e4f7f7; --amber: #9a5a00; --amber-soft: #fff4da;
+    --green: #18764a; --green-soft: #e7f6ed; --red: #b34151; --dark: #111a2c;
+    --code: #eaf0f7; --shadow: 0 16px 48px rgba(33, 43, 71, .08);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 24px; }
+  body { margin: 0; background: var(--bg); color: var(--ink); line-height: 1.8;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased; }
+  a { color: var(--primary); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+  a:hover { text-decoration-thickness: 2px; }
+  .skip { position: absolute; left: 16px; top: -80px; padding: 8px 14px; background: white; z-index: 5; }
+  .skip:focus { top: 16px; }
+  .hero { color: #f7f8ff; background: radial-gradient(circle at 85% 15%, rgba(76, 201, 240, .22), transparent 35%),
+    radial-gradient(circle at 10% 90%, rgba(157, 122, 255, .2), transparent 38%), var(--dark); }
+  .hero-inner, main, .footer-inner { width: min(1080px, calc(100% - 40px)); margin: 0 auto; }
+  .hero-inner { padding: 64px 0 54px; }
+  .eyebrow { margin: 0 0 14px; color: #91e3ea; font-size: .78rem; font-weight: 750; letter-spacing: .16em; text-transform: uppercase; }
+  h1 { margin: 0; max-width: 850px; font-size: clamp(2rem, 5vw, 3.65rem); line-height: 1.16; letter-spacing: -.035em; }
+  .subtitle { max-width: 800px; margin: 22px 0 0; color: #c2cbe0; font-size: 1.06rem; }
+  .meta { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 26px; }
+  .meta span, .pill { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: .78rem; font-weight: 650; }
+  .meta span { border: 1px solid rgba(255,255,255,.16); color: #d8def0; background: rgba(255,255,255,.05); }
+  .hero-links { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+  .hero-links a { padding: 9px 15px; border-radius: 9px; text-decoration: none; font-weight: 650; font-size: .9rem; }
+  .hero-links .primary { color: var(--dark); background: #91e3ea; }
+  .hero-links .secondary { color: #e4e9f8; border: 1px solid rgba(255,255,255,.2); }
+  main { padding: 34px 0 64px; }
+  .toc { display: grid; grid-template-columns: 180px 1fr; gap: 24px; padding: 24px 28px; margin-bottom: 40px;
+    background: var(--paper); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); }
+  .toc strong { font-size: .95rem; }
+  .toc ol { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px 28px; margin: 0; padding-left: 22px; color: var(--muted); font-size: .9rem; }
+  .toc a { color: var(--ink); text-decoration: none; }
+  .toc a:hover { color: var(--primary); }
+  section { margin: 0 0 54px; }
+  h2 { margin: 0 0 18px; font-size: clamp(1.45rem, 3vw, 2rem); line-height: 1.3; letter-spacing: -.02em; }
+  h2 .num { display: inline-block; min-width: 40px; color: var(--primary); font-size: .85rem; letter-spacing: .08em; vertical-align: middle; }
+  h3 { margin: 28px 0 10px; font-size: 1.12rem; line-height: 1.45; }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 24px; }
+  li + li { margin-top: 6px; }
+  code { padding: .12em .38em; border-radius: 5px; background: var(--code); color: #24345c;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; font-size: .88em; }
+  pre { margin: 18px 0; padding: 22px; overflow-x: auto; border-radius: 14px; background: var(--dark); color: #dce6f7;
+    font: 500 .86rem/1.75 "SFMono-Regular", Consolas, "Liberation Mono", monospace; }
+  pre code { padding: 0; background: none; color: inherit; font-size: inherit; }
+  .lead { color: var(--muted); font-size: 1.04rem; }
+  .callout { padding: 20px 24px; margin: 20px 0; border-left: 4px solid var(--primary); border-radius: 0 12px 12px 0; background: var(--primary-soft); }
+  .callout strong:first-child { color: var(--primary); }
+  .callout.cyan { border-color: var(--cyan); background: var(--cyan-soft); }
+  .callout.cyan strong:first-child { color: var(--cyan); }
+  .callout.amber { border-color: var(--amber); background: var(--amber-soft); }
+  .callout.amber strong:first-child { color: var(--amber); }
+  .formula { padding: 26px; margin: 22px 0; text-align: center; border: 1px solid #cbcbfa; border-radius: 16px;
+    background: linear-gradient(135deg, #f0f0ff, #e9f9fa); font-size: clamp(1.05rem, 2.5vw, 1.35rem); font-weight: 750; color: #36369a; }
+  .grid { display: grid; gap: 16px; margin: 20px 0; }
+  .grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .card { padding: 21px; border: 1px solid var(--line); border-radius: 14px; background: var(--paper); }
+  .card h3 { margin: 0 0 8px; }
+  .card p:last-child { margin-bottom: 0; }
+  .card .label { display: block; margin-bottom: 8px; color: var(--primary); font-size: .75rem; font-weight: 800; letter-spacing: .1em; }
+  .card.cyan .label { color: var(--cyan); }
+  .card.amber .label { color: var(--amber); }
+  .diagram { padding: 24px; margin: 22px 0; border-radius: 16px; background: var(--dark); color: #e7edf9; box-shadow: var(--shadow); }
+  .diagram-title { margin: 0 0 16px; color: #91e3ea; font-size: .76rem; font-weight: 800; letter-spacing: .12em; }
+  .stack { display: grid; gap: 10px; }
+  .layer { padding: 14px 18px; border: 1px solid rgba(255,255,255,.13); border-radius: 10px; background: rgba(255,255,255,.045); }
+  .layer b { color: #ffffff; }
+  .layer small { display: block; color: #aebad1; }
+  .arrow-down { color: #91e3ea; text-align: center; font-size: 1.25rem; line-height: 1; }
+  .branches { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .tree { white-space: pre; overflow-x: auto; font: 500 .9rem/1.8 "SFMono-Regular", Consolas, monospace; color: #dce6f7; }
+  .steps { counter-reset: item; list-style: none; padding: 0; margin: 20px 0; }
+  .steps li { position: relative; min-height: 40px; padding: 0 0 18px 48px; }
+  .steps li::before { counter-increment: item; content: counter(item); position: absolute; left: 0; top: 0;
+    display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--primary-soft); color: var(--primary); font-weight: 800; }
+  .steps li:not(:last-child)::after { content: ""; position: absolute; left: 14px; top: 34px; bottom: 2px; width: 2px; background: #dcdff7; }
+  .steps b { display: block; }
+  .steps span { color: var(--muted); }
+  .table-wrap { margin: 20px 0; overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; background: var(--paper); }
+  table { width: 100%; border-collapse: collapse; min-width: 650px; font-size: .91rem; }
+  th, td { padding: 13px 16px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); }
+  th { background: #f0f3f9; color: #3a4760; font-size: .8rem; letter-spacing: .03em; }
+  tr:last-child td { border-bottom: 0; }
+  .yes { color: var(--green); font-weight: 700; }
+  .no { color: var(--red); font-weight: 700; }
+  .note { color: var(--muted); font-size: .88rem; }
+  .source-list { list-style: none; padding: 0; }
+  .source-list li { padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .source-list code { word-break: break-all; }
+  .takeaway { padding: 28px; border-radius: 16px; color: #eef2ff; background: linear-gradient(135deg, #242458, #153c4a); }
+  .takeaway h2 { color: white; }
+  .takeaway li::marker { color: #91e3ea; }
+  .next { display: flex; justify-content: space-between; gap: 16px; align-items: center; padding: 22px 24px; margin-top: 38px;
+    border: 1px solid #c9c9f4; border-radius: 14px; background: var(--primary-soft); }
+  .next a { font-weight: 750; }
+  footer { border-top: 1px solid var(--line); background: #edf1f7; }
+  .footer-inner { display: flex; justify-content: space-between; gap: 16px; padding: 24px 0; color: var(--muted); font-size: .84rem; }
+  @media (max-width: 760px) {
+    .grid.two, .grid.three, .branches { grid-template-columns: 1fr; }
+    .toc { grid-template-columns: 1fr; gap: 10px; }
+    .toc ol { grid-template-columns: 1fr; }
+    .hero-inner { padding: 44px 0 40px; }
+    .next, .footer-inner { align-items: flex-start; flex-direction: column; }
+  }
+  @media print {
+    body { background: white; font-size: 11pt; }
+    .hero { color: black; background: white; border-bottom: 2px solid #222; }
+    .subtitle, .meta span, .eyebrow { color: #444; }
+    .hero-links, .toc, .next, footer { display: none; }
+    .hero-inner, main { width: 100%; padding: 20px 0; }
+    .diagram, pre { color: black; background: #f4f4f4; box-shadow: none; border: 1px solid #bbb; }
+    .diagram-title, .layer b { color: #222; }
+    .layer small, .tree { color: #333; }
+    section { break-inside: auto; }
+    .card, .callout, .formula { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<a class="skip" href="#content">跳到正文</a>
+<header class="hero">
+  <div class="hero-inner">
+    <p class="eyebrow">DeepSeek Harness · Source Guide</p>
+    <h1>DSH Subagent 架构与多智能体调用树</h1>
+    <p class="subtitle">用一条完整委派链路理解工具、Runtime、Manager 与 Provider；再弄清并行、嵌套、链式继续和 Agent Team 分别是什么。</p>
+    <div class="meta"><span>源码导读</span><span>6 张架构图</span><span>调用树示例</span><span>2026-11-12</span></div>
+    <div class="hero-links">
+      <a class="primary" href="#overview">开始阅读</a>
+      <a class="secondary" href="vertical-subagent-integration-guide.html">下一篇：垂类扩展实施指南 →</a>
+      <a class="secondary" href="../index.html">返回 Agent 目录</a>
+    </div>
+  </div>
+</header>
+<main id="content">
+  <nav class="toc" aria-label="文章目录">
+    <strong>阅读路径</strong>
+    <ol>
+      <li><a href="#overview">先建立整体认识</a></li>
+      <li><a href="#layers">工具、服务与 Provider</a></li>
+      <li><a href="#concepts">Session、Agent、Activation</a></li>
+      <li><a href="#lifecycle">一次委派的生命周期</a></li>
+      <li><a href="#providers">spawn、fork 与外部后端</a></li>
+      <li><a href="#team">Swarm 与 Agent Team</a></li>
+      <li><a href="#call-tree">调用树与结果回流</a></li>
+      <li><a href="#chains">三种链式调用</a></li>
+      <li><a href="#discovery">目录、消息与冷恢复</a></li>
+      <li><a href="#reading">源码阅读顺序</a></li>
+    </ol>
+  </nav>
+
+  <section id="overview">
+    <h2><span class="num">01</span>先建立整体认识</h2>
+    <p class="lead">DSH 的 Subagent 不是另一套 Agent 执行引擎，而是一套<strong>可插拔的后台委派与生命周期管理系统</strong>。真正执行模型请求和工具调用的，仍然是普通的 Agent、AgentLoop 与 Session。</p>
+    <div class="formula">Subagent = 既有 Agent 执行能力 + 委派管理 + 可替换运行后端</div>
+    <p>父 Agent 启动子 Agent 后，不必停在工具调用里等待最终答案。子 Agent 独立运行；完成后，运行时把结果通知直接创建者。程序调用方也可以显式等待结果 Promise。</p>
+    <div class="callout cyan"><strong>最重要的阅读抓手</strong><br>先分清“谁发起委派”“谁管理生命周期”“谁提供运行方式”。其余 preset、消息、目录、恢复和清理，都是围绕这三类角色展开的。</div>
+  </section>
+
+  <section id="layers">
+    <h2><span class="num">02</span>工具、服务与 Provider：三层分工</h2>
+    <p><code>packages/subagent</code> 是一个包组，而不是单个实现。它将模型入口、统一管理与运行后端拆开。</p>
+    <div class="diagram" role="img" aria-label="Subagent 工具层、服务层、Provider 层和执行层架构图">
+      <p class="diagram-title">图 1 · 从模型工具到实际执行</p>
+      <div class="stack">
+        <div class="layer"><b>父 Agent 的模型</b><small>决定何时委派、委派什么任务</small></div>
+        <div class="arrow-down">↓</div>
+        <div class="layer"><b>工具层</b><small>tool-subagent：启动；tool-subagent-control：消息、列表、中断、等待</small></div>
+        <div class="arrow-down">↓ ctx.subagents</div>
+        <div class="layer"><b>服务层：SubagentRuntime + SubagentManager</b><small>能力与深度检查、容量、创建、恢复、消息、结果、取消、目录和清理</small></div>
+        <div class="arrow-down">↓ 按 provider 名称路由</div>
+        <div class="branches">
+          <div class="layer"><b>本地 Provider</b><small>spawn / fork → prepareContinuable()</small></div>
+          <div class="layer"><b>外部 Provider</b><small>ACP / DSH SDK / Codex / Claude Code → start()</small></div>
+        </div>
+        <div class="arrow-down">↓</div>
+        <div class="branches">
+          <div class="layer"><b>普通 DSH Agent + AgentLoop</b><small>独立子 Session，可继续对话</small></div>
+          <div class="layer"><b>另一个进程或外部产品</b><small>一次执行，返回 SubagentRun</small></div>
+        </div>
+      </div>
+    </div>
+    <div class="grid three">
+      <article class="card"><span class="label">CONSUMER</span><h3>工具只负责入口</h3><p>把模型参数翻译为 <code>startActivation()</code> 请求，不自己管理子 Agent 生命周期。</p></article>
+      <article class="card cyan"><span class="label">SERVICE</span><h3>Manager 负责难事</h3><p>统一处理准入、所有权、并发、消息、结算、容量和资源释放。</p></article>
+      <article class="card amber"><span class="label">PROVIDER</span><h3>后端负责差异</h3><p>决定全新还是继承历史、同进程还是外部产品，以及如何开始执行。</p></article>
+    </div>
+  </section>
+
+  <section id="concepts">
+    <h2><span class="num">03</span>Session、Agent、Activation：不要混为一谈</h2>
+    <div class="grid three">
+      <article class="card"><span class="label">持久档案</span><h3>Session</h3><p>保存消息、工具调用和领域事件。可以落盘、重开和继续，是子 Agent 的持久身份与历史。</p></article>
+      <article class="card cyan"><span class="label">在线执行者</span><h3>Agent</h3><p>内存中的工作状态。接收输入、调用模型、执行工具，并维护当前轮次与收件箱。</p></article>
+      <article class="card amber"><span class="label">一次在线期间</span><h3>Activation</h3><p>一次驻留或外部执行的管理记录，包含运行句柄、结果 Promise、容量槽与清理状态。</p></article>
+    </div>
+    <div class="diagram" role="img" aria-label="同一个子 Session 经历两次 Activation 的时间线">
+      <p class="diagram-title">图 2 · 一个 Session，可以有多次 Activation</p>
+      <div class="tree">同一个子 Session：reviewer
+────────────────────────────────────────────────────────→ 时间
+
+Activation #1                              Activation #2
+创建                                       从持久 Session 冷恢复
+  │                                          │
+  ├─ 执行任务 A                              ├─ 执行任务 B
+  ├─ 空闲                                    ├─ 空闲
+  └─ 释放内存中的 Agent                      └─ 再次释放
+          │                                       │
+          └────── Session 始终保留，对话可继续 ───┘</div>
+    </div>
+    <div class="callout"><strong>一句话记忆</strong><br>子 Agent 不在内存里，不代表它的 Session 消失。Activation 结束释放的是一次在线执行；本地子 Session 仍可被列举、恢复并接收新任务。</div>
+  </section>
+
+  <section id="lifecycle">
+    <h2><span class="num">04</span>一次委派，从工具调用到完成通知</h2>
+    <p>以本地 <code>spawn</code> 为例。工具返回名称和子任务最终完成，是两个完全不同的事件。</p>
+    <div class="diagram" role="img" aria-label="父 Agent、委派工具、Runtime Manager 和子 Agent 的委派时序图">
+      <p class="diagram-title">图 3 · 委派时序</p>
+      <div class="tree">父 Agent             委派工具            Runtime / Manager          子 Agent
+   │                    │                      │                       │
+   │ 1. 调用 subagent    │                      │                       │
+   ├───────────────────▶│ 2. startActivation   │                       │
+   │                    ├─────────────────────▶│                       │
+   │                    │                      │ 3. 检查权限/深度/容量   │
+   │                    │                      │ 4. Provider 准备数据    │
+   │                    │                      │ 5. 创建 Session + Agent │
+   │                    │                      │ 6. 初始任务进入 inbox   │
+   │                    │                      │ 7. 写目录并发 start 事件│
+   │                    │                      ├──────────────────────▶│
+   │ 8. 返回子代理名称   │◀─────────────────────┤                       │
+   │◀───────────────────┤                      │                       │
+   │                    │                      │                       │ 9. 独立执行
+   │ 继续做别的，或先    │                      │                       │    模型/工具循环
+   │ 结束当前轮次        │                      │                       │
+   │                    │                      │ 10. 空闲且无待处理输入  │
+   │                    │                      │ 11. 取结果并释放资源    │
+   │ 12. 收到完成通知    │                      │                       │
+   │◀──────────────────────────────────────────┤                       │
+   │                    │                      │ 13. 发 end、交付 result │
+   ▼                    ▼                      ▼                       ▼</div>
+    </div>
+    <ol class="steps">
+      <li><b>启动确认不是任务结果</b><span><code>started subagent reviewer</code> 只说明子任务已创建，初始输入已被收件箱接受。</span></li>
+      <li><b>父 Agent 可以继续工作</b><span>多个独立委派可以并行启动。只剩等待时，父 Agent 可以结束本轮，不必轮询。</span></li>
+      <li><b>完成通知可以唤醒父 Agent</b><span>父级忙时通知成为后续输入；父级空闲时可由通知开始新一轮。</span></li>
+      <li><b>结果交付发生在清理之后</b><span>Manager 提取输出、释放句柄和容量、发送通知、发布结束事件，再完成结果 Promise。</span></li>
+    </ol>
+  </section>
+
+  <section id="providers">
+    <h2><span class="num">05</span>spawn、fork 与外部后端</h2>
+    <p>假设父 Session 已有完成轮次 A、B，当前正在执行调用委派工具的轮次 C。</p>
+    <div class="diagram" role="img" aria-label="spawn 不继承历史，fork 复制已完成轮次，外部 Provider 执行一次任务">
+      <p class="diagram-title">图 4 · 子任务拿到的初始内容</p>
+      <div class="tree">父 Session： [已完成 A、B] [正在执行 C：调用 subagent]
+
+spawn         子 Session： [新的任务提示词]
+              不复制 A、B，也看不到 C
+
+fork          子 Session： [复制的 A、B] [新的任务提示词]
+              不复制尚未完成的 C
+
+外部 Provider  外部运行时： [自包含任务]
+              一次执行，返回最终文本或安全诊断</div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>后端</th><th>父级对话历史</th><th>独立垂类 preset</th><th>后续消息与冷恢复</th><th>适用场景</th></tr></thead>
+        <tbody>
+          <tr><td><code>spawn</code></td><td>不继承</td><td class="yes">支持</td><td class="yes">支持</td><td>独立、角色明确的本地子 Agent</td></tr>
+          <tr><td><code>fork</code></td><td>复制创建时的已完成轮次</td><td class="no">不支持，继承父组合</td><td class="yes">支持</td><td>审查、延续、基于既有对话的分析</td></tr>
+          <tr><td>ACP / SDK / Codex / Claude Code</td><td>不进入父级对话</td><td>由子运行时自身配置</td><td class="no">当前共享路径不支持</td><td>进程隔离或外部产品能力</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>本地 Provider 的代码很短，是因为它们只贡献初始 <code>seed</code>：<code>spawn</code> 不提供历史，<code>fork</code> 找到最后一个 <code>turn/end</code> 并复制此前缀。创建、消息、恢复和清理仍由 Manager 统一负责。</p>
+    <p class="note">fork 是创建时的一次性快照，不是持续同步；复制历史也不等于复制父 Agent 的全部局部权限与工具状态。</p>
+  </section>
+
+  <section id="team">
+    <h2><span class="num">06</span>有 Agent Team，但没有独立的 Swarm 调度系统</h2>
+    <p>Subagent 能形成类似 Swarm 的执行结构：多个兄弟并行、子级继续嵌套、同树成员发消息。但它本身不负责自动拆解任务、自动选人、自动负载均衡或全局黑板。</p>
+    <div class="formula">Agent Team = Subagent 树 + 根 Session 上的共享任务板</div>
+    <div class="grid two">
+      <article class="card"><span class="label">SUBAGENT 已提供</span><h3>执行与通信树</h3><ul><li>创建和并行执行</li><li>嵌套委派</li><li><code>send_message</code> 与 <code>list_agents</code></li><li>等待、中断、恢复和生命周期管理</li></ul></article>
+      <article class="card cyan"><span class="label">TEAM 额外提供</span><h3>共享任务协调</h3><ul><li>任务 owner 与认领、完成、释放</li><li>Lead 重新分配</li><li><code>blockedBy</code> 任务依赖 DAG</li><li><code>writeScopes</code> 文件重叠提示</li></ul></article>
+    </div>
+    <div class="callout amber"><strong>Team 不会自动驱动流水线</strong><br>任务依赖完成后，后继任务只会变为 ready，不会自动启动或唤醒 owner。需要成员行动时仍要显式 <code>send_message</code>。Team 默认关闭；共享目录不等于独立 worktree，write scope 也不是文件锁。</div>
+    <p>Team 的成员身份、消息和生命周期仍由 Subagent 拥有，对应实现位于独立的 <code>packages/team</code>，不是另一套 Agent 运行时。</p>
+  </section>
+
+  <section id="call-tree">
+    <h2><span class="num">07</span>一个具体的调用树：创建向下，结果向直接父级回流</h2>
+    <p>假设 Lead 同时委派调研和实现，调研 Agent 又委派事实核查：</p>
+    <div class="diagram" role="img" aria-label="lead 创建 researcher 和 implementer，researcher 再创建 fact-checker 的调用树">
+      <p class="diagram-title">图 5 · 创建关系与模型可见名称</p>
+      <div class="tree">lead（深度 0）
+│
+├─ researcher（深度 1）
+│  └─ fact-checker（深度 2）
+│
+└─ implementer（深度 1）
+
+模型可见名称：
+lead
+researcher
+researcher/fact-checker
+implementer</div>
+    </div>
+    <h3>执行与结果顺序</h3>
+    <ol class="steps">
+      <li><b>Lead 同时启动 researcher 和 implementer</b><span>两次委派可重叠执行，启动工具本身支持并发。</span></li>
+      <li><b>researcher 启动 fact-checker</b><span>前提是它拥有委派工具，并且深度上限允许第三层 Agent。</span></li>
+      <li><b>fact-checker 完成</b><span>通知直接创建者 researcher，不会自动越级通知 Lead。</span></li>
+      <li><b>researcher 汇总后完成</b><span>它的最终回答通知 Lead；implementer 完成时也独立通知 Lead。</span></li>
+      <li><b>Lead 汇总</b><span>收齐完成用户请求所需的结果，再生成最终答案。</span></li>
+    </ol>
+    <pre><code>创建方向：lead ──▶ researcher ──▶ fact-checker
+通知方向：lead ◀── researcher ◀── fact-checker</code></pre>
+    <p>名称描述的是<strong>创建关系</strong>。同一棵树的本地可继续成员仍可用 <code>send_message</code> 联系其他成员，消息路由不会改变这棵树。</p>
+  </section>
+
+  <section id="chains">
+    <h2><span class="num">08</span>“链式调用”其实有三种</h2>
+    <div class="grid three">
+      <article class="card"><span class="label">嵌套创建</span><h3>A 创建 B，B 创建 C</h3><p>本地后端支持。子级需要看到委派工具，并且 <code>maxDepth</code> 必须足够。</p></article>
+      <article class="card cyan"><span class="label">继续同一个 Agent</span><h3>多次给 B 新任务</h3><p>本地子 Agent 完成后，可通过 <code>send_message</code> 冷恢复原 Session，保留历史。</p></article>
+      <article class="card amber"><span class="label">固定流水线</span><h3>A 输出自动成为 B 输入</h3><p>没有内置自动 pipeline 运算符，需要模型、工作流或 Team 任务与显式消息共同编排。</p></article>
+    </div>
+    <h3>嵌套深度怎么计算</h3>
+    <pre><code>maxDepth: 0   不允许委派
+maxDepth: 1   lead → child
+maxDepth: 2   lead → child → grandchild
+maxDepth: 3   再允许向下一层</code></pre>
+    <p>默认 <code>maxDepth = 1</code>，所以默认只允许直接子代理。深度写入子 Session 元数据，冷恢复不会把它重新算成顶层。整棵树还共享 Activation 容量，默认最多 8 个在线或正在创建的后代，根不占名额。</p>
+    <p>如果采用程序工作流，可以等待一个 Activation 的 <code>result</code>，再显式启动下一个；如果使用 Team，可用 <code>blockedBy</code> 表达依赖，但仍需显式执行。</p>
+  </section>
+
+  <section id="discovery">
+    <h2><span class="num">09</span>为什么结束后还能找到并唤醒子 Agent</h2>
+    <p>系统同时维护“持久成员目录”和“进程内驻留表”，它们回答不同问题。</p>
+    <div class="grid two">
+      <article class="card"><span class="label">持久目录</span><h3>父 Session 的 catalog</h3><p><code>subagent/catalog</code> 事件记录直接子级身份、模式、标签和名称。它回答“这个父级创建过谁”。</p></article>
+      <article class="card cyan"><span class="label">在线状态</span><h3>Manager.resident</h3><p>进程内 Activation 表回答“谁现在驻留在内存中”，包括本地 Agent 和外部执行。</p></article>
+    </div>
+    <div class="diagram" role="img" aria-label="send_message 根据目标是否在线选择直接投递或冷恢复">
+      <p class="diagram-title">图 6 · 后续消息的投递路径</p>
+      <div class="tree">send_message({ agent: "reviewer", message: "再检查一个问题" })
+                         │
+                         ▼
+                  名称解析 + 同树权限检查
+                         │
+              ┌──────────┴──────────┐
+              ▼                     ▼
+        子 Agent 在线           子 Agent 不在线
+              │                     │
+        消息进入 inbox          从持久 Session 恢复目标
+              │                     │
+        下一步或下一轮处理       再投递消息</div>
+    </div>
+    <p><code>list_agents</code> 从根的 catalog 递归读取，不必唤醒所有 Agent。因此已释放的本地子 Agent 仍可显示为 inactive。外部执行是叶子，没有本地子 Session 可继续遍历。</p>
+    <p><code>send_message</code> 返回的 <code>messageId</code> 只是收件确认，不是对方回复；只恢复目标，不会连带恢复所有创建祖先。</p>
+  </section>
+
+  <section id="reading">
+    <h2><span class="num">10</span>源码阅读顺序：沿一条主线跳读</h2>
+    <p>不要从一千多行的 <code>manager.ts</code> 第一行顺序读到最后一行。先建立主路径，再补异常、冷恢复和清理分支。</p>
+    <ol class="source-list">
+      <li><b>先看最简单的 Provider</b><br><code>packages/subagent/subagent-spawn-in-process/src/index.ts</code><br><code>packages/subagent/subagent-fork-in-process/src/index.ts</code></li>
+      <li><b>看公共请求、结果与 Provider 接口</b><br><code>packages/subagent/subagent/src/types.ts</code></li>
+      <li><b>看模型工具如何启动 Activation</b><br><code>packages/subagent/tool-subagent/src/index.ts</code> 的 <code>execute()</code></li>
+      <li><b>沿 Manager 的主方法跳读</b><br><code>startLocal()</code> → <code>startExternal()</code> → <code>materializeTracked()</code> → <code>watchLocalSettlement()</code> → <code>finishDisposal()</code> → <code>deliverToMember()</code></li>
+      <li><b>最后看通信、目录与测试</b><br><code>continuation-messages.ts</code>、<code>catalog.ts</code>、<code>tool-subagent-control</code>，以及 continuation、并发和 settlement 测试。</li>
+    </ol>
+    <div class="takeaway">
+      <h2>读完只需先记住四句话</h2>
+      <ol>
+        <li>工具只负责发起，Manager 统一管生命周期。</li>
+        <li>Provider 决定后端差异，本地 AgentLoop 仍是真正执行者。</li>
+        <li>Session 让本地子 Agent 跨多次 Activation 继续对话。</li>
+        <li>调用树表达创建关系；Team 在同棵树上增加共享任务板。</li>
+      </ol>
+    </div>
+    <div class="next">
+      <span>下一步：把这套机制变成自己的垂类 Subagent。</span>
+      <a href="vertical-subagent-integration-guide.html">阅读《DSH 垂类 Subagent 扩展实施指南》→</a>
+    </div>
+  </section>
+</main>
+<footer>
+  <div class="footer-inner"><span>DeepSeek Harness · Subagent 源码导读</span><span>独立新稿 · 2026-11-12</span></div>
+</footer>
+</body>
+</html>

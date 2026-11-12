@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="ACP（Agent Client Protocol）入门说明：以固定 Schema 的 JSON-RPC 为核心，理解客户端与 Coding Agent 的双向会话协议。">
+<title>ACP 协议入门：JSON-RPC 之上的 Agent 会话标准</title>
+<style>
+  :root {
+    --bg: #0f0f12;
+    --surface: #1a1a1f;
+    --surface-hover: #222228;
+    --text: #e8e8ec;
+    --text-secondary: #9ca3af;
+    --accent: #818cf8;
+    --accent-2: #a78bfa;
+    --accent-soft: rgba(129, 140, 248, 0.12);
+    --border: rgba(255, 255, 255, 0.08);
+    --code-bg: #131316;
+    --success: #6ee7b7;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.8;
+    -webkit-font-smoothing: antialiased;
+  }
+  .bg-glow {
+    position: fixed;
+    width: 560px;
+    height: 560px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(99, 102, 241, 0.14) 0%, transparent 70%);
+    top: -200px;
+    right: -200px;
+    pointer-events: none;
+  }
+  .container { max-width: 880px; margin: 0 auto; padding: 0 24px; position: relative; }
+  .hero { padding: 72px 0 36px; border-bottom: 1px solid var(--border); }
+  .eyebrow { color: var(--accent); font-size: 0.82em; font-weight: 650; letter-spacing: 0.12em; text-transform: uppercase; }
+  h1 { margin: 12px 0 18px; font-size: 2.25em; line-height: 1.35; letter-spacing: -0.025em; }
+  .hero > p { max-width: 720px; color: var(--text-secondary); font-size: 1.08em; }
+  .badges { display: flex; flex-wrap: wrap; gap: 8px; margin: 22px 0 14px; }
+  .badge { padding: 3px 10px; border: 1px solid var(--border); border-radius: 999px; color: var(--text-secondary); background: var(--surface); font-size: 0.78em; }
+  .meta { color: var(--text-secondary); font-size: 0.86em; }
+  main { padding: 36px 0 64px; }
+  section { scroll-margin-top: 24px; }
+  h2 { margin: 48px 0 18px; padding-bottom: 10px; border-bottom: 1px solid var(--border); font-size: 1.45em; line-height: 1.4; }
+  h3 { margin: 30px 0 12px; font-size: 1.12em; }
+  p { margin: 0 0 16px; }
+  ul, ol { margin: 12px 0 18px; padding-left: 24px; }
+  li { margin-bottom: 8px; }
+  strong { color: #f4f4f6; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    background: var(--code-bg);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.88em;
+    color: #d4d4d8;
+  }
+  pre {
+    margin: 18px 0 22px;
+    padding: 18px 20px;
+    overflow-x: auto;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    line-height: 1.6;
+  }
+  pre code { padding: 0; background: transparent; font-size: 0.84em; white-space: pre; }
+  .summary {
+    margin: 26px 0;
+    padding: 22px 24px;
+    background: linear-gradient(135deg, var(--accent-soft), rgba(167, 139, 250, 0.05));
+    border: 1px solid rgba(129, 140, 248, 0.25);
+    border-radius: 12px;
+  }
+  .summary h2 { margin: 0 0 12px; padding: 0; border: 0; color: var(--accent); font-size: 1.08em; }
+  .summary p:last-child, .summary ul:last-child { margin-bottom: 0; }
+  .big-idea { font-size: 1.12em; line-height: 1.75; }
+  .toc { padding: 16px 22px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
+  .toc strong { display: block; margin-bottom: 8px; }
+  .toc ol { margin: 0; columns: 2; column-gap: 36px; }
+  .toc li { break-inside: avoid; margin-bottom: 5px; font-size: 0.9em; }
+  .stack { display: grid; gap: 10px; margin: 22px 0; }
+  .layer { display: grid; grid-template-columns: 150px 1fr; gap: 18px; align-items: center; padding: 16px 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
+  .layer-name { color: var(--accent); font-weight: 650; }
+  .layer p { margin: 0; color: var(--text-secondary); }
+  .flow { padding: 18px 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
+  .flow-row { display: grid; grid-template-columns: 110px 34px 110px 1fr; gap: 10px; align-items: baseline; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .flow-row:last-child { border-bottom: 0; }
+  .flow-row .actor { font-weight: 600; font-size: 0.9em; }
+  .flow-row .arrow { color: var(--accent); text-align: center; }
+  .flow-row .method { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; color: var(--success); font-size: 0.86em; }
+  .flow-row .meaning { color: var(--text-secondary); font-size: 0.88em; }
+  .table-wrap { overflow-x: auto; margin: 20px 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.93em; }
+  th, td { padding: 12px 14px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--border); }
+  th { background: var(--surface); color: var(--text-secondary); font-weight: 600; }
+  .callout { margin: 20px 0; padding: 16px 20px; background: var(--surface); border-left: 3px solid var(--accent); border-radius: 0 10px 10px 0; }
+  .callout p:last-child { margin-bottom: 0; }
+  .steps { display: grid; gap: 12px; margin: 20px 0; }
+  .step { display: grid; grid-template-columns: 38px 1fr; gap: 14px; padding: 16px 18px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
+  .step-number { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+  .step h3 { margin: 1px 0 5px; font-size: 1em; }
+  .step p { margin: 0; color: var(--text-secondary); }
+  .refs li { margin-bottom: 10px; }
+  .footer { display: flex; justify-content: space-between; gap: 16px; padding: 26px 0 34px; border-top: 1px solid var(--border); color: var(--text-secondary); font-size: 0.84em; }
+  @media (max-width: 680px) {
+    .hero { padding-top: 52px; }
+    h1 { font-size: 1.7em; }
+    h2 { font-size: 1.28em; }
+    .toc ol { columns: 1; }
+    .layer { grid-template-columns: 1fr; gap: 4px; }
+    .flow { padding: 12px 16px; }
+    .flow-row { grid-template-columns: 76px 22px 1fr; gap: 6px; }
+    .flow-row .meaning { grid-column: 3; padding-bottom: 5px; }
+    .flow-row .actor, .flow-row .method { font-size: 0.78em; }
+    .footer { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+<div class="bg-glow"></div>
+<div class="container">
+  <header class="hero">
+    <div class="eyebrow">Agent Client Protocol</div>
+    <h1>ACP 协议入门<br>JSON-RPC 之上的 Agent 会话标准</h1>
+    <p>从“有固定 Schema 的 JSON-RPC”出发，理解 ACP 如何让编辑器、脚本和其他程序以统一方式驱动 Coding Agent。</p>
+    <div class="badges">
+      <span class="badge">稳定协议 v1</span>
+      <span class="badge">JSON-RPC 2.0</span>
+      <span class="badge">双向调用</span>
+      <span class="badge">约 8 分钟</span>
+    </div>
+    <div class="meta">整理日期：2026-11-12 ｜ 适合已了解 JSON、但对 ACP 尚不熟悉的读者</div>
+  </header>
+
+  <main>
+    <div class="summary">
+      <h2>一句话结论</h2>
+      <p class="big-idea"><strong>ACP 是一套有固定、版本化 Schema 的 JSON-RPC 协议。</strong>JSON-RPC 规定消息如何包装，ACP 规定客户端与 Agent 可以调用哪些方法、交换哪些数据，以及这些消息按什么生命周期出现。</p>
+      <p>它解决的是“客户端怎么驱动 Agent”，不是“Agent 内部怎么思考”，也不是“Agent 怎么调用工具”。</p>
+    </div>
+
+    <nav class="toc" aria-label="文章目录">
+      <strong>目录</strong>
+      <ol>
+        <li><a href="#what">ACP 是什么</a></li>
+        <li><a href="#layers">三层技术结构</a></li>
+        <li><a href="#roles">角色与双向调用</a></li>
+        <li><a href="#lifecycle">一次完整会话</a></li>
+        <li><a href="#messages">消息长什么样</a></li>
+        <li><a href="#compatibility">版本、能力与扩展</a></li>
+        <li><a href="#comparison">ACP、MCP 与 A2A</a></li>
+        <li><a href="#implementation">标准与具体实现</a></li>
+        <li><a href="#learning">学习路径</a></li>
+      </ol>
+    </nav>
+
+    <section id="what">
+      <h2>1. ACP 是什么？</h2>
+      <p>ACP（Agent Client Protocol）标准化了<strong>代码编辑器、IDE 等客户端与 Coding Agent 之间的通信</strong>。这里的 Agent 是使用生成式 AI、能够自主完成编程任务的程序；Client 通常负责用户界面、工作区、权限确认和资源访问。</p>
+      <p>没有共同协议时，每个编辑器都要为每个 Agent 编写专用适配。ACP 把中间接口统一后，支持 ACP 的客户端可以接入不同的 ACP Agent，Agent 也不必分别实现每家编辑器的私有 API。</p>
+      <pre><code>没有 ACP：编辑器 A ──专用适配── Agent X
+          编辑器 A ──专用适配── Agent Y
+          编辑器 B ──专用适配── Agent X
+
+有了 ACP：任何兼容 Client ──标准协议── 任何兼容 Agent</code></pre>
+      <p>官方用 LSP（Language Server Protocol）作类比：LSP 统一编辑器与语言服务器的集成，ACP 则统一客户端与 Coding Agent 的集成。</p>
+      <div class="callout">
+        <p><strong>ACP 不是 Agent 框架。</strong>它不规定使用哪家模型、如何规划任务、系统提示词怎么写、上下文如何压缩，也不要求 Agent 内部采用某种架构。</p>
+      </div>
+    </section>
+
+    <section id="layers">
+      <h2>2. 三层技术结构</h2>
+      <p>理解 ACP 最有效的方式，是把“传输”“消息信封”“业务语义”分开。</p>
+      <div class="stack">
+        <div class="layer">
+          <div class="layer-name">ACP Schema</div>
+          <p>定义方法名、参数、结果、通知内容、会话生命周期与错误语义。</p>
+        </div>
+        <div class="layer">
+          <div class="layer-name">JSON-RPC 2.0</div>
+          <p>定义 Request、Response、Notification 如何包装，如何用 <code>id</code> 对应请求与响应。</p>
+        </div>
+        <div class="layer">
+          <div class="layer-name">Transport</div>
+          <p>负责字节如何送达。本地 Agent 常见方式是编辑器启动子进程，通过 stdio 交换消息。</p>
+        </div>
+      </div>
+      <p>因此，“ACP 使用 stdio”和“ACP 使用 JSON-RPC”并不矛盾：stdio 是传输通道，JSON-RPC 是消息格式，ACP Schema 是消息语义。</p>
+      <h3>JSON-RPC 提供信封</h3>
+      <pre><code>{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "session/new",
+  "params": { "...": "由 ACP 定义" }
+}</code></pre>
+      <ul>
+        <li><strong>Request：</strong>带 <code>id</code>，期待对端返回 <code>result</code> 或 <code>error</code>。</li>
+        <li><strong>Notification：</strong>不带 <code>id</code>，单向发送，没有响应，例如进度更新。</li>
+      </ul>
+      <h3>ACP 提供固定词汇</h3>
+      <p>ACP 把 <code>method</code> 固定为 <code>initialize</code>、<code>session/new</code>、<code>session/prompt</code> 等具体方法，并用 Schema 定义每种消息的字段。它不是“随便定义几个方法、碰巧用了 JSON-RPC”的私有接口。</p>
+    </section>
+
+    <section id="roles">
+      <h2>3. 两个角色，双向调用</h2>
+      <table>
+        <tr><th>角色</th><th>典型实现</th><th>主要职责</th></tr>
+        <tr><td><strong>Client</strong></td><td>编辑器、IDE、测试器、脚本、另一个 Agent</td><td>发起会话和任务，展示更新，处理权限与用户交互，提供受控资源</td></tr>
+        <tr><td><strong>Agent</strong></td><td>Coding Agent 进程</td><td>执行任务，报告消息和工具进度，在需要时请求权限或客户端能力</td></tr>
+      </table>
+      <p>最容易忽略的一点是：<strong>Client 与 Agent 都可以向对方发送 Request。</strong></p>
+      <ul>
+        <li>Client → Agent：初始化、创建会话、发送提示词、取消任务。</li>
+        <li>Agent → Client：请求权限；在客户端声明支持时，还可以请求文件系统或终端操作。</li>
+        <li>Agent → Client：通过 Notification 持续发送助手消息、工具活动等更新。</li>
+      </ul>
+      <p>所以 ACP 不是简单的“客户端调用一个远程函数”，而是一个<strong>带状态、可持续交换事件的双向会话协议</strong>。</p>
+    </section>
+
+    <section id="lifecycle">
+      <h2>4. 一次完整会话</h2>
+      <p>下面以当前稳定版 ACP v1 为主线。Schema 回答“每条消息长什么样”，生命周期回答“它们在什么时机出现”。</p>
+      <div class="flow">
+        <div class="flow-row"><span class="actor">Client</span><span class="arrow">→</span><span class="method">initialize</span><span class="meaning">协商协议版本、能力和认证方式</span></div>
+        <div class="flow-row"><span class="actor">Client</span><span class="arrow">→</span><span class="method">session/new</span><span class="meaning">创建会话，提供工作目录等配置</span></div>
+        <div class="flow-row"><span class="actor">Client</span><span class="arrow">→</span><span class="method">session/prompt</span><span class="meaning">发送一轮用户任务</span></div>
+        <div class="flow-row"><span class="actor">Agent</span><span class="arrow">→</span><span class="method">session/update</span><span class="meaning">持续通知助手消息与工具进度</span></div>
+        <div class="flow-row"><span class="actor">Agent</span><span class="arrow">→</span><span class="method">request_permission</span><span class="meaning">需要时请求客户端作出权限决定</span></div>
+        <div class="flow-row"><span class="actor">Client</span><span class="arrow">→</span><span class="method">permission result</span><span class="meaning">允许或拒绝，Agent 再继续执行</span></div>
+        <div class="flow-row"><span class="actor">Agent</span><span class="arrow">→</span><span class="method">prompt result</span><span class="meaning">本轮结束，返回 stopReason</span></div>
+      </div>
+      <p>在 v1 中，<code>session/prompt</code> 的最终响应在本轮结束时返回。客户端可以在此期间发送 <code>session/cancel</code> 请求中断；恢复已有会话则使用 <code>session/load</code>，前提是对端声明支持。</p>
+      <div class="callout">
+        <p><strong>版本提醒：</strong>官网同时提供 v2 文档，但官方仓库目前明确标注稳定协议版本为 1。学习时应先锁定 v1，避免把 v2 的提示词结算方式与 v1 混用。</p>
+      </div>
+    </section>
+
+    <section id="messages">
+      <h2>5. 消息实际长什么样？</h2>
+      <p>以下是帮助理解的简化示例，省略了部分字段；实现时应以对应版本的官方 Schema 为准。</p>
+      <h3>创建会话：Request 与 Response</h3>
+      <pre><code>Client → Agent
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "session/new",
+  "params": {
+    "cwd": "/workspace/demo",
+    "mcpServers": []
+  }
+}
+
+Agent → Client
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "sessionId": "sess_01"
+  }
+}</code></pre>
+      <p>相同的 <code>id</code> 把响应与请求对应起来，<code>sessionId</code> 则标识后续交互所属的会话。</p>
+      <h3>发送任务：内容块数组</h3>
+      <pre><code>Client → Agent
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "method": "session/prompt",
+  "params": {
+    "sessionId": "sess_01",
+    "prompt": [
+      { "type": "text", "text": "帮我修复这个测试" }
+    ]
+  }
+}</code></pre>
+      <p>提示词不是只能装一个字符串。ACP 使用结构化内容块表达文本、图片、资源等内容。</p>
+      <h3>报告进度：Notification</h3>
+      <pre><code>Agent → Client
+{
+  "jsonrpc": "2.0",
+  "method": "session/update",
+  "params": {
+    "sessionId": "sess_01",
+    "update": {
+      "sessionUpdate": "agent_message_chunk",
+      "content": { "type": "text", "text": "我先定位失败原因。" }
+    }
+  }
+}</code></pre>
+      <p>这条消息没有 <code>id</code>，因为客户端不需要回复。持续发送这类通知，客户端就能展示流式进度。</p>
+    </section>
+
+    <section id="compatibility">
+      <h2>6. 固定 Schema 不等于完全僵硬</h2>
+      <p>ACP 通过三组机制兼顾稳定性与演进：</p>
+      <ul>
+        <li><strong>协议版本：</strong><code>initialize</code> 协商 <code>protocolVersion</code>，决定线上消息使用哪个主版本的语义。</li>
+        <li><strong>能力协商：</strong>双方通过 capabilities 声明可选能力。支持 ACP 不代表支持所有 ACP 功能，客户端不能假定对端一定支持文件、终端或会话恢复。</li>
+        <li><strong>扩展机制：</strong><code>_meta</code> 可携带扩展数据，<code>_</code> 前缀可用于自定义方法，自定义能力也可以在初始化时公布。</li>
+      </ul>
+      <p>因此，接入方既要看版本，也要看能力。只确认“双方都写了 ACP”还不足以保证某项具体功能可用。</p>
+    </section>
+
+    <section id="comparison">
+      <h2>7. ACP、MCP 与 A2A 的区别</h2>
+      <div class="table-wrap">
+        <table>
+          <tr><th>协议</th><th>连接对象</th><th>核心问题</th><th>典型动作</th></tr>
+          <tr><td><strong>ACP</strong></td><td>Client ↔ Coding Agent</td><td>怎样驱动 Agent 并呈现其工作过程</td><td>会话、提示词、进度、权限、取消</td></tr>
+          <tr><td><strong>MCP</strong></td><td>AI 应用 ↔ 工具 / 数据源</td><td>怎样让模型或 Agent 发现和使用外部能力</td><td>工具调用、资源读取、提示词模板</td></tr>
+          <tr><td><strong>A2A</strong></td><td>Agent ↔ Agent</td><td>不同 Agent 怎样发现、通信和协作</td><td>Agent 发现、任务委派、消息与产物</td></tr>
+        </table>
+      </div>
+      <pre><code>用户
+  ↓
+编辑器 / 自动化程序
+  ↓ ACP：驱动 Agent、接收进度、处理权限
+Coding Agent
+  ↓ MCP：发现和使用工具与数据
+文件系统 / 浏览器 / 数据库</code></pre>
+      <p><strong>ACP 管“怎么驱动 Agent”，MCP 管“Agent 怎么驱动工具”，A2A 管“Agent 怎么与另一个 Agent 协作”。</strong>三者可以同时出现在一个系统中，并非互相替代。</p>
+    </section>
+
+    <section id="implementation">
+      <h2>8. 标准协议与具体实现要分开</h2>
+      <p>“标准 ACP 支持某能力”与“某个 Agent 实现了该能力”是两个问题。以 DeepSeek Harness 为例，其 <code>dsh-acp</code> 将 DSH Agent 暴露为 ACP 服务，支持持久会话、文本与图片提示、模型选择、MCP 挂载、语义更新、权限和取消，但明确定位为<strong>仅自动化接口</strong>。</p>
+      <p>这意味着它选择了标准协议中的一个子集，刻意不提供 DSH 专属展示数据和交互式 UI 功能。另一个包 <code>dsh-subagent-acp</code> 则站在 Client 一侧，启动并驱动独立进程中的 ACP Agent。</p>
+      <table>
+        <tr><th>DSH 包</th><th>ACP 角色</th><th>用途</th></tr>
+        <tr><td><code>dsh-acp</code></td><td>Agent 端</td><td>让外部程序通过 ACP 驱动 DSH Agent</td></tr>
+        <tr><td><code>dsh-subagent-acp</code></td><td>Client 端</td><td>让 DSH 驱动进程隔离的 ACP 子 Agent</td></tr>
+      </table>
+      <p>读具体实现时，始终区分三件事：协议要求什么、对端声明了什么、当前产品选择暴露什么。</p>
+    </section>
+
+    <section id="learning">
+      <h2>9. 最短学习路径</h2>
+      <div class="steps">
+        <div class="step"><div class="step-number">1</div><div><h3>先掌握 JSON-RPC 的三个概念</h3><p>弄清 Request、Response、Notification，以及 <code>id</code>、<code>method</code>、<code>params</code>、<code>result</code>、<code>error</code>。</p></div></div>
+        <div class="step"><div class="step-number">2</div><div><h3>通读 ACP v1 Overview</h3><p>先画出版本协商、会话、提示词、更新、权限、取消和结束原因的主流程，不要从完整 Schema 第一页开始背。</p></div></div>
+        <div class="step"><div class="step-number">3</div><div><h3>把 Schema 当字典查</h3><p>优先查 <code>initialize</code>、<code>session/new</code>、<code>session/prompt</code>、<code>session/update</code>、权限与取消相关方法。</p></div></div>
+        <div class="step"><div class="step-number">4</div><div><h3>写一个最小 Echo Agent</h3><p>使用官方 SDK 完成初始化、创建会话、接收提示词、发送两条更新、返回 <code>end_turn</code>；之后再加入权限和取消。</p></div></div>
+        <div class="step"><div class="step-number">5</div><div><h3>最后读生产实现</h3><p>观察真实项目如何进行能力协商、内容转换、并发控制、取消、持久化和资源清理，并运行兼容性测试工具。</p></div></div>
+      </div>
+      <div class="summary">
+        <h2>记住这三句话</h2>
+        <ul>
+          <li><strong>传输、JSON-RPC、ACP Schema 是三个层次。</strong></li>
+          <li><strong>Schema 定义消息结构，生命周期定义消息顺序。</strong></li>
+          <li><strong>ACP 是双向会话协议，能力支持以版本协商和 capabilities 为准。</strong></li>
+        </ul>
+      </div>
+    </section>
+
+    <section>
+      <h2>参考资料</h2>
+      <ul class="refs">
+        <li><a href="https://agentclientprotocol.com">ACP 官方网站</a>：协议定位、设计动机与本地 / 远程场景。</li>
+        <li><a href="https://agentclientprotocol.com/protocol/v1/overview">ACP v1 Overview</a>：角色、消息模型和 v1 生命周期。</li>
+        <li><a href="https://agentclientprotocol.com/protocol/v1/schema">ACP v1 Schema</a>：方法、字段与数据类型的规范定义。</li>
+        <li><a href="https://github.com/agentclientprotocol/agent-client-protocol">官方协议仓库</a>：稳定版本说明、Schema 产物与官方 SDK 入口。</li>
+        <li><a href="https://agentclientprotocol.com/libraries/testing">ACP Test Compatibility Kit</a>：用于检查 Agent 的初始化、会话、提示词、取消和传输行为。</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>ACP 协议入门 ｜ 2026-11-12</span>
+    <a href="index.html">返回 Agent 笔记索引</a>
+  </footer>
+</div>
+</body>
+</html>

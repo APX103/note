@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="DeepSeek Harness 垂类 Subagent 扩展实施指南：领域资产、本地 Agent Preset、DSH SDK、ACP、Codex、Claude Code、MCP 与远程 A2A Provider 的分层实施方案。">
+<title>DSH 垂类 Subagent 扩展实施指南</title>
+<style>
+  :root {
+    --bg: #f4f6fb; --paper: #ffffff; --ink: #172033; --muted: #5d687c;
+    --line: #dfe5ef; --primary: #5b5bd6; --primary-soft: #ededff;
+    --cyan: #087e8b; --cyan-soft: #e4f7f7; --amber: #9a5a00; --amber-soft: #fff4da;
+    --green: #18764a; --green-soft: #e7f6ed; --red: #b34151; --dark: #111a2c;
+    --code: #eaf0f7; --shadow: 0 16px 48px rgba(33, 43, 71, .08);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 24px; }
+  body { margin: 0; background: var(--bg); color: var(--ink); line-height: 1.8;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased; }
+  a { color: var(--primary); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+  a:hover { text-decoration-thickness: 2px; }
+  .skip { position: absolute; left: 16px; top: -80px; padding: 8px 14px; background: white; z-index: 5; }
+  .skip:focus { top: 16px; }
+  .hero { color: #f7f8ff; background: radial-gradient(circle at 85% 15%, rgba(76, 201, 240, .22), transparent 35%),
+    radial-gradient(circle at 10% 90%, rgba(157, 122, 255, .2), transparent 38%), var(--dark); }
+  .hero-inner, main, .footer-inner { width: min(1080px, calc(100% - 40px)); margin: 0 auto; }
+  .hero-inner { padding: 64px 0 54px; }
+  .eyebrow { margin: 0 0 14px; color: #91e3ea; font-size: .78rem; font-weight: 750; letter-spacing: .16em; text-transform: uppercase; }
+  h1 { margin: 0; max-width: 880px; font-size: clamp(2rem, 5vw, 3.65rem); line-height: 1.16; letter-spacing: -.035em; }
+  .subtitle { max-width: 810px; margin: 22px 0 0; color: #c2cbe0; font-size: 1.06rem; }
+  .meta { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 26px; }
+  .meta span { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: .78rem; font-weight: 650;
+    border: 1px solid rgba(255,255,255,.16); color: #d8def0; background: rgba(255,255,255,.05); }
+  .hero-links { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+  .hero-links a { padding: 9px 15px; border-radius: 9px; text-decoration: none; font-weight: 650; font-size: .9rem; }
+  .hero-links .primary { color: var(--dark); background: #91e3ea; }
+  .hero-links .secondary { color: #e4e9f8; border: 1px solid rgba(255,255,255,.2); }
+  main { padding: 34px 0 64px; }
+  .toc { display: grid; grid-template-columns: 180px 1fr; gap: 24px; padding: 24px 28px; margin-bottom: 40px;
+    background: var(--paper); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); }
+  .toc strong { font-size: .95rem; }
+  .toc ol { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px 28px; margin: 0; padding-left: 22px; color: var(--muted); font-size: .9rem; }
+  .toc a { color: var(--ink); text-decoration: none; }
+  .toc a:hover { color: var(--primary); }
+  section { margin: 0 0 54px; }
+  h2 { margin: 0 0 18px; font-size: clamp(1.45rem, 3vw, 2rem); line-height: 1.3; letter-spacing: -.02em; }
+  h2 .num { display: inline-block; min-width: 40px; color: var(--primary); font-size: .85rem; letter-spacing: .08em; vertical-align: middle; }
+  h3 { margin: 28px 0 10px; font-size: 1.12rem; line-height: 1.45; }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 24px; }
+  li + li { margin-top: 6px; }
+  code { padding: .12em .38em; border-radius: 5px; background: var(--code); color: #24345c;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; font-size: .88em; }
+  pre { margin: 18px 0; padding: 22px; overflow-x: auto; border-radius: 14px; background: var(--dark); color: #dce6f7;
+    font: 500 .84rem/1.72 "SFMono-Regular", Consolas, "Liberation Mono", monospace; }
+  pre code { padding: 0; background: none; color: inherit; font-size: inherit; }
+  .lead { color: var(--muted); font-size: 1.04rem; }
+  .callout { padding: 20px 24px; margin: 20px 0; border-left: 4px solid var(--primary); border-radius: 0 12px 12px 0; background: var(--primary-soft); }
+  .callout strong:first-child { color: var(--primary); }
+  .callout.cyan { border-color: var(--cyan); background: var(--cyan-soft); }
+  .callout.cyan strong:first-child { color: var(--cyan); }
+  .callout.amber { border-color: var(--amber); background: var(--amber-soft); }
+  .callout.amber strong:first-child { color: var(--amber); }
+  .formula { padding: 26px; margin: 22px 0; text-align: center; border: 1px solid #cbcbfa; border-radius: 16px;
+    background: linear-gradient(135deg, #f0f0ff, #e9f9fa); font-size: clamp(1.05rem, 2.5vw, 1.35rem); font-weight: 750; color: #36369a; }
+  .grid { display: grid; gap: 16px; margin: 20px 0; }
+  .grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .card { padding: 21px; border: 1px solid var(--line); border-radius: 14px; background: var(--paper); }
+  .card h3 { margin: 0 0 8px; }
+  .card p:last-child { margin-bottom: 0; }
+  .card .label { display: block; margin-bottom: 8px; color: var(--primary); font-size: .75rem; font-weight: 800; letter-spacing: .1em; }
+  .card.cyan .label { color: var(--cyan); }
+  .card.amber .label { color: var(--amber); }
+  .diagram { padding: 24px; margin: 22px 0; border-radius: 16px; background: var(--dark); color: #e7edf9; box-shadow: var(--shadow); }
+  .diagram-title { margin: 0 0 16px; color: #91e3ea; font-size: .76rem; font-weight: 800; letter-spacing: .12em; }
+  .stack { display: grid; gap: 10px; }
+  .layer { padding: 14px 18px; border: 1px solid rgba(255,255,255,.13); border-radius: 10px; background: rgba(255,255,255,.045); }
+  .layer b { color: #ffffff; }
+  .layer small { display: block; color: #aebad1; }
+  .arrow-down { color: #91e3ea; text-align: center; font-size: 1.25rem; line-height: 1; }
+  .branches { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+  .tree { white-space: pre; overflow-x: auto; font: 500 .88rem/1.78 "SFMono-Regular", Consolas, monospace; color: #dce6f7; }
+  .steps { counter-reset: item; list-style: none; padding: 0; margin: 20px 0; }
+  .steps li { position: relative; min-height: 40px; padding: 0 0 18px 48px; }
+  .steps li::before { counter-increment: item; content: counter(item); position: absolute; left: 0; top: 0;
+    display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--primary-soft); color: var(--primary); font-weight: 800; }
+  .steps li:not(:last-child)::after { content: ""; position: absolute; left: 14px; top: 34px; bottom: 2px; width: 2px; background: #dcdff7; }
+  .steps b { display: block; }
+  .steps span { color: var(--muted); }
+  .table-wrap { margin: 20px 0; overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; background: var(--paper); }
+  table { width: 100%; border-collapse: collapse; min-width: 720px; font-size: .89rem; }
+  th, td { padding: 13px 15px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); }
+  th { background: #f0f3f9; color: #3a4760; font-size: .8rem; letter-spacing: .03em; }
+  tr:last-child td { border-bottom: 0; }
+  .yes { color: var(--green); font-weight: 700; }
+  .no { color: var(--red); font-weight: 700; }
+  .note { color: var(--muted); font-size: .88rem; }
+  .decision { display: grid; grid-template-columns: 1fr auto 1fr; gap: 18px; align-items: center; margin: 22px 0; }
+  .decision .choice { padding: 22px; border-radius: 14px; background: var(--paper); border: 1px solid var(--line); }
+  .decision .or { color: var(--muted); font-weight: 800; }
+  .checklist { list-style: none; padding: 0; }
+  .checklist li { position: relative; padding: 9px 0 9px 30px; border-bottom: 1px solid var(--line); }
+  .checklist li::before { content: "✓"; position: absolute; left: 2px; color: var(--green); font-weight: 900; }
+  .takeaway { padding: 28px; border-radius: 16px; color: #eef2ff; background: linear-gradient(135deg, #242458, #153c4a); }
+  .takeaway h2 { color: white; }
+  .takeaway li::marker { color: #91e3ea; }
+  .next { display: flex; justify-content: space-between; gap: 16px; align-items: center; padding: 22px 24px; margin-top: 38px;
+    border: 1px solid #c9c9f4; border-radius: 14px; background: var(--primary-soft); }
+  .next a { font-weight: 750; }
+  footer { border-top: 1px solid var(--line); background: #edf1f7; }
+  .footer-inner { display: flex; justify-content: space-between; gap: 16px; padding: 24px 0; color: var(--muted); font-size: .84rem; }
+  @media (max-width: 760px) {
+    .grid.two, .grid.three, .branches, .decision { grid-template-columns: 1fr; }
+    .decision .or { text-align: center; }
+    .toc { grid-template-columns: 1fr; gap: 10px; }
+    .toc ol { grid-template-columns: 1fr; }
+    .hero-inner { padding: 44px 0 40px; }
+    .next, .footer-inner { align-items: flex-start; flex-direction: column; }
+  }
+  @media print {
+    body { background: white; font-size: 11pt; }
+    .hero { color: black; background: white; border-bottom: 2px solid #222; }
+    .subtitle, .meta span, .eyebrow { color: #444; }
+    .hero-links, .toc, .next, footer { display: none; }
+    .hero-inner, main { width: 100%; padding: 20px 0; }
+    .diagram, pre { color: black; background: #f4f4f4; box-shadow: none; border: 1px solid #bbb; }
+    .diagram-title, .layer b { color: #222; }
+    .layer small, .tree { color: #333; }
+    .card, .callout, .formula { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<a class="skip" href="#content">跳到正文</a>
+<header class="hero">
+  <div class="hero-inner">
+    <p class="eyebrow">DeepSeek Harness · Extension Guide</p>
+    <h1>DSH 垂类 Subagent 扩展实施指南</h1>
+    <p class="subtitle">从领域输入输出和工具资产开始，分别落地本地 DSH、进程外 DSH、ACP、Codex、Claude Code 与远程 A2A；统一任务和生命周期，而不是强行统一内部实现。</p>
+    <div class="meta"><span>架构决策</span><span>配置骨架</span><span>A2A Provider</span><span>分阶段落地</span></div>
+    <div class="hero-links">
+      <a class="primary" href="#principle">开始设计</a>
+      <a class="secondary" href="subagent-architecture-guide.html">上一篇：Subagent 架构与调用树 →</a>
+      <a class="secondary" href="../index.html">返回 Agent 目录</a>
+    </div>
+  </div>
+</header>
+<main id="content">
+  <nav class="toc" aria-label="文章目录">
+    <strong>实施路径</strong>
+    <ol>
+      <li><a href="#principle">统一什么，不统一什么</a></li>
+      <li><a href="#domain-pack">先定义垂类资产</a></li>
+      <li><a href="#architecture">总体扩展架构</a></li>
+      <li><a href="#local">本地 DSH 实施</a></li>
+      <li><a href="#workflow">工具与固定流程</a></li>
+      <li><a href="#external-dsh">进程外 DSH：SDK 与 ACP</a></li>
+      <li><a href="#native">Codex 与 Claude Code</a></li>
+      <li><a href="#a2a">真正的远程 A2A Provider</a></li>
+      <li><a href="#capabilities">能力矩阵与公共契约</a></li>
+      <li><a href="#production">验证、安全与可观测性</a></li>
+      <li><a href="#roadmap">推荐落地顺序</a></li>
+    </ol>
+  </nav>
+
+  <section id="principle">
+    <h2><span class="num">01</span>统一委派接口，不要强行统一成 ACP</h2>
+    <p class="lead">本地 DSH、进程外 DSH、ACP Agent、Codex、Claude Code 和远程 A2A Agent，都可以挂在 <code>ctx.subagents</code> 后面；但它们不需要、也不应该都经过 ACP。</p>
+    <div class="grid two">
+      <article class="card"><span class="label">ACP</span><h3>客户端如何驱动 Agent</h3><p>Agent Client Protocol 主要描述会话、提示词、取消、权限和语义更新，适合编辑器或自动化客户端连接 Agent。</p><p><a href="https://github.com/agentclientprotocol/agent-client-protocol">官方协议仓库</a></p></article>
+      <article class="card cyan"><span class="label">A2A</span><h3>独立 Agent 系统如何协作</h3><p>Agent2Agent Protocol 面向能力发现、任务、消息、状态与 Artifact，适合跨服务、跨组织的 Agent 互操作。</p><p><a href="https://a2a-protocol.org/latest/specification/">官方协议规范</a></p></article>
+    </div>
+    <div class="formula">统一任务与结果 · 统一生命周期 · 按后端保留传输和能力差异</div>
+    <div class="callout amber"><strong>不要追求虚假的一致性</strong><br>跨后端的最低公分母通常是“自包含任务输入 + 最终文本输出 + 停止原因”，不是原始思维链、私有 reasoning、内部工具事件或 Cordis 对象。</div>
+  </section>
+
+  <section id="domain-pack">
+    <h2><span class="num">02</span>先定义“垂类 Agent 包”，不要先写 Provider</h2>
+    <p>以合同审查 Agent 为例，先确定与传输无关的领域资产。它们应当可版本化、可评测，并能被不同运行适配器复用。</p>
+    <div class="diagram" role="img" aria-label="垂类 Agent 包包含输入、输出、领域能力、行为约束和评测">
+      <p class="diagram-title">图 1 · 与传输无关的垂类资产</p>
+      <div class="tree">合同审查 Agent
+│
+├─ 输入：合同内容或文档引用、法域、审查重点、调用方上下文
+│
+├─ 输出：总体结论、风险项、原文证据、修改建议、无法确认事项
+│
+├─ 领域能力：文档读取、条款检索、法规检索、证据校验
+│
+├─ 行为约束：不编造依据、结论带证据、权限不足明确报告
+│
+└─ 评测：漏报/误报、无证据拒答、取消超时、schema 校验</div>
+    </div>
+    <div class="grid three">
+      <article class="card"><span class="label">任务契约</span><h3>输入与输出</h3><p>明确必填字段、文档引用方式、输出结构、证据要求和 Artifact 归属。</p></article>
+      <article class="card cyan"><span class="label">能力契约</span><h3>工具与权限</h3><p>定义领域操作、只读或写入范围、输出上限、取消和失败语义。</p></article>
+      <article class="card amber"><span class="label">质量契约</span><h3>固定评测集</h3><p>用同一批任务衡量各后端，不以“最终回答看起来合理”代替验证。</p></article>
+    </div>
+    <p>如果共享工具需要跨 DSH、Codex 和 Claude Code 使用，可以把领域操作实现为 <strong>MCP 服务</strong>。MCP 共享的是工具入口，不会自动统一各产品的权限、模型行为或内部推理。</p>
+  </section>
+
+  <section id="architecture">
+    <h2><span class="num">03</span>总体扩展架构：一个入口，多个运行适配器</h2>
+    <div class="diagram" role="img" aria-label="垂类委派入口通过 SubagentRuntime 连接本地、进程外和远程 Provider">
+      <p class="diagram-title">图 2 · 推荐的扩展分层</p>
+      <div class="stack">
+        <div class="layer"><b>垂类 Consumer</b><small>例如 contract_review：接受领域参数，构造自包含任务，不暴露传输细节</small></div>
+        <div class="arrow-down">↓</div>
+        <div class="layer"><b>统一委派接口</b><small>ctx.subagents.startActivation() · SubagentResult · 取消与清理</small></div>
+        <div class="arrow-down">↓</div>
+        <div class="branches">
+          <div class="layer"><b>本地 DSH</b><small>spawn + 垂类 preset<br>同进程、完整能力</small></div>
+          <div class="layer"><b>进程外 Provider</b><small>DSH SDK / ACP<br>Codex / Claude Code</small></div>
+          <div class="layer"><b>远程 Provider</b><small>自定义 A2A<br>Task + Artifact</small></div>
+        </div>
+      </div>
+    </div>
+    <p>通用 <code>tool-subagent</code> 已经是一个 Consumer。如果通用 <code>prompt</code> 参数足够，可直接复用；如果模型需要填写 <code>documentId</code>、<code>jurisdiction</code>、<code>reviewType</code> 等领域字段，就新增自己的 Consumer 工具。</p>
+    <div class="callout cyan"><strong>传输选择尽量属于部署，而不是模型</strong><br>同一垂类能力最好用稳定的领域工具名。当前 tool-subagent 一个实例绑定一个 Provider；需要动态路由时，应由自定义 Consumer 或部署配置决定，而不是让模型理解 ACP、SDK、A2A 的实现差别。</div>
+  </section>
+
+  <section id="local">
+    <h2><span class="num">04</span>本地 DSH：优先使用 spawn + 独立 Agent Preset</h2>
+    <p>这是成本最低、能力最完整的方案，<strong>不需要 ACP</strong>。适合共享 Host 服务、后续消息、冷恢复、结构化输出和 DSH 原生工具管线。</p>
+    <ol class="steps">
+      <li><b>实现垂类提示词插件</b><span>提供角色、必要约束和按需加载的领域说明；关键权限与破坏性操作约束应靠近相关工具。</span></li>
+      <li><b>实现垂类工具插件</b><span>使用明确的输入/输出 schema，返回有界结果、证据或引用，避免把整个检索语料塞进模型。</span></li>
+      <li><b>声明独立 preset</b><span>把提示词、工具、技能和控制工具组合为稳定 ID；若服务 Provider 与 Consumer 属于 preset 局部组合，注意共享同一个隔离 realm。</span></li>
+      <li><b>用 spawn 暴露委派</b><span>子 Agent 从全新对话开始，任务必须自包含；明确指定垂类 preset。</span></li>
+    </ol>
+    <p>配置骨架如下，假设基础 profile 已提供 preset registry 和 Subagent 服务：</p>
+    <pre><code>- id: preset-contract-reviewer
+  name: '@deepseek-ai/dsh-agent-preset'
+  config:
+    id: contract-reviewer
+    plugins:
+      - name: '@your-org/dsh-contract-prompt'
+      - name: '@your-org/dsh-contract-tools'
+
+- name: '@deepseek-ai/dsh-subagent-spawn-in-process'
+
+- name: '@deepseek-ai/dsh-tool-subagent'
+  config:
+    provider: spawn
+    toolName: contract_review
+    agentPreset: contract-reviewer
+    maxDepth: 1</code></pre>
+    <p>这里 <code>maxDepth: 1</code> 允许根创建合同审查子 Agent，但不允许它继续向下委派。</p>
+    <div class="callout"><strong>什么时候改用 fork</strong><br>只有当子任务必须看到父级已完成的对话时才选 fork。fork 不支持独立选择 preset，而是继承父级组合，因此“角色明确、能力独立的垂类 Agent”通常优先 spawn。</div>
+  </section>
+
+  <section id="workflow">
+    <h2><span class="num">05</span>领域工具、垂类 Consumer 与固定内部流程</h2>
+    <h3>需要类型化领域参数时，写自己的 Consumer</h3>
+    <p>例如让模型看到以下输入，而不是一段自由文本：</p>
+    <pre><code>{
+  "documentId": "contract-123",
+  "jurisdiction": "CN",
+  "reviewType": "vendor-risk"
+}</code></pre>
+    <p>Consumer 负责验证引用、构造自包含提示词，再调用 <code>startActivation()</code>。面向模型的后台委派通常使用 <code>delivery: 'parent'</code>；工作流需要直接等待结果时使用 <code>delivery: 'caller'</code>。</p>
+    <h3>“思考流程”应该放在哪里</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>需求</th><th>推荐所有者</th><th>原因</th></tr></thead>
+        <tbody>
+          <tr><td>角色、风格、判断原则</td><td>preset 提示词</td><td>属于模型需要遵守的领域上下文</td></tr>
+          <tr><td>条款检索、证据定位等操作</td><td>领域工具或 MCP</td><td>输入输出可验证，可被多个运行时复用</td></tr>
+          <tr><td>必须严格执行的步骤顺序</td><td>工作流或普通代码</td><td>不能依赖模型自觉遵守提示词</td></tr>
+          <tr><td>跨产品最终结果校验</td><td>父工作流或 Provider</td><td>不同产品的内部推理不可统一</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout amber"><strong>不要传输原始思维链</strong><br>统一结果应包含结论、证据、Artifact 引用、状态和安全诊断。需要审计时保存结构化的领域行动与证据，而不是依赖某产品的私有 reasoning 数据。</div>
+  </section>
+
+  <section id="external-dsh">
+    <h2><span class="num">06</span>外部也是 DSH：SDK 与 ACP 的选择</h2>
+    <div class="decision">
+      <div class="choice"><h3>优先 DSH SDK</h3><p>需要完整 DSH 对等运行时、独立 profile/patch、模型路由和持久化，但希望进程隔离。</p></div>
+      <div class="or">OR</div>
+      <div class="choice"><h3>选择 ACP</h3><p>只希望依赖标准客户端协议，未来可能换成其他 ACP Agent，并接受一次性文本结果。</p></div>
+    </div>
+    <h3>DSH SDK：完整 Harness 子进程</h3>
+    <pre><code>父 DSH
+  │ stdio JSON-RPC
+  ▼
+子 DSH --profile sdk --patch contract-reviewer.yml
+  ├─ 自己的 profile 与 preset
+  ├─ 自己的工具与 Session
+  └─ 自己的模型路由</code></pre>
+    <p>垂类组合通过子进程的 <code>profile + patches</code> 安装，不是通过父请求的 <code>agentPreset</code> 传进去。当前 SDK Provider 支持路由选项覆盖，但不支持父级强制 preset、outputSchema 或深度限制；工具侧通常设置 <code>maxDepth: 'provider-managed'</code>。</p>
+    <p>如果所有外部 Agent 都是 DSH，通常优先 SDK，而不是为了形式上的“统一协议”改走 ACP。</p>
+    <h3>ACP：标准自动化协议</h3>
+    <pre><code>父 DSH
+  │ initialize / newSession / prompt
+  ▼
+dsh --profile acp --patch contract-reviewer.yml</code></pre>
+    <p>当前 Subagent ACP Provider 每次运行启动新进程，不继承父对话，不支持父级传入 preset、agentOptions、outputSchema 或深度上限，也不接受后续消息。父级只获得最终或部分 assistant 文本和安全诊断。</p>
+    <p>DSH ACP Server 自身具备会话恢复等能力，不等于当前 Subagent ACP Provider 已把这些能力暴露为可继续 Activation。</p>
+  </section>
+
+  <section id="native">
+    <h2><span class="num">07</span>Codex 与 Claude Code：使用原生适配器</h2>
+    <p>DSH 当前实现并非通过 ACP 接入这两种产品：</p>
+    <pre><code>Codex       DSH Provider → 官方 app-server → 临时 thread → 一个 turn
+Claude Code DSH Provider → 官方 Agent SDK → 新 query → 一个结果</code></pre>
+    <div class="grid two">
+      <article class="card"><span class="label">CODEX</span><h3>原生配置是权威</h3><p>Provider 固定可选模型、环境与权限模式；每次新进程、临时线程和一个轮次。领域能力通过自包含任务、原生配置或 MCP 提供。</p></article>
+      <article class="card cyan"><span class="label">CLAUDE CODE</span><h3>原生设置是权威</h3><p>Provider 固定可选模型、环境与权限模式；每次独立 SDK query。原生项目/用户设置、MCP 和权限行为仍由 Claude Code 管理。</p></article>
+    </div>
+    <p>两者当前共享路径都不支持续接、恢复、父级 outputSchema 或 Harness 深度强制。取消不会回滚已经发生的文件修改或外部副作用。</p>
+    <div class="callout"><strong>需要跨产品严格一致时</strong><br>把共享领域操作放进 MCP，把最终结果验证放在父工作流或自定义 Provider，把严格步骤顺序交给父工作流。不要假设不同产品会有相同的内部执行轨迹。</div>
+  </section>
+
+  <section id="a2a">
+    <h2><span class="num">08</span>真正的远程 A2A：新增独立 Provider</h2>
+    <p>当前 <code>subagent-acp</code> 面向本地子进程和本地 cwd，不能只换一个命令就变成远程 A2A。建议新增 <code>subagent-a2a</code>，第一版只做一次性任务。</p>
+    <div class="diagram" role="img" aria-label="A2A Provider 从任务创建到结果和取消的处理流程">
+      <p class="diagram-title">图 3 · A2A Provider 主路径</p>
+      <div class="tree">A2AProvider.start(request)
+    │
+    ├─ 读取 Agent Card，校验能力与认证配置
+    ├─ ContentBlock[] → A2A Message Parts
+    ├─ 创建远程 Task
+    ├─ 订阅或轮询状态和 Artifact
+    ├─ 映射为 SubagentResult
+    └─ 返回 { id, result, dispose }</div>
+    </div>
+    <p>第一版能力声明应保守：不支持父级 agentOptions、agentPreset、outputSchema 或深度限制，除非实现真正执行了对应保证。</p>
+    <pre><code>const capabilities = {
+  agentOptions: false,
+  agentPreset: false,
+  outputSchema: false,
+  depthLimit: false,
+}</code></pre>
+    <h3>必须单独设计的四个问题</h3>
+    <div class="grid two">
+      <article class="card"><span class="label">WORKSPACE</span><h3>远程工作区</h3><p>远程 Agent 无法直接使用本机路径。选择共享文件系统、上传文档、对象存储引用或远程 workspace ID，不要直接发送本地 cwd 字符串。</p></article>
+      <article class="card cyan"><span class="label">RESULT</span><h3>Task 与 Artifact</h3><p>定义最终 Artifact 的选择、排序、部分输出、停止原因映射，以及远程终态未知时如何报告。</p></article>
+      <article class="card amber"><span class="label">CANCELLATION</span><h3>取消确认</h3><p><code>dispose()</code> 幂等，发送取消后有限等待；不能把“取消请求已发送”误报成“远程已停止”。</p></article>
+      <article class="card"><span class="label">SECURITY</span><h3>认证与诊断</h3><p>显式配置凭据，不复制父环境；Artifact 校验大小、类型和完整性；诊断不泄露文档、密钥和原始协议载荷。</p></article>
+    </div>
+    <p>Provider 返回的 <code>SubagentRun.result</code> 应把子任务级失败映射为带 <code>stopReason</code> 的结果；启动失败先清理未发布资源。<code>dispose()</code> 需要等待可确认的清理终态。后续消息不要假装支持：当前外部 Activation 路径会按一次性执行处理。</p>
+  </section>
+
+  <section id="capabilities">
+    <h2><span class="num">09</span>能力矩阵与公共契约</h2>
+    <p>下表描述当前共享实现的主要边界，不是协议永远无法扩展。自定义 Provider 只能声明它真正执行的能力。</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>运行方式</th><th>垂类组合由谁拥有</th><th>后续对话</th><th>父请求 outputSchema</th><th>主要代价/限制</th></tr></thead>
+        <tbody>
+          <tr><td>本地 spawn</td><td>父部署选择独立 preset</td><td class="yes">支持</td><td class="yes">支持</td><td>共享进程，隔离较弱</td></tr>
+          <tr><td>本地 fork</td><td>继承父组合</td><td class="yes">支持</td><td class="yes">支持</td><td>复制已完成历史，无独立 preset</td></tr>
+          <tr><td>DSH SDK</td><td>子 profile + patches</td><td class="no">当前不支持</td><td class="no">不支持</td><td>每次完整 DSH 启动；支持路由覆盖</td></tr>
+          <tr><td>ACP</td><td>子 ACP Agent 自己</td><td class="no">当前不支持</td><td class="no">不支持</td><td>新进程与握手；最终文本</td></tr>
+          <tr><td>Codex / Claude Code</td><td>各产品原生配置</td><td class="no">不支持</td><td class="no">不支持</td><td>一次性执行；原生设置和认证</td></tr>
+          <tr><td>自定义 A2A</td><td>远程 Agent 自己</td><td>首版建议不支持</td><td>验证后才声明</td><td>需自行设计工作区、Task、Artifact 和认证</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <h3>公共层应该稳定的内容</h3>
+    <ul>
+      <li>领域任务输入及其验证规则；</li>
+      <li>结论、证据、Artifact 引用和停止原因；</li>
+      <li>Activation 的启动、结果、取消和清理语义；</li>
+      <li>能力检查失败时明确拒绝，不能静默忽略。</li>
+    </ul>
+    <p>如果跨后端必须有机器可读结果，可在自定义 Provider 内验证后声明 outputSchema，或在父工作流中做领域级验证；不要把“提示模型输出 JSON”当成已经执行了 schema 保证。</p>
+  </section>
+
+  <section id="production">
+    <h2><span class="num">10</span>验证、安全与可观测性</h2>
+    <h3>每个 Provider 都应通过的契约场景</h3>
+    <ul class="checklist">
+      <li>正常完成，返回正确最终输出和停止原因；</li>
+      <li>启动前取消、启动后取消，以及重复 dispose；</li>
+      <li>启动失败时已创建的部分资源被清理；</li>
+      <li>发布后模型、传输或进程失败映射为结果，不丢失已有部分输出；</li>
+      <li>清理失败与执行结果分开报告，不冒充已经成功停稳；</li>
+      <li>请求了不支持的能力时，在执行前明确拒绝；</li>
+      <li>诊断不包含任务内容、凭据、环境值、原始协议载荷和无界日志；</li>
+      <li>多个兄弟运行同时取消、完成和清理时互不影响。</li>
+    </ul>
+    <h3>日志归属</h3>
+    <p>本地子 Agent 的详细历史在自己的 Session；外部子任务的详细轨迹在子进程或远程系统。父级保留 Activation 身份、catalog、生命周期事件和终态结果，不必复制整个子 transcript。</p>
+    <p>可以用内部遥测关联 DSH <code>runId</code> 与远程 Task ID，但不要把内部关联 ID 当成授权依据。文件与外部系统副作用不会因取消自动回滚，写操作必须单独设计权限和补偿。</p>
+  </section>
+
+  <section id="roadmap">
+    <h2><span class="num">11</span>推荐落地顺序</h2>
+    <ol class="steps">
+      <li><b>先把本地 DSH 垂类 Agent 做好</b><span>独立 preset、只读领域工具、稳定输入输出和固定评测集；严格流程放代码。</span></li>
+      <li><b>把同一组合迁移到进程外 DSH</b><span>使用 SDK Provider 和子 profile patch，验证隔离 home、取消、回收、日志归属与启动成本。</span></li>
+      <li><b>按真实需求增加协议适配器</b><span>标准本地进程协议选 ACP；需要原生行为选 Codex/Claude Code；跨服务协作再实现 A2A。</span></li>
+      <li><b>最后增加有证据的丰富能力</b><span>结构化输出、远程继续会话、进程池和远程工作区都应独立设计，不作为第一版的隐含承诺。</span></li>
+    </ol>
+    <div class="takeaway">
+      <h2>最终建议：一套垂类定义，两个实现层，多个适配器</h2>
+      <ol>
+        <li>垂类定义与评测保持传输无关。</li>
+        <li>Consumer 统一领域任务，Provider 统一执行生命周期。</li>
+        <li>本地 DSH 用 preset，进程外 DSH 用 profile/patch。</li>
+        <li>ACP、Codex、Claude Code 和 A2A 保留各自真实能力边界。</li>
+        <li>共享领域工具可以考虑 MCP；严格流程由工作流拥有。</li>
+      </ol>
+    </div>
+    <div class="next">
+      <span>需要回顾 Activation、调用树和 Team 的基础语义？</span>
+      <a href="subagent-architecture-guide.html">返回《DSH Subagent 架构与多智能体调用树》→</a>
+    </div>
+  </section>
+</main>
+<footer>
+  <div class="footer-inner"><span>DeepSeek Harness · 垂类 Subagent 扩展指南</span><span>独立新稿 · 2026-11-12</span></div>
+</footer>
+</body>
+</html>
