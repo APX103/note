@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="DeepSeek Harness Agent Loop 的上下文工程：一次请求的三路合体、工具清单如何进入上下文、API 方言适配、token 账本与缓存、万工具闸门与会话日志视角。">
+<title>DSH Agent Loop 的上下文工程</title>
+<style>
+  :root {
+    --bg: #f4f6fb; --paper: #ffffff; --ink: #172033; --muted: #5d687c;
+    --line: #dfe5ef; --primary: #5b5bd6; --primary-soft: #ededff;
+    --cyan: #087e8b; --cyan-soft: #e4f7f7; --amber: #9a5a00; --amber-soft: #fff4da;
+    --green: #18764a; --green-soft: #e7f6ed; --red: #b34151; --dark: #111a2c;
+    --code: #eaf0f7; --shadow: 0 16px 48px rgba(33, 43, 71, .08);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 24px; }
+  body { margin: 0; background: var(--bg); color: var(--ink); line-height: 1.8;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased; }
+  a { color: var(--primary); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+  a:hover { text-decoration-thickness: 2px; }
+  .hero { color: #f7f8ff; background: radial-gradient(circle at 85% 15%, rgba(76, 201, 240, .22), transparent 35%),
+    radial-gradient(circle at 10% 90%, rgba(157, 122, 255, .2), transparent 38%), var(--dark); }
+  .hero-inner, main, .footer-inner { width: min(1080px, calc(100% - 40px)); margin: 0 auto; }
+  .hero-inner { padding: 64px 0 54px; }
+  .eyebrow { margin: 0 0 14px; color: #91e3ea; font-size: .78rem; font-weight: 750; letter-spacing: .16em; text-transform: uppercase; }
+  h1 { margin: 0; max-width: 850px; font-size: clamp(2rem, 5vw, 3.4rem); line-height: 1.18; letter-spacing: -.035em; }
+  .subtitle { max-width: 800px; margin: 22px 0 0; color: #c2cbe0; font-size: 1.05rem; }
+  .meta { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 26px; }
+  .meta span { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: .78rem; font-weight: 650;
+    border: 1px solid rgba(255,255,255,.16); color: #d8def0; background: rgba(255,255,255,.05); }
+  .hero-links { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+  .hero-links a { padding: 9px 15px; border-radius: 9px; text-decoration: none; font-weight: 650; font-size: .9rem; }
+  .hero-links .primary { color: var(--dark); background: #91e3ea; }
+  .hero-links .secondary { color: #e4e9f8; border: 1px solid rgba(255,255,255,.2); }
+  main { padding: 34px 0 64px; }
+  .toc { display: grid; grid-template-columns: 180px 1fr; gap: 24px; padding: 24px 28px; margin-bottom: 40px;
+    background: var(--paper); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); }
+  .toc strong { font-size: .95rem; }
+  .toc ol { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px 28px; margin: 0; padding-left: 22px; color: var(--muted); font-size: .9rem; }
+  .toc a { color: var(--ink); text-decoration: none; }
+  .toc a:hover { color: var(--primary); }
+  section { margin: 0 0 54px; }
+  h2 { margin: 0 0 18px; font-size: clamp(1.4rem, 3vw, 1.95rem); line-height: 1.3; letter-spacing: -.02em; }
+  h2 .num { display: inline-block; min-width: 40px; color: var(--primary); font-size: .85rem; letter-spacing: .08em; vertical-align: middle; }
+  h3 { margin: 28px 0 10px; font-size: 1.1rem; line-height: 1.45; }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 24px; }
+  li + li { margin-top: 6px; }
+  code { padding: .12em .38em; border-radius: 5px; background: var(--code); color: #24345c;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; font-size: .88em; }
+  pre { margin: 18px 0; padding: 22px; overflow-x: auto; border-radius: 14px; background: var(--dark); color: #dce6f7;
+    font: 500 .84rem/1.7 "SFMono-Regular", Consolas, "Liberation Mono", monospace; }
+  pre code { padding: 0; background: none; color: inherit; font-size: inherit; }
+  pre.diagram { background: #0e1830; color: #bfe3ee; border: 1px solid #22335c; }
+  pre.diagram em { color: #ffd479; font-style: normal; }
+  pre.diagram strong { color: #8ce7b8; font-weight: 600; }
+  pre.diagram u { color: #ff9db1; text-decoration: none; }
+  .lead { color: var(--muted); font-size: 1.03rem; }
+  .callout { padding: 20px 24px; margin: 20px 0; border-left: 4px solid var(--primary); border-radius: 0 12px 12px 0; background: var(--primary-soft); }
+  .callout.green { border-left-color: var(--green); background: var(--green-soft); }
+  .callout.amber { border-left-color: var(--amber); background: var(--amber-soft); }
+  .callout.red { border-left-color: var(--red); background: #fdeeee; }
+  .callout strong:first-child { color: var(--primary); }
+  .callout.green strong:first-child { color: var(--green); }
+  .callout.amber strong:first-child { color: var(--amber); }
+  .callout.red strong:first-child { color: var(--red); }
+  table { width: 100%; border-collapse: collapse; margin: 18px 0; background: var(--paper);
+    border: 1px solid var(--line); border-radius: 12px; overflow: hidden; font-size: .93rem; }
+  th, td { padding: 10px 14px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+  th { background: var(--primary-soft); font-size: .85rem; }
+  tr:last-child td { border-bottom: none; }
+  .card-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin: 20px 0; }
+  .mini { padding: 18px 20px; background: var(--paper); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); }
+  .mini h4 { margin: 0 0 8px; font-size: .98rem; }
+  .mini p { margin: 0; color: var(--muted); font-size: .9rem; }
+  .footer { color: #aeb8cf; background: var(--dark); padding: 40px 0 48px; font-size: .92rem; }
+  .footer a { color: #91e3ea; }
+  .footer-inner { display: flex; flex-wrap: wrap; gap: 24px; justify-content: space-between; }
+  @media (max-width: 760px) { .toc { grid-template-columns: 1fr; } .toc ol { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <p class="eyebrow">DeepSeek Harness · Agent Loop</p>
+    <h1>上下文工程：一次请求是怎么拼出来的</h1>
+    <p class="subtitle">工具清单如何进入模型上下文、消息历史从哪里派生、API 走哪种方言、token 怎么记账——从 DSH 本地源码逐层核实的一次完整拆解。姊妹篇已讲过「人的 Loop 与内部调用 Loop」，本文专讲循环里流动的<strong style="color:#ffd479">上下文本身</strong>。</p>
+    <div class="meta">
+      <span>源码检出：deepseek-harness/packages</span>
+      <span>关键包：agent-loop · session · tools · llm · token-meter</span>
+      <span>实测参考：dsh-plugin-inkstone</span>
+      <span>2026-11-13</span>
+    </div>
+    <div class="hero-links">
+      <a class="primary" href="#s1">直接开始</a>
+      <a class="secondary" href="../index.html">↑ agent 分类索引</a>
+      <a class="secondary" href="subagent-architecture-guide.html">姊妹篇 · Subagent 架构</a>
+      <a class="secondary" href="vertical-subagent-integration-guide.html">姊妹篇 · 垂类扩展指南</a>
+    </div>
+  </div>
+</header>
+
+<main>
+
+<nav class="toc">
+  <strong>目录</strong>
+  <ol>
+    <li><a href="#s1">三路合体总图</a></li>
+    <li><a href="#s2">接口实物与方言</a></li>
+    <li><a href="#s3">工具清单怎么嵌进去</a></li>
+    <li><a href="#s4">token 账本与缓存</a></li>
+    <li><a href="#s5">谁在选工具</a></li>
+    <li><a href="#s6">一万工具怎么办</a></li>
+    <li><a href="#s7">日志视角速览</a></li>
+    <li><a href="#s8">源码地图</a></li>
+  </ol>
+</nav>
+
+<!-- ============ 1 ============ -->
+<section id="s1">
+  <h2><span class="num">01</span>一次请求的三路合体</h2>
+  <p class="lead">DSH 发给模型的从来不是一坨拼接的 prompt 字符串，而是结构化请求：<code>messages</code> 与 <code>tools</code> 两个平级字段，加上调用配置。三路原料各管各的：</p>
+  <pre class="diagram"> 原料一：系统提示             原料二：消息历史            原料三：工具信封
+ ─────────────────           ─────────────────          ─────────────────
+ ctx.systemPrompt 服务         会话日志「对话抽屉」         会话日志「信封抽屉」
+ 多个插件各贡献一段：          surface 折叠派生：           request/header 快照
+ · 基础人设 / 工具规则         system / user /             （调用配置 + 完整
+ · 技能目录卡片                  assistant / tool              工具 schema 全集，
+ · 端砚这类插件想加的             消息依次产出                <u>只在变化时追加</u>）
+        │                          │                          │
+        ▼ 渲染成 system 消息         ▼                          ▼ 取最新一份
+        └────────────┬──────────────┴──────────────────────────┘
+                     ▼
+        <strong>一次 API 请求 = messages + tools + 调用配置</strong>
+                     ▼
+            经 LLM 适配器翻译方言 → HTTP 发出</pre>
+  <div class="callout">
+    <strong>核心认知：</strong>系统提示是「插件拼装」的（所以装了新插件模型会"知道"新能力）；历史是「日志派生」的（从不单独存储）；工具清单是「快照取最新」的（变化才记账）。三路在请求组装那一刻合体。
+  </div>
+</section>
+
+<!-- ============ 2 ============ -->
+<section id="s2">
+  <h2><span class="num">02</span>接口实物：请求长什么样，走哪种方言</h2>
+  <p class="lead">以「委派过一次远程 agent」的会话为例，第 2 轮发出请求的骨架：</p>
+  <pre class="diagram">{
+  messages: [
+    { role: "system",    content: "你是…助手。工具使用规则… <em>← 系统提示也是一条消息</em>" },
+    { role: "user",      content: "帮我用 MolClaw 分析这个蛋白" },
+    { role: "assistant", tool_calls: [                    <em>← 模型点菜：assistant 消息自带</em>
+        { id: "call_1", name: "subagent_a2a",
+          arguments: "{\"agent\":\"MolClaw\",\"objective\":\"…\"}" } ] },
+    { role: "tool", tool_call_id: "call_1",               <em>← 菜上桌：每个调用一条</em>
+      content: "MolClaw 的分析结果…" },                     <u>tool 消息，靠 id 配对</u>
+    { role: "assistant", content: "根据分析，这个蛋白…" },
+    { role: "user",      content: "再搜一下相关文献" }
+  ],
+  tools: [ <strong>10 个工具的三行式 schema（见第 3 节）</strong> ],
+  …调用配置（模型名 / 温度 / 推理强度）
+}</pre>
+  <h3>两套方言并存，DSH 的 DeepSeek 官方路线走 Anthropic 那套</h3>
+  <table>
+    <tr><th></th><th>OpenAI Chat Completions（行业普通话）</th><th>Anthropic Messages（DSH deepseek 官方路线）</th></tr>
+    <tr><td>端点</td><td><code>POST /chat/completions</code></td><td><code>https://api.deepseek.com/anthropic</code> + <code>/v1/messages</code></td></tr>
+    <tr><td>工具字段</td><td><code>tools:[{type:'function', function:{name, description, parameters}}]</code></td><td><code>tools:[{name, description, input_schema}]</code>，system 为顶层字段</td></tr>
+    <tr><td>谁在用</td><td>vLLM / Ollama / 各家网关普遍仿它</td><td>DSH 的 <code>llm-deepseek</code> 适配器（多 provider 另有 <code>dsh-llm-pi-ai</code>）</td></tr>
+  </table>
+  <p>「兼容」永远打折：DeepSeek 有自家私货——顶层请求扩展字段（<code>dsh-deepseek-llm-api-extensions</code> 包当登记处）、图片走 Files API、<code>deepseek-flash</code> 的 <code>systemPromptUpdate: in-history</code> 语义。适配器 README 原话：模型收到系统提示、消息历史、工具 schema、调用配置，<em>适配器不添加任何自撰的提示词</em>（without adapter-authored prompt prose）。</p>
+  <div class="callout green">
+    <strong>对插件作者意味着：</strong>只写一遍 <code>ToolSchema</code>，方言差异全被适配器层吃掉——端砚的工具在任何 provider 上一行 if 都没写就都能用。
+  </div>
+</section>
+
+<!-- ============ 3 ============ -->
+<section id="s3">
+  <h2><span class="num">03</span>Tool List 是怎么嵌进去的</h2>
+  <p class="lead">从注册到模型眼前，五步只换格式不换内容——自始至终只有三样东西：<code>name / description / parameters</code>。</p>
+  <pre class="diagram"> 插件侧                     框架侧                        provider 侧
+ ────────────────          ─────────────────────         ─────────────────────
+ ctx.tools.register          注册表 schemas()               收到 JSON 的 tools 字段
+ (defineTool({…}))    ──►    <strong>白名单投影</strong>：只放行三样，    ──►   按聊天模板渲染成
+   execute/render/             execute 等绝不外泄                token，塞进模型输入
+   presentCall 留在本地                                                                        │
+                                                          <strong>模型读清单 = 读普通文本</strong>
+                                                                                              ▼
+                                                    模型生成 tool_calls（结构化返回，免正则解析）</pre>
+  <h3>线上实物（以 subagent_a2a 为例）</h3>
+  <pre class="diagram">"tools": [{
+  "type": "function",
+  "function": {
+    "name": "subagent_a2a",
+    "description": "Delegate one objective to a remote A2A agent…
+                    Available agents:
+                    - MolClaw —— 蛋白结构分析      <em>← describeTool 写的广告词</em>
+                    - ep-agent —— …",                <em>   逐字抵达模型眼前</em>
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "agent":     { "type": "string", "enum": ["MolClaw", "ep-agent", …] },
+        "objective": { "type": "string" }
+      },
+      "required": ["agent", "objective"]
+    }
+  }
+}, … × N 个]</pre>
+  <div class="callout amber">
+    <strong>工具清单的三个身份：</strong>① 独立字段——与 messages 平级，不占对话历史；② 上下文的一部分——provider 渲染成 token，<u>每次请求都全量重发、全量计费</u>，哪怕一个工具都没被调用；③ 可缓存前缀——内容稳定时通常命中 prompt cache（账单没有看起来那么恐怖）。
+  </div>
+  <p>token-meter 插件把上下文压力分三块单独统计：<code>systemTokens / toolsTokens / messageTokens</code>——工具清单独占一块，白纸黑字可查。DSH 内部类型 <code>GenerateOptions.tools</code> 的注释也点明：「适配器把它映射到 provider 的 tools 字段」。</p>
+</section>
+
+<!-- ============ 4 ============ -->
+<section id="s4">
+  <h2><span class="num">04</span>token 账本：每一轮都在为全部历史付费</h2>
+  <table>
+    <tr><th>轮次</th><th>这次请求带什么</th><th>input token =</th></tr>
+    <tr><td>第 1 问</td><td><code>[系统提示, 你的第1条]</code> + tools</td><td>系统 + 工具清单 + 第1条</td></tr>
+    <tr><td>第 2 问</td><td><code>[系统, 第1条, 回复1, 第2条]</code> + tools</td><td>上一行全部 <strong>累计</strong> + 第2条</td></tr>
+    <tr><td>第 3 问</td><td><code>[系统, …全部往来…, 第3条]</code> + tools</td><td>再累计……</td></tr>
+  </table>
+  <ul>
+    <li>每次请求的上下文 = 系统提示 + 工具清单 + 此前全部对话 + 新消息，token 加总计费；输出 token 另算。</li>
+    <li>有一类请求<strong>不等你说新话</strong>：工具结果回填后立刻追加一次请求让模型消化结果——「它自己连续干活」的体感来源。</li>
+    <li>对话越长越贵的直接推论 → DSH 的 <code>compaction</code> 子系统（压缩：遮蔽旧事换摘要）与 <code>token-meter</code> 的 <code>contextPressure / projectedTokens</code>（下一请求的预估成本）都是为这本账服务的。</li>
+  </ul>
+</section>
+
+<!-- ============ 5 ============ -->
+<section id="s5">
+  <h2><span class="num">05</span>谁在选工具：框架摆菜单，模型点菜</h2>
+  <pre class="diagram">        ┌─────────────────── 一个 step ───────────────────┐
+        │ 1. ctx.tools.resolve()  问一次 when 条件/作用域     │
+        │    → 本步候选名单（可远小于注册总量）                 │
+        │ 2. 组装请求：候选 schema 进 tools 字段               │
+        │    request/header 落日志（信封记账）                  │
+        │ 3. 发给模型 ═══► <strong>模型生成中 = 读清单 + 挑 + 填参数</strong>  │
+        │    <u>框架代码在此刻不做任何匹配/打分</u>              │
+        │    输出二选一：纯文本 → 轮次结束                       │
+        │              tool-call 批次（可并行多个）             │
+        │ 4. 框架此刻才动：validateArgs 兜底 → execute          │
+        │ 5. 结果回填日志 → 模型看见自己点的菜 → 下一个 step     │
+        └─────────────────────────────────────────────────┘
+        收敛条件：模型不再点菜（不是超时）</pre>
+  <div class="callout">
+    <strong>语义选择是模型训练出来的能力：</strong>选择好坏几乎完全取决于 description 写得好不好。端砚把 roster（每个 agent 的名字+一句话职责）织进 <code>subagent_a2a</code> 的描述、再把 <code>agent</code> 参数做成 enum——不是文档行为，是在做<strong>路由设计</strong>：把「N 个工具里挑一个」降维成「填一个下拉框」。
+  </div>
+</section>
+
+<!-- ============ 6 ============ -->
+<section id="s6">
+  <h2><span class="num">06</span>万一工具有一万个：四道闸门 + 一条旁路</h2>
+  <p class="lead">实测锚点：ToolUniverse 一个 SCP 服务器 1894 个工具，全量挂载 schema 下发 ≈ 450K tokens（端砚验证记录）——线性外推一万工具 ≈ 240 万 tokens，任何窗口都爆。但爆的位置是「每步请求投影」，不是「安装」：</p>
+  <pre class="diagram"> 闸门1【安装】 1w 个插件进 profile —— 花磁盘，不花上下文
+ 闸门2【注册】 端砚：添加 ≠ 挂载；勾选白名单 selectedTools 才 register
+ │             上限 maxToolServers=8 · maxSelectedTools=128（可配）
+ 闸门3【每步解析】 harness 原生：ctx.tools.resolve() 按 when 条件/作用域
+ │             出本步候选名单，名单外根本不进请求
+ 闸门4【模型点菜】 只有候选的三样 schema 抵达模型
+ ─────────────────────────────────────────────────────────────
+ 旁路【skills】 为海量能力而生：目录卡片（名+一句话）进上下文，
+               正文 SKILL.md <strong>按需作为一条 user 消息注入</strong>，平时零 token</pre>
+  <p>顺带揭开一个朴素真相：技能正文、文件变化通知、AGENTS.md 这些「注入上下文」，在请求里都是<strong>伪装成 user 消息</strong>出现的——日志层用 <code>source</code> 字段区分三种来源（人话 / 注入 / 续轮），模型侧看都是用户消息。</p>
+</section>
+
+<!-- ============ 7 ============ -->
+<section id="s7">
+  <h2><span class="num">07</span>日志视角速览：为什么组装是纯函数</h2>
+  <pre class="diagram"> 会话日志（唯一真源 · 仅追加 · seq 连续）
+ ├─ 对话抽屉：system / user / assistant / tool 消息   ──派生──► messages
+ │    （surface 折叠：被"替换/遮蔽"的旧事件不再出现，
+ │      但日志里原样保留，供审计与人类转录）
+ └─ 信封抽屉：request/header 快照                     ──取最新──► tools + 调用配置
+      （initial / resume / change / series 四种时机才追加，
+       未变沿用——聊一百轮只有一两份快照）
+
+ 回放 = 从同一组事件重新派生 ⇒ <strong>每个请求都是日志的纯函数</strong></pre>
+  <ul>
+    <li>「更正 / 压缩 / 换提示词」全部表达为<strong>一次追加</strong>（surfaceOp: append / replace），日志永不被改写；</li>
+    <li>失败与重试的模型尝试走 <code>assistant/attempt</code>（纯日志行），不污染模型可见历史；</li>
+    <li>子代理 fork 的 seed = 父日志「已完成轮次前缀」——同样的派生机制换个起点而已。</li>
+  </ul>
+</section>
+
+<!-- ============ 8 ============ -->
+<section id="s8">
+  <h2><span class="num">08</span>源码地图</h2>
+  <div class="card-row">
+    <div class="mini"><h4>agent-loop（循环本体）</h4><p><code>packages/core/agent-loop/src/index.ts</code>（driver，838 行）· <code>agent.ts</code>（Agent 约定，751 行）· <code>inbox.ts</code>（排队与插话）。扩展插件只依赖 <code>agent</code> 抽象，绝不直接依赖 agent-loop——循环本身可整体替换。</p></div>
+    <div class="mini"><h4>session（日志）</h4><p><code>packages/core/session/src/types.ts</code>（事件词汇表 574 行）· <code>index.ts</code>（append/派生）。文档 <code>docs/subsystems/session.zh.md</code>。</p></div>
+    <div class="mini"><h4>tools（注册表）</h4><p><code>packages/core/tools/</code>。要点：<code>schemas()</code> 白名单投影、<code>resolve()</code> 每步候选、<code>when</code> 条件注册。文档 <code>docs/subsystems/tools.zh.md</code>。</p></div>
+    <div class="mini"><h4>llm（方言层）</h4><p><code>packages/llm/llm-deepseek/</code>（官方 Anthropic 方言端点）· <code>dsh-llm-pi-ai</code>（多 provider）· <code>deepseek-llm-api-extensions</code>（私货登记处）。文档 <code>docs/subsystems/llm-streaming.zh.md</code>。</p></div>
+    <div class="mini"><h4>token-meter（账本）</h4><p><code>packages/llm/token-meter/</code>：<code>systemTokens / toolsTokens / messageTokens</code> 三块拆账 + <code>cacheReadTokens</code> + <code>contextPressure</code>。</p></div>
+    <div class="mini"><h4>实测样本</h4><p><code>dsh-plugin-inkstone</code>：<code>subagent_a2a</code> 的 describeTool 广告位、selectedTools 白名单、verification.md 里的 1894 工具 ≈ 450K tokens 实测。</p></div>
+  </div>
+  <div class="callout green">
+    <strong>一图流收口：</strong>messages 管「发生过什么」（日志派生），tools 管「现在有什么菜」（信封快照），system 管「你是谁+规矩」（插件拼装）；框架摆菜单，模型点菜，agent 炒菜，日志记账——每一步请求都是这本账的纯函数快照。
+  </div>
+</section>
+
+</main>
+
+<footer class="footer">
+  <div class="footer-inner">
+    <div>DSH Agent Loop 上下文工程 · 2026-11-13 · 基于本地 deepseek-harness 源码检出与 dsh-plugin-inkstone 实测整理</div>
+    <div><a href="../index.html">agent 分类</a> · <a href="subagent-architecture-guide.html">Subagent 架构</a> · <a href="vertical-subagent-integration-guide.html">垂类扩展指南</a></div>
+  </div>
+</footer>
+
+</body>
+</html>
